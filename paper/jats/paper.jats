@@ -30,6 +30,13 @@ analysis</article-title>
 </name>
 <xref ref-type="aff" rid="aff-1"/>
 </contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Jung</surname>
+<given-names>Titus</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
 <contrib contrib-type="author" corresp="yes">
 <contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5267-1672</contrib-id>
 <name>
@@ -48,11 +55,6 @@ analysis</article-title>
 <author-notes>
 <corresp id="cor-1">* E-mail: <email></email></corresp>
 </author-notes>
-<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-12">
-<day>12</day>
-<month>12</month>
-<year>2025</year>
-</pub-date>
 <volume>¿VOL?</volume>
 <issue>¿ISSUE?</issue>
 <fpage>¿PAGE?</fpage>
@@ -81,10 +83,10 @@ a Creative Commons Attribution 4.0 International License (CC BY
 <sec id="summary">
   <title>Summary</title>
   <p>Mass spectrometry-based proteomics depends on computational methods
-  to identify and characterize AA sequences. These sequences, ranging
-  from short peptides to complete proteins, exhibit substantial chemical
-  complexity due to PTMs, variable charge states, neutral losses, and
-  isotopic patterns
+  to identify and characterize (amino acid) AA sequences. These
+  sequences, ranging from short peptides to complete proteins, exhibit
+  substantial chemical complexity due to PTMs, variable charge states,
+  neutral losses, and isotopic patterns
   (<xref alt="Angel et al., 2012" rid="ref-angel-2012" ref-type="bibr">Angel
   et al., 2012</xref>;
   <xref alt="Smith &amp; Kelleher, 2013" rid="ref-smith-2013" ref-type="bibr">Smith
@@ -106,45 +108,46 @@ a Creative Commons Attribution 4.0 International License (CC BY
   et al., 2018</xref>) was developed to address this challenge by
   providing a unified representation system. However, adoption has
   remained limited, partly due to insufficient support in widely-used
-  computational tools and libraries. Peptacular was designed
-  specifically to accelerate ProForma adoption by offering a
-  comprehensive and accessible API with clear documentation.</p>
+  computational tools and libraries. Peptacular was specifically
+  designed to accelerate ProForma adoption by offering a comprehensive
+  and accessible API with clear documentation.</p>
   <p>Additionally, with the continued advance of mass spectrometers,
   modern proteomics experiments routinely identify tens of thousands of
-  AA Sequences. These results are typically exported as tabular files
+  AA sequences. These results are typically exported as tabular files
   and are frequently processed using Python, particularly with data
-  manipulation libraries such as <bold>pandas</bold>
+  manipulation libraries such as pandas
   (<xref alt="Team, 2025" rid="ref-team-2025" ref-type="bibr">Team,
-  2025</xref>) and <bold>polars</bold>
+  2025</xref>) and polars
   (<xref alt="Vink et al., 2025" rid="ref-vink-2025" ref-type="bibr">Vink
   et al., 2025</xref>). To support this workflow, Peptacular’s
-  functional API supports operating directly on these tabular data
+  functional API allows you to directly manipulate these tabular data
   structures and automatically parallelizes operations, making
   large-scale sequence analysis both fast and straightforward (See
-  examples).</p>
+  example 2).</p>
 </sec>
 <sec id="state-of-the-field">
   <title>State of the Field</title>
   <p>Several Python packages provide AA sequence analysis capabilities,
-  though each exhibits either limitations in ProForma support, API
-  complexity, or python compatibility. <bold>Pyteomics</bold>
+  though each exhibits limitations in ProForma support, API design, or
+  Python compatibility. <bold>Pyteomics</bold>
   (<xref alt="Goloborodko et al., 2013" rid="ref-goloborodko-2013" ref-type="bibr">Goloborodko
   et al., 2013</xref>) recently added partial ProForma support while
   maintaining its legacy notation system, requiring format conversions
   that are not universally supported. <bold>BioPython</bold>
   (<xref alt="Cock et al., 2009" rid="ref-cock-2009" ref-type="bibr">Cock
-  et al., 2009</xref>) offers basic sequence property calculations
-  without ProForma support; its API complexity reflects a broad scope
-  encompassing DNA, RNA, and protein analysis. <bold>RustyMS</bold>
+  et al., 2009</xref>) offers limited support for AA sequences, has no
+  ProForma compatibility, and has a broad scope: additionally supporting
+  DNA and RNA sequences. <bold>RustyMS</bold>
   (<xref alt="Schulte et al., n.d." rid="ref-Schulte_mzcore" ref-type="bibr">Schulte
   et al., n.d.</xref>) delivers comprehensive ProForma parsing through
-  Rust bindings with excellent performance, though it focuses primarily
-  on parsing rather than sequence modification and requires PyO3 updates
-  before supporting new Python versions. <bold>PyOpenMS</bold>
+  Rust bindings with excellent performance. However, though it focuses
+  primarily on parsing rather than being a true AA sequence analysis
+  package. Its python bindings are built with PyO3 which means
+  compatibility with new Python versions depends on PyO3 support
+  timelines. <bold>PyOpenMS</bold>
   (<xref alt="Röst et al., 2013" rid="ref-rost-2013" ref-type="bibr">Röst
-  et al., 2013</xref>) provides extensive mass spectrometry tools
-  without ProForma compatibility; its C++ backend with Python bindings
-  similarly delays support for new Python releases.</p>
+  et al., 2013</xref>) provides an extensive mass spectrometry toolkit
+  without ProForma compatibility.</p>
   <p>Peptacular was designed to fill a specific gap: a pure Python
   library that implements nearly all ProForma 2.1 features while
   providing both an intuitive API, comprehensive documentation, and
@@ -153,7 +156,7 @@ a Creative Commons Attribution 4.0 International License (CC BY
   ProForma notation serves as the foundation rather than a retrofitted
   addition, enabling complete feature coverage and a cleaner API.
   Second, the library targets AA sequence analysis specifically,
-  avoiding complexity from broader scope. Third, the pure Python
+  avoiding complexity from a broader scope. Third, the pure Python
   implementation ensures compatibility with modern Python versions,
   including free-threaded builds with the Global Interpreter Lock (GIL)
   disabled, which will become increasingly relevant as Python’s
@@ -172,19 +175,18 @@ a Creative Commons Attribution 4.0 International License (CC BY
   execution provides single-threaded processing for small batches where
   parallelization overhead is detrimental. Thread-based parallelization
   currently offers limited benefits due to the GIL but will improve as
-  free-threaded Python builds become standard. Process-based
+  free-threaded Python builds become standard (PEP 703). Process-based
   parallelization is the default and most widely supported method.
   Process and thread spawning mechanisms (fork, spawn, forkserver) are
   globally configurable, and worker processes are cached to eliminate
   startup overhead.</p>
   <p>Three performance optimizations enable efficient large-scale
   processing. First, lazy evaluation keeps modifications in serialized
-  form until calculations require parsed representations, minimizing
-  memory overhead. Second, aggressive caching exploits the fact that
+  form until required. Second, aggressive caching exploits the fact that
   proteomics datasets typically contain a small number of repeated
-  modifications. Third, conditional initialization instantiates
-  modification-specific data structures only when needed, reducing
-  memory footprint and accelerating object creation.</p>
+  modifications. Third, the specific objects used to store modifications
+  within the annotations objects are only initialized when needed,
+  reducing memory footprint and accelerating object creation.</p>
   <p>Modification reference data, including masses, compositions, and
   identifiers from Unimod
   (<xref alt="Creasy &amp; Cottrell, 2004" rid="ref-creasy-2004" ref-type="bibr">Creasy
@@ -211,15 +213,15 @@ a Creative Commons Attribution 4.0 International License (CC BY
   which enables static type checking and provides IDE autocomplete,
   inline documentation, and compile-time error detection. Test coverage
   exceeds 70%, with continuous integration implemented through GitHub
-  Actions.</p>
+  Actions. The only dependency is the companion package: tacular.</p>
 </sec>
 <sec id="research-impact-statement">
   <title>Research impact statement</title>
   <p>Since its initial release, Peptacular has demonstrated measurable
   adoption. The package has accumulated over <bold>33k</bold> downloads
   from PyPI, with sustained weekly download rates exceeding 200
-  installations. It has been recognized as one of 3 python packages to
-  support Proforma notation by the PSI group. Additionally, Peptacular
+  installations. It has been listed as one of three Python packages to
+  support ProForma notation by the PSI group. Additionally, Peptacular
   was used to generate figures within a textbook chapter
   (<xref alt="P. T. Garrett et al., 2025" rid="ref-garrett-2025" ref-type="bibr">P.
   T. Garrett et al., 2025</xref>).</p>
@@ -267,19 +269,19 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
 </sec>
 <sec id="mathematics">
   <title>Mathematics</title>
-  <p>Peptacular implements algorithms for molecular mass calculations
-  and isotopic pattern prediction. The following sections formalize the
-  mathematical framework underlying these calculations.</p>
+  <p>Peptacular calculates the molecular mass and isotopic patterns for
+  AA sequences. This section presents the mathematical framework that
+  underlies these calculations.</p>
   <sec id="base-mass">
     <title>Base Mass</title>
     <p>The base mass <inline-formula><alternatives>
     <tex-math><![CDATA[M_{base}]]></tex-math>
     <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>b</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>e</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
-    of a peptide sequence with modifications is calculated as the sum of
-    all constituent components:</p>
+    of a AA sequence containing modifications is calculated as the sum
+    of all constituent molecular components:</p>
     <p><inline-formula><alternatives>
-    <tex-math><![CDATA[M_{base} = \sum_{i=1}^{n} m_{i} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{U} + \mathbb{1}_{\textrm{precursor}} \cdot M_{L}]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>b</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>e</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:msubsup><mml:msub><mml:mi>m</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>N</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>C</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>S</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>I</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>R</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>U</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mn>𝟙</mml:mn><mml:mtext mathvariant="normal">precursor</mml:mtext></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>L</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula></p>
+    <tex-math><![CDATA[M_{base} = \sum_{i=1}^{n} m_{AAi} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{U} + \mathbb{1}_{\textrm{precursor}} \cdot M_{L}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>b</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>e</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:msubsup><mml:msub><mml:mi>m</mml:mi><mml:mrow><mml:mi>A</mml:mi><mml:mi>A</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>N</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>C</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>S</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>I</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>R</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>U</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mn>𝟙</mml:mn><mml:mtext mathvariant="normal">precursor</mml:mtext></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>L</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula></p>
     <p><bold>where</bold>:</p>
     <list list-type="bullet">
       <list-item>
@@ -292,7 +294,7 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
         <p><inline-formula><alternatives>
         <tex-math><![CDATA[m_{AA_i}]]></tex-math>
         <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>m</mml:mi><mml:mrow><mml:mi>A</mml:mi><mml:msub><mml:mi>A</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
-        is the monoisotopic (or average) mass of amino acid at position
+        is the mass of amino acid at position
         <inline-formula><alternatives>
         <tex-math><![CDATA[i]]></tex-math>
         <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula></p>
@@ -348,16 +350,16 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
         ions</p>
       </list-item>
     </list>
-    <p>Labile modifications are only included in precursor ion mass
-    calculations and excluded from all fragment ion types.</p>
+    <p>Labile modifications are included only for precursor and neutral
+    ion types.</p>
   </sec>
   <sec id="neutral-mass">
     <title>Neutral Mass</title>
     <p>The neutral mass <inline-formula><alternatives>
     <tex-math><![CDATA[M_{\textrm{neutral}}]]></tex-math>
     <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">neutral</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
-    of a fragment ion is calculated by combining the base mass with
-    ion-type, isotope modifications, neutral deltas.</p>
+    is calculated by combining the base mass with ion-type adjustments,
+    isotope modifications, neutral deltas.</p>
     <p><inline-formula><alternatives>
     <tex-math><![CDATA[M_{\textrm{neutral}} = M_{\textrm{base}} + M_{\textrm{ion}} + M_{\textrm{isotope}} + M_{\textrm{ndelta}}]]></tex-math>
     <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">neutral</mml:mtext></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">base</mml:mtext></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">ion</mml:mtext></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">isotope</mml:mtext></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">ndelta</mml:mtext></mml:msub></mml:mrow></mml:math></alternatives></inline-formula></p>
@@ -391,8 +393,9 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
   </sec>
   <sec id="mass-to-charge-ratio">
     <title>Mass-to-charge Ratio</title>
-    <p>The mass-to-charge ratio is calculated by incorporating charge
-    carriers and electron mass corrections to the neutral mass:</p>
+    <p>The mass-to-charge (<italic>m/z</italic>) ratio is calculated by
+    incorporating charge carriers and electron mass corrections to the
+    neutral mass:</p>
     <p><inline-formula><alternatives>
     <tex-math><![CDATA[\frac{m}{z} = \frac{M_{\textrm{neutral}} + M_{\textrm{adduct}} - z \cdot m_e}{z}]]></tex-math>
     <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mi>m</mml:mi><mml:mi>z</mml:mi></mml:mfrac><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">neutral</mml:mtext></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">adduct</mml:mtext></mml:msub><mml:mo>−</mml:mo><mml:mi>z</mml:mi><mml:mo>⋅</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>e</mml:mi></mml:msub></mml:mrow><mml:mi>z</mml:mi></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula></p>
@@ -426,9 +429,9 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
   </sec>
   <sec id="isotopic-distribution">
     <title>Isotopic Distribution</title>
-    <p>The isotopic distribution of a peptide is calculated by
+    <p>The isotopic distribution of a peptide is determined by
     convolving the isotopic patterns of all constituent elements. For a
-    peptide with elemental composition <inline-formula><alternatives>
+    peptide with elemental composition<inline-formula><alternatives>
     <tex-math><![CDATA[\{E_1: n_1, E_2: n_2, ..., E_k: n_k\}]]></tex-math>
     <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
     the isotopic distribution is:</p>
@@ -452,20 +455,20 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
     <p>The computational complexity of isotopic distribution
     calculations scales with the number of isotopic peaks retained
     during the convolution process. To balance accuracy with
-    computational efficiency, Peptacular implements several thresholding
-    parameters that limit the number of peaks propagated through
-    successive convolution operations. These thresholds allow users to
-    control the trade-off between calculation precision and processing
-    time based on their specific application requirements.</p>
+    computational efficiency, Peptacular implements several parameters
+    to limit the number of isotopic peaks propagated through convolution
+    operations.</p>
     <sec id="averagine-model">
       <title>Averagine Model</title>
       <p>When the exact elemental composition is unknown, the averagine
-      model estimates composition from molecular mass using
-      empirically-derived ratios. The averagine values were calculated
-      by determining the cumulative number of elements from all proteins
-      within the human reviewed proteome downloaded from UniProt, then
-      dividing by the total monoisotopic mass of the entire proteome,
-      yielding an atoms-per-dalton ratio for each element.</p>
+      model provides an estimate of composition based on molecular mass
+      using empirically-derived atomic ratios. The averagine values used
+      in Peptacular were calculated by determining the cumulative count
+      of all atoms present in the entire human proteome (all reviewed
+      proteins from UP000005640, downloaded from UniProt on February 2,
+      2026). This cumulative count was then normalized by the total
+      monoisotopic mass of the proteome, yielding an atoms-per-dalton
+      ratio for each element.</p>
       <p>The composition is calculated as:</p>
       <p><inline-formula><alternatives>
       <tex-math><![CDATA[n_E = r_E \cdot M_{\textrm{neutral}} + n_{E,\textrm{ion}}]]></tex-math>
@@ -770,7 +773,7 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
           <td>11.5 [A]</td>
         </tr>
         <tr>
-          <td>N</td>
+          <td>Y</td>
           <td>Ion notation</td>
           <td><monospace>SEQUEN-[b-type-ion]</monospace></td>
           <td>11.6 [A]</td>
@@ -790,16 +793,17 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
   <p><bold>Figure 1: Parallelization Performance - GIL Enabled vs GIL
   Disabled (Python 3.14t)</bold></p>
   <fig>
-    <caption><p>Parallelization performance comparison for calculating
-    the mass of 10,000 randomly generated modified peptides with lengths
-    ranging from 10 to 30 amino acids. The benchmark compares serialized
-    annotations (strings) and annotation objects across different
-    parallelization methods, varying numbers of workers, and both
-    GIL-enabled and GIL-disabled configurations. The baseline for
-    speedup calculations is single-worker sequential-based execution
-    (0.336s ±0.011s for serialized strings, 0.178s ±0.004s for
-    annotation objects). Benchmark environment: Intel i7-12700H (14
-    cores, 20 threads), 64GB RAM, Python
+    <caption><p>This figure presents a parallelization performance
+    comparison for mass calculations of 10,000 randomly generated
+    modified peptides with lengths ranging from 10 to 30 amino acids.
+    The benchmark evaluates serialized annotations (strings) and
+    annotation objects across different parallelization methods and
+    varying numbers of workers in both GIL-enabled and GIL-disabled
+    configurations. Single-worker sequential-based execution serves as
+    the baseline for speedup calculations (0.336s ±0.011s for serialized
+    strings; 0.178s ±0.004s for annotation objects). The benchmark was
+    conducted on an Intel i7-12700H processor (14 cores, 20 threads)
+    with 64GB RAM using Python
     3.14t.<styled-content id="figU003Agil-comparison"></styled-content></p></caption>
     <graphic mimetype="image" mime-subtype="png" xlink:href="fig1.png" />
   </fig>

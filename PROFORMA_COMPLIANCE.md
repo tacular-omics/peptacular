@@ -54,4 +54,4 @@
 - [x] **Fixed modifications** - `<[Oxidation]@M>ATPEMILTCMGCLK` (§11.3.2)
 - [x] **Chimeric spectra** - `NEEYN+SEQUEN` (§11.4)
 - [x] **Charges** - `SEQUEN/2`, `SEQUEN/[Na:z+1,H:z+1]` (§11.5)
-- [ ] **Ion notation** - `SEQUEN-[b-type-ion]` (§11.6) [May support in future]
+- [x] **Ion notation** - `SEQUEN-[b-type-ion]` (§11.6)

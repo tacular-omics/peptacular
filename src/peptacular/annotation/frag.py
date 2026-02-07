@@ -37,7 +37,7 @@ class Fragment:
         self.mass: int | float = mass
         self.monoisotopic: bool = monoisotopic
         self.charge_state: int = charge_state
-        # None means protonated
+        # If None and charge_state != 0: means protonated
         self._charge_adducts: tuple[str, ...] | None = charge_adducts
         # int means 13C count
         self._isotopes: Mapping[str, int] | int | None = isotopes
@@ -130,22 +130,42 @@ class Fragment:
             "mass": self.mass,
             "charge_state": self.charge_state,
             "monoisotopic": self.monoisotopic,
-            "charge_adducts": self._charge_adducts,
-            "isotopes": self._isotopes,
-            "losses": self._losses,
+            "charge_adducts": self.charge_adducts,
+            "isotopes": self.isotopes,
+            "losses": self.losses,
         }
 
     def __str__(self) -> str:
-        return (
-            f"Fragment(ion_type={self.ion_type}, position={self.position}, "
-            f"mass={self.mass}, charge_state={self.charge_state}, "
-            f"monoisotopic={self.monoisotopic}, "
-            f"charge_adducts={self._charge_adducts}, isotopes={self._isotopes}, "
-            f"losses={self._losses})"
-        )
+        parts = []
+        parts.append(f"ion_type={self.ion_type}")
+
+        if self.position is not None:
+            parts.append(f"position={self.position}")
+
+        parts.append(f"mass={self.mass:.4f}")
+        parts.append(f"charge={self.charge_state}")
+
+        # Only show charge_adducts if not simple protonation
+        if not self.is_protonated and self.charge_state != 0:
+            parts.append(f"charge_adducts={self.charge_adducts}")
+
+        if self.isotopes:
+            parts.append(f"isotopes={dict(self.isotopes)}")
+
+        if self.losses:
+            parts.append(f"losses={dict(self.losses)}")
+
+        return f"Fragment({', '.join(parts)})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return (
+            f"Fragment(ion_type={self.ion_type!r}, position={self.position!r}, "
+            f"mass={self.mass}, monoisotopic={self.monoisotopic}, "
+            f"charge_state={self.charge_state}, charge_adducts={self._charge_adducts!r}, "
+            f"isotopes={self._isotopes!r}, deltas={self._losses!r}, "
+            f"composition={self._composition!r}, parent_sequence={self.parent_sequence!r}, "
+            f"parent_sequence_length={self.parent_sequence_length})"
+        )
 
     @property
     def sequence(self) -> str | None:

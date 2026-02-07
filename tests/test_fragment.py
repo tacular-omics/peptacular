@@ -651,6 +651,7 @@ class TestFragment(unittest.TestCase):
         self.assertEqual(frags[0].parent_sequence, "PEPTIDE/2")
         self.assertEqual(frags[0].charge_state, 2)
         self.assertEqual(frags[0].sequence, "E/2")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("E/2", ion_type="y"))
 
     def test_fragmentb(self):
         annot = pt.parse("PEPTIDE/2")
@@ -672,11 +673,13 @@ class TestFragment(unittest.TestCase):
         self.assertEqual(frags[0].parent_sequence, "PEPTIDE/2")
         self.assertEqual(frags[0].charge_state, 2)
         self.assertEqual(frags[0].sequence, "P/2")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("P/2", ion_type="i"))
 
         self.assertEqual(frags[1].position, 2)
         self.assertEqual(frags[1].parent_sequence, "PEPTIDE/2")
         self.assertEqual(frags[1].charge_state, 2)
         self.assertEqual(frags[1].sequence, "E/2")
+        self.assertAlmostEqual(frags[1].mz, pt.mz("E/2", ion_type="i"))
 
     def test_fragment_internal(self):
         annot = pt.parse("PEPT/2")
@@ -688,16 +691,19 @@ class TestFragment(unittest.TestCase):
         self.assertEqual(frags[0].parent_sequence, "PEPT/2")
         self.assertEqual(frags[0].charge_state, 2)
         self.assertEqual(frags[0].sequence, "E/2")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("E/2", ion_type="by"))
 
         self.assertEqual(frags[1].position, (2, 3))
         self.assertEqual(frags[1].parent_sequence, "PEPT/2")
         self.assertEqual(frags[1].charge_state, 2)
         self.assertEqual(frags[1].sequence, "EP/2")
+        self.assertAlmostEqual(frags[1].mz, pt.mz("EP/2", ion_type="by"))
 
         self.assertEqual(frags[2].position, (3, 3))
         self.assertEqual(frags[2].parent_sequence, "PEPT/2")
         self.assertEqual(frags[2].charge_state, 2)
         self.assertEqual(frags[2].sequence, "P/2")
+        self.assertAlmostEqual(frags[2].mz, pt.mz("P/2", ion_type="by"))
 
 
 if __name__ == "__main__":
