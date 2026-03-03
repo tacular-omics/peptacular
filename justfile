@@ -51,6 +51,12 @@ format:
 ty:
     uv run ty check src/
 
+# Run lint and tests
+check:
+    just lint
+    just test
+    just ty
+
 # Build documentation
 docs:
     cd docs && uv run sphinx-build -b html . _build/html
@@ -74,12 +80,6 @@ paper:
         --user `id -u`:`id -g` \
         --env JOURNAL=joss \
         openjournals/inara
-
-# Run lint and tests
-check:
-    just lint
-    just test
-    just ty
 
 # Clean, install, and test
 all:

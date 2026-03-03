@@ -47,12 +47,12 @@ from .digestion import (
     simple_cleavage_sites,
     simple_digest,
 )
-from .fragmentation import fragment
+from .fragmentation import fragment, frag
 from .isotope import isotopic_distribution
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
     append_mods,
-    build_mods,
+    modify,
     condense_static_mods,
     condense_to_peptidoform,
     extend_mods,
@@ -155,7 +155,7 @@ __all__ = [
     "mz",
     "comp",
     # mod_builder
-    "build_mods",
+    "modify",
     "get_mods",
     "set_mods",
     "remove_mods",
@@ -212,4 +212,5 @@ __all__ = [
     "get_available_start_methods",
     "get_start_method",
     "set_start_method",
+    "frag",
 ]

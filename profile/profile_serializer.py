@@ -130,7 +130,7 @@ def profile_batch_serialization():
     modified_peptides = []
     for peptide in sequences[:100]:  # Take first 100 for speed
         variants = list(
-            pt.build_mods(
+            pt.modify(
                 peptide,
                 internal_variable={"M": [15.995], "C": [57.021]},
                 max_variable_mods=2,

@@ -9,7 +9,7 @@ from .util import get_annotation_input
 MOD_BUILDER_INPUT_TYPE = Mapping[str, Iterable[Any]]
 
 
-def _build_mods_single(
+def _modify_single(
     sequence: ProFormaAnnotation | str,
     nterm_static: MOD_BUILDER_INPUT_TYPE | None = None,
     cterm_static: MOD_BUILDER_INPUT_TYPE | None = None,
@@ -26,7 +26,7 @@ def _build_mods_single(
     annotation = get_annotation_input(sequence, copy=True)
     return [
         annot.serialize()
-        for annot in annotation.build_mods(
+        for annot in annotation.modify(
             nterm_static=nterm_static,
             cterm_static=cterm_static,
             internal_static=internal_static,
@@ -43,7 +43,7 @@ def _build_mods_single(
 
 
 @overload
-def build_mods(
+def modify(
     sequence: ProFormaAnnotation | str,
     *,  # force keyword arguments
     nterm_static: MOD_BUILDER_INPUT_TYPE | None = None,
@@ -63,7 +63,7 @@ def build_mods(
 
 
 @overload
-def build_mods(
+def modify(
     sequence: Sequence[ProFormaAnnotation | str],
     *,  # force keyword arguments
     nterm_static: MOD_BUILDER_INPUT_TYPE | None = None,
@@ -82,7 +82,7 @@ def build_mods(
 ) -> list[list[str]]: ...
 
 
-def build_mods(
+def modify(
     sequence: ProFormaAnnotation | str | Sequence[ProFormaAnnotation | str],
     *,  # force keyword arguments
     nterm_static: MOD_BUILDER_INPUT_TYPE | None = None,
@@ -107,13 +107,13 @@ def build_mods(
     .. code-block:: python
 
         # Single sequence
-        >>> results = build_mods('PEPTIDE', internal_variable={'P': [79.966]}, max_variable_mods=1)
+        >>> results = modify('PEPTIDE', internal_variable={'P': [79.966]}, max_variable_mods=1)
         >>> len(results) > 0
         True
 
         # Multiple sequences (automatic parallel processing)
         >>> sequences = ['PEPTIDE', 'PROTEIN', 'SEQUENCE']
-        >>> results = build_mods(sequences, internal_variable={'P': [79.966]}, max_variable_mods=1)
+        >>> results = modify(sequences, internal_variable={'P': [79.966]}, max_variable_mods=1)
         >>> len(results)
         3
 
@@ -121,7 +121,7 @@ def build_mods(
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
-            _build_mods_single,
+            _modify_single,
             sequence,
             n_workers=n_workers,
             chunksize=chunksize,
@@ -138,7 +138,7 @@ def build_mods(
             use_regex=use_regex,
         )
     else:
-        return _build_mods_single(
+        return _modify_single(
             sequence=sequence,
             nterm_static=nterm_static,
             cterm_static=cterm_static,

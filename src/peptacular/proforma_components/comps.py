@@ -326,6 +326,14 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
         """Check if the formula is charged (charge != 0 and not None)."""
         return self.charge is not None and self.charge != 0
 
+    @property
+    def is_protonated(self) -> bool:
+        """Check if the formula is protonated (charge == 1)."""
+        if len(self.formula) == 1:
+            if self.formula[0].element == Element.H:
+                return True
+        return False
+
 
 @dataclass(frozen=True, slots=True)
 class PositionRule:
@@ -971,6 +979,12 @@ class GlobalChargeCarrier(MassPropertyMixin):
     def to_mz_paf(self) -> str:
         """Convert to mzPAF format string."""
         return f"M{self.charged_formula.to_mz_paf()}"
+
+    @property
+    def is_protonated(self) -> bool:
+        if self.charged_formula.is_protonated:
+            return True
+        return False
 
 
 # Type alias for modification tags

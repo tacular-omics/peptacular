@@ -5,7 +5,7 @@ import peptacular as pt
 from peptacular.annotation.mod_builder import (
     apply_mods,
     apply_static_mods_infront,
-    build_mods,
+    modify,
     ensure_single_static_mod,
     get_mod_index_from_aa,
     get_mod_index_from_regex,
@@ -355,15 +355,15 @@ class TestBuildMods(unittest.TestCase):
         self.acetyl_mod = "Acetyl"
 
     def test_no_modifications_single_result(self):
-        """Test build_mods with no modifications returns single result."""
-        results = list(build_mods(self.annotation, max_variable_mods=0))
+        """Test modify with no modifications returns single result."""
+        results = list(modify(self.annotation, max_variable_mods=0))
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].serialize(), "PEPTIDE")
 
     def test_static_modifications_only(self):
-        """Test build_mods with only static modifications."""
+        """Test modify with only static modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_static={"P": [self.phospho_mod]},
                 max_variable_mods=0,
@@ -373,9 +373,9 @@ class TestBuildMods(unittest.TestCase):
         self.assertEqual(results[0].serialize(), "P[Phospho]EP[Phospho]TIDE")
 
     def test_variable_modifications_only(self):
-        """Test build_mods with only variable modifications."""
+        """Test modify with only variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -389,9 +389,9 @@ class TestBuildMods(unittest.TestCase):
         self.assertIn("PEP[Phospho]TIDE", serialized)
 
     def test_static_and_variable_modifications(self):
-        """Test build_mods with both static and variable modifications."""
+        """Test modify with both static and variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_static={"T": [self.phospho_mod]},
                 internal_variable={"P": [self.oxidation_mod]},
@@ -406,9 +406,9 @@ class TestBuildMods(unittest.TestCase):
         self.assertIn("PEP[Oxidation]T[Phospho]IDE", serialized)
 
     def test_static_and_variable_modifications_infront(self):
-        """Test build_mods with both static and variable modifications."""
+        """Test modify with both static and variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_static={"T": [self.phospho_mod]},
                 internal_variable={"P": [self.oxidation_mod]},
@@ -426,7 +426,7 @@ class TestBuildMods(unittest.TestCase):
     def test_nterm_static_modifications(self):
         """Test N-terminal static modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 nterm_static={"P": [self.acetyl_mod]},
                 max_variable_mods=0,
@@ -438,7 +438,7 @@ class TestBuildMods(unittest.TestCase):
     def test_cterm_static_modifications(self):
         """Test C-terminal static modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 cterm_static={"E": [self.oxidation_mod]},
                 max_variable_mods=0,
@@ -450,7 +450,7 @@ class TestBuildMods(unittest.TestCase):
     def test_nterm_variable_modifications(self):
         """Test N-terminal variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 nterm_variable={"P": [self.acetyl_mod]},
                 max_variable_mods=1,
@@ -464,7 +464,7 @@ class TestBuildMods(unittest.TestCase):
     def test_cterm_variable_modifications(self):
         """Test C-terminal variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 cterm_variable={"E": [self.oxidation_mod]},
                 max_variable_mods=1,
@@ -478,7 +478,7 @@ class TestBuildMods(unittest.TestCase):
     def test_labile_static_modifications(self):
         """Test labile static modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 labile_static={"P": [self.phospho_mod]},
                 max_variable_mods=0,
@@ -492,7 +492,7 @@ class TestBuildMods(unittest.TestCase):
     def test_labile_variable_modifications(self):
         """Test labile variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 labile_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -510,7 +510,7 @@ class TestBuildMods(unittest.TestCase):
         """Test max_variable_mods parameter limits combinations."""
         # With max_variable_mods=1, should get 3 results for 2 possible sites
         results_1 = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -520,7 +520,7 @@ class TestBuildMods(unittest.TestCase):
 
         # With max_variable_mods=2, should get 4 results
         results_2 = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=2,
@@ -538,7 +538,7 @@ class TestBuildMods(unittest.TestCase):
         # Two different mods for the same amino acid should not conflict
         # since they're applied to the same sites
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod, self.oxidation_mod]},
                 max_variable_mods=1,
@@ -556,7 +556,7 @@ class TestBuildMods(unittest.TestCase):
     def test_multiple_variable_mod_types(self):
         """Test with multiple types of variable modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 nterm_variable={"P": [self.acetyl_mod]},
                 internal_variable={"T": [self.phospho_mod]},
@@ -579,7 +579,7 @@ class TestBuildMods(unittest.TestCase):
         """Test use_regex parameter is passed through."""
         # This mainly tests that the parameter doesn't cause errors
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_static={"P": [self.phospho_mod]},
                 max_variable_mods=0,
@@ -591,7 +591,7 @@ class TestBuildMods(unittest.TestCase):
     def test_empty_sequence_annotation(self):
         """Test with empty sequence annotation."""
         empty_annotation = pt.ProFormaAnnotation(sequence="")
-        results = list(build_mods(empty_annotation, max_variable_mods=0))
+        results = list(modify(empty_annotation, max_variable_mods=0))
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].serialize(), "")
 
@@ -599,7 +599,7 @@ class TestBuildMods(unittest.TestCase):
         """Test with single amino acid sequence."""
         single_aa = pt.ProFormaAnnotation(sequence="P")
         results = list(
-            build_mods(
+            modify(
                 single_aa,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -642,7 +642,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         """Test that first_proteoform_only=True removes positional duplicates."""
         # Without first_proteoform_only: should get both P@0 and P@2
         results_all = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -653,7 +653,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
 
         # With first_proteoform_only: should get only one P modification
         results_unique = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -671,7 +671,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_two_modifications(self):
         """Test that first_proteoform_only works with max_variable_mods=2."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=2,
@@ -697,7 +697,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_different_mod_types(self):
         """Test that first_proteoform_only distinguishes different modification types."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod, self.oxidation_mod]},
                 max_variable_mods=1,
@@ -719,7 +719,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_mixed_mods(self):
         """Test first_proteoform_only with multiple mod types on different residues."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={
                     "P": [self.phospho_mod],
@@ -748,7 +748,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_nterm_mods(self):
         """Test first_proteoform_only with N-terminal modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 nterm_variable={"P": [self.acetyl_mod]},
                 internal_variable={"P": [self.phospho_mod]},
@@ -772,7 +772,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_cterm_mods(self):
         """Test first_proteoform_only with C-terminal modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 cterm_variable={"E": [self.oxidation_mod]},
                 internal_variable={"E": [self.phospho_mod]},
@@ -790,7 +790,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_static_mods(self):
         """Test that static mods don't affect first_proteoform_only logic."""
         results_without = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -799,7 +799,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         )
 
         results_with_static = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_static={"T": [self.methyl_mod]},
                 internal_variable={"P": [self.phospho_mod]},
@@ -814,7 +814,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_labile_mods(self):
         """Test first_proteoform_only with labile modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 labile_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -835,7 +835,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         complex_annotation = pt.ProFormaAnnotation(sequence="MPEPTIPEP")
 
         results = list(
-            build_mods(
+            modify(
                 complex_annotation,
                 internal_variable={
                     "M": [self.oxidation_mod],
@@ -857,7 +857,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_false_gives_all_combinations(self):
         """Test that first_proteoform_only=False gives all positional combinations."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=2,
@@ -877,7 +877,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_numeric_mods(self):
         """Test first_proteoform_only with numeric modification values."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": [15.99]},
                 max_variable_mods=1,
@@ -891,7 +891,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_with_string_mods(self):
         """Test first_proteoform_only with string modification values."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 internal_variable={"P": ["CustomMod"]},
                 max_variable_mods=1,
@@ -906,7 +906,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         """Test first_proteoform_only with empty sequence."""
         empty_annotation = pt.ProFormaAnnotation(sequence="")
         results = list(
-            build_mods(
+            modify(
                 empty_annotation,
                 max_variable_mods=0,
                 unique_peptidoforms=True,
@@ -920,7 +920,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         """Test first_proteoform_only with single amino acid sequence."""
         single_aa = pt.ProFormaAnnotation(sequence="P")
         results = list(
-            build_mods(
+            modify(
                 single_aa,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=1,
@@ -936,7 +936,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         triple_p_annotation = pt.ProFormaAnnotation(sequence="PPPTIDE")
 
         results = list(
-            build_mods(
+            modify(
                 triple_p_annotation,
                 internal_variable={"P": [self.phospho_mod]},
                 max_variable_mods=3,
@@ -959,7 +959,7 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
     def test_first_proteoform_only_nterm_cterm_combination(self):
         """Test first_proteoform_only with both nterm and cterm modifications."""
         results = list(
-            build_mods(
+            modify(
                 self.annotation,
                 nterm_variable={"P": [self.acetyl_mod]},
                 cterm_variable={"E": [self.oxidation_mod]},

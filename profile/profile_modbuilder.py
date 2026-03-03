@@ -15,7 +15,7 @@ def profile_single_peptide_mods():
     profiler.enable()
 
     modified = list(
-        pt.build_mods(
+        pt.modify(
             peptide,
             internal_static={"C": [57.021]},
             internal_variable={"M": [15.995], "E": [79.966]},

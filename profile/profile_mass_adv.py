@@ -191,7 +191,7 @@ def run_mass_batch() -> list[float]:
         peptides = pt.simple_digest(protein, cleave_on="KR", missed_cleavages=2, semi=False, min_len=6, max_len=50)
         all_peptides.extend(list(peptides))
 
-    all_peptides = pt.build_mods(all_peptides, nterm_static="[+100]", cterm_static="[-50]", internal_variable={"M": "[+15.995]", "C": "[+57.021]"})
+    all_peptides = pt.modify(all_peptides, nterm_static="[+100]", cterm_static="[-50]", internal_variable={"M": "[+15.995]", "C": "[+57.021]"})
 
     print(f"Generated {len(all_peptides)} peptides for mass calculation")
     print(f"Sample peptides: {all_peptides[:3]}")

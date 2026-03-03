@@ -57,13 +57,19 @@ def adjust_mass_mz(
 
     base_mass -= total_charge * ELECTRON_MASS
 
+    # get adducts only if not protonated (charge_state == 0 means not protonated, None means protonated)
+    if all(m.value.is_protonated for m in charge.mods):
+        adducts = None
+    else:
+        adducts = tuple(m for m in charge._mods.keys()) if charge._mods else None
+
     return Fragment(
         ion_type=ion_info.ion_type,
         position=position,
         mass=base_mass,
         monoisotopic=monoisotopic,
         charge_state=total_charge,
-        charge_adducts=tuple(m for m in charge._mods.keys()) if charge._mods else None,
+        charge_adducts=adducts,
         isotopes=isotope.to_fragment_mapping,
         deltas=delta.to_fragment_mapping,
         composition=None,
@@ -129,13 +135,19 @@ def adjust_comp(
     if total_charge != 0:
         base_mass -= total_charge * ELECTRON_MASS
 
+    # get adducts only if not protonated (charge_state == 0 means not protonated, None means protonated)
+    if all(m.value.is_protonated for m in charge.mods):
+        adducts = None
+    else:
+        adducts = tuple(m for m in charge._mods.keys()) if charge._mods else None
+
     return Fragment(
         ion_type=ion_info.ion_type,
         position=position,
         mass=base_mass,
         charge_state=total_charge,
         monoisotopic=monoisotopic,
-        charge_adducts=tuple(m for m in charge._mods.keys()) if charge._mods else None,
+        charge_adducts=adducts,
         isotopes=isotope.to_fragment_mapping,
         deltas=delta.to_fragment_mapping,
         composition=base_comp,

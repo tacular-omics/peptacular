@@ -58,7 +58,7 @@ class Fragment:
         from .annotation import ProFormaAnnotation
 
         annot = ProFormaAnnotation.parse(self.parent_sequence)
-        return annot.comp(isotopes=self.isotopes, deltas=self.losses)  # type: ignore
+        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.charge_state if self._charge_adducts is None else self.charge_adducts)  # type: ignore
 
     @property
     def mz(self) -> float:
@@ -182,6 +182,10 @@ class Fragment:
             from .annotation import ProFormaAnnotation
 
             start, end = pos
-            return ProFormaAnnotation.parse(self.parent_sequence)[slice(start, end)].serialize()
+            return (
+                ProFormaAnnotation.parse(self.parent_sequence)[slice(start, end)]
+                .set_charge(self.charge_state if self._charge_adducts is None else self.charge_adducts)
+                .serialize()
+            )
 
         raise ValueError("Invalid position format for fragment sequence extraction")

@@ -39,7 +39,7 @@ def generate_random_proforma(length: int = 20, mod_probability: float = 0.2) -> 
     return "".join(sequence_parts)
 
 
-def time_function(func: Callable, iterations: int, warmup: int = 3) -> tuple[list[float], list]:
+def time_function(func, iterations: int, warmup: int = 3) -> tuple[list[float], list]:
     """Time a function with warmup runs."""
     # Warmup
     for _ in range(warmup):

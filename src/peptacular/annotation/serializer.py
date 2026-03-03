@@ -197,6 +197,7 @@ def serialize_charge(
 def _serialize_end(
     annotation: ProFormaAnnotation,
     comps: list[str],
+    exclude_charge: bool = False,
 ) -> None:
     """Serialize the end portion into comps list."""
     # C-term mods
@@ -204,11 +205,13 @@ def _serialize_end(
         _serialize_cterm(annotation, comps)
 
     # Charge
-    _serialize_charge(annotation, comps)
+    if not exclude_charge:
+        _serialize_charge(annotation, comps)
 
 
 def serialize_annotation(
     annotation: ProFormaAnnotation,
+    exclude_charge: bool = False,
 ) -> str:
     """Serialize a complete ProForma annotation."""
     comps: list[str] = []
@@ -220,6 +223,6 @@ def serialize_annotation(
     _serialize_middle(annotation, comps)
 
     # End
-    _serialize_end(annotation, comps)
+    _serialize_end(annotation, comps, exclude_charge=exclude_charge)
 
     return "".join(comps)

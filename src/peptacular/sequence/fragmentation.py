@@ -121,3 +121,102 @@ def fragment(
             max_ndeltas=max_ndeltas,
             calculate_composition=calculate_composition,
         )
+
+
+def _frag_single(
+    sequence: str | ProFormaAnnotation,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
+    charge: CHARGE_TYPE | None = None,
+    monoisotopic: bool = True,
+    isotopes: ISOTOPE_TYPE | None = None,
+    deltas: CUSTOM_LOSS_TYPE | None = None,
+    calculate_composition: bool = False,
+    position: int | tuple[int, int] | None = None,
+) -> Fragment:
+    annotation = get_annotation_input(sequence=sequence, copy=False)
+
+    return annotation.frag(
+        ion_type=ion_type,
+        charge=charge,
+        monoisotopic=monoisotopic,
+        isotopes=isotopes,
+        deltas=deltas,
+        calculate_composition=calculate_composition,
+        position=position,
+    )
+
+
+@overload
+def frag(
+    sequence: str | ProFormaAnnotation,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
+    charge: CHARGE_TYPE | None = None,
+    monoisotopic: bool = True,
+    isotopes: ISOTOPE_TYPE | None = None,
+    deltas: CUSTOM_LOSS_TYPE | None = None,
+    calculate_composition: bool = False,
+    position: int | tuple[int, int] | None = None,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> Fragment: ...
+
+
+@overload
+def frag(
+    sequence: Sequence[str | ProFormaAnnotation],
+    ion_type: ION_TYPE = IonType.PRECURSOR,
+    charge: CHARGE_TYPE | None = None,
+    monoisotopic: bool = True,
+    isotopes: ISOTOPE_TYPE | None = None,
+    deltas: CUSTOM_LOSS_TYPE | None = None,
+    calculate_composition: bool = False,
+    position: int | tuple[int, int] | None = None,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> list[Fragment]: ...
+
+
+def frag(
+    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    ion_type: ION_TYPE = IonType.PRECURSOR,
+    charge: CHARGE_TYPE | None = None,
+    monoisotopic: bool = True,
+    isotopes: ISOTOPE_TYPE | None = None,
+    deltas: CUSTOM_LOSS_TYPE | None = None,
+    calculate_composition: bool = False,
+    position: int | tuple[int, int] | None = None,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> Fragment | list[Fragment]:
+    """
+    Calculate a single fragment from a sequence or multiple sequences.
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _frag_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+            ion_type=ion_type,
+            charge=charge,
+            monoisotopic=monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            calculate_composition=calculate_composition,
+            position=position,
+        )
+    else:
+        return _frag_single(
+            sequence=sequence,
+            ion_type=ion_type,
+            charge=charge,
+            monoisotopic=monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            calculate_composition=calculate_composition,
+            position=position,
+        )
