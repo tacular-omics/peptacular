@@ -1,5 +1,5 @@
 ---
-title: 'Peptacular: A Python package for amino acid sequence analysis'
+title: 'Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis'
 tags:
   - Python
   - Proteomics
@@ -7,7 +7,7 @@ tags:
   - ProForma
   - Bioinformatics 
 authors:
-  - name: Patrick Tyler Garrett 
+  - name: Patrick T. Garrett 
     orcid: 0000-0002-8434-9693 
     affiliation: 1
   - name: Titus Jung
@@ -24,7 +24,7 @@ bibliography: paper.bib
 ---
 # Summary
 
-Mass spectrometry-based proteomics depends on computational methods to identify and characterize (amino acid) AA sequences. These sequences, ranging from short peptides to complete proteins, exhibit substantial chemical complexity due to PTMs, variable charge states, neutral losses, and isotopic patterns [@smith-2013; @angel-2012]. **Peptacular** is a fully type-annotated Python library designed to handle this complexity. The library provides functionality for modifying, calculating mass, m/z, isotopic distributions, physicochemical properties, enzymatic digestion, and fragmentation of AA sequences. Built around the standardized ProForma 2.1 notation, it supports nearly all ProForma features.
+Mass spectrometry-based proteomics depends on computational methods to identify and characterize (amino acid) AA sequences. These sequences, ranging from short peptides to complete proteins, exhibit substantial chemical complexity due to PTMs, variable charge states, neutral losses, and isotopic patterns [@smith-2013; @angel-2012]. **Peptacular** is a Python library designed to handle this complexity. The library provides functionality for modifying, calculating mass, m/z, isotopic distributions, physicochemical properties, enzymatic digestion, and fragmentation of AA sequences. Built around the standardized ProForma 2.1 notation, it supports all non-cross-linked ProForma features.
 
 # Statement of Need
 
@@ -34,9 +34,9 @@ Additionally, with the continued advance of mass spectrometers, modern proteomic
 
 # State of the Field
 
-Several Python packages provide AA sequence analysis capabilities, though each exhibits limitations in ProForma support, API design, or Python compatibility. **Pyteomics** [@goloborodko-2013] recently added partial ProForma support while maintaining its legacy notation system, requiring format conversions that are not universally supported. **BioPython** [@cock-2009] offers limited support for AA sequences, has no ProForma compatibility, and has a broad scope: additionally supporting DNA and RNA sequences. **RustyMS** [@Schulte_mzcore] delivers comprehensive ProForma parsing through Rust bindings with excellent performance. However, though it focuses primarily on parsing rather than being a true AA sequence analysis package. Its python bindings are built with PyO3 which means compatibility with new Python versions depends on PyO3 support timelines. **PyOpenMS** [@rost-2013] provides an extensive mass spectrometry toolkit without ProForma compatibility. 
+Several Python packages provide AA sequence analysis capabilities, though each has limitations as a general-purpose library for ProForma notation. **Pyteomics** [@goloborodko-2013] recently added partial ProForma support while maintaining its legacy notation system, requiring format conversions that are not universally supported. **BioPython** [@cock-2009] offers limited support for AA sequences and has no ProForma compatibility; its broad scope includes DNA and RNA sequences. **RustyMS** [@Schulte_mzcore] delivers comprehensive ProForma parsing through its Python bindings but focuses primarily on parsing and offers limited prebuilt functionality for working with sequences. **PyOpenMS** [@rost-2013] provides an extensive mass spectrometry toolkit but lacks ProForma compatibility.
 
-Peptacular was designed to fill a specific gap: a pure Python library that implements nearly all ProForma 2.1 features while providing both an intuitive API, comprehensive documentation, and still remaining performant. Developing Peptacular from scratch rather than extending existing tools provided three advantages. First, ProForma notation serves as the foundation rather than a retrofitted addition, enabling complete feature coverage and a cleaner API. Second, the library targets AA sequence analysis specifically, avoiding complexity from a broader scope. Third, the pure Python implementation ensures compatibility with modern Python versions, including free-threaded builds with the Global Interpreter Lock (GIL) disabled, which will become increasingly relevant as Python's parallelization capabilities improve.
+Peptacular was designed to address these limitations as a general-purpose, ProForma 2.1-compliant AA sequence library. Developing Peptacular from scratch rather than extending existing tools offered three key advantages. First, ProForma notation serves as the foundation rather than a retrofitted addition, enabling complete feature coverage and a cleaner API. Second, the library targets AA sequence analysis specifically, avoiding the complexity that arises from supporting a broader scope. Third, the pure Python implementation ensures compatibility with modern Python versions, including free-threaded builds with the Global Interpreter Lock (GIL) disabled, which will become increasingly relevant as Python's parallelization capabilities continue to improve.
 
 # Software Design
 
@@ -52,7 +52,7 @@ The package includes full type annotations with a py.typed marker, which enables
 
 # Research impact statement
 
-Since its initial release, Peptacular has demonstrated measurable adoption. The package has accumulated over **33k** downloads from PyPI, with sustained weekly download rates exceeding 200 installations. It has been listed as one of three Python packages to support ProForma notation by the PSI group. Additionally, Peptacular was used to generate figures within a textbook chapter [@garrett-2025]. 
+Since its initial release, Peptacular has demonstrated measurable adoption. The package has accumulated over **33k** downloads from PyPI (as of 07 February 2026), with sustained weekly download rates exceeding 200 installations. It has been listed as one of three Python packages to support ProForma notation by the PSI group. Additionally, Peptacular was used to generate figures within a textbook chapter [@garrett-2025]. 
 
 # Example Usage
 
@@ -116,7 +116,7 @@ $M_{base} = \sum_{i=1}^{n} m_{AAi} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{
 - $m_{AA_i}$ is the mass of amino acid at position $i$
 - $M_{N}$ is the total mass of N-terminal modifications
 - $M_{C}$ is the total mass of C-terminal modifications
-- $M_{S}$ is the total mass of static/fixed modifications
+- $M_{S}$ is the total mass of static/fixed modifications (Applied to sequence)
 - $M_{I}$ is the total mass of position-specific modifications
 - $M_{R}$ is the total mass of modifications within defined sequence intervals
 - $M_{U}$ is the total mass of modifications with unknown positions
@@ -233,8 +233,10 @@ The averagine ratios (atoms/Da) derived from the human proteome are:
 
 **Figure 1: Parallelization Performance - GIL Enabled vs GIL Disabled (Python 3.14t)**
 
-![This figure presents a parallelization performance comparison for mass calculations of 10,000 randomly generated modified peptides with lengths ranging from 10 to 30 amino acids. The benchmark evaluates serialized annotations (strings) and annotation objects across different parallelization methods and varying numbers of workers in both GIL-enabled and GIL-disabled configurations. Single-worker sequential-based execution serves as the baseline for speedup calculations (0.336s ±0.011s for serialized strings; 0.178s ±0.004s for annotation objects). The benchmark was conducted on an Intel i7-12700H processor (14 cores, 20 threads) with 64GB RAM using Python 3.14t.\label{fig:gil-comparison}](fig1.png){ width=100% }
+```latex
 
+![This figure presents a parallelization performance comparison for mass calculations of 10,000 randomly generated modified peptides with lengths ranging from 10 to 30 amino acids. The benchmark evaluates serialized annotations (strings) and annotation objects across different parallelization methods and varying numbers of workers in both GIL-enabled and GIL-disabled configurations. Single-worker sequential-based execution serves as the baseline for speedup calculations (0.336s ±0.011s for serialized strings; 0.178s ±0.004s for annotation objects). The benchmark was conducted on an Intel i7-12700H processor (14 cores, 20 threads) with 64GB RAM using Python 3.14t.\label{fig:gil-comparison}](fig1.png){ width=100% }
+```
 
 # AI usage disclosure
 
@@ -246,4 +248,4 @@ Peptacular is distributed through PyPI (<https://pypi.org/project/peptacular/>) 
 
 # Acknowledgements
 
-We acknowledge the PSI group for their assistance in answering questions and providing feedback during the development process. 
+This work was supported by the National Institutes of Health under grants R01 AG077046 (Analysis of protein interactions in neurodegenerative disease), R01 MH132570 (Brain-wide mapping of neuronal inhibition by novel inverse activity markers), R01 MH100175 (Proteogenetics of Autism Spectrum Disorders), R01 HL165168 (The CFTR Interactome), and U01 AG088679 (Understanding Gene-Environment Interactions in Brain Aging and Alzheimer's Disease (AD) and AD-Related Dementias (ADRD)).
