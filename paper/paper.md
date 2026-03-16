@@ -19,7 +19,7 @@ authors:
 affiliations:
   - name: The Scripps Research Institute, United States
     index: 1
-date: 07 Febuary 2026
+date: 07 February 2026
 bibliography: paper.bib
 ---
 # Summary
@@ -233,10 +233,7 @@ The averagine ratios (atoms/Da) derived from the human proteome are:
 
 **Figure 1: Parallelization Performance - GIL Enabled vs GIL Disabled (Python 3.14t)**
 
-```latex
-
 ![This figure presents a parallelization performance comparison for mass calculations of 10,000 randomly generated modified peptides with lengths ranging from 10 to 30 amino acids. The benchmark evaluates serialized annotations (strings) and annotation objects across different parallelization methods and varying numbers of workers in both GIL-enabled and GIL-disabled configurations. Single-worker sequential-based execution serves as the baseline for speedup calculations (0.336s ±0.011s for serialized strings; 0.178s ±0.004s for annotation objects). The benchmark was conducted on an Intel i7-12700H processor (14 cores, 20 threads) with 64GB RAM using Python 3.14t.\label{fig:gil-comparison}](fig1.png){ width=100% }
-```
 
 # AI usage disclosure
 

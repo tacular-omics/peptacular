@@ -17,7 +17,7 @@
 ## Features
 
 - **Nearly Complete ProForma 2.1 Parsing**
-- **Modifiable ProFormaAnnotaion Objects (Factory Pattern)**
+- **Modifiable ProFormaAnnotation Objects (Factory Pattern)**
 - **Mass/Mz/Composition Calculations**
 - **Predicted Isotopic Distributions**
 - **Enzymatic Protein Digestion** 

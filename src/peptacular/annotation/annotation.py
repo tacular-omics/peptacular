@@ -1,3 +1,4 @@
+import logging
 import re
 from collections import Counter
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
@@ -112,6 +113,8 @@ from .utils import (
     can_fragment_sequence,
 )
 
+logger = logging.getLogger(__name__)
+
 fe = FormulaElement(element=Element.H, occurance=1)
 H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
 
@@ -210,6 +213,44 @@ class ProFormaAnnotation:
         charge: Any = None,
         validate: bool = False,
     ) -> None:
+        """Construct a ProFormaAnnotation.
+
+        All modification parameters accept flexible input types and are
+        normalised internally via :func:`convert_moddict_input`.  Pass
+        ``validate=True`` to enforce structural validity on construction;
+        leave it ``False`` (the default) for performance when building
+        annotations programmatically.  Prefer the :meth:`parse` factory
+        when constructing from a ProForma string.
+
+        :param sequence: Bare amino-acid sequence (single-letter codes).
+        :type sequence: str | None
+        :param compound_name: Compound-level name encoded as ``(>>>Name)``.
+        :type compound_name: str | None
+        :param ion_name: Ion-level name encoded as ``(>>Name)``.
+        :type ion_name: str | None
+        :param peptide_name: Peptide-level name encoded as ``(>Name)``.
+        :type peptide_name: str | None
+        :param isotope_mods: Global isotope replacement modifications (``<13C>`` style).
+        :type isotope_mods: Any
+        :param static_mods: Global fixed modifications (``<[Mod]@AA>`` style).
+        :type static_mods: Any
+        :param labile_mods: Labile modifications that may be lost during fragmentation.
+        :type labile_mods: Any
+        :param unknown_mods: Unknown-localisation modifications (``?[Mod]`` style).
+        :type unknown_mods: Any
+        :param nterm_mods: N-terminal modifications.
+        :type nterm_mods: Any
+        :param cterm_mods: C-terminal modifications.
+        :type cterm_mods: Any
+        :param internal_mods: Per-position modifications keyed by 0-based index.
+        :type internal_mods: dict[int, Any] | None
+        :param intervals: Ambiguous sequence intervals.
+        :type intervals: list[Interval] | None
+        :param charge: Charge state as an integer or list of adduct strings.
+        :type charge: Any
+        :param validate: If ``True``, validate each field immediately after setting it.
+        :type validate: bool
+        """
         self._sequence: str | None = None
         self._compound_name: str | None = None
         self._ion_name: str | None = None
@@ -241,6 +282,11 @@ class ProFormaAnnotation:
 
     @property
     def charge_type(self) -> ChargeType:
+        """Return the representation style of the stored charge (integer, adducts, or none).
+
+        :return: The charge representation type.
+        :rtype: ChargeType
+        """
         if isinstance(self._charge, int):
             if self._charge == 0:
                 return ChargeType.NONE
@@ -255,6 +301,10 @@ class ProFormaAnnotation:
     """
 
     def validate_sequence(self) -> None:
+        """Check that every residue in the sequence is a recognised amino acid.
+
+        :raises ValueError: If an unrecognised amino acid code is found.
+        """
         for aa in self.sequence:
             if aa not in AA_LOOKUP:
                 raise ValueError(
@@ -262,30 +312,58 @@ class ProFormaAnnotation:
                 )
 
     def validate_isotope_mods(self) -> None:
+        """Check that all isotope modifications are structurally valid.
+
+        :raises ValueError: If any isotope modification is invalid.
+        """
         if errors := self.isotope_mods.validate():
             raise ValueError(f"Invalid isotope modifications: {errors}")
 
     def validate_static_mods(self) -> None:
+        """Check that all static (fixed) modifications are structurally valid.
+
+        :raises ValueError: If any static modification is invalid.
+        """
         if errors := self.static_mods.validate():
             raise ValueError(f"Invalid static modifications: {errors}")
 
     def validate_labile_mods(self) -> None:
+        """Check that all labile modifications are structurally valid.
+
+        :raises ValueError: If any labile modification is invalid.
+        """
         if errors := self.labile_mods.validate():
             raise ValueError(f"Invalid labile modifications: {errors}")
 
     def validate_unknown_mods(self) -> None:
+        """Check that all unknown-localisation modifications are structurally valid.
+
+        :raises ValueError: If any unknown modification is invalid.
+        """
         if errors := self.unknown_mods.validate():
             raise ValueError(f"Invalid unknown modifications: {errors}")
 
     def validate_nterm_mods(self) -> None:
+        """Check that all N-terminal modifications are structurally valid.
+
+        :raises ValueError: If any N-terminal modification is invalid.
+        """
         if errors := self.nterm_mods.validate():
             raise ValueError(f"Invalid N-terminal modifications: {errors}")
 
     def validate_cterm_mods(self) -> None:
+        """Check that all C-terminal modifications are structurally valid.
+
+        :raises ValueError: If any C-terminal modification is invalid.
+        """
         if errors := self.cterm_mods.validate():
             raise ValueError(f"Invalid C-terminal modifications: {errors}")
 
     def validate_internal_mods(self) -> None:
+        """Check that all internal (per-position) modifications are structurally valid.
+
+        :raises ValueError: If any internal modification at any position is invalid.
+        """
         for pos, mods in self.internal_mods.items():
             if errors := mods.validate():
                 raise ValueError(
@@ -293,6 +371,11 @@ class ProFormaAnnotation:
                 )
 
     def validate_intervals(self) -> None:
+        """Check that all intervals are valid, non-overlapping, and within sequence bounds.
+
+        :raises ValueError: If any interval is invalid, intervals overlap, or an interval
+            falls outside the sequence length.
+        """
         intervals = self.intervals
         for interval in intervals:
             if errors := interval.validate():
@@ -315,6 +398,11 @@ class ProFormaAnnotation:
                 )
 
     def validate_charge(self) -> None:
+        """Check that the charge value is structurally valid.
+
+        :raises ValueError: If the charge adducts are invalid or the charge type is
+            unrecognised.
+        """
         charge_type = self.charge_type
 
         match charge_type:
@@ -329,6 +417,10 @@ class ProFormaAnnotation:
                 raise ValueError(f"Invalid charge type: {charge_type}")
 
     def validate_annotation(self) -> None:
+        """Run all individual validators in order; raises on the first error found.
+
+        :raises ValueError: If any component of the annotation is structurally invalid.
+        """
         self.validate_sequence()
         self.validate_isotope_mods()
         self.validate_static_mods()
@@ -440,6 +532,10 @@ class ProFormaAnnotation:
 
     @property
     def sequence(self) -> str:
+        """The bare amino-acid sequence; returns an empty string when unset.
+
+        :rtype: str
+        """
         return self._sequence if self._sequence is not None else ""
 
     @sequence.setter
@@ -448,6 +544,10 @@ class ProFormaAnnotation:
 
     @property
     def compound_name(self) -> str:
+        """Compound-level name (``>>>Name`` prefix); empty string when unset.
+
+        :rtype: str
+        """
         return self._compound_name if self._compound_name is not None else ""
 
     @compound_name.setter
@@ -456,12 +556,20 @@ class ProFormaAnnotation:
 
     @property
     def compound_name_str(self) -> str:
+        """Serialised compound name including the ``(>>>...)`` wrapper, or empty string.
+
+        :rtype: str
+        """
         if self._compound_name is None:
             return ""
         return f"(>>>{self._compound_name})"
 
     @property
     def ion_name(self) -> str:
+        """Ion-level name (``>>Name`` prefix); empty string when unset.
+
+        :rtype: str
+        """
         return self._ion_name if self._ion_name is not None else ""
 
     @ion_name.setter
@@ -470,12 +578,20 @@ class ProFormaAnnotation:
 
     @property
     def ion_name_str(self) -> str:
+        """Serialised ion name including the ``(>>...)`` wrapper, or empty string.
+
+        :rtype: str
+        """
         if self._ion_name is None:
             return ""
         return f"(>>{self._ion_name})"
 
     @property
     def peptide_name(self) -> str:
+        """Peptide-level name (``>Name`` prefix); empty string when unset.
+
+        :rtype: str
+        """
         return self._peptide_name if self._peptide_name is not None else ""
 
     @peptide_name.setter
@@ -484,12 +600,20 @@ class ProFormaAnnotation:
 
     @property
     def peptide_name_str(self) -> str:
+        """Serialised peptide name including the ``(>...)`` wrapper, or empty string.
+
+        :rtype: str
+        """
         if self._peptide_name is None:
             return ""
         return f"(>{self._peptide_name})"
 
     @property
     def isotope_mods(self) -> Mods[IsotopeReplacement]:
+        """Global isotope replacement modifications; returns an empty ``Mods`` when unset.
+
+        :rtype: Mods[IsotopeReplacement]
+        """
         if self._isotope_mods is None:
             return EMPTY_ISOTOPE_MODS
 
@@ -503,12 +627,20 @@ class ProFormaAnnotation:
 
     @property
     def isotope_mods_str(self) -> str:
+        """Serialised isotope modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._isotope_mods is None:
             return ""
         return self.isotope_mods.serialize()
 
     @property
     def static_mods(self) -> Mods[FixedModification]:
+        """Global fixed modifications; returns an empty ``Mods`` when unset.
+
+        :rtype: Mods[FixedModification]
+        """
         if self._static_mods is None:
             return EMPTY_STATIC_MODS
 
@@ -520,12 +652,20 @@ class ProFormaAnnotation:
 
     @property
     def static_mods_str(self) -> str:
+        """Serialised static modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._static_mods is None:
             return ""
         return self.static_mods.serialize()
 
     @property
     def labile_mods(self) -> Mods[ModificationTags]:
+        """Labile modifications that may be lost during fragmentation; empty ``Mods`` when unset.
+
+        :rtype: Mods[ModificationTags]
+        """
         if self._labile_mods is None:
             return EMPTY_LABILE_MODS
         return Mods[ModificationTags](mod_type=ModType.LABILE, _mods=self._labile_mods)
@@ -536,12 +676,20 @@ class ProFormaAnnotation:
 
     @property
     def labile_mods_str(self) -> str:
+        """Serialised labile modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._labile_mods is None:
             return ""
         return self.labile_mods.serialize()
 
     @property
     def unknown_mods(self) -> Mods[ModificationTags]:
+        """Unknown-localisation modifications; returns an empty ``Mods`` when unset.
+
+        :rtype: Mods[ModificationTags]
+        """
         if self._unknown_mods is None:
             return EMPTY_UNKNOWN_MODS
         return Mods[ModificationTags](
@@ -554,12 +702,20 @@ class ProFormaAnnotation:
 
     @property
     def unknown_mods_str(self) -> str:
+        """Serialised unknown modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._unknown_mods is None:
             return ""
         return self.unknown_mods.serialize()
 
     @property
     def nterm_mods(self) -> Mods[ModificationTags]:
+        """N-terminal modifications; returns an empty ``Mods`` when unset.
+
+        :rtype: Mods[ModificationTags]
+        """
         if self._nterm_mods is None:
             return EMPTY_NTERM_MODS
         return Mods[ModificationTags](mod_type=ModType.NTERM, _mods=self._nterm_mods)
@@ -570,12 +726,20 @@ class ProFormaAnnotation:
 
     @property
     def nterm_mods_str(self) -> str:
+        """Serialised N-terminal modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._nterm_mods is None:
             return ""
         return self.nterm_mods.serialize()
 
     @property
     def cterm_mods(self) -> Mods[ModificationTags]:
+        """C-terminal modifications; returns an empty ``Mods`` when unset.
+
+        :rtype: Mods[ModificationTags]
+        """
         if self._cterm_mods is None:
             return EMPTY_CTERM_MODS
         return Mods[ModificationTags](mod_type=ModType.CTERM, _mods=self._cterm_mods)
@@ -586,12 +750,20 @@ class ProFormaAnnotation:
 
     @property
     def cterm_mods_str(self) -> str:
+        """Serialised C-terminal modifications string, or empty string when unset.
+
+        :rtype: str
+        """
         if self._cterm_mods is None:
             return ""
         return self.cterm_mods.serialize()
 
     @property
     def internal_mods(self) -> dict[int, Mods[ModificationTags]]:
+        """Per-position internal modifications keyed by 0-based index; empty dict when unset.
+
+        :rtype: dict[int, Mods[ModificationTags]]
+        """
         if self._internal_mods is None:
             return {}
         internal_mods_parsed: dict[int, Mods[ModificationTags]] = {}
@@ -651,6 +823,10 @@ class ProFormaAnnotation:
 
     @property
     def intervals(self) -> tuple[Interval, ...]:
+        """Ambiguous sequence intervals; empty tuple when unset.
+
+        :rtype: tuple[Interval, ...]
+        """
         return tuple(self._intervals) if self._intervals is not None else ()
 
     @intervals.setter
@@ -659,6 +835,10 @@ class ProFormaAnnotation:
 
     @property
     def charge(self) -> int | Mods[GlobalChargeCarrier] | None:
+        """Charge as an integer or adduct ``Mods``; ``None`` when uncharged or zero.
+
+        :rtype: int | Mods[GlobalChargeCarrier] | None
+        """
         if isinstance(self._charge, int):
             if self._charge == 0:
                 return None
@@ -678,6 +858,11 @@ class ProFormaAnnotation:
 
     @property
     def charge_state(self) -> int:
+        """Numeric charge state derived from the stored charge; 0 when uncharged.
+
+        :rtype: int
+        :raises ValueError: If the stored charge value has an unexpected type.
+        """
         charge = self.charge
         if isinstance(charge, int):
             return charge
@@ -690,6 +875,10 @@ class ProFormaAnnotation:
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
+        """Charge expressed as adduct ``Mods``; converts an integer charge to proton adducts.
+
+        :rtype: Mods[GlobalChargeCarrier]
+        """
         charge = self.charge
         if isinstance(charge, int):
             if charge == 0 or charge < 0:
@@ -713,6 +902,17 @@ class ProFormaAnnotation:
     def set_sequence(
         self, sequence: str | None, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Set the amino-acid sequence.
+
+        :param sequence: New sequence, or ``None`` to clear.
+        :type sequence: str | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -725,16 +925,49 @@ class ProFormaAnnotation:
     def set_compound_name(
         self, name: str | None, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Set the compound-level name.
+
+        :param name: New name, or ``None`` to clear.
+        :type name: str | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_name_generic(name, "_compound_name", inplace, validate)
 
     def set_ion_name(
         self, name: str | None, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Set the ion-level name.
+
+        :param name: New name, or ``None`` to clear.
+        :type name: str | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_name_generic(name, "_ion_name", inplace, validate)
 
     def set_peptide_name(
         self, name: str | None, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Set the peptide-level name.
+
+        :param name: New name, or ``None`` to clear.
+        :type name: str | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_name_generic(name, "_peptide_name", inplace, validate)
 
     def set_isotope_mods(
@@ -743,6 +976,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all isotope modifications.
+
+        :param mods: New isotope modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[IsotopeReplacement] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_mod_generic(
             mods, "_isotope_mods", "validate_isotope_mods", inplace, validate
         )
@@ -753,6 +997,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all static (fixed) modifications.
+
+        :param mods: New static modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[FixedModification] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_mod_generic(
             mods, "_static_mods", "validate_static_mods", inplace, validate
         )
@@ -763,6 +1018,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all labile modifications.
+
+        :param mods: New labile modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[ModificationTags] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_mod_generic(
             mods, "_labile_mods", "validate_labile_mods", inplace, validate
         )
@@ -773,6 +1039,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all unknown-localisation modifications.
+
+        :param mods: New unknown modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[ModificationTags] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._set_mod_generic(
             mods, "_unknown_mods", "validate_unknown_mods", inplace, validate
         )
@@ -784,6 +1061,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         start_aa: str | None = None,
     ) -> Self:
+        """Replace all N-terminal modifications.
+
+        :param mods: New N-terminal modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[ModificationTags] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
+        :type start_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if start_aa is not None:
             if self.start_aa != start_aa:
                 return self if inplace else self.copy()
@@ -798,6 +1088,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         end_aa: str | None = None,
     ) -> Self:
+        """Replace all C-terminal modifications.
+
+        :param mods: New C-terminal modifications, or ``None`` to clear.
+        :type mods: dict[str, int] | Mods[ModificationTags] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
+        :type end_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if end_aa is not None:
             if self.end_aa != end_aa:
                 return self if inplace else self.copy()
@@ -811,6 +1114,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all internal (per-position) modifications.
+
+        :param mods: Mapping of 0-based residue index to modification dict, or ``None`` to clear.
+        :type mods: dict[int, dict[str, int] | Mods[ModificationTags] | None] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
 
@@ -843,6 +1157,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace all ambiguous sequence intervals.
+
+        :param intervals: New list of intervals, or ``None`` to clear.
+        :type intervals: list[Interval] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
 
@@ -865,6 +1190,19 @@ class ProFormaAnnotation:
     def set_internal_mods_at_index(
         self, index: int, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Replace internal modifications at a single 0-based sequence position.
+
+        :param index: 0-based residue index.
+        :type index: int
+        :param mods: New modifications for this position, or ``None`` to remove them.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -910,6 +1248,18 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Replace the charge value.
+
+        :param charge: New charge as an integer, adduct string(s), ``Mods``, or ``None`` to clear.
+        :type charge: int | str | list[str] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        :raises ValueError: If the resolved charge value has an unsupported type.
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1099,6 +1449,17 @@ class ProFormaAnnotation:
     def append_isotope_mod(
         self, mod: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Append an isotope modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._append_mod_generic(
             mod, "_isotope_mods", IsotopeReplacement.from_string, inplace, validate
         )
@@ -1106,6 +1467,17 @@ class ProFormaAnnotation:
     def append_static_mod(
         self, mod: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Append a static (fixed) modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._append_mod_generic(
             mod, "_static_mods", FixedModification.from_string, inplace, validate
         )
@@ -1113,6 +1485,17 @@ class ProFormaAnnotation:
     def append_labile_mod(
         self, mod: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Append a labile modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._append_mod_generic(
             mod, "_labile_mods", ModificationTags.from_string, inplace, validate
         )
@@ -1120,6 +1503,17 @@ class ProFormaAnnotation:
     def append_unknown_mod(
         self, mod: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Append an unknown-localisation modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._append_mod_generic(
             mod, "_unknown_mods", ModificationTags.from_string, inplace, validate
         )
@@ -1131,6 +1525,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         start_aa: str | None = None,
     ) -> Self:
+        """Append an N-terminal modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
+        :type start_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if start_aa is not None:
             if self.start_aa != start_aa:
                 return self if inplace else self.copy()
@@ -1145,6 +1552,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         end_aa: str | None = None,
     ) -> Self:
+        """Append a C-terminal modification.
+
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
+        :type end_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if end_aa is not None:
             if self.end_aa != end_aa:
                 return self if inplace else self.copy()
@@ -1155,6 +1575,19 @@ class ProFormaAnnotation:
     def append_internal_mod_at_index(
         self, index: int, mod: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Append an internal modification at a specific 0-based sequence position.
+
+        :param index: 0-based residue index.
+        :type index: int
+        :param mod: Modification to append.
+        :type mod: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
 
@@ -1188,6 +1621,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Append an ambiguous sequence interval.
+
+        :param interval: ``Interval`` object or a ``(start, end, ambiguous, mods)`` tuple.
+        :type interval: Interval | tuple[int, int, bool, Any]
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1266,6 +1710,18 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Append modifications of multiple types from a mapping of mod-type to value.
+
+        :param mods: Mapping of :class:`ModType` (or literal/index) to modification value.
+        :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        :raises IndexError: If an integer key is out of range for the current sequence.
+        """
         if not inplace:
             return self.copy().append_mods(mods, inplace=True, validate=validate)
 
@@ -1311,21 +1767,65 @@ class ProFormaAnnotation:
     def extend_isotope_mods(
         self, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend isotope modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._extend_generic(mods, self.append_isotope_mod, inplace, validate)
 
     def extend_static_mods(
         self, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend static modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._extend_generic(mods, self.append_static_mod, inplace, validate)
 
     def extend_labile_mods(
         self, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend labile modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._extend_generic(mods, self.append_labile_mod, inplace, validate)
 
     def extend_unknown_mods(
         self, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend unknown-localisation modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._extend_generic(mods, self.append_unknown_mod, inplace, validate)
 
     def extend_nterm_mods(
@@ -1335,6 +1835,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         start_aa: str | None = None,
     ) -> Self:
+        """Extend N-terminal modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
+        :type start_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1358,6 +1871,19 @@ class ProFormaAnnotation:
         validate: bool | None = None,
         end_aa: str | None = None,
     ) -> Self:
+        """Extend C-terminal modifications by appending each item in *mods*.
+
+        :param mods: Iterable of modifications to append.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
+        :type end_aa: str | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1377,6 +1903,19 @@ class ProFormaAnnotation:
     def extend_internal_mods_at_index(
         self, index: int, mods: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend internal modifications at a single position by appending each item in *mods*.
+
+        :param index: 0-based residue index.
+        :type index: int
+        :param mods: Iterable of modifications to append at this position.
+        :type mods: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1393,6 +1932,17 @@ class ProFormaAnnotation:
     def extend_intervals(
         self, intervals: Any, inplace: bool = True, validate: bool | None = None
     ) -> Self:
+        """Extend ambiguous sequence intervals by appending each item in *intervals*.
+
+        :param intervals: Iterable of intervals to append.
+        :type intervals: Any
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._extend_generic(intervals, self.append_interval, inplace, validate)
 
     def _extend_by_type(
@@ -1442,6 +1992,18 @@ class ProFormaAnnotation:
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
+        """Extend modifications of multiple types by iterating through each mapped iterable.
+
+        :param mods: Mapping of :class:`ModType` (or literal/index) to iterable of modification values.
+        :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param validate: Override the instance-level validation flag for this call only.
+        :type validate: bool | None
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        :raises IndexError: If an integer key is out of range for the current sequence.
+        """
         if validate is None:
             validate = self._validate
         if not inplace:
@@ -1633,6 +2195,13 @@ class ProFormaAnnotation:
     """
 
     def compare(self, other: Self) -> bool:
+        """Compare this annotation to *other* field-by-field, logging differences at DEBUG level.
+
+        :param other: The annotation to compare against.
+        :type other: Self
+        :return: ``True`` if all fields are equal, ``False`` otherwise.
+        :rtype: bool
+        """
         # check each attribute for equality
         diffs = []  # hold the string values of differing attributes (ACTUALLY SHOW THE ATTRIBUTES)
         for attr in [
@@ -1654,7 +2223,7 @@ class ProFormaAnnotation:
                     f"{attr} (self: {self_attribute}, other: {other_attribute})"
                 )
         if diffs:
-            print(f"Differences found in attributes: {', '.join(diffs)}")
+            logger.debug("Differences found in attributes: %s", ", ".join(diffs))
             return False
         return True
 
@@ -1733,6 +2302,11 @@ class ProFormaAnnotation:
         )
 
     def copy(self) -> Self:
+        """Return a deep copy of this annotation.
+
+        :return: A new independent annotation with the same field values.
+        :rtype: Self
+        """
         return self.__class__(
             sequence=self._sequence,
             compound_name=self._compound_name,
@@ -1767,6 +2341,11 @@ class ProFormaAnnotation:
         )
 
     def update(self, other: Self) -> None:
+        """In-place update: replace all fields of this annotation with copies from *other*.
+
+        :param other: Source annotation whose field values will be copied.
+        :type other: Self
+        """
         self._sequence = other._sequence
         self._compound_name = other._compound_name
         self._ion_name = other._ion_name
@@ -1813,6 +2392,13 @@ class ProFormaAnnotation:
             )
 
     def sort_mods(self, inplace: bool = True) -> Self:
+        """Sort all modification dictionaries and the intervals list deterministically.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation with sorted modifications.
+        :rtype: Self
+        """
         if not inplace:
             return self.copy().sort_mods(inplace=True)
 
@@ -1931,6 +2517,13 @@ class ProFormaAnnotation:
             | None
         ) = None,
     ) -> bool:
+        """Return ``True`` if any of the specified modification types are present.
+
+        :param mod_types: Types to check; all types when ``None``.
+        :type mod_types: Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None
+        :return: ``True`` if at least one matching modification exists.
+        :rtype: bool
+        """
         mod_enums = get_mods(mod_types)
         return any(self._has_mods_by_type(mod_enum) for mod_enum in mod_enums)
 
@@ -1989,6 +2582,15 @@ class ProFormaAnnotation:
             | None
         ) = None,
     ) -> dict[ModType | ModTypeLiteral, Any]:
+        """Return a dict of present modification types mapped to their values.
+
+        Only types that currently have modifications are included in the result.
+
+        :param mod_types: Types to include; all types when ``None``.
+        :type mod_types: Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None
+        :return: Mapping of mod type to modification value.
+        :rtype: dict[ModType | ModTypeLiteral, Any]
+        """
         mod_enums = get_mods(mod_types)
         return {
             mod_enum: self._get_mods_by_type(mod_enum)
@@ -2136,6 +2738,13 @@ class ProFormaAnnotation:
         return annot
 
     def serialize(self, exclude_charge: bool = False) -> str:
+        """Serialise this annotation to a ProForma string.
+
+        :param exclude_charge: If ``True``, omit the charge suffix from the output.
+        :type exclude_charge: bool
+        :return: A ProForma-compliant string representation.
+        :rtype: str
+        """
         return serialize_annotation(self, exclude_charge=exclude_charge)
 
     def serialize_charge(self) -> str:
@@ -2431,6 +3040,22 @@ class ProFormaAnnotation:
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
     ) -> float:
+        """Calculate the neutral (uncharged) mass for the given ion type.
+
+        :param ion_type: Fragment ion type to use for the calculation.
+        :type ion_type: ION_TYPE
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses when ``False``.
+        :type monoisotopic: bool
+        :param isotopes: Isotope offsets or element-count overrides.
+        :type isotopes: ISOTOPE_TYPE | None
+        :param deltas: Custom neutral-loss or gain formula(s).
+        :type deltas: CUSTOM_LOSS_TYPE | None
+        :param calculate_with_composition: Derive mass from elemental composition instead of
+            the fast mass-lookup path.
+        :type calculate_with_composition: bool
+        :return: Neutral mass in daltons.
+        :rtype: float
+        """
         f = self.frag(
             ion_type=ion_type,
             charge=0,
@@ -2953,6 +3578,13 @@ class ProFormaAnnotation:
     """
 
     def pop_isotope_mods(self, inplace: bool = True) -> Mods[IsotopeReplacement]:
+        """Pop and return isotope modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed isotope modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[IsotopeReplacement]
+        """
         if not self.has_isotope_mods:
             return EMPTY_ISOTOPE_MODS
 
@@ -2964,6 +3596,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_static_mods(self, inplace: bool = True) -> Mods[FixedModification]:
+        """Pop and return static modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed static modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[FixedModification]
+        """
         if not self.has_static_mods:
             return EMPTY_STATIC_MODS
 
@@ -2975,6 +3614,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_labile_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+        """Pop and return labile modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed labile modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[ModificationTags]
+        """
         if not self.has_labile_mods:
             return EMPTY_LABILE_MODS
 
@@ -2986,6 +3632,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_unknown_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+        """Pop and return unknown-localisation modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed unknown modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[ModificationTags]
+        """
         if not self.has_unknown_mods:
             return EMPTY_UNKNOWN_MODS
 
@@ -2997,6 +3650,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_nterm_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+        """Pop and return N-terminal modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed N-terminal modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[ModificationTags]
+        """
         if not self.has_nterm_mods:
             return EMPTY_NTERM_MODS
 
@@ -3008,6 +3668,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_cterm_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+        """Pop and return C-terminal modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed C-terminal modifications (empty ``Mods`` if none were present).
+        :rtype: Mods[ModificationTags]
+        """
         if not self.has_cterm_mods:
             return EMPTY_CTERM_MODS
 
@@ -3021,6 +3688,13 @@ class ProFormaAnnotation:
     def pop_internal_mods(
         self, inplace: bool = True
     ) -> dict[int, Mods[ModificationTags]]:
+        """Pop and return all internal modifications, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed internal modifications (empty dict if none were present).
+        :rtype: dict[int, Mods[ModificationTags]]
+        """
         if not self.has_internal_mods:
             return {}
 
@@ -3032,6 +3706,13 @@ class ProFormaAnnotation:
         return value
 
     def pop_intervals(self, inplace: bool = True) -> list[Interval]:
+        """Pop and return all intervals, clearing them from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed intervals (empty list if none were present).
+        :rtype: list[Interval]
+        """
         if not self.has_intervals:
             return []
 
@@ -3045,6 +3726,13 @@ class ProFormaAnnotation:
     def pop_charge(
         self, inplace: bool = True
     ) -> int | Mods[GlobalChargeCarrier] | None:
+        """Pop and return the charge, clearing it from the annotation.
+
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: The removed charge value, or ``None`` if no charge was set.
+        :rtype: int | Mods[GlobalChargeCarrier] | None
+        """
         if not self.has_charge:
             return None
 
@@ -3058,6 +3746,15 @@ class ProFormaAnnotation:
     def pop_internal_mod_at_index(
         self, index: int, inplace: bool = True
     ) -> tuple[tuple[MODIFICATION_TYPE, int], ...]:
+        """Pop and return internal modifications at a single 0-based position.
+
+        :param index: 0-based residue index.
+        :type index: int
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: Tuple of ``(modification, count)`` pairs; empty tuple if none were present.
+        :rtype: tuple[tuple[MODIFICATION_TYPE, int], ...]
+        """
         if self._internal_mods is None:
             return ()
 
@@ -3115,6 +3812,15 @@ class ProFormaAnnotation:
         | None = None,
         inplace: bool = True,
     ) -> dict[ModType, Any]:
+        """Pop and return modifications of the specified types, clearing them from the annotation.
+
+        :param mod_types: Types to pop; all types when ``None``.
+        :type mod_types: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
+        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: Mapping of :class:`ModType` to the removed modification values.
+        :rtype: dict[ModType, Any]
+        """
         if inplace is False:
             return self.copy().pop_mods(mod_types=mod_types, inplace=True)
 
@@ -3136,6 +3842,17 @@ class ProFormaAnnotation:
         inplace: bool = True,
         keep: bool = True,
     ) -> Self:
+        """Filter modifications by type, either keeping or removing the specified types.
+
+        :param mods: Modification types to keep or remove; all types when ``None``.
+        :type mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :param keep: When ``True`` keep only the specified types; when ``False`` remove them.
+        :type keep: bool
+        :return: The (possibly new) annotation with filtered modifications.
+        :rtype: Self
+        """
         if inplace is False:
             return self.copy().filter_mods(mods=mods, inplace=True)
 
@@ -3166,27 +3883,85 @@ class ProFormaAnnotation:
         return self
 
     def clear_isotope_mods(self, inplace: bool = True) -> Self:
+        """Clear all isotope modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_isotope_mods", inplace)
 
     def clear_static_mods(self, inplace: bool = True) -> Self:
+        """Clear all static modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_static_mods", inplace)
 
     def clear_nterm_mods(self, inplace: bool = True) -> Self:
+        """Clear all N-terminal modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_nterm_mods", inplace)
 
     def clear_cterm_mods(self, inplace: bool = True) -> Self:
+        """Clear all C-terminal modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_cterm_mods", inplace)
 
     def clear_labile_mods(self, inplace: bool = True) -> Self:
+        """Clear all labile modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_labile_mods", inplace)
 
     def clear_unknown_mods(self, inplace: bool = True) -> Self:
+        """Clear all unknown-localisation modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_unknown_mods", inplace)
 
     def clear_internal_mods(self, inplace: bool = True) -> Self:
+        """Clear all internal (per-position) modifications.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_internal_mods", inplace)
 
     def clear_internal_mod_at_index(self, index: int, inplace: bool = True) -> Self:
+        """Clear internal modifications at a single 0-based sequence position.
+
+        :param index: 0-based residue index.
+        :type index: int
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         if not inplace:
             return self.copy().clear_internal_mod_at_index(index, inplace=True)
         if self._internal_mods is None or index not in self._internal_mods:
@@ -3197,9 +3972,23 @@ class ProFormaAnnotation:
         return self
 
     def clear_intervals(self, inplace: bool = True) -> Self:
+        """Clear all ambiguous sequence intervals.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_intervals", inplace)
 
     def clear_charge(self, inplace: bool = True) -> Self:
+        """Clear the charge value.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation.
+        :rtype: Self
+        """
         return self._clear_mod_dict("_charge", inplace)
 
     def _clear_mod_by_type(self, mod_type: ModType) -> None:
@@ -3236,6 +4025,15 @@ class ProFormaAnnotation:
         ) = None,
         inplace: bool = True,
     ) -> Self:
+        """Clear modifications of the specified types (all types when ``None``).
+
+        :param mods: Types to clear; all types when ``None``.
+        :type mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation with selected modifications cleared.
+        :rtype: Self
+        """
         if inplace is False:
             return self.copy().clear_mods(mods=mods, inplace=True)
         mod_enums = get_mods(mods)
@@ -3244,6 +4042,13 @@ class ProFormaAnnotation:
         return self
 
     def strip_mods(self, inplace: bool = False) -> Self:
+        """Remove all modifications of every type, leaving only the bare sequence.
+
+        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) bare annotation.
+        :rtype: Self
+        """
         return self.clear_mods(None, inplace=inplace)
 
     """
@@ -3263,6 +4068,17 @@ class ProFormaAnnotation:
         stop: int | None,
         inplace: bool = False,
     ) -> Self:
+        """Return a sub-annotation spanning ``sequence[start:stop]``, carrying over applicable mods.
+
+        :param start: 0-based start index (inclusive); ``None`` means the beginning.
+        :type start: int | None
+        :param stop: 0-based stop index (exclusive); ``None`` means the end.
+        :type stop: int | None
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The sliced annotation.
+        :rtype: Self
+        """
         return cast(
             Self,
             slice_annotation(
@@ -3274,6 +4090,11 @@ class ProFormaAnnotation:
         )
 
     def split(self) -> list[Self]:
+        """Split this annotation into a list of single-residue annotations.
+
+        :return: List of single-residue annotations in sequence order.
+        :rtype: list[Self]
+        """
         return [cast(Self, a) for a in split_annotation(self)]
 
     @staticmethod
@@ -3287,6 +4108,19 @@ class ProFormaAnnotation:
         keep_cterm: int = 0,
         inplace: bool = False,
     ) -> Self:
+        """Cyclically shift the sequence by *n* positions, optionally anchoring termini.
+
+        :param n: Number of positions to shift (positive = rightward).
+        :type n: int
+        :param keep_nterm: Number of N-terminal residues to keep in place.
+        :type keep_nterm: int
+        :param keep_cterm: Number of C-terminal residues to keep in place.
+        :type keep_cterm: int
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) shifted annotation.
+        :rtype: Self
+        """
         return cast(Self, shift_annotation(self, n, keep_nterm, keep_cterm, inplace))
 
     def shuffle(
@@ -3296,6 +4130,19 @@ class ProFormaAnnotation:
         keep_cterm: int = 0,
         inplace: bool = False,
     ) -> Self:
+        """Randomly shuffle the sequence residues, optionally anchoring termini.
+
+        :param seed: Random seed for reproducibility; ``None`` for a random shuffle.
+        :type seed: Any
+        :param keep_nterm: Number of N-terminal residues to keep in place.
+        :type keep_nterm: int
+        :param keep_cterm: Number of C-terminal residues to keep in place.
+        :type keep_cterm: int
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) shuffled annotation.
+        :rtype: Self
+        """
         return cast(
             Self, shuffle_annotation(self, seed, keep_nterm, keep_cterm, inplace)
         )
@@ -3306,6 +4153,17 @@ class ProFormaAnnotation:
         keep_cterm: int = 0,
         inplace: bool = False,
     ) -> Self:
+        """Reverse the sequence residues, optionally anchoring termini.
+
+        :param keep_nterm: Number of N-terminal residues to keep in place.
+        :type keep_nterm: int
+        :param keep_cterm: Number of C-terminal residues to keep in place.
+        :type keep_cterm: int
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) reversed annotation.
+        :rtype: Self
+        """
         return cast(Self, reverse_annotation(self, keep_nterm, keep_cterm, inplace))
 
     def sort(
@@ -3314,6 +4172,17 @@ class ProFormaAnnotation:
         key: Callable[[str], Any] | None = None,
         reverse: bool = False,
     ) -> Self:
+        """Sort the sequence residues, optionally with a custom key.
+
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :param key: Key function applied to each residue for sorting; default alphabetical.
+        :type key: Callable[[str], Any] | None
+        :param reverse: If ``True``, sort in descending order.
+        :type reverse: bool
+        :return: The (possibly new) sorted annotation.
+        :rtype: Self
+        """
         return cast(Self, sort_annotation(self, inplace, key, reverse))
 
     def sliding_windows(
@@ -3321,6 +4190,15 @@ class ProFormaAnnotation:
         window_size: int,
         reverse: bool = False,
     ) -> Generator[Self, None, None]:
+        """Yield overlapping sub-annotations of a fixed window size.
+
+        :param window_size: Number of residues in each window.
+        :type window_size: int
+        :param reverse: Iterate from C-terminus to N-terminus when ``True``.
+        :type reverse: bool
+        :return: Generator of window annotations.
+        :rtype: Generator[Self, None, None]
+        """
         for window in generate_sliding_windows(self, window_size, reverse):
             yield cast(Self, window)
 
@@ -3528,6 +4406,23 @@ class ProFormaAnnotation:
         sort_mods: bool = True,
         inplace: bool = False,
     ) -> Self:
+        """Annotate modification-site ambiguity using forward and reverse fragment coverage vectors.
+
+        :param forward_coverage: Per-position coverage counts from N-terminal fragments.
+        :type forward_coverage: list[int]
+        :param reverse_coverage: Per-position coverage counts from C-terminal fragments.
+        :type reverse_coverage: list[int]
+        :param mass_shift: Optional mass shift to associate with ambiguous intervals.
+        :type mass_shift: Any | None
+        :param add_mods_to_intervals: If ``True``, include modifications in the interval objects.
+        :type add_mods_to_intervals: bool
+        :param sort_mods: If ``True``, sort modifications after annotation.
+        :type sort_mods: bool
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotated annotation.
+        :rtype: Self
+        """
         return cast(
             Self,
             annotate_ambiguity(
@@ -3542,21 +4437,50 @@ class ProFormaAnnotation:
         )
 
     def condense_ambiguity_to_xnotation(self, inplace: bool = True) -> Self:
+        """Condense ambiguous interval regions to X-notation placeholders.
+
+        :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
+        :type inplace: bool
+        :return: The (possibly new) annotation with intervals condensed to X notation.
+        :rtype: Self
+        """
         return cast(Self, condense_ambiguity_to_xnotation(self, inplace=inplace))
 
     @staticmethod
     def group_by_ambiguity(
         annotations: Iterable["ProFormaAnnotation"], precision: int = 5
     ) -> list[tuple["ProFormaAnnotation", ...]]:
+        """Group annotations that are ambiguous equivalents of each other.
+
+        :param annotations: Annotations to group.
+        :type annotations: Iterable[ProFormaAnnotation]
+        :param precision: Decimal precision for mass comparison when grouping.
+        :type precision: int
+        :return: List of groups, each group being a tuple of equivalent annotations.
+        :rtype: list[tuple[ProFormaAnnotation, ...]]
+        """
         return group_by_ambiguity(annotations, precision=precision)
 
     @staticmethod
     def unique_fragments(
         annotations: Iterable["ProFormaAnnotation"], precision: int = 4
     ) -> list[int]:
+        """Return the indices of annotations that produce unique fragment masses.
+
+        :param annotations: Annotations to compare.
+        :type annotations: Iterable[ProFormaAnnotation]
+        :param precision: Decimal precision for fragment mass comparison.
+        :type precision: int
+        :return: List of indices into *annotations* whose fragment masses are unique.
+        :rtype: list[int]
+        """
         return unique_fragments(annotations, precision=precision)
 
     def to_ip2(self) -> str:
+        """Convert this annotation to IP2 format string.
+
+        :raises NotImplementedError: This conversion is not yet implemented.
+        """
         raise NotImplementedError("Conversion to IP2 format is not yet implemented.")
 
     @staticmethod
@@ -3571,6 +4495,10 @@ class ProFormaAnnotation:
         return ProFormaAnnotation.parse(sequence)
 
     def to_diann(self) -> str:
+        """Convert this annotation to DIA-NN format string.
+
+        :raises NotImplementedError: This conversion is not yet implemented.
+        """
         raise NotImplementedError("Conversion to DIANN format is not yet implemented.")
 
     @staticmethod
@@ -3590,6 +4518,10 @@ class ProFormaAnnotation:
         return ProFormaAnnotation.parse(sequence)
 
     def to_casanovo(self) -> str:
+        """Convert this annotation to Casanovo format string.
+
+        :raises NotImplementedError: This conversion is not yet implemented.
+        """
         raise NotImplementedError(
             "Conversion to Casanovo format is not yet implemented."
         )
@@ -3773,6 +4705,29 @@ class ProFormaAnnotation:
         use_neutron_count: bool = False,
         conv_min_abundance_threshold: float = 10e-15,
     ) -> list[IsotopicData]:
+        """Calculate the exact isotopic distribution from elemental composition.
+
+        :param ion_type: Fragment ion type to use.
+        :type ion_type: ION_TYPE
+        :param charge: Charge override; uses the annotation charge when ``None``.
+        :type charge: CHARGE_TYPE | None
+        :param isotopes: Isotope offsets or element-count overrides.
+        :type isotopes: ISOTOPE_TYPE | None
+        :param deltas: Custom neutral-loss or gain formula(s).
+        :type deltas: CUSTOM_LOSS_TYPE | None
+        :param max_isotopes: Maximum number of isotope peaks to return.
+        :type max_isotopes: int | None
+        :param min_abundance_threshold: Minimum relative abundance (vs. the most abundant peak).
+        :type min_abundance_threshold: float
+        :param distribution_resolution: Decimal places used when binning m/z values.
+        :type distribution_resolution: int | None
+        :param use_neutron_count: Use neutron count instead of exact mass offsets.
+        :type use_neutron_count: bool
+        :param conv_min_abundance_threshold: Minimum absolute abundance during convolution.
+        :type conv_min_abundance_threshold: float
+        :return: List of isotopic data points sorted by m/z.
+        :rtype: list[IsotopicData]
+        """
         # check if any deltas provided are float?
 
         frag_annot = self
@@ -3889,6 +4844,13 @@ class ProFormaAnnotation:
         self,
         enzyme: str | re.Pattern[str],
     ) -> Generator[int, None, None]:
+        """Yield 0-based cleavage positions matching the given enzyme regex.
+
+        :param enzyme: Regex pattern (or pre-compiled pattern) defining cleavage sites.
+        :type enzyme: str | re.Pattern[str]
+        :return: Generator of 0-based indices where cleavage occurs.
+        :rtype: Generator[int, None, None]
+        """
         # Call the underlying function
         return get_cleavage_sites(self, enzyme)
 

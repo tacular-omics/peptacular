@@ -1,9 +1,14 @@
+from __future__ import annotations
+
+import logging
 import multiprocessing as mp
 import sys
 from collections.abc import Callable, Sequence
 from functools import partial
 from multiprocessing.pool import Pool, ThreadPool
 from typing import Any, Literal, TypeVar
+
+logger = logging.getLogger(__name__)
 
 from ..constants import parallelMethod, parallelMethodLiteral
 
@@ -29,7 +34,7 @@ def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = Non
         try:
             mp.set_start_method(method, force=True)
         except RuntimeError as e:
-            print(f"Warning: Could not set start method to '{method}': {e}")
+            logger.warning(f"Warning: Could not set start method to '{method}': {e}")
 
 
 def get_start_method() -> str:
@@ -143,7 +148,7 @@ def parallel_apply_internal[T](
         n_workers = mp.cpu_count()
 
     if verbose:
-        print(f"Using n_workers: {n_workers}")
+        logger.debug(f"Using n_workers: {n_workers}")
 
     # Optimize chunksize calculation
     if chunksize is None:
@@ -156,7 +161,7 @@ def parallel_apply_internal[T](
             chunksize = max(1, total_items // (n_workers * 4))
 
     if verbose:
-        print(f"Using chunksize: {chunksize}")
+        logger.debug(f"Using chunksize: {chunksize}")
 
     wrapper = partial(_apply_wrapper, func=func, func_kwargs=func_kwargs)
 

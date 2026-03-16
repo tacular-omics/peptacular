@@ -4,7 +4,7 @@ The sequence module contains the functional API for peptacular.
 All sequence functions support a single sequence/annotation input or a list of sequences/annotations for batch processing.
 When multiple sequences/annotations are provided, a multiprocessing pool is used to parallelize the computations.
 
-Sequecnes are converted to a proforma annotation and then thier properties are computed. If the output is a sequence,
+Sequences are converted to a proforma annotation and then their properties are computed. If the output is a sequence,
 it is converted back to a string representation via serialize.
 
 This is great for processing large datasets of sequences/annotations efficiently, especially if only a few operations are

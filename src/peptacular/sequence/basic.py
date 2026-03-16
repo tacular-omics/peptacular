@@ -66,8 +66,8 @@ def _serialize_chimeric_single(
     # first annot will have comound anme and global mods (iso and static)
 
     # ensure all annots share the same compound name and global mods
-    compund_names = {annot.compound_name for annot in annots}
-    if len(compund_names) > 1:
+    compound_names = {annot.compound_name for annot in annots}
+    if len(compound_names) > 1:
         raise ValueError("All annotations in a chimeric sequence must share the same compound name.")
 
     static_mods = {annot.static_mods for annot in annots}
