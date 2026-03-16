@@ -6,7 +6,7 @@ from ..constants import ModType, ModTypeLiteral, parallelMethod, parallelMethodL
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
 
-MOD_BUILDER_INPUT_TYPE = Mapping[str, Iterable[Any]]
+MOD_BUILDER_INPUT_TYPE = Mapping[str | None, Iterable[Any]]
 
 
 def _modify_single(

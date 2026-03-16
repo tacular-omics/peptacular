@@ -68,9 +68,9 @@ def ensure_single_static_mod(mods: dict[int, list[Any]]) -> None:
 
 def apply_mods(
     annotation: ProFormaAnnotation,
-    nterm: Mapping[str, Iterable[Any]] | None = None,
-    cterm: Mapping[str, Iterable[Any]] | None = None,
-    internal: Mapping[str, Iterable[Any]] | None = None,
+    nterm: Mapping[str | None, Iterable[Any]] | None = None,
+    cterm: Mapping[str | None, Iterable[Any]] | None = None,
+    internal: Mapping[str | None, Iterable[Any]] | None = None,
     inplace: bool = True,
     is_regex: bool = False,
 ) -> ProFormaAnnotation:
@@ -106,7 +106,7 @@ def apply_mods(
 
 def apply_static_mods_infront(
     annotation: ProFormaAnnotation,
-    internal_static: Mapping[str, Iterable[Any]] | None = None,
+    internal_static: Mapping[str | None, Iterable[Any]] | None = None,
     is_regex: bool = False,
 ) -> ProFormaAnnotation:
     if is_regex:
@@ -116,6 +116,8 @@ def apply_static_mods_infront(
         return annotation
 
     for mod_aa, mod_values in internal_static.items():
+        if mod_aa is None:
+            raise ValueError("None keys are not supported for static notation mods")
         for mod in mod_values:
             annotation.add_static_mod_by_residue(residue=mod_aa, mod=mod)
 
