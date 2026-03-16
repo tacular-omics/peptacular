@@ -47,18 +47,18 @@ from .digestion import (
     simple_cleavage_sites,
     simple_digest,
 )
-from .fragmentation import fragment, frag
+from .fragmentation import frag, fragment
 from .isotope import isotopic_distribution
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
     append_mods,
-    modify,
     condense_static_mods,
     condense_to_peptidoform,
     extend_mods,
     filter_mods,
     from_ms2_pip,
     get_mods,
+    modify,
     pop_mods,
     remove_mods,
     set_mods,

@@ -8,9 +8,10 @@ from functools import partial
 from multiprocessing.pool import Pool, ThreadPool
 from typing import Any, Literal, TypeVar
 
+from ..constants import parallelMethod, parallelMethodLiteral
+
 logger = logging.getLogger(__name__)
 
-from ..constants import parallelMethod, parallelMethodLiteral
 
 T = TypeVar("T")
 

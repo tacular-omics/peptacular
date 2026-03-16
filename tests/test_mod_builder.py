@@ -5,11 +5,11 @@ import peptacular as pt
 from peptacular.annotation.mod_builder import (
     apply_mods,
     apply_static_mods_infront,
-    modify,
     ensure_single_static_mod,
     get_mod_index_from_aa,
     get_mod_index_from_regex,
     get_sites,
+    modify,
 )
 
 
