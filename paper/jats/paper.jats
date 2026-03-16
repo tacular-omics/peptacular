@@ -55,6 +55,11 @@ amino acid sequence analysis</article-title>
 <author-notes>
 <corresp id="cor-1">* E-mail: <email></email></corresp>
 </author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-02-07">
+<day>7</day>
+<month>2</month>
+<year>2026</year>
+</pub-date>
 <volume>¿VOL?</volume>
 <issue>¿ISSUE?</issue>
 <fpage>¿PAGE?</fpage>
@@ -790,8 +795,21 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
   [A] - Advanced.</p>
   <p><bold>Figure 1: Parallelization Performance - GIL Enabled vs GIL
   Disabled (Python 3.14t)</bold></p>
-  <code language="latex">
-![This figure presents a parallelization performance comparison for mass calculations of 10,000 randomly generated modified peptides with lengths ranging from 10 to 30 amino acids. The benchmark evaluates serialized annotations (strings) and annotation objects across different parallelization methods and varying numbers of workers in both GIL-enabled and GIL-disabled configurations. Single-worker sequential-based execution serves as the baseline for speedup calculations (0.336s ±0.011s for serialized strings; 0.178s ±0.004s for annotation objects). The benchmark was conducted on an Intel i7-12700H processor (14 cores, 20 threads) with 64GB RAM using Python 3.14t.\label{fig:gil-comparison}](fig1.png){ width=100% }</code>
+  <fig>
+    <caption><p>This figure presents a parallelization performance
+    comparison for mass calculations of 10,000 randomly generated
+    modified peptides with lengths ranging from 10 to 30 amino acids.
+    The benchmark evaluates serialized annotations (strings) and
+    annotation objects across different parallelization methods and
+    varying numbers of workers in both GIL-enabled and GIL-disabled
+    configurations. Single-worker sequential-based execution serves as
+    the baseline for speedup calculations (0.336s ±0.011s for serialized
+    strings; 0.178s ±0.004s for annotation objects). The benchmark was
+    conducted on an Intel i7-12700H processor (14 cores, 20 threads)
+    with 64GB RAM using Python
+    3.14t.<styled-content id="figU003Agil-comparison"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="fig1.png" />
+  </fig>
 </sec>
 <sec id="ai-usage-disclosure">
   <title>AI usage disclosure</title>
