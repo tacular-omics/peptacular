@@ -16,6 +16,8 @@ from ..constants import parallelMethod, parallelMethodLiteral
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
 
+FRAGMENT_MASSES_RETURN = dict[tuple[IonType, int], list[float]]
+
 
 def _fragment_single(
     sequence: str | ProFormaAnnotation,
@@ -219,4 +221,78 @@ def frag(
             deltas=deltas,
             calculate_composition=calculate_composition,
             position=position,
+        )
+
+
+def _fragment_masses_single(
+    sequence: str | ProFormaAnnotation,
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+    charges: Sequence[int] = (1,),
+    monoisotopic: bool = True,
+) -> FRAGMENT_MASSES_RETURN:
+    annotation = get_annotation_input(sequence=sequence, copy=False)
+    return annotation.fragment_masses(
+        ion_types=ion_types,
+        charges=charges,
+        monoisotopic=monoisotopic,
+    )
+
+
+@overload
+def fragment_masses(
+    sequence: str | ProFormaAnnotation,
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+    charges: Sequence[int] = (1,),
+    monoisotopic: bool = True,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> FRAGMENT_MASSES_RETURN: ...
+
+
+@overload
+def fragment_masses(
+    sequence: Sequence[str | ProFormaAnnotation],
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+    charges: Sequence[int] = (1,),
+    monoisotopic: bool = True,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> list[FRAGMENT_MASSES_RETURN]: ...
+
+
+def fragment_masses(
+    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+    charges: Sequence[int] = (1,),
+    monoisotopic: bool = True,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: parallelMethod | parallelMethodLiteral | None = None,
+) -> FRAGMENT_MASSES_RETURN | list[FRAGMENT_MASSES_RETURN]:
+    """Compute fragment ion m/z values for a sequence or list of sequences.
+
+    Uses a fast prefix/suffix-sum approach. Returns a dict mapping
+    ``(IonType, charge)`` to a list of m/z values of length equal to the
+    sequence length, ordered from fragment position 1 to N. Neutral losses,
+    isotope shifts, and custom deltas are not supported.
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _fragment_masses_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+            ion_types=ion_types,
+            charges=charges,
+            monoisotopic=monoisotopic,
+        )
+    else:
+        return _fragment_masses_single(
+            sequence=sequence,
+            ion_types=ion_types,
+            charges=charges,
+            monoisotopic=monoisotopic,
         )

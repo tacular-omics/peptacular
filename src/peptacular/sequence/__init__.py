@@ -47,7 +47,7 @@ from .digestion import (
     simple_cleavage_sites,
     simple_digest,
 )
-from .fragmentation import frag, fragment
+from .fragmentation import frag, fragment, fragment_masses
 from .isotope import isotopic_distribution
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
@@ -150,6 +150,7 @@ __all__ = [
     "simple_cleavage_sites",
     # fragmentation
     "fragment",
+    "fragment_masses",
     # mass_funcs
     "mass",
     "mz",
