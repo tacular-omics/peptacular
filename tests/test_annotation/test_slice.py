@@ -104,6 +104,69 @@ class TestSlice(unittest.TestCase):
         sliced = annotation.slice(0, 3)
         self.assertEqual(sliced.serialize(), "PEP/2")
 
+    def test_slice_drops_nterm_only_static_mod_when_nterm_removed(self):
+        """N-term-only static mod is dropped when start > 0"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@N-term": 1})
+        sliced = annotation.slice(1, 7)
+        self.assertFalse(sliced.has_static_mods)
+
+    def test_slice_drops_cterm_only_static_mod_when_cterm_removed(self):
+        """C-term-only static mod is dropped when stop < seq_len"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@C-term": 1})
+        sliced = annotation.slice(0, 6)
+        self.assertFalse(sliced.has_static_mods)
+
+    def test_slice_strips_nterm_rule_from_mixed_static_mod(self):
+        """Mixed static mod keeps only non-N-term rules when N-term is removed"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@K,N-term": 1})
+        sliced = annotation.slice(1, 7)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("[+1]@K", sliced.serialize())
+        self.assertNotIn("N-term", sliced.serialize())
+
+    def test_slice_preserves_anywhere_static_mod(self):
+        """ANYWHERE-rule static mod is preserved through any slice"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@M": 1})
+        sliced = annotation.slice(2, 5)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("[+1]@M", sliced.serialize())
+
+    def test_slice_preserves_global_static_mod_no_rules(self):
+        """Static mod with no position rules is preserved through any slice"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]": 1})
+        sliced = annotation.slice(2, 5)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("[+1]", sliced.serialize())
+
+    def test_slice_strips_both_terminal_rules_from_mixed_static_mod(self):
+        """Static mod with K, N-term, and C-term rules keeps only K when both terminals removed"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@K,N-term,C-term": 1})
+        sliced = annotation.slice(1, 6)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("[+1]@K", sliced.serialize())
+        self.assertNotIn("N-term", sliced.serialize())
+        self.assertNotIn("C-term", sliced.serialize())
+
+    def test_slice_drops_static_mod_with_only_terminal_rules_when_both_removed(self):
+        """Static mod with only N-term and C-term rules is dropped when both terminals removed"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@N-term,C-term": 1})
+        sliced = annotation.slice(1, 6)
+        self.assertFalse(sliced.has_static_mods)
+
+    def test_slice_preserves_nterm_static_mod_when_nterm_kept(self):
+        """N-term-only static mod is preserved when slice starts at position 0"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@N-term": 1})
+        sliced = annotation.slice(0, 4)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("N-term", sliced.serialize())
+
+    def test_slice_preserves_cterm_static_mod_when_cterm_kept(self):
+        """C-term-only static mod is preserved when slice ends at seq_len"""
+        annotation = pt.ProFormaAnnotation(sequence="PEPTIDE", static_mods={"[+1]@C-term": 1})
+        sliced = annotation.slice(3, 7)
+        self.assertTrue(sliced.has_static_mods)
+        self.assertIn("C-term", sliced.serialize())
+
 
 if __name__ == "__main__":
     unittest.main()

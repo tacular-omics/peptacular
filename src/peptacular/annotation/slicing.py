@@ -5,7 +5,8 @@ from collections.abc import Callable, Generator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from ..annotation.mod import Mods
-from ..proforma_components.comps import ModificationTags
+from ..constants import Terminal
+from ..proforma_components.comps import FixedModification, ModificationTags
 from .parser import Interval, ProFormaParser
 
 if TYPE_CHECKING:
@@ -77,6 +78,18 @@ def slice_annotation(
         annotation.clear_nterm_mods(inplace=True)
     if stop < seq_len:
         annotation.clear_cterm_mods(inplace=True)
+
+    # Adjust static modifications for removed terminals
+    if annotation.has_static_mods and annotation._static_mods is not None:
+        keep_nterm = start == 0
+        keep_cterm = stop == seq_len
+        if not (keep_nterm and keep_cterm):
+            adjusted = _adjust_static_mods(
+                annotation._static_mods,
+                keep_nterm=keep_nterm,
+                keep_cterm=keep_cterm,
+            )
+            annotation._static_mods = adjusted if adjusted else None
 
     # Update annotation
     annotation.sequence = new_sequence
@@ -658,6 +671,60 @@ def _adjust_internal_mods(internal_mods: dict[int, dict[str, int]], start: int, 
         if start <= pos < stop:
             new_internal_mods[pos - start] = mods
     return new_internal_mods
+
+
+def _adjust_static_mods(
+    static_mods: dict[str, int],
+    keep_nterm: bool,
+    keep_cterm: bool,
+) -> dict[str, int]:
+    """Adjust static modifications when a terminal is removed by slicing.
+
+    :param static_mods: Serialized FixedModification keys mapped to counts.
+    :type static_mods: dict[str, int]
+    :param keep_nterm: True if the N-terminus is retained in the slice.
+    :type keep_nterm: bool
+    :param keep_cterm: True if the C-terminus is retained in the slice.
+    :type keep_cterm: bool
+    :return: New dict with terminal-specific rules filtered out as appropriate.
+    :rtype: dict[str, int]
+    """
+    new_static_mods: dict[str, int] = {}
+    for mod_key, count in static_mods.items():
+        # Quick path: no terminal markers in the key string means no terminal rules to filter
+        has_nterm_rule = "N-term" in mod_key
+        has_cterm_rule = "C-term" in mod_key
+        if not has_nterm_rule and not has_cterm_rule:
+            new_static_mods[mod_key] = count
+            continue
+
+        fixed_mod = FixedModification.from_string(mod_key)
+
+        # Empty position_rules means "applies everywhere" — always keep
+        if not fixed_mod.position_rules:
+            new_static_mods[mod_key] = count
+            continue
+
+        filtered_rules = tuple(
+            rule for rule in fixed_mod.position_rules
+            if not (rule.terminal == Terminal.N_TERM and not keep_nterm)
+            and not (rule.terminal == Terminal.C_TERM and not keep_cterm)
+        )
+
+        if not filtered_rules:
+            continue  # all rules were for removed terminals; drop mod
+
+        if len(filtered_rules) == len(fixed_mod.position_rules):
+            new_static_mods[mod_key] = count  # no change
+        else:
+            new_fixed_mod = FixedModification(
+                modifications=fixed_mod.modifications,
+                position_rules=filtered_rules,
+            )
+            new_key = new_fixed_mod.serialize()
+            new_static_mods[new_key] = new_static_mods.get(new_key, 0) + count
+
+    return new_static_mods
 
 
 def _adjust_intervals(intervals: list[Interval], start: int, stop: int) -> list[Interval]:
