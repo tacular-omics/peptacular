@@ -191,7 +191,8 @@ def serialize_tag_mass(tm: "TagMass") -> str:
     Returns:
         String representation like '+15.995' or 'UNIMOD:+15.995'
     """
-    mass_str = f"{tm.mass:+}"
+    mass = tm.mass
+    mass_str = f"{int(mass):+}" if mass == int(mass) else f"{mass:+}"
     if tm.cv is not None:
         return sys.intern(f"{CV_TO_MASS_PREFIX[tm.cv]}{mass_str}{tm.serialize_position_score()}")
     else:

@@ -706,9 +706,9 @@ def _adjust_static_mods(
             continue
 
         filtered_rules = tuple(
-            rule for rule in fixed_mod.position_rules
-            if not (rule.terminal == Terminal.N_TERM and not keep_nterm)
-            and not (rule.terminal == Terminal.C_TERM and not keep_cterm)
+            rule
+            for rule in fixed_mod.position_rules
+            if not (rule.terminal == Terminal.N_TERM and not keep_nterm) and not (rule.terminal == Terminal.C_TERM and not keep_cterm)
         )
 
         if not filtered_rules:
