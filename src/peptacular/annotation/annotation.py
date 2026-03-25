@@ -25,7 +25,7 @@ from tacular import (
     NeutralDeltaLiteral,
 )
 
-from ..constants import ModType, ModTypeLiteral, Terminal
+from ..constants import PROTON_MASS, ModType, ModTypeLiteral, Terminal
 from ..digestion.core import (
     EnzymeConfig,
     digest_annotation_by_aa,
@@ -2721,6 +2721,51 @@ class ProFormaAnnotation:
             )
         return vec
 
+    def _build_mass_vector(self, monoisotopic: bool = True) -> list[float]:
+        """Build a per-residue mass array without sequence slicing.
+
+        Each element is the residue mass plus any modifications localised to that
+        position (internal mods, N-/C-terminal mods at the respective ends, and
+        static mods mapped to their target residues).
+
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses when ``False``.
+        :type monoisotopic: bool
+        :return: List of per-residue masses, length == len(self).
+        :rtype: list[float]
+        :raises ValueError: If the annotation contains unknown mods or interval mods.
+        """
+        if self.has_unknown_mods or self.has_intervals:
+            raise ValueError(f"fragment_masses not supported for sequences with unknown modifications or intervals: {str(self)}")
+
+        aa_lookup = AA_LOOKUP.one_letter_to_info
+        masses: list[float] = []
+        for aa in self.stripped_sequence:
+            m = aa_lookup[aa].get_mass(monoisotopic=monoisotopic)
+            if m is None:
+                raise ValueError(f"Mass not available for amino acid: {aa}")
+            masses.append(m)
+
+        if self.has_nterm_mods:
+            m, _ = self.nterm_mods.get_mass_charge(monoisotopic=monoisotopic)
+            masses[0] += m
+
+        if self.has_internal_mods:
+            for pos, mods in self.internal_mods.items():
+                m, _ = mods.get_mass_charge(monoisotopic=monoisotopic)
+                masses[pos] += m
+
+        if self.has_cterm_mods:
+            m, _ = self.cterm_mods.get_mass_charge(monoisotopic=monoisotopic)
+            masses[-1] += m
+
+        if self.has_static_mods:
+            static_mod_map = self.map_static_mods_to_indexes()
+            for pos, mods_list in static_mod_map.items():
+                for mod in mods_list:
+                    masses[pos] += mod.get_mass(monoisotopic=monoisotopic)
+
+        return masses
+
     def _get_comp_vector(self) -> list[Counter[ElementInfo]]:
         # slice sequence into single aa slcices
         vec: list[Counter[ElementInfo]] = []
@@ -3276,6 +3321,80 @@ class ProFormaAnnotation:
                     )
                 )
         return fragments
+
+    _UNSUPPORTED_META_ION_TYPES: frozenset[IonType] = frozenset({IonType.W, IonType.D})
+
+    def fragment_masses(
+        self,
+        ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+        charges: Sequence[int] = (1,),
+        monoisotopic: bool = True,
+    ) -> dict[tuple[IonType, int], list[float]]:
+        """Compute fragment ion m/z values using a fast prefix/suffix-sum approach.
+
+        Returns a mapping of ``(ion_type, charge)`` to a list of m/z values of
+        length ``len(self)``, ordered from fragment position 1 to N. No neutral
+        losses, isotope shifts, or custom deltas are applied.
+
+        :param ion_types: Ion series to generate (e.g. ``IonType.B``, ``IonType.Y``).
+            Meta-types such as ``IonType.W`` and ``IonType.D`` are not supported;
+            pass their concrete sub-types (``WA``/``WB``, ``DA``/``DB``) directly.
+        :type ion_types: Sequence[ION_TYPE]
+        :param charges: Proton charge states to compute m/z for.
+        :type charges: Sequence[int]
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses when ``False``.
+        :type monoisotopic: bool
+        :return: Dict mapping ``(IonType, charge)`` to a list of m/z values.
+        :rtype: dict[tuple[IonType, int], list[float]]
+        :raises ValueError: If a meta ion type (``W``, ``D``) is requested, or if the
+            annotation contains unknown mods or interval mods.
+        """
+        for ion_type_input in ion_types:
+            if IonType(ion_type_input) in self._UNSUPPORTED_META_ION_TYPES:
+                raise ValueError(
+                    f"Meta ion type {ion_type_input!r} is not supported in fragment_masses(). "
+                    "Pass concrete sub-types (e.g. IonType.WA, IonType.WB) directly."
+                )
+
+        n = len(self)
+        mass_vec = self._build_mass_vector(monoisotopic=monoisotopic)
+        result: dict[tuple[IonType, int], list[float]] = {}
+
+        for charge in charges:
+            charge_offset = charge * PROTON_MASS
+            for ion_type_input in ion_types:
+                ion_type = IonType(ion_type_input)
+                ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
+                ion_offset = ion_info.get_mass(monoisotopic=monoisotopic)
+
+                if ion_info.is_forward:
+                    prefix = 0.0
+                    masses_out: list[float] = []
+                    for m in mass_vec:
+                        prefix += m
+                        masses_out.append((prefix + ion_offset + charge_offset) / charge)
+                    result[(ion_type, charge)] = masses_out
+
+                elif ion_info.is_backward:
+                    prefix = 0.0
+                    masses_out = []
+                    for i in range(n - 1, -1, -1):
+                        prefix += mass_vec[i]
+                        masses_out.append((prefix + ion_offset + charge_offset) / charge)
+                    result[(ion_type, charge)] = masses_out
+
+                elif ion_info.is_intact:
+                    total = sum(mass_vec)
+                    mz = (total + ion_offset + charge_offset) / charge
+                    result[(ion_type, charge)] = [mz] * n
+
+                elif ion_info.is_internal:
+                    result[(ion_type, charge)] = [
+                        (mass_vec[i] + ion_offset + charge_offset) / charge
+                        for i in range(n)
+                    ]
+
+        return result
 
     """
     Pop Methods
