@@ -224,14 +224,14 @@ def frag(
         )
 
 
-def _fragment_masses_single(
+def _fast_fragment_single(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
     monoisotopic: bool = True,
 ) -> FRAGMENT_MASSES_RETURN:
     annotation = get_annotation_input(sequence=sequence, copy=False)
-    return annotation.fragment_masses(
+    return annotation.fast_fragment(
         ion_types=ion_types,
         charges=charges,
         monoisotopic=monoisotopic,
@@ -239,7 +239,7 @@ def _fragment_masses_single(
 
 
 @overload
-def fragment_masses(
+def fast_fragment(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
@@ -251,7 +251,7 @@ def fragment_masses(
 
 
 @overload
-def fragment_masses(
+def fast_fragment(
     sequence: Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
@@ -262,7 +262,7 @@ def fragment_masses(
 ) -> list[FRAGMENT_MASSES_RETURN]: ...
 
 
-def fragment_masses(
+def fast_fragment(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
@@ -280,7 +280,7 @@ def fragment_masses(
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
-            _fragment_masses_single,
+            _fast_fragment_single,
             sequence,
             n_workers=n_workers,
             chunksize=chunksize,
@@ -290,7 +290,7 @@ def fragment_masses(
             monoisotopic=monoisotopic,
         )
     else:
-        return _fragment_masses_single(
+        return _fast_fragment_single(
             sequence=sequence,
             ion_types=ion_types,
             charges=charges,

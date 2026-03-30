@@ -2735,7 +2735,7 @@ class ProFormaAnnotation:
         :raises ValueError: If the annotation contains unknown mods or interval mods.
         """
         if self.has_unknown_mods or self.has_intervals:
-            raise ValueError(f"fragment_masses not supported for sequences with unknown modifications or intervals: {str(self)}")
+            raise ValueError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
 
         aa_lookup = AA_LOOKUP.one_letter_to_info
         masses: list[float] = []
@@ -3324,7 +3324,7 @@ class ProFormaAnnotation:
 
     _UNSUPPORTED_META_ION_TYPES: frozenset[IonType] = frozenset({IonType.W, IonType.D})
 
-    def fragment_masses(
+    def fast_fragment(
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
         charges: Sequence[int] = (1,),
@@ -3352,8 +3352,7 @@ class ProFormaAnnotation:
         for ion_type_input in ion_types:
             if IonType(ion_type_input) in self._UNSUPPORTED_META_ION_TYPES:
                 raise ValueError(
-                    f"Meta ion type {ion_type_input!r} is not supported in fragment_masses(). "
-                    "Pass concrete sub-types (e.g. IonType.WA, IonType.WB) directly."
+                    f"Meta ion type {ion_type_input!r} is not supported in fast_fragment(). Pass concrete sub-types (e.g. IonType.WA, IonType.WB) directly."
                 )
 
         n = len(self)
@@ -3389,10 +3388,7 @@ class ProFormaAnnotation:
                     result[(ion_type, charge)] = [mz] * n
 
                 elif ion_info.is_internal:
-                    result[(ion_type, charge)] = [
-                        (mass_vec[i] + ion_offset + charge_offset) / charge
-                        for i in range(n)
-                    ]
+                    result[(ion_type, charge)] = [(mass_vec[i] + ion_offset + charge_offset) / charge for i in range(n)]
 
         return result
 

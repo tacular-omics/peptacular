@@ -55,9 +55,18 @@ class Fragment:
         if self.parent_sequence is None:
             raise ValueError("Cannot calculate composition without parent sequence or explicit composition")
 
+        if self.parent_sequence_length is None:
+            raise ValueError("Cannot calculate composition without parent sequence length")
+
         from .annotation import ProFormaAnnotation
 
         annot = ProFormaAnnotation.parse(self.parent_sequence)
+
+        pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
+        if pos is not None:
+            start, end = pos
+            annot = annot[slice(start, end)]
+
         return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.charge_state if self._charge_adducts is None else self.charge_adducts)  # type: ignore
 
     @property
