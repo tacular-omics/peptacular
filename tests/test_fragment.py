@@ -706,5 +706,88 @@ class TestFragment(unittest.TestCase):
         self.assertAlmostEqual(frags[2].mz, pt.mz("P/2", ion_type="by"))
 
 
+class TestFragmentMzPAF(unittest.TestCase):
+    """Test mzPAF serialization of Fragment objects."""
+
+    def test_b_ion_full(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=2)
+        self.assertEqual(frag.to_mzpaf(), "b7{PEPTIDE}^2")
+
+    def test_b_ion_position(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^2")
+
+    def test_y_ion_position(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^2")
+
+    def test_y_ion_charge_1(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}")
+
+    def test_immonium(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.IMMONIUM, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "IP^2")
+
+    def test_immonium_with_mod(self):
+        frag = pt.parse("PEP[+10]TIDE/2").frag(ion_type=pt.IonType.IMMONIUM, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "IP[+10]^2")
+
+    def test_internal_by(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}^2")
+
+    def test_internal_ay(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-CO^2")
+
+    def test_precursor(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.PRECURSOR, charge=2)
+        self.assertEqual(frag.to_mzpaf(), "p^2")
+
+    def test_no_sequence(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "y3^2")
+
+    def test_adduct(self):
+        frags = pt.parse("PEPTIDE/2").fragment(ion_types=["y"], charges=["Na:z+1"])
+        self.assertIn("[M+Na]", frags[0].to_mzpaf())
+
+    def test_isotope_c13(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[1])
+        self.assertIn("+i", frags[0].to_mzpaf())
+
+    def test_isotope_c13_x2(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[2])
+        self.assertIn("+2i", frags[0].to_mzpaf())
+
+    def test_isotope_custom(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[{"17O": 2}])
+        self.assertIn("+2i17O", frags[0].to_mzpaf())
+
+    def test_neutral_loss(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], neutral_deltas=["H2O"])
+        labels = [f.to_mzpaf() for f in frags]
+        self.assertTrue(any("-H2O" in label for label in labels))
+
+    def test_serialize_format_default(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        self.assertEqual(frag.serialize(format="default"), str(frag))
+
+    def test_serialize_format_mzpaf(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.serialize(format="mzpaf"), "y3{IDE}^2")
+
+    def test_serialize_invalid_format(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        with self.assertRaises(ValueError):
+            frag.serialize(format="invalid")
+
+    def test_modification_in_sequence(self):
+        frag = pt.parse("PEPT[Phospho]IDE/2").frag(ion_type=pt.IonType.B, charge=2, position=4)
+        label = frag.to_mzpaf()
+        self.assertEqual(label, "b4{PEPT[Phospho]}^2")
+
+
 if __name__ == "__main__":
     unittest.main()
