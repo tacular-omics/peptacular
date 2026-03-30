@@ -231,8 +231,10 @@ def run():
         mzpaf = frag.to_mzpaf()
         print(f"  {mzpaf}")
 
-        # parse back from mzPAF. Mass and monoisotopic info must be provided since this is not stored in the mzPAF string
-        _: pt.Fragment = pt.Fragment.from_mzpaf(mzpaf, mass=frag.mass, monoisotopic=frag.monoisotopic)
+    # serialize() with format parameter also works
+    print("\nUsing serialize(format='mzpaf'):")
+    for frag in fragments[:4]:
+        print(f"  {frag.serialize(format='mzpaf')}")
 
     print("\n" + "=" * 60)
 
