@@ -1,8 +1,7 @@
 # Peptacular
 
 <div align="center">
-  <img src="peptacular_logo.png" alt="Peptacular Logo" width="400" style="margin: 20px;"/>
-  
+  <img src="https://raw.githubusercontent.com/tacular-omics/peptacular/main/peptacular_logo.png" alt="Peptacular Logo" width="400" style="margin: 20px;"/>
   
   A Python package for peptide sequence analysis built around **ProForma 2.1 notation**. Calculate masses, generate fragments, predict isotopic patterns, and more. Peptacular uses type annotations extensively, so it is type safe.
   
@@ -16,7 +15,7 @@
 
 ## Features
 
-- **Nearly Complete ProForma 2.1 Parsing**
+- **ProForma 2.1 Parsing**
 - **Modifiable ProFormaAnnotation Objects (Factory Pattern)**
 - **Mass/Mz/Composition Calculations**
 - **Predicted Isotopic Distributions**
