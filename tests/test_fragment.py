@@ -643,67 +643,197 @@ class TestFragment(unittest.TestCase):
             )
 
     def test_fragmenty(self):
+        # /2 precursor → default charges are [1] (range 1..charge-1)
         annot = pt.parse("PEPTIDE/2")
 
         frags = annot.fragment(ion_types=["y"])
         self.assertEqual(len(frags), 7)
         self.assertEqual(frags[0].position, 1)
-        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/2")
-        self.assertEqual(frags[0].charge_state, 2)
-        self.assertEqual(frags[0].sequence, "E/2")
-        self.assertAlmostEqual(frags[0].mz, pt.mz("E/2", ion_type="y"))
+        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/1")
+        self.assertEqual(frags[0].charge_state, 1)
+        self.assertEqual(frags[0].sequence, "E/1")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("E/1", ion_type="y"))
 
     def test_fragmentb(self):
+        # /2 precursor → default charges are [1] (range 1..charge-1)
         annot = pt.parse("PEPTIDE/2")
 
         frags = annot.fragment(ion_types=["b"])
         self.assertEqual(len(frags), 7)
         self.assertEqual(frags[0].position, 1)
-        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/2")
-        self.assertEqual(frags[0].charge_state, 2)
-        self.assertEqual(frags[0].sequence, "P/2")
-        self.assertAlmostEqual(frags[0].mz, pt.mz("P/2", ion_type="b"))
+        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/1")
+        self.assertEqual(frags[0].charge_state, 1)
+        self.assertEqual(frags[0].sequence, "P/1")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("P/1", ion_type="b"))
 
     def test_fragment_immonium(self):
+        # /2 precursor → default charges are [1] (range 1..charge-1)
         annot = pt.parse("PEPTIDE/2")
 
         frags = annot.fragment(ion_types=["i"])
         self.assertEqual(len(frags), 7)
         self.assertEqual(frags[0].position, 1)
-        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/2")
-        self.assertEqual(frags[0].charge_state, 2)
-        self.assertEqual(frags[0].sequence, "P/2")
-        self.assertAlmostEqual(frags[0].mz, pt.mz("P/2", ion_type="i"))
+        self.assertEqual(frags[0].parent_sequence, "PEPTIDE/1")
+        self.assertEqual(frags[0].charge_state, 1)
+        self.assertEqual(frags[0].sequence, "P/1")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("P/1", ion_type="i"))
 
         self.assertEqual(frags[1].position, 2)
-        self.assertEqual(frags[1].parent_sequence, "PEPTIDE/2")
-        self.assertEqual(frags[1].charge_state, 2)
-        self.assertEqual(frags[1].sequence, "E/2")
-        self.assertAlmostEqual(frags[1].mz, pt.mz("E/2", ion_type="i"))
+        self.assertEqual(frags[1].parent_sequence, "PEPTIDE/1")
+        self.assertEqual(frags[1].charge_state, 1)
+        self.assertEqual(frags[1].sequence, "E/1")
+        self.assertAlmostEqual(frags[1].mz, pt.mz("E/1", ion_type="i"))
 
     def test_fragment_internal(self):
+        # /2 precursor → default charges are [1] (range 1..charge-1)
         annot = pt.parse("PEPT/2")
 
         frags = annot.fragment(ion_types=["by"])
         self.assertEqual(len(frags), 3)  # EP, E, P
 
         self.assertEqual(frags[0].position, (2, 2))
-        self.assertEqual(frags[0].parent_sequence, "PEPT/2")
-        self.assertEqual(frags[0].charge_state, 2)
-        self.assertEqual(frags[0].sequence, "E/2")
-        self.assertAlmostEqual(frags[0].mz, pt.mz("E/2", ion_type="by"))
+        self.assertEqual(frags[0].parent_sequence, "PEPT/1")
+        self.assertEqual(frags[0].charge_state, 1)
+        self.assertEqual(frags[0].sequence, "E/1")
+        self.assertAlmostEqual(frags[0].mz, pt.mz("E/1", ion_type="by"))
 
         self.assertEqual(frags[1].position, (2, 3))
-        self.assertEqual(frags[1].parent_sequence, "PEPT/2")
-        self.assertEqual(frags[1].charge_state, 2)
-        self.assertEqual(frags[1].sequence, "EP/2")
-        self.assertAlmostEqual(frags[1].mz, pt.mz("EP/2", ion_type="by"))
+        self.assertEqual(frags[1].parent_sequence, "PEPT/1")
+        self.assertEqual(frags[1].charge_state, 1)
+        self.assertEqual(frags[1].sequence, "EP/1")
+        self.assertAlmostEqual(frags[1].mz, pt.mz("EP/1", ion_type="by"))
 
         self.assertEqual(frags[2].position, (3, 3))
-        self.assertEqual(frags[2].parent_sequence, "PEPT/2")
-        self.assertEqual(frags[2].charge_state, 2)
-        self.assertEqual(frags[2].sequence, "P/2")
-        self.assertAlmostEqual(frags[2].mz, pt.mz("P/2", ion_type="by"))
+        self.assertEqual(frags[2].parent_sequence, "PEPT/1")
+        self.assertEqual(frags[2].charge_state, 1)
+        self.assertEqual(frags[2].sequence, "P/1")
+        self.assertAlmostEqual(frags[2].mz, pt.mz("P/1", ion_type="by"))
+
+    def test_fragment_default_charges_range(self):
+        # /3 precursor → default charges [1, 2]
+        frags3 = pt.parse("PEPTIDE/3").fragment(ion_types=["b"])
+        charges3 = sorted({f.charge_state for f in frags3})
+        self.assertEqual(charges3, [1, 2])
+
+        # /2 precursor → default charges [1]
+        frags2 = pt.parse("PEPTIDE/2").fragment(ion_types=["b"])
+        self.assertTrue(all(f.charge_state == 1 for f in frags2))
+
+        # no charge annotation → last-resort [1]
+        frags0 = pt.parse("PEPTIDE").fragment(ion_types=["b"])
+        self.assertTrue(all(f.charge_state == 1 for f in frags0))
+
+        # user-supplied charges always win
+        frags_exp = pt.parse("PEPTIDE/3").fragment(ion_types=["b"], charges=[2])
+        self.assertTrue(all(f.charge_state == 2 for f in frags_exp))
+
+
+class TestFragmentMzPAF(unittest.TestCase):
+    """Test mzPAF serialization of Fragment objects."""
+
+    def test_b_ion_full(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=2)
+        self.assertEqual(frag.to_mzpaf(), "b7{PEPTIDE}^2")
+
+    def test_b_ion_position(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^2")
+
+    def test_y_ion_position(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^2")
+
+    def test_y_ion_charge_1(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}")
+
+    def test_immonium(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.IMMONIUM, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "IP^2")
+
+    def test_immonium_with_mod(self):
+        frag = pt.parse("PEP[+10]TIDE/2").frag(ion_type=pt.IonType.IMMONIUM, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(), "IP[+10]^2")
+
+    def test_internal_by(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}^2")
+
+    def test_internal_ay(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-CO^2")
+
+    def test_precursor(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.PRECURSOR, charge=2)
+        self.assertEqual(frag.to_mzpaf(), "p^2")
+
+    def test_no_sequence(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "y3^2")
+
+    def test_adduct(self):
+        frags = pt.parse("PEPTIDE/2").fragment(ion_types=["y"], charges=["Na:z+1"])
+        self.assertIn("[M+Na]", frags[0].to_mzpaf())
+
+    def test_isotope_c13(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[1])
+        self.assertIn("+i", frags[0].to_mzpaf())
+
+    def test_isotope_c13_x2(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[2])
+        self.assertIn("+2i", frags[0].to_mzpaf())
+
+    def test_isotope_custom(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], isotopes=[{"17O": 2}])
+        self.assertIn("+2i17O", frags[0].to_mzpaf())
+
+    def test_neutral_loss(self):
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], neutral_deltas=["H2O"])
+        labels = [f.to_mzpaf() for f in frags]
+        self.assertTrue(any("-H2O" in label for label in labels))
+
+    def test_serialize_format_default(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        self.assertEqual(frag.serialize(format="default"), str(frag))
+
+    def test_serialize_format_mzpaf(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.Y, charge=2, position=3)
+        self.assertEqual(frag.serialize(format="mzpaf"), "y3{IDE}^2")
+
+    def test_serialize_invalid_format(self):
+        frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
+        with self.assertRaises(ValueError):
+            frag.serialize(format="invalid")
+
+    def test_modification_in_sequence(self):
+        frag = pt.parse("PEPT[Phospho]IDE/2").frag(ion_type=pt.IonType.B, charge=2, position=4)
+        label = frag.to_mzpaf()
+        self.assertEqual(label, "b4{PEPT[Phospho]}^2")
+
+    def test_negative_charge_z_minus_1(self):
+        frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
+        self.assertEqual(frag.charge_state, -1)
+        self.assertGreater(frag.mz, 0)
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-1")
+        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^-1")
+
+    def test_negative_charge_z_minus_2(self):
+        frag = pt.parse("PEPTIDE/-3").frag(ion_type=pt.IonType.B, charge=-2, position=3)
+        self.assertEqual(frag.charge_state, -2)
+        self.assertGreater(frag.mz, 0)
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-2")
+
+    def test_negative_charge_y_ion(self):
+        frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.Y, charge=-1, position=3)
+        self.assertEqual(frag.charge_state, -1)
+        self.assertGreater(frag.mz, 0)
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^-1")
+
+    def test_negative_charge_mz_less_than_positive(self):
+        # Negative-mode b3 loses a proton; positive-mode adds one — so neg mz < pos mz
+        frag_pos = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=1, position=3)
+        frag_neg = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
+        self.assertAlmostEqual(frag_pos.mz - frag_neg.mz, 2 * 1.007276, places=4)
 
 
 if __name__ == "__main__":

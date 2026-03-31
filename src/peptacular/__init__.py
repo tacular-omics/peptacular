@@ -17,4 +17,4 @@ from .sequence import *
 from .spans import *
 from .utils import *
 
-__version__ = "3.1.0"
+__version__ = "3.1.1"
