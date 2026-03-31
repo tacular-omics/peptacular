@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis"
+version: v2.5.1
+authors:
+  - family-names: Garrett
+    given-names: Patrick T.
+    orcid: https://orcid.org/0000-0002-8434-9693
+    affiliation: "The Scripps Research Institute, United States"
+  - family-names: Jung
+    given-names: Titus
+    affiliation: "The Scripps Research Institute, United States"
+  - family-names: Yates III
+    given-names: John R.
+    orcid: https://orcid.org/0000-0001-5267-1672
+    affiliation: "The Scripps Research Institute, United States"
+repository-code: https://github.com/tacular-omics/peptacular
+license: MIT
+doi: 10.5281/zenodo.15054278
+date-released: "2025-05-20"
+keywords:
+  - Python
+  - Proteomics
+  - Mass Spectrometry
+  - ProForma
+  - Bioinformatics
