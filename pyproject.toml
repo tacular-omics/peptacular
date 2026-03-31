@@ -22,6 +22,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.urls]
+Homepage = "https://github.com/tacular-omics/peptacular"
+Documentation = "https://peptacular.readthedocs.io"
+Repository = "https://github.com/tacular-omics/peptacular"
+Issues = "https://github.com/tacular-omics/peptacular/issues"
+Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
