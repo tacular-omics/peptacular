@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
+## [3.1.1]
+- Added CONTRIBUTING.md with development setup, code style, testing, and PR guidelines
+- Added `[project.urls]` to pyproject.toml (Homepage, Documentation, Repository, Issues, Changelog)
+
 ## [3.1.0]
 - Fast fragment ion calculation
 - Fixed slice and modification handling bugs
