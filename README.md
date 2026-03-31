@@ -71,7 +71,7 @@ See [PROFORMA_COMPLIANCE.md](PROFORMA_COMPLIANCE.md) for detailed compliance sta
 
 ## Contributing
 
-Contributions welcome! Check the examples directory for code style and documentation patterns.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on setting up the development environment, code style, testing, and submitting pull requests.
 
 ## License
 
