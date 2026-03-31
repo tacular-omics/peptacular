@@ -199,7 +199,7 @@ def run():
     Unless otherwise specified, fragments do not include sequence or composition data.
     This can be enabled with the `include_sequence` and `calculate_composition` flags.
     """
-    b_ions: list[pt.Fragment] = peptide.fragment(ion_types=["b"], charges=[2], include_sequence=True, calculate_composition=True)
+    b_ions: list[pt.Fragment] = peptide.fragment(ion_types=["b"], charges=[2], calculate_composition=True)
     if len(b_ions) > 0:
         frag = b_ions[0]
         print(f"\nExample fragment: {frag}")
@@ -212,8 +212,6 @@ def run():
         if frag.composition:
             comp_str = {str(elem): count for elem, count in frag.composition.items()}
             print(f"  Composition: {comp_str}")
-        if frag.parent_sequence:
-            print(f"  Sequence: {frag.parent_sequence}")
 
     # ============================================================================
     # MZPAF OUTPUT
@@ -235,6 +233,54 @@ def run():
     print("\nUsing serialize(format='mzpaf'):")
     for frag in fragments[:4]:
         print(f"  {frag.serialize(format='mzpaf')}")
+
+    print("\n" + "=" * 60)
+
+    # ============================================================================
+    # FAST FRAGMENT
+    # ============================================================================
+
+    print("\n" + "=" * 60)
+    print("FAST FRAGMENT")
+    print("=" * 60)
+
+    """
+    fast_fragment() uses a prefix/suffix-sum algorithm to compute fragment m/z
+    values without constructing Fragment objects. It is faster than fragment()
+    for high-throughput use cases.
+
+    Return type: dict[(IonType, charge)] -> list[float]
+    Each list has length == len(peptide), ordered fragment position 1 to N.
+
+    Limitations vs fragment():
+    - No neutral losses (H2O, NH3, custom deltas)
+    - No isotope shifts
+    - No adduct charges (integer charges only)
+    - No internal / immonium ions
+    - Raises if the annotation has unknown or interval modifications
+    """
+
+    peptide = pt.parse("PEPT[Phospho]IDE")
+
+    # --- OOP method ---
+    mz_map = peptide.fast_fragment(ion_types=["b", "y"], charges=[1, 2])
+    print(f"\nPeptide: {peptide}")
+    for (ion_type, charge), mzs in mz_map.items():
+        print(f"  ({ion_type}, z={charge}): {[round(v, 4) for v in mzs]}")
+
+    # --- Functional API (identical result) ---
+    print("\nFunctional API (pt.fast_fragment):")
+    mz_map2 = pt.fast_fragment("PEPTIDE", ion_types=["b", "y"], charges=[1])
+    for (ion_type, charge), mzs in mz_map2.items():
+        print(f"  ({ion_type}, z={charge}): {[round(v, 4) for v in mzs]}")
+
+    # --- Batch / parallel: pass a list of sequences ---
+    print("\nBatch fast_fragment (list input):")
+    sequences = ["PEPTIDE", "ACDEFGHIK", "LMNPQRST"]
+    results = pt.fast_fragment(sequences, ion_types=["y"], charges=[1])
+    for seq, mz_map3 in zip(sequences, results):
+        (ion_type, charge), mzs = next(iter(mz_map3.items()))
+        print(f"  {seq}: {[round(v, 4) for v in mzs]}")
 
     print("\n" + "=" * 60)
 

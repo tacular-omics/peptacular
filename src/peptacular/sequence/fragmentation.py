@@ -227,7 +227,7 @@ def frag(
 def _fast_fragment_single(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] = (1,),
+    charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
 ) -> FRAGMENT_MASSES_RETURN:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -242,7 +242,7 @@ def _fast_fragment_single(
 def fast_fragment(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] = (1,),
+    charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
     n_workers: None = None,
     chunksize: None = None,
@@ -254,7 +254,7 @@ def fast_fragment(
 def fast_fragment(
     sequence: Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] = (1,),
+    charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -265,7 +265,7 @@ def fast_fragment(
 def fast_fragment(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] = (1,),
+    charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,

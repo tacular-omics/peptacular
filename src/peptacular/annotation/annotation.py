@@ -117,6 +117,7 @@ logger = logging.getLogger(__name__)
 
 fe = FormulaElement(element=Element.H, occurance=1)
 H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
+H_DECHARGE_FORMULA = ChargedFormula(formula=(FormulaElement(element=Element.H, occurance=-1),), charge=-1)
 
 
 ION_TYPE = IonTypeLiteral | IonType
@@ -840,21 +841,22 @@ class ProFormaAnnotation:
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
-        """Charge expressed as adduct ``Mods``; converts an integer charge to proton adducts.
+        """Charge expressed as adduct ``Mods``; converts an integer charge to proton/deproton adducts.
+
+        Positive integer charges are converted to proton additions (``[M+nH]n+``);
+        negative integer charges are converted to deprotonations (``[M-nH]n-``).
 
         :rtype: Mods[GlobalChargeCarrier]
         """
         charge = self.charge
         if isinstance(charge, int):
-            if charge == 0 or charge < 0:
+            if charge == 0:
                 return EMPTY_CHARGE_MODS
             elif charge > 0:
-                s = str(
-                    GlobalChargeCarrier(
-                        charged_formula=H_CHARGE_FORMULA,
-                        occurance=charge,
-                    )
-                )
+                s = str(GlobalChargeCarrier(charged_formula=H_CHARGE_FORMULA, occurance=charge))
+                return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={s: 1})
+            else:  # charge < 0
+                s = str(GlobalChargeCarrier(charged_formula=H_DECHARGE_FORMULA, occurance=-charge))
                 return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={s: 1})
         elif isinstance(charge, Mods):
             return charge
@@ -3258,6 +3260,20 @@ class ProFormaAnnotation:
                                         ),
                                     )
 
+    @staticmethod
+    def _default_fragment_charges(charge_state: int) -> tuple[int, ...]:
+        """Return default fragment charge states derived from a precursor charge state.
+
+        For a positive precursor charge ``c``, returns ``1, 2, …, c-1``.
+        For a negative precursor charge ``c``, returns ``-1, -2, …, c+1``.
+        Falls back to ``(1,)`` when ``charge_state`` is 0 (unannotated) or ±1.
+        """
+        if charge_state > 1:
+            return tuple(range(1, charge_state))
+        if charge_state < -1:
+            return tuple(range(-1, charge_state, -1))
+        return (1,)  # charge 0 (unannotated) or ±1 — last resort
+
     def fragment(
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
@@ -3275,11 +3291,7 @@ class ProFormaAnnotation:
         """Generate fragment annotation for given ion type."""
 
         if charges is None:
-            cstate = self.charge_state
-            if cstate != 0:
-                charges = (cstate,)
-            else:
-                charges = (1,)
+            charges = self._default_fragment_charges(self.charge_state)
 
         # charge_infos: list[ChargeCarrierInfo] = [ChargeCarrierInfo.from_input(charge) for charge in charges]
 
@@ -3327,7 +3339,7 @@ class ProFormaAnnotation:
     def fast_fragment(
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-        charges: Sequence[int] = (1,),
+        charges: Sequence[int] | None = None,
         monoisotopic: bool = True,
     ) -> dict[tuple[IonType, int], list[float]]:
         """Compute fragment ion m/z values using a fast prefix/suffix-sum approach.
@@ -3340,8 +3352,10 @@ class ProFormaAnnotation:
             Meta-types such as ``IonType.W`` and ``IonType.D`` are not supported;
             pass their concrete sub-types (``WA``/``WB``, ``DA``/``DB``) directly.
         :type ion_types: Sequence[ION_TYPE]
-        :param charges: Proton charge states to compute m/z for.
-        :type charges: Sequence[int]
+        :param charges: Proton charge states to compute m/z for.  When ``None``,
+            defaults to ``1`` through ``precursor_charge - 1`` if the annotation
+            carries a positive charge state, otherwise falls back to ``(1,)``.
+        :type charges: Sequence[int] or None
         :param monoisotopic: Use monoisotopic masses when ``True``, average masses when ``False``.
         :type monoisotopic: bool
         :return: Dict mapping ``(IonType, charge)`` to a list of m/z values.
@@ -3349,6 +3363,8 @@ class ProFormaAnnotation:
         :raises ValueError: If a meta ion type (``W``, ``D``) is requested, or if the
             annotation contains unknown mods or interval mods.
         """
+        if charges is None:
+            charges = self._default_fragment_charges(self.charge_state)
         for ion_type_input in ion_types:
             if IonType(ion_type_input) in self._UNSUPPORTED_META_ION_TYPES:
                 raise ValueError(
@@ -3366,12 +3382,13 @@ class ProFormaAnnotation:
                 ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
                 ion_offset = ion_info.get_mass(monoisotopic=monoisotopic)
 
+                abs_charge = abs(charge)
                 if ion_info.is_forward:
                     prefix = 0.0
                     masses_out: list[float] = []
                     for m in mass_vec:
                         prefix += m
-                        masses_out.append((prefix + ion_offset + charge_offset) / charge)
+                        masses_out.append((prefix + ion_offset + charge_offset) / abs_charge)
                     result[(ion_type, charge)] = masses_out
 
                 elif ion_info.is_backward:
@@ -3379,16 +3396,16 @@ class ProFormaAnnotation:
                     masses_out = []
                     for i in range(n - 1, -1, -1):
                         prefix += mass_vec[i]
-                        masses_out.append((prefix + ion_offset + charge_offset) / charge)
+                        masses_out.append((prefix + ion_offset + charge_offset) / abs_charge)
                     result[(ion_type, charge)] = masses_out
 
                 elif ion_info.is_intact:
                     total = sum(mass_vec)
-                    mz = (total + ion_offset + charge_offset) / charge
+                    mz = (total + ion_offset + charge_offset) / abs_charge
                     result[(ion_type, charge)] = [mz] * n
 
                 elif ion_info.is_internal:
-                    result[(ion_type, charge)] = [(mass_vec[i] + ion_offset + charge_offset) / charge for i in range(n)]
+                    result[(ion_type, charge)] = [(mass_vec[i] + ion_offset + charge_offset) / abs_charge for i in range(n)]
 
         return result
 

@@ -101,7 +101,7 @@ class Fragment:
 
     @property
     def mz(self) -> float:
-        return self.mass / self.charge_state if self.charge_state != 0 else self.mass
+        return self.mass / abs(self.charge_state) if self.charge_state != 0 else self.mass
 
     @property
     def neutral_mass(self) -> float:
@@ -320,8 +320,8 @@ class Fragment:
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
             parts.append(f"[M{''.join(adduct_parts)}]")
 
-        # Charge (only if > 1)
-        if self.charge_state > 1:
+        # Charge: omit for +1 (implicit); include for everything else
+        if self.charge_state != 0 and self.charge_state != 1:
             parts.append(f"^{self.charge_state}")
 
         return "".join(parts)

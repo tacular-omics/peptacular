@@ -54,6 +54,26 @@ Create theoretical fragment ions for MS/MS analysis.
 - Neutral losses (H2O, NH3, custom)
 - Isotopes
 
+**Fast Fragment**
+
+For high-throughput workflows, ``fast_fragment()`` uses a prefix/suffix-sum
+algorithm to compute fragment m/z values directly, without constructing
+:class:`~peptacular.Fragment` objects.  It is faster than ``fragment()`` but
+does not support neutral losses, isotope shifts, adduct charges, or custom
+deltas.  Returns a ``dict`` mapping ``(IonType, charge)`` to a list of m/z
+values ordered from fragment position 1 to N.
+
+.. code-block:: python
+
+   import peptacular as pt
+
+   # OOP method
+   mz_map = pt.parse("PEPTIDE").fast_fragment(ion_types=["b", "y"], charges=[1, 2])
+   b1_mzs = mz_map[(pt.IonType.B, 1)]  # list of 7 floats
+
+   # Functional API — supports batch list inputs (auto-parallelised)
+   results = pt.fast_fragment(["PEPTIDE", "ACDEFGHIK"], ion_types=["y"], charges=[1])
+
 Property Calculations
 ~~~~~~~~~~~~~~~~~~~~~
 
