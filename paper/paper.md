@@ -151,39 +151,6 @@ where:
 - $z$ is the total charge state
 - $m_e = 0.0005485799$ Da (electron mass)
 
-## Isotopic Distribution
-
-The isotopic distribution of a peptide is determined by convolving the isotopic patterns of all constituent elements. For a peptide with elemental composition$\{E_1: n_1, E_2: n_2, ..., E_k: n_k\}$, the isotopic distribution is:
-
-$P(\textrm{total}) = P(E_1)^{n_1} \otimes P(E_2)^{n_2} \otimes ... \otimes P(E_k)^{n_k}$
-
-where $P(E_i)$ is the natural isotopic distribution of element $E_i$, $n_i$ is the count of that element, and $\otimes$ represents the convolution operation.
-
-The computational complexity of isotopic distribution calculations scales with the number of isotopic peaks retained during the convolution process. To balance accuracy with computational efficiency, Peptacular implements several parameters to limit the number of isotopic peaks propagated through convolution operations.
-
-### Averagine Model
-
-When the exact elemental composition is unknown, the averagine model provides an estimate of composition based on molecular mass using empirically-derived atomic ratios. The averagine values used in Peptacular were calculated by determining the cumulative count of all atoms present in the entire human proteome (all reviewed proteins from UP000005640, downloaded from UniProt on February 2, 2026). This cumulative count was then normalized by the total monoisotopic mass of the proteome, yielding an atoms-per-dalton ratio for each element.
-
-The composition is calculated as:
-
-$n_E = r_E \cdot M_{\textrm{neutral}} + n_{E,\textrm{ion}}$
-
-where:
-
-- $n_E$ is the estimated count of element $E$
-- $r_E$ is the averagine ratio (atoms per dalton) for element $E$
-- $M_{\textrm{neutral}}$ is the neutral peptide mass
-- $n_{E,\textrm{ion}}$ is the elemental contribution from the ion type
-
-The averagine ratios (atoms/Da) derived from the human proteome are:
-
-- C: 0.044179
-- H: 0.069749
-- N: 0.012344
-- O: 0.013352
-- S: 0.000400
-
 # Figures
 
 **Table 1: Proforma 2.1 Compliance**
@@ -231,13 +198,9 @@ The averagine ratios (atoms/Da) derived from the human proteome are:
 
 **Table 1** presents the level of ProForma support implemented in Peptacular. The package currently supports all ProForma 2.1 features for linear peptides. Cross-linked peptides (both inter- and intrachain) and branched structures are not currently supported. Ion notation is also not supported at the sequence level; however, the package provides extensive fragmentation support through either API. Support levels are designated as follows: [B] - Base ProForma support, [2] - ProForma 2, [T] - Top down, [X] - Cross linking, [G] - Glycan, [A] - Advanced.
 
-**Figure 1: Parallelization Performance - GIL Enabled vs GIL Disabled (Python 3.14t)**
-
-![This figure presents a parallelization performance comparison for mass calculations of 10,000 randomly generated modified peptides with lengths ranging from 10 to 30 amino acids. The benchmark evaluates serialized annotations (strings) and annotation objects across different parallelization methods and varying numbers of workers in both GIL-enabled and GIL-disabled configurations. Single-worker sequential-based execution serves as the baseline for speedup calculations (0.336s ±0.011s for serialized strings; 0.178s ±0.004s for annotation objects). The benchmark was conducted on an Intel i7-12700H processor (14 cores, 20 threads) with 64GB RAM using Python 3.14t.\label{fig:gil-comparison}](fig1.png){ width=100% }
-
 # AI usage disclosure
 
-Generative AI models were employed to support the development of this software package. Specifically, Claude Sonnet 4.5, Gemini 2.0 Pro, and GitHub Copilot's autocomplete extension were utilized for code generation, test development, debugging assistance, and documentation preparation. These tools were accessed through the Copilot extension in Visual Studio Code. Additionally, Type.ai was used to assist in manuscript preparation. All AI-generated content was subsequently reviewed and verified for accuracy.
+Generative AI models were employed to support the development of this software package. Specifically, Claude Code, Cursor, and GitHub Copilot were utilized for code generation, test development, debugging assistance, and documentation preparation. Additionally, Type.ai was used to assist in manuscript preparation. All AI-generated content was subsequently reviewed and verified for accuracy.
 
 # Availability
 

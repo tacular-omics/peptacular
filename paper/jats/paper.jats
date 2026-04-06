@@ -430,106 +430,6 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
       </list-item>
     </list>
   </sec>
-  <sec id="isotopic-distribution">
-    <title>Isotopic Distribution</title>
-    <p>The isotopic distribution of a peptide is determined by
-    convolving the isotopic patterns of all constituent elements. For a
-    peptide with elemental composition<inline-formula><alternatives>
-    <tex-math><![CDATA[\{E_1: n_1, E_2: n_2, ..., E_k: n_k\}]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>:</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
-    the isotopic distribution is:</p>
-    <p><inline-formula><alternatives>
-    <tex-math><![CDATA[P(\textrm{total}) = P(E_1)^{n_1} \otimes P(E_2)^{n_2} \otimes ... \otimes P(E_k)^{n_k}]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">total</mml:mtext><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mi>P</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:msup><mml:mo>⊗</mml:mo><mml:mi>P</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:msup><mml:mo>⊗</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>⊗</mml:mo><mml:mi>P</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:msup></mml:mrow></mml:math></alternatives></inline-formula></p>
-    <p>where <inline-formula><alternatives>
-    <tex-math><![CDATA[P(E_i)]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
-    is the natural isotopic distribution of element
-    <inline-formula><alternatives>
-    <tex-math><![CDATA[E_i]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>E</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
-    <inline-formula><alternatives>
-    <tex-math><![CDATA[n_i]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
-    is the count of that element, and <inline-formula><alternatives>
-    <tex-math><![CDATA[\otimes]]></tex-math>
-    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>⊗</mml:mi></mml:math></alternatives></inline-formula>
-    represents the convolution operation.</p>
-    <p>The computational complexity of isotopic distribution
-    calculations scales with the number of isotopic peaks retained
-    during the convolution process. To balance accuracy with
-    computational efficiency, Peptacular implements several parameters
-    to limit the number of isotopic peaks propagated through convolution
-    operations.</p>
-    <sec id="averagine-model">
-      <title>Averagine Model</title>
-      <p>When the exact elemental composition is unknown, the averagine
-      model provides an estimate of composition based on molecular mass
-      using empirically-derived atomic ratios. The averagine values used
-      in Peptacular were calculated by determining the cumulative count
-      of all atoms present in the entire human proteome (all reviewed
-      proteins from UP000005640, downloaded from UniProt on February 2,
-      2026). This cumulative count was then normalized by the total
-      monoisotopic mass of the proteome, yielding an atoms-per-dalton
-      ratio for each element.</p>
-      <p>The composition is calculated as:</p>
-      <p><inline-formula><alternatives>
-      <tex-math><![CDATA[n_E = r_E \cdot M_{\textrm{neutral}} + n_{E,\textrm{ion}}]]></tex-math>
-      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mi>E</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mi>E</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">neutral</mml:mtext></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>E</mml:mi><mml:mo>,</mml:mo><mml:mtext mathvariant="normal">ion</mml:mtext></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula></p>
-      <p>where:</p>
-      <list list-type="bullet">
-        <list-item>
-          <p><inline-formula><alternatives>
-          <tex-math><![CDATA[n_E]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mi>E</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
-          is the estimated count of element
-          <inline-formula><alternatives>
-          <tex-math><![CDATA[E]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>E</mml:mi></mml:math></alternatives></inline-formula></p>
-        </list-item>
-        <list-item>
-          <p><inline-formula><alternatives>
-          <tex-math><![CDATA[r_E]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>r</mml:mi><mml:mi>E</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
-          is the averagine ratio (atoms per dalton) for element
-          <inline-formula><alternatives>
-          <tex-math><![CDATA[E]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>E</mml:mi></mml:math></alternatives></inline-formula></p>
-        </list-item>
-        <list-item>
-          <p><inline-formula><alternatives>
-          <tex-math><![CDATA[M_{\textrm{neutral}}]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>M</mml:mi><mml:mtext mathvariant="normal">neutral</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
-          is the neutral peptide mass</p>
-        </list-item>
-        <list-item>
-          <p><inline-formula><alternatives>
-          <tex-math><![CDATA[n_{E,\textrm{ion}}]]></tex-math>
-          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>E</mml:mi><mml:mo>,</mml:mo><mml:mtext mathvariant="normal">ion</mml:mtext></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
-          is the elemental contribution from the ion type</p>
-        </list-item>
-      </list>
-      <p>The averagine ratios (atoms/Da) derived from the human proteome
-      are:</p>
-      <list list-type="bullet">
-        <list-item>
-          <p>C: 0.044179</p>
-        </list-item>
-        <list-item>
-          <p>H: 0.069749</p>
-        </list-item>
-        <list-item>
-          <p>N: 0.012344</p>
-        </list-item>
-        <list-item>
-          <p>O: 0.013352</p>
-        </list-item>
-        <list-item>
-          <p>S: 0.000400</p>
-        </list-item>
-      </list>
-    </sec>
-  </sec>
 </sec>
 <sec id="figures">
   <title>Figures</title>
@@ -793,32 +693,13 @@ df[&quot;mass&quot;] = df[&quot;seq&quot;].apply(pt.mass)</code>
   Support levels are designated as follows: [B] - Base ProForma support,
   [2] - ProForma 2, [T] - Top down, [X] - Cross linking, [G] - Glycan,
   [A] - Advanced.</p>
-  <p><bold>Figure 1: Parallelization Performance - GIL Enabled vs GIL
-  Disabled (Python 3.14t)</bold></p>
-  <fig>
-    <caption><p>This figure presents a parallelization performance
-    comparison for mass calculations of 10,000 randomly generated
-    modified peptides with lengths ranging from 10 to 30 amino acids.
-    The benchmark evaluates serialized annotations (strings) and
-    annotation objects across different parallelization methods and
-    varying numbers of workers in both GIL-enabled and GIL-disabled
-    configurations. Single-worker sequential-based execution serves as
-    the baseline for speedup calculations (0.336s ±0.011s for serialized
-    strings; 0.178s ±0.004s for annotation objects). The benchmark was
-    conducted on an Intel i7-12700H processor (14 cores, 20 threads)
-    with 64GB RAM using Python
-    3.14t.<styled-content id="figU003Agil-comparison"></styled-content></p></caption>
-    <graphic mimetype="image" mime-subtype="png" xlink:href="fig1.png" />
-  </fig>
 </sec>
 <sec id="ai-usage-disclosure">
   <title>AI usage disclosure</title>
   <p>Generative AI models were employed to support the development of
-  this software package. Specifically, Claude Sonnet 4.5, Gemini 2.0
-  Pro, and GitHub Copilot’s autocomplete extension were utilized for
-  code generation, test development, debugging assistance, and
-  documentation preparation. These tools were accessed through the
-  Copilot extension in Visual Studio Code. Additionally, Type.ai was
+  this software package. Specifically, Claude Code, Cursor, and GitHub
+  Copilot were utilized for code generation, test development, debugging
+  assistance, and documentation preparation. Additionally, Type.ai was
   used to assist in manuscript preparation. All AI-generated content was
   subsequently reviewed and verified for accuracy.</p>
 </sec>
