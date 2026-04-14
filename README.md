@@ -13,6 +13,10 @@
   
 </div>
 
+### Documentation/ Examples
+
+[ReadTheDocs](https://peptacular.readthedocs.io/en/latest/index.html)
+
 ## Features
 
 - **ProForma 2.1 Parsing**
