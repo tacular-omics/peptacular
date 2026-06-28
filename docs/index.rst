@@ -19,6 +19,7 @@ Contents
    proforma_compliance
    examples
    masses
+   mass_calculation
 
 .. toctree::
    :maxdepth: 2

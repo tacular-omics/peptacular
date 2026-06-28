@@ -13,6 +13,7 @@ extensions = [
     "sphinx_autodoc_typehints",  # Uses your type hints automatically
     "sphinx.ext.viewcode",  # Adds source code links
     "sphinx.ext.doctest",
+    "sphinx.ext.mathjax",  # Renders LaTeX math in .. math:: directives
     "myst_parser",
 ]
 

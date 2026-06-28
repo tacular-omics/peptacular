@@ -100,57 +100,6 @@ df = pd.DataFrame(
 df["mass"] = df["seq"].apply(pt.mass)
 ```
 
-# Mathematics
-
-Peptacular calculates the molecular mass and isotopic patterns for AA sequences. This section presents the mathematical framework that underlies these calculations.
-
-## Base Mass
-
-The base mass $M_{base}$ of a AA sequence containing modifications is calculated as the sum of all constituent molecular components:
-
-$M_{base} = \sum_{i=1}^{n} m_{AAi} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{U} + \mathbb{1}_{\textrm{precursor}} \cdot M_{L}$
-
-**where**:
-
-- $n$ is the sequence length
-- $m_{AA_i}$ is the mass of amino acid at position $i$
-- $M_{N}$ is the total mass of N-terminal modifications
-- $M_{C}$ is the total mass of C-terminal modifications
-- $M_{S}$ is the total mass of static/fixed modifications (Applied to sequence)
-- $M_{I}$ is the total mass of position-specific modifications
-- $M_{R}$ is the total mass of modifications within defined sequence intervals
-- $M_{U}$ is the total mass of modifications with unknown positions
-- $M_{L}$ is the total mass of labile modifications
-- $\mathbb{1}_{\textrm{precursor}}$ is an indicator function: 1 for precursor ions, 0 for fragment ions
-
-Labile modifications are included only for precursor and neutral ion types.
-
-## Neutral Mass
-
-The neutral mass $M_{\textrm{neutral}}$ is calculated by combining the base mass with ion-type adjustments, isotope modifications, neutral deltas.
-
-$M_{\textrm{neutral}} = M_{\textrm{base}} + M_{\textrm{ion}} + M_{\textrm{isotope}} + M_{\textrm{ndelta}}$
-
-**where**:
-
-- $M_{\textrm{base}}$ is the peptide base mass from the previous section
-- $M_{\textrm{ion}}$ is the ion-type-specific mass offset
-- $M_{\textrm{isotope}}$ is the mass shift from a specific isotopic species
-- $M_{\textrm{ndelta}}$ is the mass change from neutral losses/gains
-
-## Mass-to-charge Ratio
-
-The mass-to-charge (*m/z*) ratio is calculated by incorporating charge carriers and electron mass corrections to the neutral mass:
-
-$\frac{m}{z} = \frac{M_{\textrm{neutral}} + M_{\textrm{adduct}} - z \cdot m_e}{z}$
-
-where:
-
-- $M_{\textrm{neutral}}$ is the neutral fragment mass
-- $M_{\textrm{adduct}}$ is the total mass of charge carriers
-- $z$ is the total charge state
-- $m_e = 0.0005485799$ Da (electron mass)
-
 # Figures
 
 **Table 1: Proforma 2.1 Compliance**
@@ -209,3 +158,5 @@ Peptacular is distributed through PyPI (<https://pypi.org/project/peptacular/>) 
 # Acknowledgements
 
 This work was supported by the National Institutes of Health under grants R01 AG077046 (Analysis of protein interactions in neurodegenerative disease), R01 MH132570 (Brain-wide mapping of neuronal inhibition by novel inverse activity markers), R01 MH100175 (Proteogenetics of Autism Spectrum Disorders), R01 HL165168 (The CFTR Interactome), and U01 AG088679 (Understanding Gene-Environment Interactions in Brain Aging and Alzheimer's Disease (AD) and AD-Related Dementias (ADRD)).
+
+# References
