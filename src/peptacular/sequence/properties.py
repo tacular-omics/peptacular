@@ -735,24 +735,7 @@ def _pi_single(
     sequence: str | ProFormaAnnotation,
 ) -> float:
     annotation = get_annotation_input(sequence=sequence, copy=False)
-
-    def _calculate_pi(
-        ph: float = 7.775,
-        min_: float = 4.05,
-        max_: float = 12.0,
-        tol_: float = 0.001,
-    ) -> float:
-        charge = annotation.prop.charge_at_ph(pH=ph)
-        if max_ - min_ > tol_:
-            if charge > 0.0:
-                min_ = ph
-            else:
-                max_ = ph
-            next_ph = (min_ + max_) / 2
-            return _calculate_pi(next_ph, min_, max_, tol_)
-        return ph
-
-    return _calculate_pi()
+    return annotation.prop.pi
 
 
 @overload

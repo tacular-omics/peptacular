@@ -34,6 +34,20 @@ class TestFunctionalProperties(unittest.TestCase):
         self.assertLess(vals[0], 7.0)
         self.assertGreater(vals[1], 7.0)
 
+    def test_pi_not_clamped(self):
+        """pI must span the full pH range, not the old [4.05, 12.0] clamp.
+
+        Regression: the bisection was bracketed to [4.05, 12.0], so strongly acidic
+        peptides bottomed out at 4.05 and strongly basic ones topped out at 12.0.
+        """
+        self.assertLess(pt.pi("DDDDDDDDDD"), 4.05)
+        self.assertGreater(pt.pi("RRRRRRRRRR"), 12.0)
+
+    def test_pi_functional_matches_property(self):
+        """The functional API and the annotation property must agree."""
+        for seq in ("DDDDDDDDDD", "RRRRRRRRRR", "PEPTIDE"):
+            self.assertAlmostEqual(pt.pi(seq), pt.parse(seq).prop.pi, places=6)
+
     def test_charge_at_ph_functional(self):
         # Single
         c = pt.charge_at_ph("K", pH=2.0)
