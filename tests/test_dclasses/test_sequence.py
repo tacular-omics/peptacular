@@ -52,3 +52,19 @@ class TestSequenceRegion(unittest.TestCase):
         self.assertEqual(len(sr.sequence), 3)
         self.assertEqual(len(sr.modifications), 1)
         self.assertEqual(str(sr), "(PEP)[Phospho]")
+
+    def test_ambiguous_region_from_string(self):
+        """Ambiguous regions ``(?...)`` must parse without dropping residues.
+
+        Regression: the per-element loop advanced an extra character for ambiguous
+        regions even though the leading ``?`` was already stripped, so every
+        ``(?...)`` region raised on the second residue.
+        """
+        sr = pt.SequenceRegion.from_string("(?PEPTIDE)")
+        self.assertTrue(sr.ambiguous)
+        self.assertEqual("".join(str(e) for e in sr.sequence), "PEPTIDE")
+
+    def test_ambiguous_region_round_trip(self):
+        """Serialize -> from_string is a round trip for ambiguous regions with mods."""
+        for s in ("(?PEPTIDE)", "(?PEM[Oxidation]TIDE)", "(PEPTIDE)"):
+            self.assertEqual(pt.SequenceRegion.from_string(s).serialize(), s)
