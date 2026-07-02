@@ -2145,7 +2145,7 @@ class ProFormaAnnotation:
             nterm_mods=self._nterm_mods.copy() if self._nterm_mods is not None else None,
             cterm_mods=self._cterm_mods.copy() if self._cterm_mods is not None else None,
             internal_mods={pos: mods.copy() for pos, mods in self._internal_mods.items()} if self._internal_mods is not None else None,
-            intervals=self._intervals.copy() if self._intervals is not None else None,
+            intervals=[iv.copy() for iv in self._intervals] if self._intervals is not None else None,
             charge=self._charge,
             validate=self._validate,
         )
@@ -2167,7 +2167,7 @@ class ProFormaAnnotation:
         self._nterm_mods = other._nterm_mods.copy() if other._nterm_mods is not None else None
         self._cterm_mods = other._cterm_mods.copy() if other._cterm_mods is not None else None
         self._internal_mods = {pos: mods.copy() for pos, mods in other._internal_mods.items()} if other._internal_mods is not None else None
-        self._intervals = other._intervals.copy() if other._intervals is not None else None
+        self._intervals = [iv.copy() for iv in other._intervals] if other._intervals is not None else None
         self._charge = other._charge
 
     def __getitem__(self, key: int | slice | Span | tuple[int, int, int]) -> Self:
@@ -2887,6 +2887,13 @@ class ProFormaAnnotation:
                     internal_charge=base_charge,
                 )
             else:
+                # Apply global isotope substitutions (e.g. <13C>) before summing masses;
+                # otherwise the mass path would ignore them while the composition path applies them.
+                isotope_map = self._map_isotopes() if self.has_isotope_mods else None
+                if isotope_map:
+                    for original_element, replaced_element in isotope_map.items():
+                        if original_element in base_comp:
+                            base_comp[replaced_element] += base_comp.pop(original_element)
                 base_mass = sum(element.get_mass(monoisotopic=monoisotopic) * count for element, count in base_comp.items())
                 return adjust_mass_mz(
                     base=base_mass + delta_mass,
@@ -4122,10 +4129,14 @@ class ProFormaAnnotation:
         use_regex: bool = False,
         inplace: bool = False,
         use_static_notation: bool = False,
-        unique_peptidoforms: bool = True,
+        unique_peptidoforms: bool = False,
     ) -> Generator[Self, None, None]:
         """
         Build all modifications from intervals and mass shifts.
+
+        By default every positional isomer is yielded (``unique_peptidoforms=False``). Set
+        ``unique_peptidoforms=True`` to collapse isomers that share a modification
+        composition to a single representative.
         """
         for annot in modify(
             self,
@@ -4482,7 +4493,7 @@ class ProFormaAnnotation:
         min_abundance_threshold: float = 0.001,  # based on the most abundant peak
         distribution_resolution: int | None = 5,
         use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 10e-15,
+        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
         """Calculate the exact isotopic distribution from elemental composition.
 
@@ -4535,7 +4546,7 @@ class ProFormaAnnotation:
         min_abundance_threshold: float = 0.001,
         distribution_resolution: int | None = 5,
         use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 10e-15,
+        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
         """Estimate isotopic distribution based on mass."""
 

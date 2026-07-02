@@ -49,7 +49,8 @@ def get_sites(peptide: str, mods: Mapping[str | None, Iterable[Any]], is_regex: 
             if site not in sites:
                 sites[site] = []
             if isinstance(mod_values, str):
-                sites[site].extend(mod_values)
+                # A bare string is a single modification, not an iterable of per-character mods.
+                sites[site].append(mod_values)
             else:
                 sites[site].extend(mod_values)
     return sites
