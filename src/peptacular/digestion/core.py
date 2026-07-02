@@ -70,8 +70,9 @@ def get_cleavage_sites(annotation: DigestProtocol, enzyme: str | re.Pattern[str]
     else:
         pattern = enzyme
 
-    # Handle non-specific cleavage
-    if pattern.pattern == "()":
+    # Handle non-specific cleavage. An empty pattern (from an empty/None cleave_on)
+    # is treated the same as the explicit non-specific sentinel "()".
+    if pattern.pattern in ("()", ""):
         return (i for i in range(len(annotation.stripped_sequence) + 1))
 
     return get_regex_match_indices(input_str=annotation.stripped_sequence, regex_str=pattern)

@@ -61,11 +61,11 @@ def get_regex_match_indices(input_str: str, regex_str: str | re.Pattern[str], of
 
         if match.start() != match.end():
             warnings.warn(
-                message="The regex pattern has a match with a none zero length. Using start index + 1 for the match.",
+                message="The regex pattern has a non-zero-length match. Using the match end index (the position after the matched motif) as the cleavage site.",
                 category=UserWarning,
                 stacklevel=2,
             )
-            yield match.start() + offset + 1
+            yield match.end() + offset
         else:
             yield match.start() + offset
 

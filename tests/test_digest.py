@@ -1,8 +1,48 @@
 import unittest
+import warnings
 
 import peptacular as pt
+from peptacular.regex_utils import get_regex_match_indices
 
 PROTEIN = "MVIMSEFSADPAGQGQGQQKPLRVGFYDIERTLGKGNFAVVKLARHRVTKTQVAIKIIDKTRLDSSNLEKIYREVQLMKLLNHPHIIKLYQVMETKDMLYIVTE"
+
+
+class TestRegexMatchIndices(unittest.TestCase):
+    """Regression tests for cleavage-index computation on non-zero-length matches."""
+
+    def test_multi_residue_motif_uses_end_index(self):
+        """A multi-residue motif must cleave *after* the motif, not one past its start.
+
+        Previously non-zero-length matches yielded ``start + 1``, so the two-residue
+        motif ``WK`` in ``AWKB`` (match span [1, 3)) incorrectly returned ``2``
+        (mid-motif) instead of ``3``.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertEqual(list(get_regex_match_indices("AWKB", "WK")), [3])
+
+    def test_single_residue_motif_unchanged(self):
+        """Single-residue raw patterns still cleave after the residue."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertEqual(list(get_regex_match_indices("AWKB", "K")), [3])
+
+    def test_zero_width_lookaround_uses_start(self):
+        """Zero-width lookaround patterns are unaffected and use the match position."""
+        self.assertEqual(list(get_regex_match_indices("PEPTIDE", "(?=P)")), [0, 2])
+
+
+class TestEmptyCleaveOn(unittest.TestCase):
+    """Regression: an empty/None cleave_on must behave as non-specific cleavage."""
+
+    def test_empty_cleave_on_is_non_specific(self):
+        from peptacular.digestion.core import generate_regex, get_cleavage_sites
+
+        annotation = pt.ProFormaAnnotation.parse("PEPTIDEKR")
+        expected = list(range(len(annotation.stripped_sequence) + 1))
+        for cleave_on in ("", None):
+            sites = list(get_cleavage_sites(annotation, generate_regex(cleave_on=cleave_on)))
+            self.assertEqual(sites, expected)
 
 
 class TestDigest(unittest.TestCase):
@@ -250,7 +290,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("PEPT")
         spans = annotation.nonspecific_spans()
         sequences = {annotation[span].serialize() for span in spans}
-        expected = {"P", "E", "P", "T", "PE", "EP", "PT", "PEP", "EPT"}
+        expected = {"P", "E", "P", "T", "PE", "EP", "PT", "PEP", "EPT", "PEPT"}
         self.assertEqual(sequences, expected)
 
     def test_non_enzymatic_sequences_min_1_max_2(self):
@@ -266,7 +306,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("PEPT")
         spans = annotation.nonspecific_spans(min_len=2, max_len=4)
         sequences = {annotation[span].serialize() for span in spans}
-        expected = {"PT", "EP", "EPT", "PE", "PEP"}
+        expected = {"PT", "EP", "EPT", "PE", "PEP", "PEPT"}
         self.assertEqual(sequences, expected)
 
     def test_modified_sequences_with_missed_cleavages(self):
@@ -352,7 +392,8 @@ class TestDigest(unittest.TestCase):
         """Test non-enzymatic sequences with single letter sequence."""
         single_annotation = pt.ProFormaAnnotation.parse("K")
         result = list(single_annotation.nonspecific_spans())
-        self.assertEqual(result, [])
+        # A single residue is itself a valid non-specific peptide (regression: used to be empty)
+        self.assertEqual([single_annotation[sp].serialize() for sp in result], ["K"])
 
     def test_no_cleavage_sites_sequence(self):
         """Test digestion with sequence that has no cleavage sites."""
@@ -504,6 +545,7 @@ class TestDigest(unittest.TestCase):
         expected = [
             "[Acetyl]-P[1.0]",
             "[Acetyl]-P[1.0]E",
+            "[Acetyl]-P[1.0]EP[1.0]-[Amide]",
             "E",
             "EP[1.0]-[Amide]",
             "P[1.0]-[Amide]",
@@ -516,7 +558,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse(labeled_seq)
         spans = annotation.nonspecific_spans()
         sequences = [annotation[span].serialize() for span in spans]
-        expected = ["<13C>P", "<13C>PE", "<13C>E", "<13C>EP", "<13C>P"]
+        expected = ["<13C>P", "<13C>PE", "<13C>PEP", "<13C>E", "<13C>EP", "<13C>P"]
         self.assertEqual(sequences, expected)
 
     def test_cleavage_sites_enzyme_key_trypsin_p(self):
@@ -615,7 +657,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("PEPT")
         spans = annotation.digest(enzyme=pt.Proteases.UNSPECIFIC)
         result = [annotation[span].serialize() for span in spans]
-        expected = ["P", "PE", "PEP", "E", "EP", "EPT", "P", "PT", "T"]
+        expected = ["P", "PE", "PEP", "PEPT", "E", "EP", "EPT", "P", "PT", "T"]
         self.assertEqual(result, expected)
 
     def test_sequential_digest_example_xxxkxxxdxxx(self):

@@ -44,21 +44,22 @@ def build_non_enzymatic_spans(
 
     .. code-block:: python
 
-        # By default all spans are returned with lengths >= 1 and <= span length - 1
+        # By default all spans are returned with lengths >= 1 and <= span length
+        # (including the full-length span itself)
         >>> list(build_non_enzymatic_spans((0, 3, 0)))
-        [(0, 1, 0), (0, 2, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
 
         # The span value for non-enymatic spans will always be 0
         >>> list(build_non_enzymatic_spans((0, 3, 2)))
-        [(0, 1, 0), (0, 2, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
 
         # Can also explicitly specify min_len and max_len
         >>> list(build_non_enzymatic_spans((0, 3, 0), min_len=1, max_len=1))
         [(0, 1, 0), (1, 2, 0), (2, 3, 0)]
 
-        # But it is not possible to generate spans >= span length - 1
+        # max_len is capped at the span length
         >>> list(build_non_enzymatic_spans((0, 3, 0), max_len=10))
-        [(0, 1, 0), (0, 2, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
 
     """
 
@@ -69,7 +70,7 @@ def build_non_enzymatic_spans(
     if min_len is None:
         min_len = 1
 
-    max_span = span.end - span.start - 1
+    max_span = span.end - span.start
     if max_len is None:
         max_len = max_span
     max_len = min(max_len, max_span)
@@ -440,24 +441,32 @@ def build_spans(
         yield from build_non_enzymatic_spans(Span(0, max_index, 0), min_len, max_len)
         return  # Exit early since we only need non-enzymatic spans
 
-    spans = list(
-        build_enzymatic_spans(
-            max_index,
-            enzyme_sites,
-            missed_cleavages,
-            min_len,
-            max_len,  # ← ALWAYS use max_len, don't set to None
-        )
-    )
-
     if semi is True:
-        semi_spans = build_semi_spans(spans, min_len, max_len)
-        for span in spans:
+        # Build parent (enzymatic) spans WITHOUT the max_len cap: a missed-cleavage parent
+        # longer than max_len can still yield in-range semi sub-peptides. max_len is applied
+        # to the final parent and semi spans below.
+        parent_spans = list(
+            build_enzymatic_spans(
+                max_index,
+                enzyme_sites,
+                missed_cleavages,
+                min_len,
+                None,
+            )
+        )
+        semi_spans = build_semi_spans(parent_spans, min_len, max_len)
+        for span in parent_spans:
             if max_len >= span.end - span.start >= min_len:
                 yield span
         yield from semi_spans
     else:
-        yield from spans
+        yield from build_enzymatic_spans(
+            max_index,
+            enzyme_sites,
+            missed_cleavages,
+            min_len,
+            max_len,
+        )
 
 
 def calculate_span_coverage(
