@@ -176,7 +176,11 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
             total_charge += mod.get_charge()
             try:
                 comp = mod.get_composition()
-                total_composition += comp
+                # Merge element-by-element rather than ``total_composition += comp``:
+                # Counter's ``+=`` discards non-positive counts, which would silently
+                # drop atom-removing modifications (e.g. Amidated's ``O:-1``).
+                for element, count in comp.items():
+                    total_composition[element] += count
             except ValueError as e:
                 if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
                     total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)

@@ -34,6 +34,14 @@ from tacular import (
 
 from ..constants import CV, Terminal
 
+# Reusable hint appended to "unknown modification" errors so callers (including AI
+# agents) can immediately see how to specify a resolvable modification.
+_MOD_SPEC_HINT = (
+    "Specify one of: a known modification name (e.g. 'Oxidation'), a CV accession "
+    "(e.g. 'UNIMOD:35' or 'MOD:00046'), a chemical formula (e.g. '[Formula:HO3P]'), "
+    "a glycan (e.g. '[Glycan:HexNAc]'), or a delta mass (e.g. '[+15.9949]')."
+)
+
 
 @runtime_checkable
 class HasMassComp(Protocol):
@@ -174,7 +182,12 @@ class FormulaElement(MassPropertyMixin):
 
 @dataclass(frozen=True, slots=True)
 class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
-    """A formula that can be charged, expressed in ProForma as Formula:C2H6:z+2"""
+    """A formula that can be charged (``<formula>:z<charge>``).
+
+    As a localised residue modification it carries the ``Formula:`` prefix, e.g.
+    ``[Formula:C2H6:z+2]``; as a charge carrier it is written bare, e.g. ``C2H6:z+2``
+    (see ProForma 2.1 sections 11.1 and 11.5).
+    """
 
     formula: tuple[FormulaElement, ...]
     charge: int | None = None
@@ -401,9 +414,10 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
-                raise ValueError(f"Unknown mass for modification: {self}")
+                kind = "monoisotopic" if monoisotopic else "average"
+                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown mass for modification: {self}")
+        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -413,9 +427,9 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for modification: {repr(self)}")
+                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown modification: {repr(self)}")
+        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     @staticmethod
     def from_string(s: str) -> TagAccession:
@@ -575,18 +589,19 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
-                raise ValueError(f"Unknown mass for modification: {self}")
+                kind = "monoisotopic" if monoisotopic else "average"
+                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown mass for modification: {self}")
+        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_composition(self) -> Counter[ElementInfo]:
         mod_info = self._get_mod_info_by_name()
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for modification: {self}")
+                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown composition for modification: {self}")
+        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -715,15 +730,18 @@ class GlycanComponent(MassPropertyMixin):
             return mass * self.occurance
 
     def get_composition(self) -> Counter[ElementInfo]:
+        # Must multiply by occurance to match get_mass (e.g. Glycan:Hex3 is three Hex units).
         if isinstance(self.monosaccharide, ChargedFormula):
             composition = self.monosaccharide.get_composition()
-            return composition
         else:
             monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(self.monosaccharide)
-            composition = monosaccharide.composition
-            if composition is None:
+            comp = monosaccharide.composition
+            if comp is None:
                 raise ValueError(f"Unknown composition for monosaccharide: {self.monosaccharide}")
-            return Counter(composition)
+            composition = Counter(comp)
+        if self.occurance != 1:
+            composition = Counter({element: count * self.occurance for element, count in composition.items()})
+        return composition
 
     def get_charge(self) -> int | None:
         return None
@@ -930,7 +948,11 @@ class IsotopeReplacement(MassPropertyMixin):
 
 @dataclass(frozen=True)
 class GlobalChargeCarrier(MassPropertyMixin):
-    """A charge carrier specification like 'Formula:Na:z+1' or 'Formula:H:z+1^2'"""
+    """A charge carrier specification, a bare charged formula like 'Na:z+1' or 'H:z+1^2'.
+
+    Per ProForma 2.1 section 11.5 charge carriers are written without a ``Formula:`` prefix
+    (that prefix is only used for localised residue modifications).
+    """
 
     charged_formula: ChargedFormula
     occurance: int

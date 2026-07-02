@@ -313,6 +313,24 @@ class TestChemEdgeCases:
         mass = pt.chem_mass(comp)
         assert mass > 0
 
+    def test_chem_formula_single_string(self):
+        """A single formula string must not be treated as a batch of characters.
+
+        Regression: chem_formula used ``isinstance(comp, Sequence)`` without excluding
+        ``str``, so ``chem_formula("H2O")`` iterated the string character-by-character
+        and raised on the digit ``"2"``.
+        """
+        assert pt.chem_formula("H2O") == "H2O"
+        assert pt.chem_formula("C6H12O6") == "C6H12O6"
+
+    def test_chem_formula_string_matches_dict(self):
+        """String and equivalent dict inputs produce the same formula."""
+        assert pt.chem_formula("H2O") == pt.chem_formula({"H": 2, "O": 1})
+
+    def test_chem_formula_list_still_batches(self):
+        """A list of formulas still returns a list of results."""
+        assert pt.chem_formula(["H2O", "CO2"]) == ["H2O", "CO2"]
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

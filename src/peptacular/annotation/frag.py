@@ -10,7 +10,7 @@ from tacular import (
     IonTypeProperty,
 )
 
-from ..constants import ModType
+from ..constants import ELECTRON_MASS, ModType
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
@@ -105,11 +105,13 @@ class Fragment:
 
     @property
     def neutral_mass(self) -> float:
-        # subract adduct masses
+        # subtract adduct masses and add back the electrons removed by the charge:
+        # self.mass == neutral + adduct_atoms - charge*electron, so the electron term
+        # must be undone to recover the true neutral mass.
         total_adduct_mass = 0.0
         for adduct in self.charge_adducts:
             total_adduct_mass += adduct.get_mass(self.monoisotopic)
-        return self.mass - total_adduct_mass
+        return self.mass - total_adduct_mass + self.charge_state * ELECTRON_MASS
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
@@ -320,9 +322,12 @@ class Fragment:
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
             parts.append(f"[M{''.join(adduct_parts)}]")
 
-        # Charge: omit for +1 (implicit); include for everything else
+        # Charge: mzPAF omits the component only for +1 (implicit); everything else,
+        # including negative charges, is written as a bare magnitude with no sign
+        # (mzPAF spec section 4.8: "The charge state component ... MUST NOT include
+        # the minus sign").
         if self.charge_state != 0 and self.charge_state != 1:
-            parts.append(f"^{self.charge_state}")
+            parts.append(f"^{abs(self.charge_state)}")
 
         return "".join(parts)
 

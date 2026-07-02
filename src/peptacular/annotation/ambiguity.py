@@ -25,7 +25,9 @@ def condense_ambiguity_to_xnotation(annotation: ProFormaAnnotation, inplace: boo
         if elem.has_intervals:
             # drop unknown and labile and charge / adducts
             elem_annot = elem.filter_mods([ModType.INTERNAL, ModType.STATIC, ModType.ISOTOPE, ModType.INTERVAL])
-            mass = elem_annot.mass(ion_type=IonType.NEUTRAL, charge=1)
+            # Use the neutral mass with no charge; charge=1 would fold an extra
+            # proton into the mass baked into the condensed X[+...] residue.
+            mass = elem_annot.mass(ion_type=IonType.NEUTRAL, charge=0)
 
             elem.sequence = "X"
             elem.clear_internal_mods()
@@ -356,7 +358,7 @@ def group_by_ambiguity(annotations: Iterable[ProFormaAnnotation], precision: int
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError("Precision must be a non-negative integer between 0 and 10.")
+        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 
@@ -407,7 +409,7 @@ def unique_fragments(annotations: Iterable[ProFormaAnnotation], precision: int =
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError("Precision must be a non-negative integer between 0 and 10.")
+        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 

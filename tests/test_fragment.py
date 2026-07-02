@@ -814,20 +814,20 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-1")
-        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^-1")
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^1")  # mzPAF: charge is a bare magnitude, no minus sign
+        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^1")
 
     def test_negative_charge_z_minus_2(self):
         frag = pt.parse("PEPTIDE/-3").frag(ion_type=pt.IonType.B, charge=-2, position=3)
         self.assertEqual(frag.charge_state, -2)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-2")
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^2")  # mzPAF: charge is a bare magnitude, no minus sign
 
     def test_negative_charge_y_ion(self):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.Y, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^-1")
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^1")  # mzPAF: charge is a bare magnitude, no minus sign
 
     def test_negative_charge_mz_less_than_positive(self):
         # Negative-mode b3 loses a proton; positive-mode adds one — so neg mz < pos mz

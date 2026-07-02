@@ -66,8 +66,10 @@ class IsotopeInfo:
             return self.monoisotopic_mass_delta
         return self.average_mass_delta
 
-    @cached_property
+    @property
     def to_fragment_mapping(self) -> Mapping[str, int] | int | None:
+        # Plain property (not cached): returns a fresh dict so callers can't corrupt a
+        # shared instance held by the @cache singleton factory.
         if len(self.data) == 1:
             elem_info, count = self.data[0]
             if str(elem_info) == "13C":
@@ -107,8 +109,10 @@ class ChargeCarrierInfo:
     def average_mass(self) -> float:
         return sum(adduct.get_mass(monoisotopic=False) for adduct in self.adducts)
 
-    @cached_property
+    @property
     def composition(self) -> Counter[ElementInfo]:
+        # Plain property (not cached): this instance is a @cache singleton, so a cached
+        # mutable Counter would be shared and could be corrupted by any caller.
         composition: Counter[ElementInfo] = Counter()
         for adduct in self.adducts:
             composition += adduct.get_composition()
@@ -132,7 +136,7 @@ class ChargeCarrierInfo:
         carriers = tuple(sorted(carriers, key=lambda x: x.serialize()))
         return cast(Self, _get_charge_carrier_info(carriers))
 
-    @cached_property
+    @property
     def to_fragment_mapping(self) -> Mapping[str, int] | None:
         composition: Counter[ElementInfo] = self.composition
         if not composition:
@@ -144,7 +148,7 @@ class ChargeCarrierInfo:
 
         return {str(elem_info): count for elem_info, count in composition.items()}
 
-    @cached_property
+    @property
     def to_explicit_fragment_mapping(self) -> Mapping[str, int]:
         composition: Counter[ElementInfo] = self.composition
         if not composition:
@@ -356,7 +360,7 @@ class DeltaInfo:
             parts.append(part)
         return " + ".join(parts) if parts else "No Delta"
 
-    @cached_property
+    @property
     def to_fragment_mapping(self) -> Mapping[str | float, int] | None:
         if not self.deltas:
             return None
@@ -502,4 +506,6 @@ def get_losses(
     losses: Counter[ElementInfo],
 ) -> Mapping[ChargedFormula, int] | None:
     """Get cached neutral loss mapping from composition."""
-    return _get_losses(tuple(losses.items())) if losses else None
+    # Return a fresh dict: _get_losses is @cache-backed and would otherwise hand out a
+    # shared mutable mapping that a caller could corrupt for all future callers.
+    return dict(_get_losses(tuple(losses.items()))) if losses else None
