@@ -8,6 +8,40 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
+## [3.1.2]
+### Added
+- Clearer, more actionable parse/validation error messages aimed at both humans and AI agents: they now name the offending value, state what was expected, and (for parse errors) point at the exact position. Unknown-modification errors include a hint listing valid ways to specify a modification (name, CV accession, formula, glycan, or delta mass).
+
+### Fixed
+- `GlycanComponent.get_composition` now multiplies by occurrence like `get_mass` does; a glycan monosaccharide count > 1 (e.g. `Glycan:Hex3`, or any real N-glycan) previously produced a composition whose mass disagreed with `mass()` by the count of dropped units
+- Cached charge-carrier/delta/isotope-loss accessors (`ChargeCarrierInfo.composition`/`to_fragment_mapping`/`to_explicit_fragment_mapping`, `DeltaInfo.to_fragment_mapping`, `get_losses`) no longer return a shared mutable container from a process-wide `@cache` singleton; mutating a returned dict/Counter could previously corrupt every future caller with the same inputs
+- `Fragment.neutral_mass` now undoes the per-charge electron-mass correction baked into `.mass`, so it is charge-invariant again (previously off by `charge * electron_mass`, with the sign flipping between positive and negative charge states)
+- mzPAF serialization of negatively charged fragments no longer includes a minus sign (e.g. `y3{IDE}^1` instead of `y3{IDE}^-1`), per mzPAF spec section 4.8 ("the charge state component ... MUST NOT include the minus sign")
+- `modify` now enumerates all positional isomers by default (previously the public API forced `unique_peptidoforms=True`, collapsing e.g. the 6 single-phospho placements on S/T/Y down to 2); the `unique_peptidoforms` flag is now exposed on the functional API
+- `modify` now treats a bare string modification value as a single modification instead of shredding it into per-character mods (e.g. `{'S': 'Phospho'}` no longer becomes `S[P]`, `S[h]`, …)
+- `condense_mods_to_intervals(inplace=False)` no longer mutates the original annotation; `copy()`/`update()` now deep-copy interval objects instead of sharing them
+- Non-specific digestion now includes the full-length peptide, and a single-residue sequence now yields itself instead of an empty list (previously `build_non_enzymatic_spans` capped at length−1)
+- Semi-enzymatic digestion no longer drops valid in-range peptides when `max_len` is smaller than a missed-cleavage parent span (the `max_len` filter was applied to parent spans before deriving semi sub-peptides)
+- Charge carriers must now be a bare charged formula (e.g. `/[Na:z+1]`, `/[C2H6:z+2]`) per ProForma 2.1 §11.5; a `Formula:`/`Glycan:`-prefixed charge carrier (e.g. `/[Formula:C2H6:z+2]`) is now rejected with a clear message instead of parsing and then crashing with `Failed to parse element 'Fo'` on mass calculation. Corrected the `ChargedFormula`/`GlobalChargeCarrier` docstrings that advertised the invalid prefixed form.
+- Unterminated modification brackets (e.g. `PEP[Oxidation`) are now rejected instead of being silently completed to `PEP[Oxidation]`
+- Empty modifications (e.g. `PEP[]TIDE`, `[]-PEPTIDE`) are now rejected at parse time instead of producing an object that raised only later on mass/composition access
+- A dangling charge separator (e.g. `PEPTIDE/` or `PEPTIDE/x`) is now rejected with a clear message instead of being silently ignored
+- `mass()` and `mz()` now apply global isotope labels (`<13C>`, `<15N>`); previously the fast mass path ignored them and returned the unlabeled mass while `comp()` applied them
+- `comp()` no longer drops atom-removing modifications (e.g. Amidated's `O:-1`); a `Counter` accumulation was silently discarding negative element counts, inflating the composition mass
+- `condense_ambiguity_to_xnotation` no longer adds a spurious proton (~1.007 Da) to each condensed region's mass
+- `estimate_isotopic_distribution` (averagine) now anchors the monoisotopic peak to the requested mass instead of returning the averagine composition's own mass, which drifted by 10-34 Da; only the envelope shape comes from averagine
+- `chem_formula` now handles a single formula string correctly (previously a `str` was treated as a batch of characters and raised `ValueError`)
+- `isotopic_distribution` now applies the per-charge electron-mass correction for all formulas; `charge_state` was previously ignored for integer formulas, so every charge state returned identical masses
+- `get_regex_match_indices` now uses the match end index for non-zero-length (multi-residue) enzyme patterns, fixing incorrect cleavage sites for motifs longer than one residue
+- `SequenceRegion.from_string` now parses ambiguous regions (`(?...)`) correctly instead of raising (previously a residue was skipped for every element)
+- `parse_modification` now routes cross-link definitions (e.g. `XLMOD:02001#XL1`, `#BRANCH`) to the cross-linker parser via the label rather than mis-classifying them as ambiguous modifications; modifications containing `|` are no longer misrouted to the cross-linker parser
+- `isotopic_distribution` no longer aborts convolution early on a single low-abundance pairing (`break` → `continue`), which could drop significant isotope peaks
+- Isoelectric point (`pi`) is no longer clamped to the `[4.05, 12.0]` range, so strongly acidic/basic peptides get correct values; the duplicated pI implementation in the functional API now delegates to the annotation property
+- `get_cleavage_sites` now treats an empty enzyme pattern (from an empty/`None` `cleave_on`) as non-specific cleavage, consistent with the explicit `"()"` sentinel
+- `TagMass` now preserves the `C:` custom-mass CV prefix through a parse -> serialize round trip (previously it was dropped, indistinguishable from a bare mass)
+- Parallel processing now honours the documented auto-detection: with no `method` specified it selects threads on free-threaded (no-GIL) Python and processes otherwise, instead of always using processes
+- Standardized the internal isotope convolution abundance threshold to a single value (`1e-14`) across all entry points (previously a mix of `10e-15` and `1e-15`)
+
 ## [3.1.1]
 - Renamed `fragment_masses` to `fast_fragment` and updated related references
 - Added mzPAF label serialization to Fragment class
