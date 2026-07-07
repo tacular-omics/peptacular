@@ -190,7 +190,10 @@ def generate_random_intervals(
         # Decide if we should start an interval at this position
         if random() < interval_probability:
             start = i
-            max_end = seq_length - 1
+            # Interval.end is exclusive, so the last residue (index seq_length - 1) is
+            # only covered when end == seq_length; capping at seq_length - 1 meant a
+            # random interval could never reach the sequence's final residue.
+            max_end = seq_length
 
             # Random end position between start+1 and max_end (end must be > start)
             end = randint(start + 1, max_end)

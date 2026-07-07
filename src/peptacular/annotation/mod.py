@@ -66,7 +66,12 @@ class Mod[T: ModificationProtocol]:
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get total composition for this modification occurrence."""
-        return self.value.get_composition().copy()
+        comp = self.value.get_composition()
+        if self.count == 1:
+            return comp.copy()
+        # Must scale by count to match get_mass's `mass * self.count`: self.count
+        # represents this same modification repeated at one position.
+        return Counter({element: n * self.count for element, n in comp.items()})
 
     def get_charge(self) -> int:
         """Get total charge for this modification occurrence."""

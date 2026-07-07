@@ -41,6 +41,13 @@ All notable changes to this project will be documented in this file.
 - `TagMass` now preserves the `C:` custom-mass CV prefix through a parse -> serialize round trip (previously it was dropped, indistinguishable from a bare mass)
 - Parallel processing now honours the documented auto-detection: with no `method` specified it selects threads on free-threaded (no-GIL) Python and processes otherwise, instead of always using processes
 - Standardized the internal isotope convolution abundance threshold to a single value (`1e-14`) across all entry points (previously a mix of `10e-15` and `1e-15`)
+- `comp()` now scales a repeated modification's composition by its occurrence count, matching `mass()`; applying the same modification 2-3x at one position previously left `comp()` unchanged, producing a composition off by thousands of Da for common exotic-mod peptides
+- The functional `fragment()` API now matches `.fragment()`'s smart charge-state default instead of hardcoding `charges=(1,)`; it previously silently dropped higher-charge fragments and returned the wrong sign of charge for negative-mode precursors (e.g. `/-3` returned `charge_state=1` instead of `[-1, -2]`)
+- `find_subsequence_indices`/`coverage`/`modification_coverage` now find overlapping subsequence matches (e.g. `'II'` in `'IIIII'`); a plain `re.finditer` call was skipping past each match and missing overlaps
+- `count_residues`/`percent_residues` no longer mutate a caller-supplied `ProFormaAnnotation`; they combined a non-copying `get_annotation_input` with an in-place `condense_static_mods` call
+- `convert_ip2_sequence` no longer crashes or produces unparseable output for modifications adjacent to other brackets; leading (N-terminal), trailing (C-terminal), and internal-residue bracket runs are now each handled with the correct dash placement instead of one blanket substitution
+- Randomly generated ambiguity intervals (`ProFormaAnnotation.random`) can now reach the sequence's final residue; an off-by-one in the interval-generation range meant no randomly generated interval ever included the last residue
+- `generate_partitions` no longer silently overlaps windows when `aa_overlap=0` is requested and the sequence doesn't divide evenly by `num_windows`; the "windows don't fit" fallback now honors the requested step for every window boundary except the unavoidable final one
 
 ## [3.1.1]
 - Renamed `fragment_masses` to `fast_fragment` and updated related references

@@ -566,24 +566,19 @@ def generate_partitions(
                 end = min(seq_len, start + window_size)
                 window_positions.append((start, end))
         else:
-            # Windows don't fit - need to compress
-            # Use floating point arithmetic for better distribution
-            effective_step = (seq_len - window_size) / max(1, (num_windows - 1))
-
+            # Windows don't fit using the requested aa_overlap for every gap (the ideal
+            # step_size would run past the end of the sequence). Use the exact requested
+            # step_size for every window boundary except the last, so aa_overlap is honored
+            # everywhere it can be; only the final window is pulled left just enough to end
+            # exactly at the sequence's end (mirroring the num_windows == 2 case above).
+            # A previous version recomputed a single "effective_step" spread evenly across
+            # every window instead, which silently overlapped ALL windows even when
+            # aa_overlap=0 was requested.
             for i in range(num_windows):
-                if i == 0:
-                    # First window starts at 0
-                    start = 0
-                    end = min(window_size, seq_len)
-                elif i == num_windows - 1:
-                    # Last window ends at sequence end
-                    end = seq_len
-                    start = max(0, end - window_size)
-                else:
-                    # Middle windows
-                    ideal_start = i * effective_step
-                    start = int(ideal_start)
-                    end = min(seq_len, start + window_size)
+                start = i * step_size
+                if i == num_windows - 1:
+                    start = min(start, max(0, seq_len - window_size))
+                end = min(seq_len, start + window_size)
 
                 # Ensure valid window
                 if end <= start:

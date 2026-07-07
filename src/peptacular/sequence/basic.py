@@ -343,7 +343,9 @@ def is_modified(
 
 
 def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: bool = True) -> dict[str, int]:
-    return get_annotation_input(sequence, copy=False).condense_static_mods(inplace=True).count_residues(include_mods=include_mods)
+    # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
+    # caller-supplied ProFormaAnnotation in what is meant to be a read-only query.
+    return get_annotation_input(sequence, copy=True).condense_static_mods(inplace=True).count_residues(include_mods=include_mods)
 
 
 @overload
@@ -407,7 +409,9 @@ def _percent_residues_single(
     sequence: str | ProFormaAnnotation,
     include_mods: bool = True,
 ) -> dict[str, float]:
-    return get_annotation_input(sequence, copy=False).condense_static_mods(inplace=True).percent_residues(include_mods=include_mods)
+    # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
+    # caller-supplied ProFormaAnnotation in what is meant to be a read-only query.
+    return get_annotation_input(sequence, copy=True).condense_static_mods(inplace=True).percent_residues(include_mods=include_mods)
 
 
 @overload

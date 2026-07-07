@@ -4295,8 +4295,29 @@ class ProFormaAnnotation:
         if re.match(r"^([A-Z]|-)\..*\.([A-Z]|-)$", sequence):
             sequence = sequence[2:-2]
         sequence = re.sub(r"\(([^)]+)\)", r"[\1]", sequence)
-        sequence = re.sub(r"^\[([^\]]+)\]", r"[\1]-", sequence)
-        sequence = re.sub(r"\]\[", r"]-[", sequence)
+
+        # A run of adjacent brackets is handled differently depending on where it sits:
+        #  - leading (N-terminal) run: a single '-' after the whole run, e.g.
+        #    '[mod1][mod2]PEPTIDE' -> '[mod1][mod2]-PEPTIDE' (stacked N-term mods).
+        #  - trailing run at the very end of the sequence: the first bracket stays
+        #    attached to the preceding residue, and a '-' is inserted before every
+        #    later bracket, e.g. 'PEPTIDE[2][3]' -> 'PEPTIDE[2]-[3]' (residue mod
+        #    followed by a distinct C-terminal mod).
+        #  - a run sandwiched between residues on both sides is left untouched, e.g.
+        #    'PEP[mod1][mod2]TIDE' stays as-is (multiple mods on one residue).
+        # A single prior blanket substitution (every '][' -> ']-[') got the leading
+        # and trailing cases right only by coincidence and produced unparseable
+        # output for the sandwiched case.
+        nterm_match = re.match(r"^(\[[^\]]+\])+", sequence)
+        if nterm_match and nterm_match.end() < len(sequence):
+            end = nterm_match.end()
+            sequence = sequence[:end] + "-" + sequence[end:]
+
+        def _dash_before_later_brackets(m: re.Match[str]) -> str:
+            brackets = re.findall(r"\[[^\]]+\]", m.group(0))
+            return brackets[0] + "".join("-" + b for b in brackets[1:])
+
+        sequence = re.sub(r"(?:\[[^\]]+\]){2,}$", _dash_before_later_brackets, sequence)
 
         return ProFormaAnnotation.parse(sequence)
 
