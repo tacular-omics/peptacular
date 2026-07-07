@@ -9,8 +9,14 @@ All notable changes to this project will be documented in this file.
 - ensure str values are properly handles with intern and that mod values are cached
 
 ## [3.1.2]
+### Changed
+- Bumped the `tacular` dependency floor to `>=1.1.0`, which fixes several upstream data-consistency bugs: isotope-labelled modification compositions (e.g. `UNIMOD:536`, `Label:13C(2)15N(1)`) that dropped their isotope atoms while keeping the correct mass, all 9 internal-fragment-ion mass offsets (previously shifted so the default "by" internal fragment was `-CO` instead of `0`), and two neutral-loss formulas (Formic acid, Formamide) that were parsed with a dropped repeated-element count.
+
 ### Added
 - Clearer, more actionable parse/validation error messages aimed at both humans and AI agents: they now name the offending value, state what was expected, and (for parse errors) point at the exact position. Unknown-modification errors include a hint listing valid ways to specify a modification (name, CV accession, formula, glycan, or delta mass).
+
+### Fixed
+- Internal-fragment mzPAF labels (`_INTERNAL_MASS_DIFFS`) now match tacular>=1.1.0's corrected ion offsets; 5 of the 9 non-default internal ion types (`ax`, `bx`, `az`, `bz`, `cy`) previously carried a stale label whose implied mass no longer matched the actual computed fragment mass
 
 ### Fixed
 - `GlycanComponent.get_composition` now multiplies by occurrence like `get_mass` does; a glycan monosaccharide count > 1 (e.g. `Glycan:Hex3`, or any real N-glycan) previously produced a composition whose mass disagreed with `mass()` by the count of dropped units

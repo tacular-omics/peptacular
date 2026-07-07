@@ -763,6 +763,79 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AY, charge=2, position=(3, 5))
         self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-CO^2")
 
+    def test_internal_ax(self):
+        # Regression: tacular>=1.1.0 corrected every non-"by" internal ion offset;
+        # peptacular's mzPAF label table must track those corrected values.
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-2H^2")
+
+    def test_internal_az(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-HCONH2^2")
+
+    def test_internal_bx(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CO-2H^2")
+
+    def test_internal_bz(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-NH3^2")
+
+    def test_internal_cx(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CHNO^2")
+
+    def test_internal_cy(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+NH3^2")
+
+    def test_internal_cz(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}^2")
+
+    def test_internal_ion_labels_match_computed_mass(self):
+        # The mzPAF label's implied mass delta must equal the actual computed delta
+        # from "by" for every internal ion type (catches a label/value drift like the
+        # one tacular>=1.1.0's fix exposed).
+        import re
+
+        MONO = {"H": 1.00782503223, "C": 12.0, "N": 14.00307400443, "O": 15.99491461957}
+
+        def label_mass(label: str) -> float:
+            if label is None:
+                return 0.0
+            total = 0.0
+            for tok in re.findall(r"[+-][0-9]*[A-Za-z0-9]+", label):
+                sign = 1 if tok[0] == "+" else -1
+                mult_m = re.match(r"(\d*)(.*)", tok[1:])
+                mult = int(mult_m.group(1)) if mult_m.group(1) else 1
+                comp: dict[str, int] = {}
+                for el, n in re.findall(r"([A-Z][a-z]?)(\d*)", mult_m.group(2)):
+                    if el:
+                        comp[el] = comp.get(el, 0) + (int(n) if n else 1)
+                total += sign * mult * sum(MONO[e] * n for e, n in comp.items())
+            return total
+
+        annot = pt.parse("PEPTIDE/1")
+        by_mass = annot.frag(ion_type=pt.IonType.BY, charge=1, position=(3, 5)).mass
+        for ion_type in (
+            pt.IonType.AX,
+            pt.IonType.AY,
+            pt.IonType.AZ,
+            pt.IonType.BX,
+            pt.IonType.BY,
+            pt.IonType.BZ,
+            pt.IonType.CX,
+            pt.IonType.CY,
+            pt.IonType.CZ,
+        ):
+            frag = annot.frag(ion_type=ion_type, charge=1, position=(3, 5))
+            mzpaf = frag.to_mzpaf(include_sequence=False)
+            label = mzpaf[2:].split("^")[0] or None  # strip leading "m3:5", trailing charge
+            actual_diff = frag.mass - by_mass
+            implied_diff = label_mass(label)
+            self.assertAlmostEqual(actual_diff, implied_diff, places=4, msg=f"{ion_type}: label {label!r}")
+
     def test_precursor(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.PRECURSOR, charge=2)
         self.assertEqual(frag.to_mzpaf(), "p^2")

@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "A ProForma peptide sequence parser and annotation library"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["tacular>=1.0.0"]
+dependencies = ["tacular>=1.1.0"]
 authors = [
     { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
 ]
@@ -82,9 +82,12 @@ select = [
 "data.py" = ["E741"]
 "constants.py" = ["E741"]
 
-#[tool.uv.sources]
-#tacular = { path = "../tacular", editable = true }
+# TEMPORARY: tacular 1.1.0 is not yet published to PyPI. Pinned to the exact commit on
+# tacular's release/1.1.0 branch so `dependencies = ["tacular>=1.1.0"]` above is
+# resolvable. Remove this override (keeping the >=1.1.0 floor) once tacular 1.1.0 is
+# published to PyPI.
 [tool.uv.sources]
+tacular = { git = "https://github.com/pgarrett-scripps/tacular.git", rev = "a929196b2429c1b4a2d4ceeceec2049163b77014" }
 pyteomics = { git = "https://github.com/levitsky/pyteomics.git" }
 
 [tool.coverage.report]
