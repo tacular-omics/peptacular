@@ -314,7 +314,7 @@ def _get_mass_shift_interval(forward_coverage: list[int], reverse_coverage: list
 
 def _validate_coverage_lengths(forward_coverage: list[int], reverse_coverage: list[int], seq_len: int) -> None:
     """Validate that coverage lengths match sequence length"""
-    if len(forward_coverage) != len(reverse_coverage) != seq_len:
+    if len(forward_coverage) != seq_len or len(reverse_coverage) != seq_len:
         raise ValueError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
 
 
@@ -351,6 +351,7 @@ def _apply_mass_shift(
             None,
             validate=annotation._validate,
         )
+        mod_interval.append_mod(mass_shift)
         annotation.append_interval(mod_interval)
 
 

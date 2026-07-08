@@ -39,6 +39,18 @@ class TestWeightEdgeCases:
     def test_length_zero_is_empty(self):
         assert list(get_weights(0, "linear")) == []
 
+    def test_length_zero_is_empty_for_every_scheme(self):
+        for method in WeightingMethods:
+            assert list(get_weights(0, method.value)) == []
+
+    def test_non_sequence_weights_raises_type_error(self):
+        with pytest.raises(TypeError, match="weights must be a sequence"):
+            get_weights(5, weights=123)  # type: ignore[arg-type]
+
+    def test_mismatched_weight_list_length_raises_value_error(self):
+        with pytest.raises(ValueError, match="does not match sequence length"):
+            get_weights(5, weights=[1, 2, 3])
+
     def test_length_two_linear(self):
         # Documented current behavior: a 2-wide window is uniform (no interior peak).
         assert list(get_weights(2, "linear")) == [1.0, 1.0]

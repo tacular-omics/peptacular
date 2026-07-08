@@ -863,7 +863,9 @@ class TestFragmentMzPAF(unittest.TestCase):
     def test_neutral_loss(self):
         frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], neutral_deltas=["H2O"])
         labels = [f.to_mzpaf() for f in frags]
-        self.assertTrue(any("-H2O" in label for label in labels))
+        # mzPAF section 4.5 puts the ordinal count before the atom ("2H", not "H2");
+        # the O count of 1 is omitted.
+        self.assertTrue(any("-2HO" in label for label in labels))
 
     def test_serialize_format_default(self):
         frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)

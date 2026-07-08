@@ -105,7 +105,12 @@ def adjust_comp(
 
     ion_info = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
 
-    base_comp += ion_info.composition
+    # Merge element-by-element rather than ``base_comp += ion_info.composition``:
+    # Counter's ``+=`` silently drops any entry whose resulting count is <= 0, which
+    # would hide an ion type (e.g. "a") removing more atoms of an element than the
+    # base composition has, instead of surfacing it via the negative-count check below.
+    for element, count in ion_info.composition.items():
+        base_comp[element] += count
 
     # correct for global isotopes
     if isotope_map:
@@ -115,16 +120,14 @@ def adjust_comp(
                 base_comp[replaced_element] += count
 
     for mod in charge.mods:
-        base_comp += mod.get_composition()
-
-    if any(count < 0 for count in base_comp.values()):
-        raise ValueError(f"Negative element counts after charge adjustments: {base_comp}")
-
-    total_charge = charge.get_charge() + internal_charge
+        for element, count in mod.get_composition().items():
+            base_comp[element] += count
 
     # Validate no negative counts
     if any(count < 0 for count in base_comp.values()):
         raise ValueError(f"Negative element counts after adjustments: {base_comp}")
+
+    total_charge = charge.get_charge() + internal_charge
 
     # Calculate mass from final composition
     base_mass = 0.0
