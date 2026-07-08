@@ -17,8 +17,6 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Internal-fragment mzPAF labels (`_INTERNAL_MASS_DIFFS`) now match tacular>=1.1.0's corrected ion offsets; 5 of the 9 non-default internal ion types (`ax`, `bx`, `az`, `bz`, `cy`) previously carried a stale label whose implied mass no longer matched the actual computed fragment mass
-
-### Fixed
 - `GlycanComponent.get_composition` now multiplies by occurrence like `get_mass` does; a glycan monosaccharide count > 1 (e.g. `Glycan:Hex3`, or any real N-glycan) previously produced a composition whose mass disagreed with `mass()` by the count of dropped units
 - Cached charge-carrier/delta/isotope-loss accessors (`ChargeCarrierInfo.composition`/`to_fragment_mapping`/`to_explicit_fragment_mapping`, `DeltaInfo.to_fragment_mapping`, `get_losses`) no longer return a shared mutable container from a process-wide `@cache` singleton; mutating a returned dict/Counter could previously corrupt every future caller with the same inputs
 - `Fragment.neutral_mass` now undoes the per-charge electron-mass correction baked into `.mass`, so it is charge-invariant again (previously off by `charge * electron_mass`, with the sign flipping between positive and negative charge states)
