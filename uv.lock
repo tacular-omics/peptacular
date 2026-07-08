@@ -575,7 +575,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tacular", git = "https://github.com/pgarrett-scripps/tacular.git?rev=001451be093e187f6363d9798f74e5205166cc72" }]
+requires-dist = [{ name = "tacular", specifier = ">=1.1.0" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -950,7 +950,11 @@ wheels = [
 [[package]]
 name = "tacular"
 version = "1.1.0"
-source = { git = "https://github.com/pgarrett-scripps/tacular.git?rev=001451be093e187f6363d9798f74e5205166cc72#001451be093e187f6363d9798f74e5205166cc72" }
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/af/39e3e331e003c347fa57c1914417e877cf76338d4ea216a959634cac598d/tacular-1.1.0.tar.gz", hash = "sha256:5cda570eb5e450e54d32c736519df0c5e041ee722bd0fa2898f708c5f60d15f7", size = 868437, upload-time = "2026-07-08T22:08:34.158Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/22/522428dcbb9b06ee2de76a34021137fe3bd38c360f4d3419dcdd76846816/tacular-1.1.0-py3-none-any.whl", hash = "sha256:d72ad98c301dc19a19a5fcc692b680c689de59067566ff99320c1899aa273aa9", size = 422964, upload-time = "2026-07-08T22:08:32.521Z" },
+]
 
 [[package]]
 name = "tokenize-rt"
