@@ -87,7 +87,7 @@ select = [
 # resolvable. Remove this override (keeping the >=1.1.0 floor) once tacular 1.1.0 is
 # published to PyPI.
 [tool.uv.sources]
-tacular = { git = "https://github.com/pgarrett-scripps/tacular.git", rev = "a929196b2429c1b4a2d4ceeceec2049163b77014" }
+tacular = { git = "https://github.com/pgarrett-scripps/tacular.git", rev = "bc100b5394a2b6f8877b66a0ff740551ea39a06c" }
 pyteomics = { git = "https://github.com/levitsky/pyteomics.git" }
 
 [tool.coverage.report]
