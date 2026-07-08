@@ -575,7 +575,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tacular", git = "https://github.com/pgarrett-scripps/tacular.git?rev=bc100b5394a2b6f8877b66a0ff740551ea39a06c" }]
+requires-dist = [{ name = "tacular", git = "https://github.com/pgarrett-scripps/tacular.git?rev=001451be093e187f6363d9798f74e5205166cc72" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -950,7 +950,7 @@ wheels = [
 [[package]]
 name = "tacular"
 version = "1.1.0"
-source = { git = "https://github.com/pgarrett-scripps/tacular.git?rev=bc100b5394a2b6f8877b66a0ff740551ea39a06c#bc100b5394a2b6f8877b66a0ff740551ea39a06c" }
+source = { git = "https://github.com/pgarrett-scripps/tacular.git?rev=001451be093e187f6363d9798f74e5205166cc72#001451be093e187f6363d9798f74e5205166cc72" }
 
 [[package]]
 name = "tokenize-rt"
