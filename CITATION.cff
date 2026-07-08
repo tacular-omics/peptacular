@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis"
-version: v2.5.1
+version: v3.1.2
 authors:
   - family-names: Garrett
     given-names: Patrick T.
