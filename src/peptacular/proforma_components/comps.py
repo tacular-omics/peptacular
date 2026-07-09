@@ -1019,7 +1019,14 @@ class GlobalChargeCarrier(MassPropertyMixin):
 
     def to_mz_paf(self) -> str:
         """Convert to mzPAF format string."""
-        return f"M{self.charged_formula.to_mz_paf()}"
+        # mzPAF adduct notation (spec section 4.7) prefixes a repeated adduct with its
+        # count, e.g. "[M+2Na]" for two sodium atoms; a count of 1 is omitted. This is
+        # self.occurance -- how many instances of this charge carrier are present --
+        # not to be confused with a count baked into charged_formula's own elements.
+        paf_formula = self.charged_formula.to_mz_paf()
+        sign, rest = paf_formula[0], paf_formula[1:]
+        count_str = str(self.occurance) if self.occurance != 1 else ""
+        return f"M{sign}{count_str}{rest}"
 
     @property
     def is_protonated(self) -> bool:

@@ -332,6 +332,16 @@ class Fragment:
                 # to_mz_paf() returns "M+Na", we strip the "M" prefix
                 paf_str = carrier.to_mz_paf()
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
+
+            def _adduct_sort_key(part: str) -> str:
+                # mzPAF section 4.7: "If there are multiple types of atoms/molecules,
+                # alphabetical order SHOULD be followed, e.g. [M+2H+Na] rather than
+                # [M+Na+2H]." Sort on the element/molecule name, ignoring the leading
+                # sign and any repeat-count digits (e.g. "+2H" sorts as "H").
+                name = part[1:].lstrip("0123456789")
+                return name
+
+            adduct_parts.sort(key=_adduct_sort_key)
             parts.append(f"[M{''.join(adduct_parts)}]")
 
         # Charge: mzPAF omits the component only for +1 (implicit); everything else,

@@ -650,6 +650,13 @@ class TestGlobalChargeCarrier:
         carrier = GlobalChargeCarrier.charged_proton(1)
         assert carrier.to_mz_paf() == "M+H"
 
+    def test_to_mz_paf_includes_occurance_count(self) -> None:
+        # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with
+        # two sodium atoms."
+        cf = ChargedFormula(formula=(FormulaElement(element=Element.Na, occurance=1),), charge=1)
+        carrier = GlobalChargeCarrier(charged_formula=cf, occurance=2)
+        assert carrier.to_mz_paf() == "M+2Na"
+
     def test_is_valid_true(self) -> None:
         carrier = GlobalChargeCarrier.from_string("Na:z+1")
         assert carrier.is_valid is True

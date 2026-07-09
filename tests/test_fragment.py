@@ -875,6 +875,21 @@ class TestFragmentMzPAF(unittest.TestCase):
         with self.assertRaises(ValueError):
             frags[0].to_mzpaf()
 
+    def test_adduct_repeat_count(self):
+        # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with two
+        # sodium atoms."
+        annot = pt.parse("PEPTIDE/[Na:z+1^2]")
+        frag = annot.frag(ion_type=pt.IonType.Y, position=3, charge=None)
+        self.assertIn("[M+2Na]", frag.to_mzpaf())
+
+    def test_multiple_adducts_are_alphabetized(self):
+        # mzPAF section 4.7: "If there are multiple types of atoms/molecules,
+        # alphabetical order SHOULD be followed, e.g. [M+2H+Na] rather than
+        # [M+Na+2H]."
+        annot = pt.parse("PEPTIDE/[Na:z+1,H:z+1^2]")
+        frag = annot.frag(ion_type=pt.IonType.Y, position=3, charge=None)
+        self.assertIn("[M+2H+Na]", frag.to_mzpaf())
+
     def test_serialize_format_default(self):
         frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
         self.assertEqual(frag.serialize(format="default"), str(frag))
