@@ -168,24 +168,43 @@ class TestChargedFormula:
             ChargedFormula(formula=()).to_mz_paf()
 
     def test_from_mz_paf_positive(self) -> None:
-        result = ChargedFormula.from_mz_paf("+Formula:C2H2")
+        # Real mzPAF chemical formulas are never "Formula:"-prefixed.
+        result = ChargedFormula.from_mz_paf("+C2H2")
         assert result.formula_dict() == {"C": 2, "H": 2}
 
     def test_from_mz_paf_positive_rejects_negative_occurance(self) -> None:
         with pytest.raises(ValueError, match="negative occurance in positive part"):
-            ChargedFormula.from_mz_paf("+Formula:C2H-2")
+            ChargedFormula.from_mz_paf("+C2H-2")
+
+    def test_from_mz_paf_negative(self) -> None:
+        result = ChargedFormula.from_mz_paf("-H2O")
+        assert result.formula_dict() == {"H": -2, "O": -1}
+
+    def test_from_mz_paf_negative_rejects_negative_occurance(self) -> None:
+        with pytest.raises(ValueError, match="negative occurance in negative part"):
+            ChargedFormula.from_mz_paf("-C2H-2")
+
+    def test_to_mz_paf_round_trips_through_from_mz_paf(self) -> None:
+        for cf in (
+            ChargedFormula(formula=(FormulaElement(element=Element.C, occurance=2),)),
+            ChargedFormula(
+                formula=(
+                    FormulaElement(element=Element.H, occurance=2),
+                    FormulaElement(element=Element.O, occurance=1),
+                )
+            ),
+            ChargedFormula(
+                formula=(
+                    FormulaElement(element=Element.H, occurance=-2),
+                    FormulaElement(element=Element.O, occurance=-1),
+                )
+            ),
+        ):
+            assert ChargedFormula.from_mz_paf(cf.to_mz_paf()).get_composition() == cf.get_composition()
 
     def test_from_mz_paf_requires_leading_sign(self) -> None:
         with pytest.raises(ValueError):
-            ChargedFormula.from_mz_paf("Formula:C2H2")
-
-    def test_from_mz_paf_negative_branch_currently_always_raises(self) -> None:
-        # NOTE: suspected bug -- from_mz_paf's "-" branch prepends "0" to the string
-        # before delegating to from_string(), which then requires a "Formula:" prefix.
-        # "0-Formula:..." never matches that prefix pattern, so this branch cannot
-        # currently succeed for any input. Documenting the observed (broken) behavior.
-        with pytest.raises(ValueError, match="Invalid charged formula"):
-            ChargedFormula.from_mz_paf("-Formula:C2H2")
+            ChargedFormula.from_mz_paf("C2H2")
 
     def test_from_composition(self) -> None:
         cf = ChargedFormula.from_composition({"C": 2, "H": 4}, charge=1)

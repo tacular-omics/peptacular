@@ -301,22 +301,35 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
     @staticmethod
     def from_mz_paf(s: str) -> ChargedFormula:
         """Parse from mzPAF format string."""
+        # mzPAF chemical formulas are never "Formula:"-prefixed (unlike a ProForma
+        # residue modification), so require_formula_prefix must be False here or
+        # to_mz_paf()'s own output (e.g. "+H2O") fails to round-trip.
         # split on + and -
         if s.startswith("+"):
-            formula = ChargedFormula.from_string(s[1:])
+            formula = ChargedFormula.from_string(s[1:], require_formula_prefix=False)
             # assert all are positive
             for fe in formula.formula:
                 if fe.occurance < 0:
                     raise ValueError("Invalid mzPAF format: negative occurance in positive part")
             return formula
         if s.startswith("-"):
-            s = "0" + s  # prepend a zero to handle leading negative
-            formula = ChargedFormula.from_string(s)
-            # assert all are negative
+            # Parse the bare (unsigned) formula, then negate every element's count.
+            # (The previous "0" + s prepend trick never actually worked: e.g.
+            # "0-H2O" isn't a parseable formula either way.)
+            formula = ChargedFormula.from_string(s[1:], require_formula_prefix=False)
+            # assert none are already negative (would double-negate)
             for fe in formula.formula:
-                if fe.occurance > 0:
-                    raise ValueError("Invalid mzPAF format: positive occurance in negative part")
-            return formula
+                if fe.occurance < 0:
+                    raise ValueError("Invalid mzPAF format: negative occurance in negative part")
+            negated = tuple(
+                FormulaElement(element=fe.element, occurance=-fe.occurance, isotope=fe.isotope) for fe in formula.formula
+            )
+            return ChargedFormula(
+                formula=negated,
+                charge=formula.charge,
+                position_id=formula.position_id,
+                score=formula.score,
+            )
         raise ValueError("Invalid mzPAF format: must start with + or -")
 
     def __add__(self, other: ChargedFormula) -> ChargedFormula:
