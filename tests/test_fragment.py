@@ -867,6 +867,14 @@ class TestFragmentMzPAF(unittest.TestCase):
         # the spec's own canonical water-loss example (section 4.5).
         self.assertTrue(any("-H2O" in label for label in labels))
 
+    def test_numeric_neutral_loss_rejected(self):
+        # mzPAF's neutral_loss grammar only accepts a chemical formula or a bracketed
+        # reference-group name after the sign (section 4.5); there is no
+        # representation for an arbitrary unnamed mass delta.
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], deltas=[15.9949])
+        with self.assertRaises(ValueError):
+            frags[0].to_mzpaf()
+
     def test_serialize_format_default(self):
         frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
         self.assertEqual(frag.serialize(format="default"), str(frag))

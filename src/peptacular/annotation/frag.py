@@ -291,8 +291,14 @@ class Fragment:
         if self._losses is not None:
             for loss_key, count in self._losses.items():
                 if isinstance(loss_key, float | int):
-                    mass_val = float(loss_key) * count
-                    parts.append(f"{mass_val:+.5f}")
+                    # mzPAF's neutral_loss grammar only accepts a chemical formula or a
+                    # bracketed reference-group name after the sign (spec section 4.5);
+                    # there is no representation for an arbitrary unnamed mass delta.
+                    raise ValueError(
+                        f"Cannot convert numeric neutral loss/gain delta ({loss_key!r}) to mzPAF: "
+                        "mzPAF neutral losses must be a chemical formula or a named reference group, "
+                        "not a bare mass delta."
+                    )
                 else:
                     loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
                     paf_formula = loss_formula.to_mz_paf()
