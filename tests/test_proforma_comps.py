@@ -130,18 +130,28 @@ class TestChargedFormula:
         assert cf.get_dict_composition() == {"H": 2, "O": 1}
 
     def test_to_mz_paf_positive(self) -> None:
-        # mzPAF section 4.5 puts the ordinal count before the atom ("2C"), the
-        # reverse of ProForma formula notation ("C2").
+        # mzPAF's chemical-formula notation reuses ProForma's own notation:
+        # atom then count ("C2"), not a reversed count-before-atom form.
         cf = ChargedFormula(formula=(FormulaElement(element=Element.C, occurance=2),))
-        assert cf.to_mz_paf() == "+2C"
+        assert cf.to_mz_paf() == "+C2"
 
     def test_to_mz_paf_negative(self) -> None:
         cf = ChargedFormula(formula=(FormulaElement(element=Element.C, occurance=-2),))
-        assert cf.to_mz_paf() == "-2C"
+        assert cf.to_mz_paf() == "-C2"
 
     def test_to_mz_paf_omits_count_of_one(self) -> None:
         cf = ChargedFormula(formula=(FormulaElement(element=Element.C, occurance=1),))
         assert cf.to_mz_paf() == "+C"
+
+    def test_to_mz_paf_multi_element_matches_spec_water_loss_example(self) -> None:
+        # mzPAF spec section 4.5 gives "-H2O" as the canonical water-loss example.
+        cf = ChargedFormula(
+            formula=(
+                FormulaElement(element=Element.H, occurance=2),
+                FormulaElement(element=Element.O, occurance=1),
+            )
+        )
+        assert cf.to_mz_paf() == "+H2O"
 
     def test_to_mz_paf_raises_on_mixed_signs(self) -> None:
         cf = ChargedFormula(

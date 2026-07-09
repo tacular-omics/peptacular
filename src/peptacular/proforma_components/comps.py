@@ -279,18 +279,14 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
 
     def to_mz_paf(self) -> str:
         """Convert to mzPAF format string."""
-
-        def _mz_paf_element_str(fe: FormulaElement) -> str:
-            # mzPAF section 4.5 puts the (ordinal) count before the atom (e.g. "2H"),
-            # the reverse of ProForma formula notation ("H2") that FormulaElement's own
-            # serializer produces; count is omitted entirely when it is 1.
-            if fe.isotope is not None:
-                return str(fe.abs())
-            count = abs(fe.occurance)
-            return f"{count if count != 1 else ''}{fe.element}"
-
-        pos_parts = [_mz_paf_element_str(fe) for fe in self.formula if fe.occurance > 0]
-        neg_parts = [_mz_paf_element_str(fe) for fe in self.formula if fe.occurance < 0]
+        # mzPAF's chemical-formula notation (secs. 4.4.9/4.5/4.6) explicitly reuses
+        # ProForma's own molecular-formula notation -- atom then count (e.g. "H2O",
+        # "[13C1]") -- for both plain and isotope-tagged elements. There is no
+        # count-before-atom convention; the only leading integer mzPAF defines is a
+        # separate repeat-count multiplier for an entire repeated loss group (e.g.
+        # "-2H2O" for a double water loss), not a per-atom prefix.
+        pos_parts = [str(fe.abs()) for fe in self.formula if fe.occurance > 0]
+        neg_parts = [str(fe.abs()) for fe in self.formula if fe.occurance < 0]
 
         if pos_parts and neg_parts:
             raise ValueError("Cannot convert to mzPAF: contains both positive and negative elements")
