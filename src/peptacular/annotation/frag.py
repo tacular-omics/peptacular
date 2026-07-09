@@ -62,6 +62,7 @@ class Fragment:
         monoisotopic: bool,
         charge_state: int,
         charge_adducts: tuple[str, ...] | None = None,
+        external_charge: int | None = None,
         isotopes: Mapping[str, int] | int | None = None,
         deltas: Mapping[str | float, int] | None = None,
         composition: Mapping[ElementInfo, int] | None = None,
@@ -75,6 +76,13 @@ class Fragment:
         self.charge_state: int = charge_state
         # If None and charge_state != 0: means protonated
         self._charge_adducts: tuple[str, ...] | None = charge_adducts
+        # The portion of charge_state that comes from real external adducts/charge carriers,
+        # as opposed to charge intrinsic to an internal formula modification (e.g. [Formula:...:z+N]).
+        # Used to reconstruct the default proton adduct when charge_adducts is None, so that
+        # internal charge is never mistaken for extra external protons. Defaults to charge_state
+        # (i.e. "assume it's all external protonation") when not given explicitly, matching direct
+        # construction of a Fragment outside the internal internal+external charge-splitting pipeline.
+        self.external_charge: int = external_charge if external_charge is not None else charge_state
         # int means 13C count
         self._isotopes: Mapping[str, int] | int | None = isotopes
         self._losses: Mapping[str | float, int] | None = deltas
@@ -103,7 +111,7 @@ class Fragment:
             start, end = pos
             annot = annot[slice(start, end)]
 
-        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.charge_state if self._charge_adducts is None else self.charge_adducts)  # type: ignore
+        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.external_charge if self._charge_adducts is None else self.charge_adducts)  # type: ignore
 
     @property
     def mz(self) -> float:
@@ -122,12 +130,12 @@ class Fragment:
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
         if self._charge_adducts is None:
-            if self.charge_state != 0:
+            if self.external_charge != 0:
                 return Mods[GlobalChargeCarrier](
                     mod_type=ModType.CHARGE,
-                    _mods={GlobalChargeCarrier.charged_proton(self.charge_state).serialize(): 1},
+                    _mods={GlobalChargeCarrier.charged_proton(self.external_charge).serialize(): 1},
                 )
-            # no adducts no charge
+            # no real external adducts (charge is entirely internal, or there is no charge at all)
             return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={})
 
         # we have adducts, convert to Mods object
@@ -136,7 +144,7 @@ class Fragment:
 
     @property
     def is_protonated(self) -> bool:
-        if self._charge_adducts is None and self.charge_state != 0:
+        if self._charge_adducts is None and self.external_charge != 0:
             return True
         return False
 

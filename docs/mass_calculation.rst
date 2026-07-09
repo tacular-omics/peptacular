@@ -14,7 +14,7 @@ calculated as the sum of all constituent molecular components:
 
 .. math::
 
-   M_{base} = \sum_{i=1}^{n} m_{AA_i} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{U} + \mathbb{1}_{\textrm{precursor}} \cdot M_{L}
+   M_{base} = \sum_{i=1}^{n} m_{AA_i} + M_{N} + M_{C} + M_{S} + M_{I} + M_{R} + M_{U} + \mathbb{1}_{\textrm{precursor} \, \lor \, \textrm{neutral}} \cdot M_{L}
 
 where:
 
@@ -27,9 +27,10 @@ where:
 - :math:`M_{R}` is the total mass of modifications within defined sequence intervals
 - :math:`M_{U}` is the total mass of modifications with unknown positions
 - :math:`M_{L}` is the total mass of labile modifications
-- :math:`\mathbb{1}_{\textrm{precursor}}` is an indicator function: 1 for precursor ions, 0 for fragment ions
+- :math:`\mathbb{1}_{\textrm{precursor} \, \lor \, \textrm{neutral}}` is an indicator function: 1 for precursor and neutral ion types, 0 otherwise
 
-Labile modifications are included only for precursor and neutral ion types.
+Labile modifications are included only for precursor and neutral ion types, since they are
+lost during fragmentation.
 
 Neutral Mass
 ------------
@@ -56,11 +57,14 @@ and electron mass corrections to the neutral mass:
 
 .. math::
 
-   \frac{m}{z} = \frac{M_{\textrm{neutral}} + M_{\textrm{adduct}} - z \cdot m_e}{z}
+   \frac{m}{z} = \frac{M_{\textrm{neutral}} + M_{\textrm{adduct}} - z \cdot m_e}{|z|}
 
 where:
 
 - :math:`M_{\textrm{neutral}}` is the neutral fragment mass
 - :math:`M_{\textrm{adduct}}` is the total mass of charge carriers
-- :math:`z` is the total charge state
-- :math:`m_e = 0.0005485799` Da (electron mass)
+- :math:`z` is the total charge state (adduct charge plus any charge contributed by modifications), which may be negative for negative-mode ions
+- :math:`m_e = 0.00054857990946` Da (electron mass)
+
+The denominator uses :math:`|z|` so that negative charge states still produce a
+positive *m/z* value.

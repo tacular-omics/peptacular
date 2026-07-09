@@ -571,7 +571,7 @@ class ProFormaParser:
         start_pos = self.cursor
         # Skip the (>>> part
         self.cursor += 1 + len(prefix_str)
-        content = self._read_until(")")
+        content = self._read_until_balanced("(", ")")
 
         if self.cursor >= self.length:
             self._raise_parse_error("Unmatched '(' for name", start_pos)
@@ -646,11 +646,23 @@ class ProFormaParser:
 
         return items
 
-    def _read_until(self, terminator: str) -> str:
+    def _read_until_balanced(self, open_char: str, close_char: str) -> str:
+        """Scan for the matching ``close_char``, tracking nesting depth so balanced
+        occurrences of ``open_char``/``close_char`` inside the content don't
+        terminate the scan early. Assumes one ``open_char`` has already been consumed."""
         start = self.cursor
-        while self.cursor < self.length and self.original_sequence[self.cursor] != terminator:
+        depth = 1
+        seq = self.original_sequence
+        while self.cursor < self.length:
+            c = seq[self.cursor]
+            if c == open_char:
+                depth += 1
+            elif c == close_char:
+                depth -= 1
+                if depth == 0:
+                    break
             self.cursor += 1
-        return self.original_sequence[start : self.cursor]
+        return seq[start : self.cursor]
 
     def _peek_startswith(self, s: str) -> bool:
         return self.original_sequence.startswith(s, self.cursor)

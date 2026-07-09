@@ -56,3 +56,55 @@ class TestPrefixedCarrierRejected:
     def test_prefixed_carrier_rejected_on_validate(self):
         with pytest.raises(ValueError, match="Invalid charge carrier"):
             pt.parse("PEPTIDE/[Formula:C2H6:z+2]", validate=True)
+
+
+class TestSetChargeInputs:
+    """Regression tests for set_charge input handling (pre-release sweep)."""
+
+    def test_mod_wrapped_carrier_matches_bare_carrier(self):
+        # A Mod[GlobalChargeCarrier] must serialize its wrapped carrier, not the dataclass
+        # repr; the result must equal passing the bare GlobalChargeCarrier.
+        from peptacular.annotation.mod import Mod
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        gcc = GlobalChargeCarrier.charged_proton(2)
+        bare = pt.parse("PEPTIDE").set_charge(gcc, inplace=False)
+        wrapped = pt.parse("PEPTIDE").set_charge(Mod(gcc, 1), inplace=False)
+        assert wrapped._charge == bare._charge == ["H:z+1^2"]
+        assert wrapped.serialize() == bare.serialize()
+        assert wrapped.mass() == pytest.approx(bare.mass())
+
+    def test_charge_zero_clears_to_none(self):
+        # A charge of 0 is neutral -> no charge component (equal to an unset peptide).
+        a = pt.parse("PEPTIDE")
+        assert a.set_charge(0, inplace=False)._charge is None
+        assert a.set_charge(0, inplace=False) == a
+
+    def test_bool_charge_rejected(self):
+        with pytest.raises(ValueError, match="Unsupported charge type"):
+            pt.parse("PEPTIDE").set_charge(True, inplace=False)
+
+
+class TestChargeCarrierMzPaf:
+    """mzPAF serialization of a charge carrier must render the sign correctly."""
+
+    @pytest.mark.parametrize(
+        "charge,expected",
+        [(1, "M+H"), (2, "M+2H"), (-1, "M-H"), (-2, "M-2H")],
+    )
+    def test_proton_carrier_sign(self, charge, expected):
+        # A negative charge (negative occurance) previously produced malformed 'M+-2H'.
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        assert GlobalChargeCarrier.charged_proton(charge).to_mz_paf() == expected
+
+    def test_deprotonation_formula_sign(self):
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        assert GlobalChargeCarrier.from_string("H-1:z-1^2").to_mz_paf() == "M-2H"
+
+    def test_negative_occurrence_roundtrips_internally(self):
+        # peptacular represents a -1 charge proton carrier as 'H:z+1^-1'; it must re-parse.
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        assert GlobalChargeCarrier.from_string("H:z+1^-1").occurance == -1

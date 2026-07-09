@@ -1023,10 +1023,19 @@ class GlobalChargeCarrier(MassPropertyMixin):
         # count, e.g. "[M+2Na]" for two sodium atoms; a count of 1 is omitted. This is
         # self.occurance -- how many instances of this charge carrier are present --
         # not to be confused with a count baked into charged_formula's own elements.
+        #
+        # The +/- direction of the adduct is the combination of TWO signs: the charged
+        # formula's own sign (e.g. a removed proton is stored as "H-1", serialized "-H")
+        # and the sign of occurance (a negative occurance, e.g. charged_proton(-2) for a
+        # doubly deprotonated ion, flips the direction). Deriving the sign purely from the
+        # formula and pasting str(occurance) after it produced malformed output like
+        # "M+-2H"; XOR-ing the two signs and using the magnitude gives "M-2H".
         paf_formula = self.charged_formula.to_mz_paf()
-        sign, rest = paf_formula[0], paf_formula[1:]
-        count_str = str(self.occurance) if self.occurance != 1 else ""
-        return f"M{sign}{count_str}{rest}"
+        formula_sign, rest = paf_formula[0], paf_formula[1:]
+        negative = (formula_sign == "-") ^ (self.occurance < 0)
+        count = abs(self.occurance)
+        count_str = str(count) if count != 1 else ""
+        return f"M{'-' if negative else '+'}{count_str}{rest}"
 
     @property
     def is_protonated(self) -> bool:

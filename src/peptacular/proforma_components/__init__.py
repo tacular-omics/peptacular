@@ -21,6 +21,7 @@ from .comps import (
     ModificationCrossLinker,
     ModificationTags,
     PositionRule,
+    PositionScore,
     SequenceElement,
     SequenceRegion,
     TagAccession,
@@ -56,4 +57,5 @@ __all__ = [
     "GlycanTag",
     "ModificationTags",
     "MassPropertyMixin",
+    "PositionScore",
 ]

@@ -155,9 +155,14 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
 
     # Validate element symbol
     try:
-        if element_symbol == "D" or element_symbol == "T":
-            # Special cases for Deuterium and Tritium
-            element_symbol = "H"
+        if element_symbol == "D":
+            # Deuterium shorthand is hydrogen-2 (ProForma 2.1 section 11.3.1: D == 2H);
+            # keep the isotope so the mass is correct (mapping D straight to "H" silently
+            # collapsed it to protium).
+            element_symbol, isotope = "H", 2
+        elif element_symbol == "T":
+            # Tritium shorthand is hydrogen-3 (ProForma 2.1 section 11.3.1: T == 3H).
+            element_symbol, isotope = "H", 3
         element = Element(element_symbol)
     except ValueError as e:
         raise ValueError(f"Unknown element symbol: '{element_symbol}'") from e
@@ -934,9 +939,13 @@ def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
 
     s = s.strip()
 
-    # Special case for Deuterium
+    # ProForma 2.1 section 11.3.1: "The shorthand D and T MAY be used instead of 2H and
+    # 3H" for global isotope replacement, i.e. D is deuterium (hydrogen-2) and T is
+    # tritium (hydrogen-3).
     if s == "D":
         return IsotopeReplacement(element=Element.H, isotope=2)
+    if s == "T":
+        return IsotopeReplacement(element=Element.H, isotope=3)
 
     # Parse isotope number and element symbol
     # Format: <number><element>
@@ -988,7 +997,17 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
     occurance = 1
     if "^" in s:
         formula_part, occ_str = s.rsplit("^", 1)
-        occurance = int(occ_str)
+        # ProForma 2.1 section 11.5 reuses the unknown-location-modification occurrence
+        # specifier here. It must be an integer; a negative value is peptacular's internal
+        # representation of a negative-charge (deprotonated) proton carrier (e.g. a -1
+        # charge fragment round-trips through 'H:z+1^-1'), so it is allowed. `to_mz_paf`
+        # renders the sign correctly ('M-H'), so no positivity guard is imposed here.
+        try:
+            occurance = int(occ_str)
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer."
+            ) from e
     else:
         formula_part = s
 

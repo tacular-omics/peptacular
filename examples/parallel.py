@@ -159,10 +159,10 @@ def run():
     print(f"  Parallel execution: {parallel_time:.3f} seconds")
     print(f"  Average per peptide: {parallel_time/len(large_dataset)*1000:.2f} ms")
 
-    # verse time serial execution
+    # Time serial execution for comparison
     start = time.time()
     _ = [pt.mass(pep) for pep in large_dataset]
-    serial_time = time.time() - start   
+    serial_time = time.time() - start
     print(f"  Serial execution: {serial_time:.3f} seconds")
     print(f"  Average per peptide: {serial_time/len(large_dataset)*1000:.2f} ms")
 

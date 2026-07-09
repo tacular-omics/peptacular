@@ -2,7 +2,6 @@ import sys
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
-from functools import cached_property
 from typing import Any, Protocol, Self, cast
 
 from tacular import AA_LOOKUP, ElementInfo
@@ -155,7 +154,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
             return ()
         return ((mod.value, mod.count) for mod in self.mods)
 
-    @cached_property
+    @property
     def mods(self) -> tuple[Mod[T], ...]:
         """Parse stored modifications into typed Mod objects."""
 

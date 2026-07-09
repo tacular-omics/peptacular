@@ -2,6 +2,11 @@
 Ion Types
 =====================================
 
+Peptacular supports the fragment ion types below, passed as the ``ion_types`` argument
+to methods like ``fragment()`` and ``mass()``. Each ion type is defined by a delta
+formula that is added to the neutral peptide backbone mass — see :doc:`mass_calculation`
+for how these deltas fit into the overall mass equation.
+
 Standard Fragment Ions
 -----------------------
 
@@ -58,7 +63,7 @@ These are the most commonly used fragment ions in peptide mass spectrometry:
    * - **c-H**
      - ``"c-H"``
      - H₂N
-     - Dehydrogenated c-ion (loss of H from z-ion)
+     - Dehydrogenated c-ion (loss of H from c-ion)
    * - **Immonium**
      - ``"i"``
      - C⁻¹O⁻¹
@@ -161,37 +166,37 @@ Internal fragments result from cleavage at both N- and C-termini. Formulas are b
      - Description
    * - **by**
      - ``"by"``
-     - C⁻¹O⁻¹
+     - (none)
      - N-terminal b-ion, C-terminal y-ion
    * - **ax**
      - ``"ax"``
-     - C⁻¹O⁻¹
+     - H⁻²
      - N-terminal a-ion, C-terminal x-ion
    * - **cz**
      - ``"cz"``
-     - C⁻¹O⁻¹
+     - (none)
      - N-terminal c-ion, C-terminal z-ion
    * - **ay**
      - ``"ay"``
-     - C⁻²O⁻²
+     - C⁻¹O⁻¹
      - N-terminal a-ion, C-terminal y-ion
    * - **az**
      - ``"az"``
-     - C⁻²H⁻¹N⁻¹O⁻²
+     - C⁻¹H⁻³N⁻¹O⁻¹
      - N-terminal a-ion, C-terminal z-ion
    * - **bx**
      - ``"bx"``
-     - (none)
+     - CH⁻²O
      - N-terminal b-ion, C-terminal x-ion
    * - **bz**
      - ``"bz"``
-     - C⁻¹H⁻¹N⁻¹O⁻¹
+     - H⁻³N⁻¹
      - N-terminal b-ion, C-terminal z-ion
    * - **cx**
      - ``"cx"``
-     - N
+     - CHNO
      - N-terminal c-ion, C-terminal x-ion
    * - **cy**
      - ``"cy"``
-     - C⁻¹H⁻¹NO⁻¹
+     - H₃N
      - N-terminal c-ion, C-terminal y-ion

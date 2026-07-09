@@ -52,6 +52,7 @@ from ..proforma_components import (
     IsotopeReplacement,
     ModificationTags,
     PositionRule,
+    PositionScore,
     SequenceElement,
     SequenceRegion,
     TagMass,
@@ -377,6 +378,47 @@ class ProFormaAnnotation:
             if interval.start < 0 or interval.end > seq_len:
                 raise ValueError(f"Interval {interval} is out of bounds for sequence length {seq_len}")
 
+    def validate_ambiguous_labels(self) -> None:
+        """Check that each ambiguous-position label (``#label``) has at most one
+        concrete modification among its occurrences; the rest must be bare
+        references (e.g. ``[#label]``).
+
+        :raises ValueError: If a label has more than one concrete occurrence.
+        """
+        concrete_label_counts: Counter[str] = Counter()
+
+        def scan(mods: "Mods | None") -> None:
+            if mods is None:
+                return
+            for mod in mods.mods:
+                value = mod.value
+                if not isinstance(value, ModificationTags):
+                    continue
+                for tag in value.tags:
+                    position_id = getattr(tag, "position_id", None)
+                    if position_id is None or isinstance(tag, PositionScore):
+                        continue
+                    concrete_label_counts[position_id] += 1
+
+        if self.has_internal_mods:
+            for mods in self.internal_mods.values():
+                scan(mods)
+        if self.has_nterm_mods:
+            scan(self.nterm_mods)
+        if self.has_cterm_mods:
+            scan(self.cterm_mods)
+        if self.has_intervals:
+            for interval in self.intervals:
+                scan(interval.mods)
+
+        duplicated = sorted(label for label, count in concrete_label_counts.items() if count > 1)
+        if duplicated:
+            raise ValueError(
+                f"Ambiguous modification label(s) {duplicated} have more than one concrete modification; "
+                "exactly one occurrence of a labelled group may carry the modification text, "
+                "others must be bare references (e.g. [#label])."
+            )
+
     def validate_charge(self) -> None:
         """Check that the charge value is structurally valid.
 
@@ -410,6 +452,7 @@ class ProFormaAnnotation:
         self.validate_cterm_mods()
         self.validate_internal_mods()
         self.validate_intervals()
+        self.validate_ambiguous_labels()
         self.validate_charge()
 
     @property
@@ -1096,6 +1139,7 @@ class ProFormaAnnotation:
         self._internal_mods = internal_mods
         if validate:
             self.validate_internal_mods()
+            self.validate_ambiguous_labels()
         return self
 
     def set_intervals(
@@ -1132,6 +1176,7 @@ class ProFormaAnnotation:
         self._intervals = intervals.copy()
         if validate:
             self.validate_intervals()
+            self.validate_ambiguous_labels()
         return self
 
     def set_internal_mods_at_index(self, index: int, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
@@ -1175,18 +1220,27 @@ class ProFormaAnnotation:
             self._internal_mods = {}
 
         self._internal_mods[index] = mods
+        if validate:
+            self.validate_ambiguous_labels()
         return self
 
     def set_charge(
         self,
-        charge: int | str | list[str] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None,
+        charge: int
+        | str
+        | list[str]
+        | tuple[str, ...]
+        | Mods[GlobalChargeCarrier]
+        | GlobalChargeCarrier
+        | Mod[GlobalChargeCarrier]
+        | None,
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
         """Replace the charge value.
 
         :param charge: New charge as an integer, adduct string(s), ``Mods``, or ``None`` to clear.
-        :type charge: int | str | list[str] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None
+        :type charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
         :type inplace: bool
         :param validate: Override the instance-level validation flag for this call only.
@@ -1201,13 +1255,17 @@ class ProFormaAnnotation:
             return self.copy().set_charge(charge, inplace=True, validate=validate)
 
         set_value: None | int | list[str] = None
-        if isinstance(charge, int):
-            if charge == 0:
-                set_value = None
-            set_value = charge
+        if isinstance(charge, bool):
+            # bool is an int subclass; guard it before the int branch so True/False don't
+            # slip through and serialize as a garbage charge like 'PEPTIDE/True'.
+            raise ValueError(f"Unsupported charge type: {type(charge)!r}")
+        elif isinstance(charge, int):
+            # A charge of 0 is a neutral peptidoform (no charge component per ProForma 2.1
+            # section 11.5), so clear it to None rather than storing a literal 0.
+            set_value = charge if charge != 0 else None
         elif isinstance(charge, str):
             set_value = [charge]
-        elif isinstance(charge, list):
+        elif isinstance(charge, (list, tuple)):
             if len(charge) == 0:
                 set_value = None
             else:
@@ -1219,12 +1277,15 @@ class ProFormaAnnotation:
         elif isinstance(charge, Mods):
             set_value = [str(c) for c in charge._mods] if charge._mods is not None else None
         elif isinstance(charge, Mod):
-            set_value = [str(charge)]
+            # A Mod wraps a charge carrier value; str(Mod) would emit the dataclass repr
+            # (e.g. "Mod(value=GlobalChargeCarrier(...), count=1)"), which is not a valid
+            # charge carrier. Serialize the wrapped carrier itself (it already encodes its
+            # own occurrence, e.g. "Na:z+1^2"), repeated by the Mod's count.
+            set_value = [str(charge.value)] * charge.count
         elif isinstance(charge, GlobalChargeCarrier):
             set_value = [str(charge)]
-
-        if not isinstance(set_value, (int, list)) and set_value is not None:
-            raise ValueError(f"Invalid charge value: {set_value}")
+        else:
+            raise ValueError(f"Unsupported charge type: {type(charge)!r}")
 
         self._charge: None | int | list[str] = set_value
 
@@ -2556,6 +2617,14 @@ class ProFormaAnnotation:
 
         return isotope_map
 
+    @staticmethod
+    def _merge_comp(total: Counter[ElementInfo], other: Counter[ElementInfo]) -> None:
+        # Merge element-by-element rather than ``total += other``: Counter's ``+=``
+        # discards non-positive counts, which would silently drop atom-removing
+        # modifications (e.g. a Formula tag with negative cardinality).
+        for element, count in other.items():
+            total[element] += count
+
     def _base_comp(self, skip_labile: bool = False, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], int, float]:
         total_composition: Counter[ElementInfo] = self.get_sequence_composition()
         total_charge = 0  # results from internal formula mods
@@ -2564,28 +2633,28 @@ class ProFormaAnnotation:
         if self.has_unknown_mods:
             unknown_mods = self.unknown_mods
             composition, delta_mass, charge = unknown_mods.get_composition_with_delta_mass_charge(monoisotopic)
-            total_composition += composition
+            self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if not skip_labile and self.has_labile_mods:
             labile_mods = self.labile_mods
             composition, delta_mass, charge = labile_mods.get_composition_with_delta_mass_charge(monoisotopic)
-            total_composition += composition
+            self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if self.has_nterm_mods:
             nterm_mods = self.nterm_mods
             composition, delta_mass, charge = nterm_mods.get_composition_with_delta_mass_charge(monoisotopic)
-            total_composition += composition
+            self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if self.has_cterm_mods:
             cterm_mods = self.cterm_mods
             composition, delta_mass, charge = cterm_mods.get_composition_with_delta_mass_charge(monoisotopic)
-            total_composition += composition
+            self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
@@ -2594,7 +2663,7 @@ class ProFormaAnnotation:
             for _, mods in static_mod_map.items():
                 for mod in mods:
                     try:
-                        total_composition += mod.get_composition()
+                        self._merge_comp(total_composition, mod.get_composition())
                     except ValueError as e:
                         if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
                             # MassTag does not have composition, only delta mass
@@ -2607,7 +2676,7 @@ class ProFormaAnnotation:
         if self.has_internal_mods:
             for mods in self.internal_mods.values():
                 composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge(monoisotopic)
-                total_composition += composition
+                self._merge_comp(total_composition, composition)
                 total_delta_mass += delta_mass
                 total_charge += charge
 
@@ -2615,7 +2684,7 @@ class ProFormaAnnotation:
         if self.has_intervals:
             for interval in self.intervals:
                 composition, delta_mass, charge = interval.mods.get_composition_with_delta_mass_charge(monoisotopic)
-                total_composition += composition
+                self._merge_comp(total_composition, composition)
                 total_delta_mass += delta_mass
                 total_charge += charge
 
@@ -4300,9 +4369,10 @@ class ProFormaAnnotation:
         #  - leading (N-terminal) run: a single '-' after the whole run, e.g.
         #    '[mod1][mod2]PEPTIDE' -> '[mod1][mod2]-PEPTIDE' (stacked N-term mods).
         #  - trailing run at the very end of the sequence: the first bracket stays
-        #    attached to the preceding residue, and a '-' is inserted before every
-        #    later bracket, e.g. 'PEPTIDE[2][3]' -> 'PEPTIDE[2]-[3]' (residue mod
-        #    followed by a distinct C-terminal mod).
+        #    attached to the preceding residue, a single '-' follows it, and any
+        #    further brackets stack directly after (ProForma allows only one '-'
+        #    C-terminal separator), e.g. 'PEPTIDE[1][2][3]' -> 'PEPTIDE[1]-[2][3]'
+        #    (residue mod followed by stacked C-terminal mods).
         #  - a run sandwiched between residues on both sides is left untouched, e.g.
         #    'PEP[mod1][mod2]TIDE' stays as-is (multiple mods on one residue).
         # A single prior blanket substitution (every '][' -> ']-[') got the leading
@@ -4315,7 +4385,7 @@ class ProFormaAnnotation:
 
         def _dash_before_later_brackets(m: re.Match[str]) -> str:
             brackets = re.findall(r"\[[^\]]+\]", m.group(0))
-            return brackets[0] + "".join("-" + b for b in brackets[1:])
+            return brackets[0] + "-" + "".join(brackets[1:])
 
         sequence = re.sub(r"(?:\[[^\]]+\]){2,}$", _dash_before_later_brackets, sequence)
 

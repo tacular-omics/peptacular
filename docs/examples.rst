@@ -48,6 +48,15 @@ Digest protein sequences with various proteases.
    :language: python
    :linenos:
 
+FASTA Digestion
+---------------
+
+Parse protein sequences from a FASTA file and digest each one.
+
+.. literalinclude:: ../examples/digest_fasta_file.py
+   :language: python
+   :linenos:
+
 Fragmentation
 -------------
 
@@ -84,4 +93,13 @@ Convert sequences from other tools (IP2, DIANN, Casanovo, MS2PIP) to ProForma fo
    :language: python
    :linenos:
 
+Parallel Processing
+--------------------
+
+Batch-process peptides across mass, composition, and property calculations, automatically
+parallelized for list inputs.
+
+.. literalinclude:: ../examples/parallel.py
+   :language: python
+   :linenos:
 
