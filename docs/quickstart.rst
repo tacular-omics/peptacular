@@ -88,12 +88,12 @@ If no charge states are provided, it will default to the charge state of the pep
        print(f"{frag.ion_type}{frag.position}+{frag.charge_state}: {frag.mz:.3f}")
 
 .. testoutput::
-   
+
    b1+1: 98.060
-   b1+2: 49.534
    b2+1: 227.103
-   b2+2: 114.055
    b3+1: 374.138
+   b4+1: 475.186
+   b5+1: 588.270
 
 Protein Digestion
 ~~~~~~~~~~~~~~~~~

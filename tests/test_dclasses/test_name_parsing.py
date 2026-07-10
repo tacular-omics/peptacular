@@ -139,6 +139,27 @@ class TestNameParsing:
         parsed, _ = result[0]
         assert parsed.peptide_name == "my peptide name"
 
+    def test_name_with_balanced_parentheses(self):
+        """A name may contain balanced parentheses; the outer ')' still closes the name."""
+        parser = pt.annotation.parser.ProFormaParser("(>my (special) peptide)PEPTIDE")
+        result = list(parser.parse())
+
+        assert len(result) == 1
+        parsed, _ = result[0]
+        assert parsed.peptide_name == "my (special) peptide"
+        assert parsed.unmod_sequence == "PEPTIDE"
+
+    def test_name_with_unbalanced_parenthesis(self):
+        """A stray unbalanced '(' in a name stays parseable (falls back to the first ')');
+        regression: balanced-paren scanning previously rejected these outright."""
+        parser = pt.annotation.parser.ProFormaParser("(>a(b)PEPTIDE")
+        result = list(parser.parse())
+
+        assert len(result) == 1
+        parsed, _ = result[0]
+        assert parsed.peptide_name == "a(b"
+        assert parsed.unmod_sequence == "PEPTIDE"
+
     def test_crosslinked_with_names(self):
         """Test crosslinked peptides with names"""
         parser = pt.annotation.parser.ProFormaParser("(>pep1)PEPTK[#XL1]IDE//(>pep2)SEQK[#XL1]UENCE")

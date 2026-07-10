@@ -19,7 +19,7 @@ def get_annotation_input(
         return sequence_to_annotation(sequence)
     elif isinstance(sequence, ProFormaAnnotation):
         return sequence.copy() if copy else sequence
-    raise TypeError("Input sequence must be a string or ProFormaAnnotation object.")
+    raise TypeError(f"Input sequence must be a ProForma str or a ProFormaAnnotation, got {type(sequence).__name__}: {sequence!r}")
 
 
 def is_sequence_valid(sequence: str | ProFormaAnnotation) -> bool:

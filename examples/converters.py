@@ -2,7 +2,7 @@
 Sequence Format Conversion Examples
 ====================================
 Examples of converting peptide sequences from other tools (IP2, DIANN, Casanovo)
-to ProForma 2.0 format. All conversion functions support parallel execution.
+to ProForma 2.1 format. All conversion functions support parallel execution.
 """
 
 import peptacular as pt

@@ -9,8 +9,8 @@ API Reference
 Core
 ----
 
-Peptacular contains a functional and object-oriented API for working with peptides and proteins. Everything 
-can be accessed through the peptacular namespace (```import peptacular as pt```), but for clarity the API is broken down into sections below.
+Peptacular contains a functional and object-oriented API for working with peptides and proteins. Everything
+can be accessed through the peptacular namespace (``import peptacular as pt``), but for clarity the API is broken down into sections below.
 
 
 Sequence

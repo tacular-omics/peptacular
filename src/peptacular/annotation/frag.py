@@ -10,7 +10,7 @@ from tacular import (
     IonTypeProperty,
 )
 
-from ..constants import ModType
+from ..constants import ELECTRON_MASS, ModType
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
@@ -19,16 +19,22 @@ from .mod import Mods
 from .positions import validate_position
 
 # Maps internal ion type value tuples to their neutral loss diff relative to "by" (the default internal fragment).
-# None means no difference from "by".
+# None means no difference from "by". Derived from tacular's internal(F,B) = deltaF + deltaB
+# offsets (tacular>=1.1.0, itself derived from mzPAF's own primary-ion formulas: a=b-CO,
+# c=b+NH3, x=y+CO2-H2O, z=y-NH3) and written using mzPAF's neutral-loss conventions: strung
+# together signed tokens (mzPAF section 4.5), an ordinal prefix for a repeated named atom
+# (e.g. "-2H", not "H2"), and the canonical group names the spec requires when they apply
+# (e.g. "NH3" per "do not write an ammonia loss (NH3) as H3N"; "HCONH2"/Formamide for the
+# combined CO+NH3 magnitude).
 _INTERNAL_MASS_DIFFS: dict[tuple[str, str], str | None] = {
-    ("a", "x"): None,
-    ("b", "x"): "+CO",
+    ("a", "x"): "-2H",
+    ("b", "x"): "+CO-2H",
     ("c", "x"): "+CHNO",
     ("a", "y"): "-CO",
     ("b", "y"): None,
-    ("c", "y"): "+NH",
-    ("a", "z"): "-CHNO",
-    ("b", "z"): "-NH",
+    ("c", "y"): "+NH3",
+    ("a", "z"): "-HCONH2",
+    ("b", "z"): "-NH3",
     ("c", "z"): None,
 }
 
@@ -56,6 +62,7 @@ class Fragment:
         monoisotopic: bool,
         charge_state: int,
         charge_adducts: tuple[str, ...] | None = None,
+        external_charge: int | None = None,
         isotopes: Mapping[str, int] | int | None = None,
         deltas: Mapping[str | float, int] | None = None,
         composition: Mapping[ElementInfo, int] | None = None,
@@ -69,6 +76,13 @@ class Fragment:
         self.charge_state: int = charge_state
         # If None and charge_state != 0: means protonated
         self._charge_adducts: tuple[str, ...] | None = charge_adducts
+        # The portion of charge_state that comes from real external adducts/charge carriers,
+        # as opposed to charge intrinsic to an internal formula modification (e.g. [Formula:...:z+N]).
+        # Used to reconstruct the default proton adduct when charge_adducts is None, so that
+        # internal charge is never mistaken for extra external protons. Defaults to charge_state
+        # (i.e. "assume it's all external protonation") when not given explicitly, matching direct
+        # construction of a Fragment outside the internal internal+external charge-splitting pipeline.
+        self.external_charge: int = external_charge if external_charge is not None else charge_state
         # int means 13C count
         self._isotopes: Mapping[str, int] | int | None = isotopes
         self._losses: Mapping[str | float, int] | None = deltas
@@ -97,7 +111,7 @@ class Fragment:
             start, end = pos
             annot = annot[slice(start, end)]
 
-        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.charge_state if self._charge_adducts is None else self.charge_adducts)  # type: ignore
+        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.external_charge if self._charge_adducts is None else self.charge_adducts)  # type: ignore
 
     @property
     def mz(self) -> float:
@@ -105,30 +119,34 @@ class Fragment:
 
     @property
     def neutral_mass(self) -> float:
-        # subract adduct masses
+        # subtract adduct masses and add back the electrons removed by the charge:
+        # self.mass == neutral + adduct_atoms - charge*electron, so the electron term
+        # must be undone to recover the true neutral mass.
         total_adduct_mass = 0.0
         for adduct in self.charge_adducts:
             total_adduct_mass += adduct.get_mass(self.monoisotopic)
-        return self.mass - total_adduct_mass
+        return self.mass - total_adduct_mass + self.charge_state * ELECTRON_MASS
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
         if self._charge_adducts is None:
-            if self.charge_state != 0:
+            if self.external_charge != 0:
                 return Mods[GlobalChargeCarrier](
                     mod_type=ModType.CHARGE,
-                    _mods={GlobalChargeCarrier.charged_proton(self.charge_state).serialize(): 1},
+                    _mods={GlobalChargeCarrier.charged_proton(self.external_charge).serialize(): 1},
                 )
-            # no adducts no charge
+            # no real external adducts (charge is entirely internal, or there is no charge at all)
             return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={})
 
         # we have adducts, convert to Mods object
         else:
-            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={k: 1 for k in self._charge_adducts})
+            # Tally identical adduct strings into counts so repeated carriers (e.g. two
+            # 'Na:z+1') are not collapsed to one; Mod scales mass/composition by count.
+            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=dict(Counter(self._charge_adducts)))
 
     @property
     def is_protonated(self) -> bool:
-        if self._charge_adducts is None and self.charge_state != 0:
+        if self._charge_adducts is None and self.external_charge != 0:
             return True
         return False
 
@@ -283,8 +301,14 @@ class Fragment:
         if self._losses is not None:
             for loss_key, count in self._losses.items():
                 if isinstance(loss_key, float | int):
-                    mass_val = float(loss_key) * count
-                    parts.append(f"{mass_val:+.5f}")
+                    # mzPAF's neutral_loss grammar only accepts a chemical formula or a
+                    # bracketed reference-group name after the sign (spec section 4.5);
+                    # there is no representation for an arbitrary unnamed mass delta.
+                    raise ValueError(
+                        f"Cannot convert numeric neutral loss/gain delta ({loss_key!r}) to mzPAF: "
+                        "mzPAF neutral losses must be a chemical formula or a named reference group, "
+                        "not a bare mass delta."
+                    )
                 else:
                     loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
                     paf_formula = loss_formula.to_mz_paf()
@@ -315,14 +339,33 @@ class Fragment:
             adduct_parts: list[str] = []
             for mod in self.charge_adducts.mods:
                 carrier: GlobalChargeCarrier = mod.value
+                # A repeated carrier is tallied into mod.count (e.g. two 'Na:z+1' list
+                # entries -> count=2), so fold that into the carrier's own occurance;
+                # otherwise the mzPAF repeat-count prefix would show only one copy while
+                # the mass/charge (which scale by mod.count) show all of them.
+                if mod.count != 1:
+                    carrier = GlobalChargeCarrier(charged_formula=carrier.charged_formula, occurance=carrier.occurance * mod.count)
                 # to_mz_paf() returns "M+Na", we strip the "M" prefix
                 paf_str = carrier.to_mz_paf()
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
+
+            def _adduct_sort_key(part: str) -> str:
+                # mzPAF section 4.7: "If there are multiple types of atoms/molecules,
+                # alphabetical order SHOULD be followed, e.g. [M+2H+Na] rather than
+                # [M+Na+2H]." Sort on the element/molecule name, ignoring the leading
+                # sign and any repeat-count digits (e.g. "+2H" sorts as "H").
+                name = part[1:].lstrip("0123456789")
+                return name
+
+            adduct_parts.sort(key=_adduct_sort_key)
             parts.append(f"[M{''.join(adduct_parts)}]")
 
-        # Charge: omit for +1 (implicit); include for everything else
+        # Charge: mzPAF omits the component only for +1 (implicit); everything else,
+        # including negative charges, is written as a bare magnitude with no sign
+        # (mzPAF spec section 4.8: "The charge state component ... MUST NOT include
+        # the minus sign").
         if self.charge_state != 0 and self.charge_state != 1:
-            parts.append(f"^{self.charge_state}")
+            parts.append(f"^{abs(self.charge_state)}")
 
         return "".join(parts)
 
@@ -375,7 +418,7 @@ class Fragment:
             start, end = pos
             return (
                 ProFormaAnnotation.parse(self.parent_sequence)[slice(start, end)]
-                .set_charge(self.charge_state if self._charge_adducts is None else self.charge_adducts)
+                .set_charge(self.external_charge if self._charge_adducts is None else self.charge_adducts)
                 .serialize()
             )
 

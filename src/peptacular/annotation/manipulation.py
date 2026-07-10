@@ -236,8 +236,10 @@ def is_subsequence(
     if annotation.sequence not in other.sequence:
         return False
 
-    # Loop over all starting indexes where the sequence is found
-    for match in re.finditer(annotation.sequence, other.sequence):
+    # Loop over all starting indexes where the sequence is found. Use a zero-width
+    # lookahead so overlapping occurrences (e.g. 'II' in 'IIIII') are all found;
+    # a plain re.finditer would advance past each match and miss overlaps.
+    for match in re.finditer(f"(?={re.escape(annotation.sequence)})", other.sequence):
         start = match.start()
 
         # Check if all modifications are also a subsequence
@@ -286,7 +288,7 @@ def find_indices(
         return []
 
     indices: list[int] = []
-    for match in re.finditer(annotation.sequence, other.sequence):
+    for match in re.finditer(f"(?={re.escape(annotation.sequence)})", other.sequence):
         start = match.start()
         sliced_other = other.slice(start, start + len(annotation.sequence), inplace=False)
 

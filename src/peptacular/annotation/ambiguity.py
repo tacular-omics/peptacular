@@ -25,7 +25,9 @@ def condense_ambiguity_to_xnotation(annotation: ProFormaAnnotation, inplace: boo
         if elem.has_intervals:
             # drop unknown and labile and charge / adducts
             elem_annot = elem.filter_mods([ModType.INTERNAL, ModType.STATIC, ModType.ISOTOPE, ModType.INTERVAL])
-            mass = elem_annot.mass(ion_type=IonType.NEUTRAL, charge=1)
+            # Use the neutral mass with no charge; charge=1 would fold an extra
+            # proton into the mass baked into the condensed X[+...] residue.
+            mass = elem_annot.mass(ion_type=IonType.NEUTRAL, charge=0)
 
             elem.sequence = "X"
             elem.clear_internal_mods()
@@ -312,7 +314,7 @@ def _get_mass_shift_interval(forward_coverage: list[int], reverse_coverage: list
 
 def _validate_coverage_lengths(forward_coverage: list[int], reverse_coverage: list[int], seq_len: int) -> None:
     """Validate that coverage lengths match sequence length"""
-    if len(forward_coverage) != len(reverse_coverage) != seq_len:
+    if len(forward_coverage) != seq_len or len(reverse_coverage) != seq_len:
         raise ValueError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
 
 
@@ -349,6 +351,7 @@ def _apply_mass_shift(
             None,
             validate=annotation._validate,
         )
+        mod_interval.append_mod(mass_shift)
         annotation.append_interval(mod_interval)
 
 
@@ -356,7 +359,7 @@ def group_by_ambiguity(annotations: Iterable[ProFormaAnnotation], precision: int
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError("Precision must be a non-negative integer between 0 and 10.")
+        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 
@@ -407,7 +410,7 @@ def unique_fragments(annotations: Iterable[ProFormaAnnotation], precision: int =
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError("Precision must be a non-negative integer between 0 and 10.")
+        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 

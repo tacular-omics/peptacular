@@ -201,3 +201,32 @@ class TestModificationCrossLinker:
         """Test string representation of secondary cross-linker"""
         result = pt.ModificationCrossLinker.from_string("#XL1")
         assert str(result) == "#XL1"
+
+
+class TestParseModificationDispatch:
+    """Tests for the ``parse_modification`` router that picks the modification type.
+
+    Regression: cross-link *definitions* like ``XLMOD:02001#XL1`` (which do not start
+    with ``#xl``) were routed to the ambiguous-primary parser, and any modification
+    containing a ``|`` was routed to the cross-linker parser.
+    """
+
+    @pytest.mark.parametrize(
+        "text, expected",
+        [
+            ("XLMOD:02001#XL1", "ModificationCrossLinker"),
+            ("#XL1", "ModificationCrossLinker"),
+            ("XLMOD:02001|DSS|+138.068#XL1", "ModificationCrossLinker"),
+            ("MOD:00093#BRANCH", "ModificationCrossLinker"),
+            ("#BRANCH", "ModificationCrossLinker"),
+            ("Oxidation#1", "ModificationAmbiguousPrimary"),
+            ("Phospho|UNIMOD:21|+79.966#g1", "ModificationAmbiguousPrimary"),
+            ("Phospho#g1|Position:S,T,Y", "ModificationAmbiguousPrimary"),
+            ("#g1", "ModificationAmbiguousSecondary"),
+            ("Oxidation", "ModificationTags"),
+        ],
+    )
+    def test_dispatch(self, text, expected):
+        from peptacular.proforma_components.parsers import parse_modification
+
+        assert type(parse_modification(text)).__name__ == expected

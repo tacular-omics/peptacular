@@ -1,7 +1,7 @@
 """
 ProForma Notation Examples
 ===========================
-Comprehensive examples of supported ProForma 2.0 notation in peptacular.
+Comprehensive examples of supported ProForma 2.1 notation in peptacular.
 Demonstrates parsing and serialization of various modification types and features.
 """
 

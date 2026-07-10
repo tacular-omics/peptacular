@@ -77,7 +77,7 @@ def isotopic_distribution(
     min_abundance_threshold: float = 0.001,  # based on the most abundant peak
     distribution_resolution: int | None = 5,
     use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 10e-15,
+    conv_min_abundance_threshold: float = 1e-14,
     charge_state: int | None = None,
 ) -> list[IsotopicData]:
     """
@@ -216,7 +216,7 @@ def isotopic_distribution(
         if abundance / max_abundance >= min_abundance_threshold
     ]
 
-    if delta_mass != 0.0 and not use_neutron_count:
+    if not use_neutron_count and (delta_mass != 0.0 or particle_mass_offset != 0.0):
         normalized_distribution = [
             (mass + delta_mass + particle_mass_offset, abundance, neutron_count) for mass, abundance, neutron_count in normalized_distribution
         ]
@@ -273,7 +273,7 @@ def estimate_isotopic_distribution(
     min_abundance_threshold: float = 0.001,
     distribution_resolution: int | None = 5,
     use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-15,
+    conv_min_abundance_threshold: float = 1e-14,
 ) -> list[IsotopicData]:
     """
     Estimate isotopic distribution from molecular mass using the averagine model.
@@ -296,10 +296,10 @@ def estimate_isotopic_distribution(
 
     .. code-block:: python
 
-        # Example usage
+        # Example usage: the monoisotopic peak is anchored to the requested mass
         >>> result = estimate_isotopic_distribution(800, 3, 0.0, 5)
         >>> [(round(r.mass, 3), round(r.abundance, 3)) for r in result]
-        [(810.424, 1.0), (811.427, 0.379), (812.43, 0.07)]
+        [(800.0, 1.0), (801.003, 0.379), (802.007, 0.07)]
 
         # Example usage with neutron count
         >>> result = estimate_isotopic_distribution(800, 3, 0.0, 5, True)
@@ -310,7 +310,7 @@ def estimate_isotopic_distribution(
     # Calculate the total number of each atom in the molecule based on its molecular mass
     total_atoms: Counter[ElementInfo] = averagine_comp(neutral_mass)
 
-    return isotopic_distribution(
+    distribution = isotopic_distribution(
         cast(Mapping[str | ElementInfo, int | float], total_atoms),
         max_isotopes,
         min_abundance_threshold,
@@ -318,6 +318,17 @@ def estimate_isotopic_distribution(
         use_neutron_count,
         conv_min_abundance_threshold,
     )
+
+    # Averagine only supplies the rough *shape* (peak spacings and abundances). Anchor the
+    # envelope so the monoisotopic peak lands on the requested mass, otherwise the absolute
+    # masses drift by the averagine composition's own monoisotopic-mass offset. When
+    # ``use_neutron_count`` is set the masses are neutron offsets, so no anchoring is applied.
+    if not use_neutron_count and distribution:
+        averagine_mono_mass = sum(element.get_mass(monoisotopic=True) * count for element, count in total_atoms.items())
+        shift = neutral_mass - averagine_mono_mass
+        distribution = [IsotopicData(mass=d.mass + shift, neutron_count=d.neutron_count, abundance=d.abundance) for d in distribution]
+
+    return distribution
 
 
 def _convolve_distributions(
@@ -360,7 +371,10 @@ def _convolve_distributions(
         for mass2, (abundance2, neutron2) in dist2.items():
             new_abundance = abundance1 * abundance2
             if new_abundance < min_abundance_threshold:
-                break
+                # ``dist2`` is not guaranteed to be sorted by descending abundance, so
+                # skip only this low-abundance pairing rather than aborting the whole
+                # inner loop (which could drop later high-abundance pairings).
+                continue
 
             new_mass = mass1 + mass2
             if distribution_resolution is not None:
@@ -439,7 +453,7 @@ def _calculate_elemental_distribution(
     element: str | ElementInfo,
     count: int,
     use_neutron_count: bool,
-    min_abundance_threshold: float = 10e-15,
+    min_abundance_threshold: float = 1e-14,
     max_isotopes: int | None = None,
 ) -> dict[float, tuple[float, int]]:
     """Calculate elemental isotopic distribution using binary exponentiation for efficiency."""

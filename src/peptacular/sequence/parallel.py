@@ -138,7 +138,9 @@ def parallel_apply_internal[T](
     if not items_list:
         return []
 
-    method_enum = parallelMethod(method) if method is not None else parallelMethod.PROCESS
+    # When no method is given, auto-detect: use threads on free-threaded (no-GIL)
+    # Python, otherwise fall back to processes.
+    method_enum = parallelMethod(method) if method is not None else parallelMethod(_get_optimal_method())
 
     # Handle sequential execution
     if method_enum == parallelMethod.SEQUENTIAL:

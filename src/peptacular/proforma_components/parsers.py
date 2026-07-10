@@ -155,9 +155,14 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
 
     # Validate element symbol
     try:
-        if element_symbol == "D" or element_symbol == "T":
-            # Special cases for Deuterium and Tritium
-            element_symbol = "H"
+        if element_symbol == "D":
+            # Deuterium shorthand is hydrogen-2 (ProForma 2.1 section 11.3.1: D == 2H);
+            # keep the isotope so the mass is correct (mapping D straight to "H" silently
+            # collapsed it to protium).
+            element_symbol, isotope = "H", 2
+        elif element_symbol == "T":
+            # Tritium shorthand is hydrogen-3 (ProForma 2.1 section 11.3.1: T == 3H).
+            element_symbol, isotope = "H", 3
         element = Element(element_symbol)
     except ValueError as e:
         raise ValueError(f"Unknown element symbol: '{element_symbol}'") from e
@@ -700,7 +705,7 @@ def parse_tag_mass(s: str) -> "TagMass":
         - R: RESID
         - X: XLMOD
         - G: GNO
-        - C: Custom (no CV enum)
+        - C: Custom (CV.CUSTOM)
 
     Examples:
         "+15.995" -> TagMass(mass=15.995, cv=None)
@@ -708,7 +713,7 @@ def parse_tag_mass(s: str) -> "TagMass":
         "Obs:+79.9663" -> TagMass(mass=79.9663, cv=CV.OBSERVED)
         "U:+15.995" -> TagMass(mass=15.995, cv=CV.UNIMOD)
         "M:-18.01" -> TagMass(mass=-18.01, cv=CV.PSI_MOD)
-        "C:+100.0" -> TagMass(mass=100.0, cv=None)
+        "C:+100.0" -> TagMass(mass=100.0, cv=CV.CUSTOM)
         "U:Obs:+15.995" -> TagMass(mass=15.995, cv=CV.UNIMOD)
 
     Args:
@@ -747,7 +752,7 @@ def parse_tag_mass(s: str) -> "TagMass":
         case "G":
             return TagMass(mass_str=mass_str, cv=CV.GNOME, position_id=pos, score=score)
         case "C":
-            return TagMass(mass_str=mass_str, cv=None, position_id=pos, score=score)
+            return TagMass(mass_str=mass_str, cv=CV.CUSTOM, position_id=pos, score=score)
         case "OBS":
             return TagMass(mass_str=mass_str, cv=CV.OBSERVED, position_id=pos, score=score)
         case _:
@@ -771,7 +776,7 @@ def parse_tag_name(s: str) -> "TagName | TagCustom":
         - R: RESID
         - X: XLMOD
         - G: GNO
-        - C: Custom (no CV enum)
+        - C: Custom (CV.CUSTOM)
 
     Args:
         s: String representation of a tag name
@@ -934,9 +939,13 @@ def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
 
     s = s.strip()
 
-    # Special case for Deuterium
+    # ProForma 2.1 section 11.3.1: "The shorthand D and T MAY be used instead of 2H and
+    # 3H" for global isotope replacement, i.e. D is deuterium (hydrogen-2) and T is
+    # tritium (hydrogen-3).
     if s == "D":
         return IsotopeReplacement(element=Element.H, isotope=2)
+    if s == "T":
+        return IsotopeReplacement(element=Element.H, isotope=3)
 
     # Parse isotope number and element symbol
     # Format: <number><element>
@@ -964,7 +973,12 @@ def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
 @lru_cache(maxsize=512)
 def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
     """
-    Parse a charge carrier string like 'Formula:Na:z+1' or 'Formula:H:z+1^2'
+    Parse a charge carrier string like 'Na:z+1' or 'H:z+1^2'.
+
+    A charge carrier is a *bare* charged formula (``<formula>:z<charge>``) per ProForma
+    2.1 section 11.5, optionally with an occurrence specifier ``^n``. A CV/type prefix such
+    as ``Formula:`` or ``Glycan:`` is only valid for a localised residue modification, not
+    for a charge carrier, and is rejected here.
 
     Args:
         s: String representation of a global charge carrier
@@ -983,9 +997,28 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
     occurance = 1
     if "^" in s:
         formula_part, occ_str = s.rsplit("^", 1)
-        occurance = int(occ_str)
+        # ProForma 2.1 section 11.5 reuses the unknown-location-modification occurrence
+        # specifier here. It must be an integer; a negative value is peptacular's internal
+        # representation of a negative-charge (deprotonated) proton carrier (e.g. a -1
+        # charge fragment round-trips through 'H:z+1^-1'), so it is allowed. `to_mz_paf`
+        # renders the sign correctly ('M-H'), so no positivity guard is imposed here.
+        try:
+            occurance = int(occ_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer.") from e
     else:
         formula_part = s
+
+    # A charge carrier must be a bare charged formula (e.g. 'Na:z+1', 'C2H6:z+2',
+    # '[15N1]H4:z+1'). The formula portion (before the ':z<charge>' suffix) never contains a
+    # ':' — a colon there means an illegal 'Formula:'/'Glycan:'-style prefix was used.
+    formula_only = formula_part.split(":z", 1)[0]
+    if ":" in formula_only:
+        prefix = formula_only.split(":", 1)[0]
+        raise ValueError(
+            f"Invalid charge carrier '{s}': a charge carrier must be a bare charged formula "
+            f"like 'Na:z+1' or 'C2H6:z+2' (ProForma 2.1 section 11.5), not a '{prefix}:'-prefixed value."
+        )
 
     # Parse the formula part
     charged_formula = parse_charged_formula(formula_part, require_formula_prefix=False)
@@ -1233,19 +1266,21 @@ def parse_modification(s: str) -> "MODIFICATION_TYPE":
 
     # Check for ambiguous or cross-linker modifications
     if "#" in s:
-        if s.lower().startswith("#xl") or "|" in s:
-            # Could be cross-linker or ambiguous primary
-            if any(part.startswith("Position:") or part.startswith("Limit:") or part in ("CoMKP", "CoMUP") for part in s.split("|")):
-                # Ambiguous primary
-                return parse_modification_ambiguous_primary(s)
-            else:
-                # Cross-linker
-                return parse_modification_cross_linker(s)
+        # The label follows the '#'; strip any (score) suffix and pipe-delimited tag
+        # alternatives so we can inspect the bare label. ProForma reserves the ``XL``
+        # prefix (e.g. #XL1) and the special ``BRANCH`` label for cross-links; every
+        # other label denotes an ambiguous modification group.
+        label = s.split("#", 1)[1].split("|")[0].split("(")[0].strip()
+        is_crosslink = label.upper().startswith("XL") or label.upper() == "BRANCH"
+
+        if is_crosslink:
+            # Cross-linker definition ([XLMOD:02001#XL1]) or reference ([#XL1], [#BRANCH])
+            return parse_modification_cross_linker(s)
         elif s.startswith("#"):
-            # Ambiguous secondary
+            # Ambiguous secondary reference ([#g1])
             return parse_modification_ambiguous_secondary(s)
         else:
-            # Ambiguous primary or cross-linker
+            # Ambiguous primary definition ([Phospho#g1])
             return parse_modification_ambiguous_primary(s)
     else:
         # Standard modification tags
@@ -1391,8 +1426,6 @@ def parse_sequence_region(s: str) -> "SequenceRegion":
         # Find the extent of this sequence element (amino acid + any modifications)
         start = i
         i += 1  # Move past the amino acid
-
-        i += ambiguous
 
         # Skip any modifications (enclosed in square brackets)
         while i < len(seq_str) and seq_str[i] == "[":

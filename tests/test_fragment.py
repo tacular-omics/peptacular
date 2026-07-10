@@ -763,6 +763,79 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AY, charge=2, position=(3, 5))
         self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-CO^2")
 
+    def test_internal_ax(self):
+        # Regression: tacular>=1.1.0 corrected every non-"by" internal ion offset;
+        # peptacular's mzPAF label table must track those corrected values.
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-2H^2")
+
+    def test_internal_az(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-HCONH2^2")
+
+    def test_internal_bx(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CO-2H^2")
+
+    def test_internal_bz(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-NH3^2")
+
+    def test_internal_cx(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CX, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CHNO^2")
+
+    def test_internal_cy(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CY, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+NH3^2")
+
+    def test_internal_cz(self):
+        frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.CZ, charge=2, position=(3, 5))
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}^2")
+
+    def test_internal_ion_labels_match_computed_mass(self):
+        # The mzPAF label's implied mass delta must equal the actual computed delta
+        # from "by" for every internal ion type (catches a label/value drift like the
+        # one tacular>=1.1.0's fix exposed).
+        import re
+
+        MONO = {"H": 1.00782503223, "C": 12.0, "N": 14.00307400443, "O": 15.99491461957}
+
+        def label_mass(label: str) -> float:
+            if label is None:
+                return 0.0
+            total = 0.0
+            for tok in re.findall(r"[+-][0-9]*[A-Za-z0-9]+", label):
+                sign = 1 if tok[0] == "+" else -1
+                mult_m = re.match(r"(\d*)(.*)", tok[1:])
+                mult = int(mult_m.group(1)) if mult_m.group(1) else 1
+                comp: dict[str, int] = {}
+                for el, n in re.findall(r"([A-Z][a-z]?)(\d*)", mult_m.group(2)):
+                    if el:
+                        comp[el] = comp.get(el, 0) + (int(n) if n else 1)
+                total += sign * mult * sum(MONO[e] * n for e, n in comp.items())
+            return total
+
+        annot = pt.parse("PEPTIDE/1")
+        by_mass = annot.frag(ion_type=pt.IonType.BY, charge=1, position=(3, 5)).mass
+        for ion_type in (
+            pt.IonType.AX,
+            pt.IonType.AY,
+            pt.IonType.AZ,
+            pt.IonType.BX,
+            pt.IonType.BY,
+            pt.IonType.BZ,
+            pt.IonType.CX,
+            pt.IonType.CY,
+            pt.IonType.CZ,
+        ):
+            frag = annot.frag(ion_type=ion_type, charge=1, position=(3, 5))
+            mzpaf = frag.to_mzpaf(include_sequence=False)
+            label = mzpaf[2:].split("^")[0] or None  # strip leading "m3:5", trailing charge
+            actual_diff = frag.mass - by_mass
+            implied_diff = label_mass(label)
+            self.assertAlmostEqual(actual_diff, implied_diff, places=4, msg=f"{ion_type}: label {label!r}")
+
     def test_precursor(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.PRECURSOR, charge=2)
         self.assertEqual(frag.to_mzpaf(), "p^2")
@@ -790,7 +863,32 @@ class TestFragmentMzPAF(unittest.TestCase):
     def test_neutral_loss(self):
         frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], neutral_deltas=["H2O"])
         labels = [f.to_mzpaf() for f in frags]
+        # mzPAF reuses ProForma's own atom-then-count formula notation; "-H2O" is
+        # the spec's own canonical water-loss example (section 4.5).
         self.assertTrue(any("-H2O" in label for label in labels))
+
+    def test_numeric_neutral_loss_rejected(self):
+        # mzPAF's neutral_loss grammar only accepts a chemical formula or a bracketed
+        # reference-group name after the sign (section 4.5); there is no
+        # representation for an arbitrary unnamed mass delta.
+        frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], deltas=[15.9949])
+        with self.assertRaises(ValueError):
+            frags[0].to_mzpaf()
+
+    def test_adduct_repeat_count(self):
+        # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with two
+        # sodium atoms."
+        annot = pt.parse("PEPTIDE/[Na:z+1^2]")
+        frag = annot.frag(ion_type=pt.IonType.Y, position=3, charge=None)
+        self.assertIn("[M+2Na]", frag.to_mzpaf())
+
+    def test_multiple_adducts_are_alphabetized(self):
+        # mzPAF section 4.7: "If there are multiple types of atoms/molecules,
+        # alphabetical order SHOULD be followed, e.g. [M+2H+Na] rather than
+        # [M+Na+2H]."
+        annot = pt.parse("PEPTIDE/[Na:z+1,H:z+1^2]")
+        frag = annot.frag(ion_type=pt.IonType.Y, position=3, charge=None)
+        self.assertIn("[M+2H+Na]", frag.to_mzpaf())
 
     def test_serialize_format_default(self):
         frag = pt.parse("PEPTIDE/1").frag(ion_type=pt.IonType.Y, charge=1, position=3)
@@ -814,26 +912,70 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-1")
-        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^-1")
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^1")  # mzPAF: charge is a bare magnitude, no minus sign
+        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^1")
 
     def test_negative_charge_z_minus_2(self):
         frag = pt.parse("PEPTIDE/-3").frag(ion_type=pt.IonType.B, charge=-2, position=3)
         self.assertEqual(frag.charge_state, -2)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-2")
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^2")  # mzPAF: charge is a bare magnitude, no minus sign
 
     def test_negative_charge_y_ion(self):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.Y, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^-1")
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^1")  # mzPAF: charge is a bare magnitude, no minus sign
 
     def test_negative_charge_mz_less_than_positive(self):
         # Negative-mode b3 loses a proton; positive-mode adds one — so neg mz < pos mz
         frag_pos = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.B, charge=1, position=3)
         frag_neg = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
         self.assertAlmostEqual(frag_pos.mz - frag_neg.mz, 2 * 1.007276, places=4)
+
+
+class TestFragmentRepeatedAdducts(unittest.TestCase):
+    """Repeated charge carriers must keep their occurrence count through the fragment."""
+
+    def test_two_sodium_carriers_not_collapsed(self):
+        # Two 'Na:z+1' list entries are one carrier repeated twice; the count must not be
+        # dropped when rebuilding the fragment's adduct tuple (regression: adjust_mass_mz
+        # / adjust_comp built the tuple from _mods.keys(), collapsing it to a single Na).
+        frag = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        self.assertEqual(frag.charge_adducts.serialize(), "[Na:z+1,Na:z+1]")
+        # Only one Na would leave neutral_mass off by a full sodium mass (~822 vs ~799).
+        self.assertAlmostEqual(frag.neutral_mass, 799.35996, places=4)
+
+    def test_two_sodium_carriers_mzpaf(self):
+        # mzPAF must fold the repeat count into the adduct prefix: [M+2Na], not [M+Na].
+        frag = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "p[M+2Na]^2")
+
+    def test_repeated_list_matches_occurance_syntax(self):
+        # ['Na:z+1','Na:z+1'] (count=2) and 'Na:z+1^2' (occurance=2) are the same species.
+        frag_list = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        frag_occ = pt.parse("PEPTIDE").frag("p", charge="Na:z+1^2")
+        self.assertEqual(frag_list.to_mzpaf(include_sequence=False), frag_occ.to_mzpaf(include_sequence=False))
+        self.assertAlmostEqual(frag_list.neutral_mass, frag_occ.neutral_mass, places=6)
+
+    def test_mixed_adducts_sorted_with_counts(self):
+        # Alphabetical ordering (mzPAF 4.7) with a repeated proton: [M+2H+Na].
+        frag = pt.parse("PEPTIDE").frag("p", charge=["H:z+1", "H:z+1", "Na:z+1"])
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "p[M+2H+Na]^3")
+
+
+class TestFragmentSequenceInternalCharge(unittest.TestCase):
+    """Fragment.sequence must emit external charge, not charge_state (which includes internal)."""
+
+    def test_sequence_uses_external_charge(self):
+        # b2 carries external_charge=1 (one proton) plus an internal +1 formula charge.
+        # Fragment.sequence must serialize /1 (external), not /2 (regression: it used
+        # charge_state and double-counted the internal formula charge).
+        frags = pt.parse("PE[Formula:CH2:z+1]PTIDE").set_charge(1).fragment(ion_types="b", charges=[1])
+        b2 = next(f for f in frags if f.position == 2)
+        self.assertEqual(b2.external_charge, 1)
+        self.assertEqual(b2.charge_state, 2)
+        self.assertEqual(b2.sequence, "PE[Formula:CH2:z+1]/1")
 
 
 if __name__ == "__main__":

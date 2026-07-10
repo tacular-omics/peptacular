@@ -37,6 +37,16 @@ class TestFragmentClass(unittest.TestCase):
         self.assertEqual(len(adducts), 1)
         # Check properties of the adduct object returned if possible, or just string conversion
 
+    def test_duplicate_charge_adducts_not_collapsed(self):
+        # Two identical adducts must both be counted (regression: {k: 1} dict deduped them,
+        # so neutral_mass subtracted only one carrier's mass and composition undercounted).
+        one = Fragment(ion_type=IonType.B, position=3, mass=200.0, monoisotopic=True, charge_state=1, charge_adducts=("Na:z+1",))
+        two = Fragment(ion_type=IonType.B, position=3, mass=200.0, monoisotopic=True, charge_state=2, charge_adducts=("Na:z+1", "Na:z+1"))
+        self.assertEqual(two.charge_adducts.get_charge(), 2)
+        self.assertEqual(dict(two.charge_adducts._mods), {"Na:z+1": 2})
+        # a second sodium removes ~23 Da more when deriving the neutral mass
+        self.assertLess(two.neutral_mass, one.neutral_mass)
+
     def test_isotopes_int(self):
         f = Fragment(
             ion_type=IonType.Y,

@@ -1,5 +1,6 @@
 import sys
 from collections.abc import Generator
+from typing import NoReturn
 
 from .mod import VALID_AMINO_ACIDS, Interval
 
@@ -89,6 +90,7 @@ class ProFormaParser:
 
         if self.length == 0:
             yield self, None
+            return
 
         # 1. Parse Compound Header (>>>Name) and <Global Mods>
         # These apply to the entire string context
@@ -371,7 +373,7 @@ class ProFormaParser:
 
         return f"{snippet}\n{pointer}"
 
-    def _raise_parse_error(self, message: str, position: int | None = None) -> None:
+    def _raise_parse_error(self, message: str, position: int | None = None) -> NoReturn:
         """Raise a ValueError with position context"""
         if position is None:
             position = self.cursor
@@ -403,7 +405,11 @@ class ProFormaParser:
             elif char == "(":
                 self._parse_interval(target)
             else:
-                self._raise_parse_error(f"Unexpected character '{char}'")
+                hint = " (amino acids must be uppercase)" if char.islower() else ""
+                self._raise_parse_error(
+                    f"Unexpected character '{char}'{hint}: expected an uppercase amino acid (A-Z) or a ProForma token "
+                    "('[' for a modification, '(' for an interval, '/' for charge, or '-' for a terminal modification)"
+                )
 
     def _parse_interval(self, target: "ProFormaParser"):
         """Parses (StartSeq-EndSeq), (Seq), or (?Seq)"""
@@ -429,7 +435,10 @@ class ProFormaParser:
                 self._parse_inline_mods(target, len(target.amino_acids) - 1)
             else:
                 # If we hit something invalid inside parens (that isn't a mod caught above)
-                self._raise_parse_error(f"Unexpected character '{char}' inside interval")
+                hint = " (amino acids must be uppercase)" if char.islower() else ""
+                self._raise_parse_error(
+                    f"Unexpected character '{char}' inside interval '(...)'{hint}: expected an uppercase amino acid (A-Z) or ')' to close the interval"
+                )
 
         if self.cursor >= self.length:
             interval_start = self.cursor
@@ -483,9 +492,10 @@ class ProFormaParser:
         if self.cursor >= self.length or self.original_sequence[self.cursor] != "/":
             return None, None
 
+        slash_pos = self.cursor
         self.cursor += 1  # Skip /
         if self.cursor >= self.length:
-            return None, None
+            self._raise_parse_error("Expected a charge value after '/' (e.g. '/2' or '/2[+H]')", slash_pos)
 
         seq = self.original_sequence
         char = seq[self.cursor]
@@ -540,7 +550,10 @@ class ProFormaParser:
             charge = int(seq[start : self.cursor])
             return charge, None
         except ValueError:
-            return None, None
+            self._raise_parse_error(
+                f"Invalid charge after '/': expected an integer (optionally signed) or an adduct in '[...]', got {seq[slash_pos + 1 :] or '(nothing)'!r}",
+                slash_pos,
+            )
 
     # Optimization 7: Reduce property overhead
     @property
@@ -557,10 +570,18 @@ class ProFormaParser:
         start_pos = self.cursor
         # Skip the (>>> part
         self.cursor += 1 + len(prefix_str)
-        content = self._read_until(")")
+        content_start = self.cursor
+        content = self._read_until_balanced("(", ")")
 
         if self.cursor >= self.length:
-            self._raise_parse_error("Unmatched '(' for name", start_pos)
+            # No balanced ')' closes the name -- e.g. a name containing a stray unbalanced
+            # '(' like '(>a(b)PEPTIDE'. Fall back to the first ')' so such names stay
+            # parseable (the pre-3.1.2 behavior); only a name with no ')' at all is a real
+            # error. Balanced names like '(>my (special) peptide)' still take the branch above.
+            self.cursor = content_start
+            content = self._read_until_first(")")
+            if self.cursor >= self.length:
+                self._raise_parse_error("Unmatched '(' for name", start_pos)
 
         self.cursor += 1  # Skip )
 
@@ -591,7 +612,19 @@ class ProFormaParser:
                         break
                 self.cursor += 1
 
+            if depth != 0:
+                # Reached end of sequence without a matching close bracket.
+                self._raise_parse_error(
+                    f"Unclosed '{open_char}': reached end of sequence before finding a matching '{close_char}'",
+                    start - 1,
+                )
+
             content = sys.intern(seq[start : self.cursor])
+            if not content:
+                self._raise_parse_error(
+                    f"Empty modification '{open_char}{close_char}' is not allowed; put a modification name, accession, formula, or mass inside the brackets",
+                    start - 1,
+                )
             self.cursor += 1  # Skip close
 
             # Check for multiplier
@@ -620,11 +653,32 @@ class ProFormaParser:
 
         return items
 
-    def _read_until(self, terminator: str) -> str:
+    def _read_until_first(self, terminator: str) -> str:
+        """Scan to the first ``terminator`` without tracking nesting; used as a lenient
+        fallback for names whose parentheses don't balance."""
         start = self.cursor
-        while self.cursor < self.length and self.original_sequence[self.cursor] != terminator:
+        seq = self.original_sequence
+        while self.cursor < self.length and seq[self.cursor] != terminator:
             self.cursor += 1
-        return self.original_sequence[start : self.cursor]
+        return seq[start : self.cursor]
+
+    def _read_until_balanced(self, open_char: str, close_char: str) -> str:
+        """Scan for the matching ``close_char``, tracking nesting depth so balanced
+        occurrences of ``open_char``/``close_char`` inside the content don't
+        terminate the scan early. Assumes one ``open_char`` has already been consumed."""
+        start = self.cursor
+        depth = 1
+        seq = self.original_sequence
+        while self.cursor < self.length:
+            c = seq[self.cursor]
+            if c == open_char:
+                depth += 1
+            elif c == close_char:
+                depth -= 1
+                if depth == 0:
+                    break
+            self.cursor += 1
+        return seq[start : self.cursor]
 
     def _peek_startswith(self, s: str) -> bool:
         return self.original_sequence.startswith(s, self.cursor)

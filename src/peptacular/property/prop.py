@@ -304,9 +304,9 @@ class AnnotationProperties:
         """Calculate isoelectric point using bisection method"""
 
         def _calculate_pi(
-            ph: float = 7.775,
-            min_: float = 4.05,
-            max_: float = 12.0,
+            ph: float = 7.0,
+            min_: float = 0.0,
+            max_: float = 14.0,
             tol_: float = 0.001,
         ) -> float:
             """Recursive bisection method to find pI."""

@@ -2,6 +2,7 @@ import sys
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Any, Protocol, Self, cast
 
 from tacular import AA_LOOKUP, ElementInfo
@@ -14,6 +15,8 @@ from ..proforma_components import (
     MassPropertyMixin,
     ModificationTags,
     TagMass,
+    add_composition,
+    merge_compositions,
 )
 
 # Define your modification types
@@ -66,7 +69,12 @@ class Mod[T: ModificationProtocol]:
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get total composition for this modification occurrence."""
-        return self.value.get_composition().copy()
+        comp = self.value.get_composition()
+        if self.count == 1:
+            return comp.copy()
+        # Must scale by count to match get_mass's `mass * self.count`: self.count
+        # represents this same modification repeated at one position.
+        return Counter({element: n * self.count for element, n in comp.items()})
 
     def get_charge(self) -> int:
         """Get total charge for this modification occurrence."""
@@ -149,9 +157,15 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
             return ()
         return ((mod.value, mod.count) for mod in self.mods)
 
-    @property
+    @cached_property
     def mods(self) -> tuple[Mod[T], ...]:
-        """Parse stored modifications into typed Mod objects."""
+        """Parse stored modifications into typed Mod objects.
+
+        Cached: ``Mods`` is a frozen value object with no in-place mutators (its ``_mods``
+        is set once at construction and holders such as ``Interval.mods`` rebuild a fresh
+        ``Mods`` on every access), so parsing the modification strings once per instance is
+        safe. This avoids re-parsing on every mass/composition/charge call.
+        """
 
         if self._mods is None:
             return tuple()
@@ -163,8 +177,8 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         return sum(mod.get_mass(monoisotopic) for mod in self.mods)
 
     def get_composition(self) -> Counter[ElementInfo]:
-        """Get total composition for all modifications."""
-        return sum((mod.get_composition() for mod in self.mods), Counter())
+        """Get total composition for all modifications (negative-count safe)."""
+        return merge_compositions(self.mods)
 
     def get_composition_with_delta_mass_charge(self, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float, int]:
         """Get total composition and when not possible fall back to delta mass for MassTags."""
@@ -175,8 +189,9 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         for mod in self.mods:
             total_charge += mod.get_charge()
             try:
-                comp = mod.get_composition()
-                total_composition += comp
+                # add_composition merges element-by-element so atom-removing modifications
+                # (e.g. Amidated's ``O:-1``) survive; Counter's ``+=`` would drop them.
+                add_composition(total_composition, mod.get_composition())
             except ValueError as e:
                 if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
                     total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
@@ -253,10 +268,13 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                     for _ in range(count):
                         mod_str_comps.append(f"[{mod_str}]")
             case ModType.CHARGE:
+                # A count > 1 means the same carrier is present multiple times (e.g. two
+                # 'Na:z+1' adducts); expand it into repeated comma-separated entries, the
+                # same way every other mod type expands its count. Emitting a single entry
+                # (or rejecting count > 1, as this branch used to) silently loses carriers.
                 for mod_str, cnt in (self._mods or {}).items():
-                    if cnt != 1:
-                        raise RuntimeError(f"Charge modifications cannot have count > 1, got {cnt} for mod {mod_str}")
-                    mod_str_comps.append(f"{mod_str}")
+                    for _ in range(cnt):
+                        mod_str_comps.append(f"{mod_str}")
                 return f"[{','.join(mod_str_comps)}]"
             case ModType.INTERNAL:
                 for mod_str, count in (self._mods or {}).items():
@@ -326,15 +344,19 @@ def condense_mod_str(
 
 
 def convert_moddict_input(mod: Any) -> dict[str, int]:
-    # Convert mod input to string representation if needed
+    # Convert mod input to string representation if needed.
+    # Strings are stripped before interning so that differently-padded-but-equivalent
+    # inputs (e.g. "Oxidation" and "  Oxidation  ") collapse onto the same interned
+    # string and the same downstream @lru_cache parse entry, instead of each peptide
+    # that spells a mod slightly differently paying for its own string and cache miss.
     d: dict[str, int] = {}
     if isinstance(mod, dict) or isinstance(mod, Counter):
         # if value is not string, convert to string
-        d = {sys.intern(str(k)): v for k, v in mod.items()}
+        d = {sys.intern(str(k).strip()): v for k, v in mod.items()}
     elif isinstance(mod, Mods):
         return convert_moddict_input(mod._mods)
     elif isinstance(mod, str):
-        d = {sys.intern(str(mod)): 1}
+        d = {sys.intern(mod.strip()): 1}
     elif isinstance(mod, (int, float)):
         # ensure it has +/- in front of number
         num_str = sys.intern(f"{mod:+}")
@@ -345,23 +367,25 @@ def convert_moddict_input(mod: Any) -> dict[str, int]:
                 mod_str, count = convert_single_mod_input(m)
                 d[mod_str] = d.get(mod_str, 0) + count
             else:
-                d[sys.intern(str(m))] = d.get(str(m), 0) + 1
+                mod_str = sys.intern(str(m).strip())
+                d[mod_str] = d.get(mod_str, 0) + 1
     return d
 
 
 def convert_single_mod_input(mod: Any) -> tuple[str, int]:
-    # Convert single mod input to string representation if needed
+    # Convert single mod input to string representation if needed.
+    # See convert_moddict_input for why strings are stripped before interning.
     if isinstance(mod, str):
-        return sys.intern(str(mod)), 1
+        return sys.intern(mod.strip()), 1
     elif isinstance(mod, (int, float)):
         # ensure it has +/- in front of number
         return sys.intern(f"{mod:+}"), 1
     elif isinstance(mod, tuple) and len(mod) == 2:
-        return sys.intern(str(mod[0])), int(mod[1])
+        return sys.intern(str(mod[0]).strip()), int(mod[1])
     elif isinstance(mod, Mod):
-        return sys.intern(str(mod.value)), mod.count
+        return sys.intern(str(mod.value).strip()), mod.count
     else:
-        return sys.intern(str(mod)), 1
+        return sys.intern(str(mod).strip()), 1
 
 
 EMPTYP_INTERVAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERVAL, _mods=None)

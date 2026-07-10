@@ -21,6 +21,7 @@ def _modify_single(
     labile_variable: MOD_BUILDER_INPUT_TYPE | None = None,
     max_variable_mods: int = 2,
     use_regex: bool = False,
+    unique_peptidoforms: bool = False,
 ) -> list[str]:
     """Build modifications for a single sequence"""
     annotation = get_annotation_input(sequence, copy=True)
@@ -37,6 +38,7 @@ def _modify_single(
             labile_variable=labile_variable,
             max_variable_mods=max_variable_mods,
             use_regex=use_regex,
+            unique_peptidoforms=unique_peptidoforms,
             inplace=False,
         )
     ]
@@ -56,6 +58,7 @@ def modify(
     labile_variable: MOD_BUILDER_INPUT_TYPE | None = None,
     max_variable_mods: int = 2,
     use_regex: bool = False,
+    unique_peptidoforms: bool = False,
     n_workers: None = None,
     chunksize: None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -76,6 +79,7 @@ def modify(
     labile_variable: MOD_BUILDER_INPUT_TYPE | None = None,
     max_variable_mods: int = 2,
     use_regex: bool = False,
+    unique_peptidoforms: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -95,6 +99,7 @@ def modify(
     labile_variable: MOD_BUILDER_INPUT_TYPE | None = None,
     max_variable_mods: int = 2,
     use_regex: bool = False,
+    unique_peptidoforms: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -136,6 +141,7 @@ def modify(
             labile_variable=labile_variable,
             max_variable_mods=max_variable_mods,
             use_regex=use_regex,
+            unique_peptidoforms=unique_peptidoforms,
         )
     else:
         return _modify_single(
@@ -150,6 +156,7 @@ def modify(
             labile_variable=labile_variable,
             max_variable_mods=max_variable_mods,
             use_regex=use_regex,
+            unique_peptidoforms=unique_peptidoforms,
         )
 
 

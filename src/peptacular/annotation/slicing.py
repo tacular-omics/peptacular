@@ -243,9 +243,9 @@ def shift_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError("keep_nterm and keep_cterm must be non-negative")
+        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError("keep_nterm + keep_cterm cannot exceed sequence length")
+        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to shift, return as is
     if keep_nterm + keep_cterm >= seq_len:
@@ -347,9 +347,9 @@ def shuffle_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError("keep_nterm and keep_cterm must be non-negative")
+        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError("keep_nterm + keep_cterm cannot exceed sequence length")
+        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to shuffle, return as is
     if seq_len <= 1 or keep_nterm + keep_cterm >= seq_len:
@@ -448,9 +448,9 @@ def reverse_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError("keep_nterm and keep_cterm must be non-negative")
+        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError("keep_nterm + keep_cterm cannot exceed sequence length")
+        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to reverse, return as is
     if seq_len <= 1 or keep_nterm + keep_cterm >= seq_len:
@@ -602,7 +602,7 @@ def generate_sliding_windows(
         raise ValueError("Annotation must have a sequence to create sliding windows")
 
     if window_size <= 0:
-        raise ValueError("Window size must be positive")
+        raise ValueError(f"Window size must be positive, got {window_size}")
 
     seq_len = len(annotation.sequence)
     if window_size > seq_len:

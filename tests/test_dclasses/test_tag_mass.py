@@ -74,3 +74,22 @@ class TestTagMass:
         assert isinstance(result2, pt.TagMass)
         assert result2.mass == pytest.approx(17.05685)  # type: ignore
         assert result2.cv == pt.CV.OBSERVED
+
+    def test_custom_mass_prefix_round_trip(self):
+        """The ``C:`` custom-mass prefix must survive a parse -> serialize round trip.
+
+        Regression: ``C:`` was parsed to ``cv=None`` (indistinguishable from a bare
+        mass), so it serialized back to ``+100`` and the custom marker was lost.
+        """
+        result = pt.ModificationTags.from_string("C:+100.0").tags[0]
+        assert isinstance(result, pt.TagMass)
+        assert result.mass == pytest.approx(100.0)  # type: ignore
+        assert result.cv == pt.CV.CUSTOM
+        assert str(result) == "C:+100"
+
+    def test_bare_mass_still_has_no_cv(self):
+        """A prefix-less mass must remain ``cv=None`` (not treated as custom)."""
+        result = pt.ModificationTags.from_string("+100.0").tags[0]
+        assert isinstance(result, pt.TagMass)
+        assert result.cv is None
+        assert str(result) == "+100"

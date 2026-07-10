@@ -141,3 +141,27 @@ class TestChargedFormula:
         """Test that zero cardinality raises error (ProForma Rule 2)"""
         with pytest.raises(ValueError):
             pt.ModificationTags.from_string("Formula:C0H2").tags[0]
+
+    def test_formula_deuterium_shorthand_keeps_isotope(self):
+        """Deuterium 'D' in a formula must carry isotope H-2, not collapse to protium."""
+        result = pt.ModificationTags.from_string("Formula:CD3").tags[0]
+        assert isinstance(result, pt.ChargedFormula)
+        # C then D3 -> hydrogen with isotope 2, count 3
+        h = next(fe for fe in result.formula if fe.element == pt.Element.H)
+        assert h.isotope == 2
+        assert h.occurance == 3
+        # Mass must equal the explicit [2H3] isotope form, not natural H3
+        assert abs(pt.mass("PEPT[Formula:CD3]IDE") - pt.mass("PEPT[Formula:C[2H3]]IDE")) < 1e-9
+        assert pt.mass("PEPT[Formula:CD3]IDE") != pytest.approx(pt.mass("PEPT[Formula:CH3]IDE"))
+        # Round-trips back to the D shorthand
+        assert pt.parse("PEPT[Formula:CD3]IDE").serialize() == "PEPT[Formula:CD3]IDE"
+
+    def test_formula_tritium_shorthand_keeps_isotope(self):
+        """Tritium 'T' in a formula must carry isotope H-3."""
+        result = pt.ModificationTags.from_string("Formula:CT3").tags[0]
+        assert isinstance(result, pt.ChargedFormula)
+        h = next(fe for fe in result.formula if fe.element == pt.Element.H)
+        assert h.isotope == 3
+        assert h.occurance == 3
+        assert abs(pt.mass("PEPT[Formula:CT3]IDE") - pt.mass("PEPT[Formula:C[3H3]]IDE")) < 1e-9
+        assert pt.parse("PEPT[Formula:CT3]IDE").serialize() == "PEPT[Formula:CT3]IDE"

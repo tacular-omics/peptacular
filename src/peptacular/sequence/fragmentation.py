@@ -22,7 +22,7 @@ FRAGMENT_MASSES_RETURN = dict[tuple[IonType, int], list[float]]
 def _fragment_single(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] = (1,),
+    charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
@@ -48,7 +48,7 @@ def _fragment_single(
 def fragment(
     sequence: str | ProFormaAnnotation,
     ion_types: Sequence[ION_TYPE] | ION_TYPE = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] = (1,),
+    charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
@@ -65,7 +65,7 @@ def fragment(
 def fragment(
     sequence: Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] | ION_TYPE = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] = (1,),
+    charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
@@ -81,7 +81,7 @@ def fragment(
 def fragment(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] = (1,),
+    charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),

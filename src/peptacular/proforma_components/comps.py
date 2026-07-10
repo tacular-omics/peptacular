@@ -34,6 +34,14 @@ from tacular import (
 
 from ..constants import CV, Terminal
 
+# Reusable hint appended to "unknown modification" errors so callers (including AI
+# agents) can immediately see how to specify a resolvable modification.
+_MOD_SPEC_HINT = (
+    "Specify one of: a known modification name (e.g. 'Oxidation'), a CV accession "
+    "(e.g. 'UNIMOD:35' or 'MOD:00046'), a chemical formula (e.g. '[Formula:HO3P]'), "
+    "a glycan (e.g. '[Glycan:HexNAc]'), or a delta mass (e.g. '[+15.9949]')."
+)
+
 
 @runtime_checkable
 class HasMassComp(Protocol):
@@ -73,9 +81,25 @@ def sum_masses(components: Iterable[HasMassComp], monoisotopic: bool = True) -> 
     return sum(comp.get_mass(monoisotopic=monoisotopic) for comp in components)
 
 
+def add_composition(total: Counter[ElementInfo], other: Mapping[ElementInfo, int]) -> None:
+    """Merge ``other`` into ``total`` in place, preserving negative counts.
+
+    Counter's ``+=`` / ``+`` discard non-positive results, which silently drops
+    atom-removing modifications (e.g. ``Formula:H-2`` or Amidated's ``O:-1``). Merging
+    element-by-element keeps them. This is the single canonical composition-merge helper;
+    every additive merge of element compositions should route through it (or the
+    ``merge_compositions`` wrapper below) rather than re-implementing the workaround.
+    """
+    for element, count in other.items():
+        total[element] += count
+
+
 def merge_compositions(components: Iterable[HasMassComp]) -> Counter[ElementInfo]:
-    """Merge compositions from multiple components."""
-    return sum((comp.get_composition() for comp in components), Counter())
+    """Merge compositions from multiple components (negative-count safe)."""
+    total: Counter[ElementInfo] = Counter()
+    for comp in components:
+        add_composition(total, comp.get_composition())
+    return total
 
 
 @runtime_checkable
@@ -174,7 +198,12 @@ class FormulaElement(MassPropertyMixin):
 
 @dataclass(frozen=True, slots=True)
 class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
-    """A formula that can be charged, expressed in ProForma as Formula:C2H6:z+2"""
+    """A formula that can be charged (``<formula>:z<charge>``).
+
+    As a localised residue modification it carries the ``Formula:`` prefix, e.g.
+    ``[Formula:C2H6:z+2]``; as a charge carrier it is written bare, e.g. ``C2H6:z+2``
+    (see ProForma 2.1 sections 11.1 and 11.5).
+    """
 
     formula: tuple[FormulaElement, ...]
     charge: int | None = None
@@ -266,6 +295,12 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
 
     def to_mz_paf(self) -> str:
         """Convert to mzPAF format string."""
+        # mzPAF's chemical-formula notation (secs. 4.4.9/4.5/4.6) explicitly reuses
+        # ProForma's own molecular-formula notation -- atom then count (e.g. "H2O",
+        # "[13C1]") -- for both plain and isotope-tagged elements. There is no
+        # count-before-atom convention; the only leading integer mzPAF defines is a
+        # separate repeat-count multiplier for an entire repeated loss group (e.g.
+        # "-2H2O" for a double water loss), not a per-atom prefix.
         pos_parts = [str(fe.abs()) for fe in self.formula if fe.occurance > 0]
         neg_parts = [str(fe.abs()) for fe in self.formula if fe.occurance < 0]
 
@@ -282,22 +317,33 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
     @staticmethod
     def from_mz_paf(s: str) -> ChargedFormula:
         """Parse from mzPAF format string."""
+        # mzPAF chemical formulas are never "Formula:"-prefixed (unlike a ProForma
+        # residue modification), so require_formula_prefix must be False here or
+        # to_mz_paf()'s own output (e.g. "+H2O") fails to round-trip.
         # split on + and -
         if s.startswith("+"):
-            formula = ChargedFormula.from_string(s[1:])
+            formula = ChargedFormula.from_string(s[1:], require_formula_prefix=False)
             # assert all are positive
             for fe in formula.formula:
                 if fe.occurance < 0:
                     raise ValueError("Invalid mzPAF format: negative occurance in positive part")
             return formula
         if s.startswith("-"):
-            s = "0" + s  # prepend a zero to handle leading negative
-            formula = ChargedFormula.from_string(s)
-            # assert all are negative
+            # Parse the bare (unsigned) formula, then negate every element's count.
+            # (The previous "0" + s prepend trick never actually worked: e.g.
+            # "0-H2O" isn't a parseable formula either way.)
+            formula = ChargedFormula.from_string(s[1:], require_formula_prefix=False)
+            # assert none are already negative (would double-negate)
             for fe in formula.formula:
-                if fe.occurance > 0:
-                    raise ValueError("Invalid mzPAF format: positive occurance in negative part")
-            return formula
+                if fe.occurance < 0:
+                    raise ValueError("Invalid mzPAF format: negative occurance in negative part")
+            negated = tuple(FormulaElement(element=fe.element, occurance=-fe.occurance, isotope=fe.isotope) for fe in formula.formula)
+            return ChargedFormula(
+                formula=negated,
+                charge=formula.charge,
+                position_id=formula.position_id,
+                score=formula.score,
+            )
         raise ValueError("Invalid mzPAF format: must start with + or -")
 
     def __add__(self, other: ChargedFormula) -> ChargedFormula:
@@ -401,9 +447,10 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
-                raise ValueError(f"Unknown mass for modification: {self}")
+                kind = "monoisotopic" if monoisotopic else "average"
+                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown mass for modification: {self}")
+        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -413,9 +460,9 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for modification: {repr(self)}")
+                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown modification: {repr(self)}")
+        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     @staticmethod
     def from_string(s: str) -> TagAccession:
@@ -575,18 +622,19 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
-                raise ValueError(f"Unknown mass for modification: {self}")
+                kind = "monoisotopic" if monoisotopic else "average"
+                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown mass for modification: {self}")
+        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_composition(self) -> Counter[ElementInfo]:
         mod_info = self._get_mod_info_by_name()
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for modification: {self}")
+                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown composition for modification: {self}")
+        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -715,15 +763,18 @@ class GlycanComponent(MassPropertyMixin):
             return mass * self.occurance
 
     def get_composition(self) -> Counter[ElementInfo]:
+        # Must multiply by occurance to match get_mass (e.g. Glycan:Hex3 is three Hex units).
         if isinstance(self.monosaccharide, ChargedFormula):
             composition = self.monosaccharide.get_composition()
-            return composition
         else:
             monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(self.monosaccharide)
-            composition = monosaccharide.composition
-            if composition is None:
+            comp = monosaccharide.composition
+            if comp is None:
                 raise ValueError(f"Unknown composition for monosaccharide: {self.monosaccharide}")
-            return Counter(composition)
+            composition = Counter(comp)
+        if self.occurance != 1:
+            composition = Counter({element: count * self.occurance for element, count in composition.items()})
+        return composition
 
     def get_charge(self) -> int | None:
         return None
@@ -930,7 +981,11 @@ class IsotopeReplacement(MassPropertyMixin):
 
 @dataclass(frozen=True)
 class GlobalChargeCarrier(MassPropertyMixin):
-    """A charge carrier specification like 'Formula:Na:z+1' or 'Formula:H:z+1^2'"""
+    """A charge carrier specification, a bare charged formula like 'Na:z+1' or 'H:z+1^2'.
+
+    Per ProForma 2.1 section 11.5 charge carriers are written without a ``Formula:`` prefix
+    (that prefix is only used for localised residue modifications).
+    """
 
     charged_formula: ChargedFormula
     occurance: int
@@ -978,7 +1033,23 @@ class GlobalChargeCarrier(MassPropertyMixin):
 
     def to_mz_paf(self) -> str:
         """Convert to mzPAF format string."""
-        return f"M{self.charged_formula.to_mz_paf()}"
+        # mzPAF adduct notation (spec section 4.7) prefixes a repeated adduct with its
+        # count, e.g. "[M+2Na]" for two sodium atoms; a count of 1 is omitted. This is
+        # self.occurance -- how many instances of this charge carrier are present --
+        # not to be confused with a count baked into charged_formula's own elements.
+        #
+        # The +/- direction of the adduct is the combination of TWO signs: the charged
+        # formula's own sign (e.g. a removed proton is stored as "H-1", serialized "-H")
+        # and the sign of occurance (a negative occurance, e.g. charged_proton(-2) for a
+        # doubly deprotonated ion, flips the direction). Deriving the sign purely from the
+        # formula and pasting str(occurance) after it produced malformed output like
+        # "M+-2H"; XOR-ing the two signs and using the magnitude gives "M-2H".
+        paf_formula = self.charged_formula.to_mz_paf()
+        formula_sign, rest = paf_formula[0], paf_formula[1:]
+        negative = (formula_sign == "-") ^ (self.occurance < 0)
+        count = abs(self.occurance)
+        count_str = str(count) if count != 1 else ""
+        return f"M{'-' if negative else '+'}{count_str}{rest}"
 
     @property
     def is_protonated(self) -> bool:
@@ -1321,7 +1392,7 @@ class SequenceElement(MassPropertyMixin):
 
         total_composition = Counter(composition)
         if self.modifications:
-            total_composition += merge_compositions(self.modifications)
+            add_composition(total_composition, merge_compositions(self.modifications))
 
         return total_composition
 

@@ -223,7 +223,7 @@ def chem_formula(
     reuse_pool: bool = True,
 ) -> str | list[str]:
     """Generate a chemical formula string from an elemental composition or list of compositions."""
-    if isinstance(comp, Sequence):
+    if isinstance(comp, Sequence) and not isinstance(comp, str):
         return parallel_apply_internal(
             _chem_formula_single,
             comp,

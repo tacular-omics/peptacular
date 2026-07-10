@@ -136,7 +136,7 @@ mass and composition data.
 
 **Validation**
 
-By default, parsing does not validate inputs. This allows for users to potenitally create annotations
+By default, parsing does not validate inputs. This allows users to potentially create annotations
 with invalid modifications/sequences. If you need strict validation:
 
 .. code-block:: python

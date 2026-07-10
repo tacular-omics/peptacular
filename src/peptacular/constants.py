@@ -43,6 +43,7 @@ CV_TO_MASS_PREFIX: Final[dict[CV, str]] = {
     CV.RESID: "R:",
     CV.GNOME: "G:",
     CV.XL_MOD: "X:",
+    CV.CUSTOM: "C:",
     CV.OBSERVED: "Obs:",
 }
 

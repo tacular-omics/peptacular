@@ -49,3 +49,20 @@ def test_convert_mod_input_other():
         pass
 
     assert convert_moddict_input(SomeObj()) == {}
+
+
+def test_convert_mod_input_strips_whitespace_before_interning():
+    # Differently-padded-but-equivalent inputs must collapse onto the same
+    # interned string so peptides sharing a modification actually share memory
+    # and the downstream parser's @lru_cache, instead of each paying for its
+    # own copy and its own cache miss.
+    padded = convert_moddict_input("  Oxidation  ")
+    clean = convert_moddict_input("Oxidation")
+    assert padded == clean == {"Oxidation": 1}
+    assert next(iter(padded)) is next(iter(clean))
+
+    padded_dict = convert_moddict_input({"  Phospho  ": 2})
+    assert padded_dict == {"Phospho": 2}
+
+    padded_iterable = convert_moddict_input(["  Oxidation  ", "Oxidation"])
+    assert padded_iterable == {"Oxidation": 2}

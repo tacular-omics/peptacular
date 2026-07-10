@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Peptacular is a ProForma 2.1 compliant Python library (v3.0.0) for peptide sequence parsing and annotation. It is in active JOSS submission. The main public API is `peptacular` (imported as `pt`), built on top of the `tacular` package.
+Peptacular is a ProForma 2.1 compliant Python library for peptide sequence parsing and annotation. It is in active JOSS submission. The main public API is `peptacular` (imported as `pt`), built on top of the `tacular` package. Check `src/peptacular/__init__.py`'s `__version__` for the current version.
 
 Key entry points:
 - `pt.parse(seq)` → returns a `ProFormaAnnotation` object (OOP API)

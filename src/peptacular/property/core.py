@@ -566,28 +566,19 @@ def generate_partitions(
                 end = min(seq_len, start + window_size)
                 window_positions.append((start, end))
         else:
-            # Windows don't fit - need to compress
-            # Use floating point arithmetic for better distribution
-            effective_step = (seq_len - window_size) / max(1, (num_windows - 1))
-
+            # Windows don't fit using the requested aa_overlap for every gap (the ideal
+            # step_size would run past the end of the sequence). Use the exact requested
+            # step_size for every window boundary, so aa_overlap is honored everywhere it
+            # can be; any window whose ideal start would run past the end (not just the
+            # last one — with enough windows requested, interior windows can overrun too)
+            # is pulled left just enough to end exactly at the sequence's end, mirroring
+            # the num_windows == 2 case above. window_size is already clamped to <= seq_len
+            # at this point, so max(0, seq_len - window_size) is always a valid start.
+            # A previous version only clamped the last window, which left interior windows
+            # free to start past the sequence end and produce a phantom empty window.
             for i in range(num_windows):
-                if i == 0:
-                    # First window starts at 0
-                    start = 0
-                    end = min(window_size, seq_len)
-                elif i == num_windows - 1:
-                    # Last window ends at sequence end
-                    end = seq_len
-                    start = max(0, end - window_size)
-                else:
-                    # Middle windows
-                    ideal_start = i * effective_step
-                    start = int(ideal_start)
-                    end = min(seq_len, start + window_size)
-
-                # Ensure valid window
-                if end <= start:
-                    end = min(seq_len, start + 1)
+                start = min(i * step_size, max(0, seq_len - window_size))
+                end = min(seq_len, start + window_size)
 
                 window_positions.append((start, end))
 
