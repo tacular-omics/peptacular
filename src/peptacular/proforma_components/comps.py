@@ -1392,7 +1392,7 @@ class SequenceElement(MassPropertyMixin):
 
         total_composition = Counter(composition)
         if self.modifications:
-            total_composition += merge_compositions(self.modifications)
+            add_composition(total_composition, merge_compositions(self.modifications))
 
         return total_composition
 

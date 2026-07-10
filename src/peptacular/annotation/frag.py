@@ -339,6 +339,12 @@ class Fragment:
             adduct_parts: list[str] = []
             for mod in self.charge_adducts.mods:
                 carrier: GlobalChargeCarrier = mod.value
+                # A repeated carrier is tallied into mod.count (e.g. two 'Na:z+1' list
+                # entries -> count=2), so fold that into the carrier's own occurance;
+                # otherwise the mzPAF repeat-count prefix would show only one copy while
+                # the mass/charge (which scale by mod.count) show all of them.
+                if mod.count != 1:
+                    carrier = GlobalChargeCarrier(charged_formula=carrier.charged_formula, occurance=carrier.occurance * mod.count)
                 # to_mz_paf() returns "M+Na", we strip the "M" prefix
                 paf_str = carrier.to_mz_paf()
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
@@ -412,7 +418,7 @@ class Fragment:
             start, end = pos
             return (
                 ProFormaAnnotation.parse(self.parent_sequence)[slice(start, end)]
-                .set_charge(self.charge_state if self._charge_adducts is None else self.charge_adducts)
+                .set_charge(self.external_charge if self._charge_adducts is None else self.charge_adducts)
                 .serialize()
             )
 

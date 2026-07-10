@@ -61,7 +61,7 @@ def adjust_mass_mz(
     if all(m.value.is_protonated for m in charge.mods):
         adducts = None
     else:
-        adducts = tuple(m for m in charge._mods.keys()) if charge._mods else None
+        adducts = tuple(key for key, count in charge._mods.items() for _ in range(count)) if charge._mods else None
 
     return Fragment(
         ion_type=ion_info.ion_type,
@@ -143,7 +143,7 @@ def adjust_comp(
     if all(m.value.is_protonated for m in charge.mods):
         adducts = None
     else:
-        adducts = tuple(m for m in charge._mods.keys()) if charge._mods else None
+        adducts = tuple(key for key, count in charge._mods.items() for _ in range(count)) if charge._mods else None
 
     return Fragment(
         ion_type=ion_info.ion_type,

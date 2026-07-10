@@ -919,6 +919,16 @@ class TestSequenceElement:
         assert se.get_composition() != unmodified.get_composition()
         assert se.get_mass() > unmodified.get_mass()
 
+    def test_get_composition_preserves_atom_removing_modification(self) -> None:
+        # An atom-removing mod (Formula:O-1) must reduce the element count, not vanish.
+        # Regression: get_composition merged mods with Counter '+=', which drops any entry
+        # whose resulting count is <= 0 and silently kept the removed atom.
+        se = SequenceElement.from_string("N[Formula:O-1]")
+        unmodified = SequenceElement(amino_acid=AminoAcid.N)
+        oxygen = ELEMENT_LOOKUP["O"]
+        assert se.get_composition()[oxygen] == unmodified.get_composition()[oxygen] - 1
+        assert se.get_mass() < unmodified.get_mass()
+
     def test_from_string_serialize_round_trip(self) -> None:
         se = SequenceElement.from_string("M[Oxidation]")
         assert se.serialize() == "M[Oxidation]"

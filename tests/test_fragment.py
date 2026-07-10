@@ -934,5 +934,49 @@ class TestFragmentMzPAF(unittest.TestCase):
         self.assertAlmostEqual(frag_pos.mz - frag_neg.mz, 2 * 1.007276, places=4)
 
 
+class TestFragmentRepeatedAdducts(unittest.TestCase):
+    """Repeated charge carriers must keep their occurrence count through the fragment."""
+
+    def test_two_sodium_carriers_not_collapsed(self):
+        # Two 'Na:z+1' list entries are one carrier repeated twice; the count must not be
+        # dropped when rebuilding the fragment's adduct tuple (regression: adjust_mass_mz
+        # / adjust_comp built the tuple from _mods.keys(), collapsing it to a single Na).
+        frag = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        self.assertEqual(frag.charge_adducts.serialize(), "[Na:z+1,Na:z+1]")
+        # Only one Na would leave neutral_mass off by a full sodium mass (~822 vs ~799).
+        self.assertAlmostEqual(frag.neutral_mass, 799.35996, places=4)
+
+    def test_two_sodium_carriers_mzpaf(self):
+        # mzPAF must fold the repeat count into the adduct prefix: [M+2Na], not [M+Na].
+        frag = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "p[M+2Na]^2")
+
+    def test_repeated_list_matches_occurance_syntax(self):
+        # ['Na:z+1','Na:z+1'] (count=2) and 'Na:z+1^2' (occurance=2) are the same species.
+        frag_list = pt.parse("PEPTIDE").frag("p", charge=["Na:z+1", "Na:z+1"])
+        frag_occ = pt.parse("PEPTIDE").frag("p", charge="Na:z+1^2")
+        self.assertEqual(frag_list.to_mzpaf(include_sequence=False), frag_occ.to_mzpaf(include_sequence=False))
+        self.assertAlmostEqual(frag_list.neutral_mass, frag_occ.neutral_mass, places=6)
+
+    def test_mixed_adducts_sorted_with_counts(self):
+        # Alphabetical ordering (mzPAF 4.7) with a repeated proton: [M+2H+Na].
+        frag = pt.parse("PEPTIDE").frag("p", charge=["H:z+1", "H:z+1", "Na:z+1"])
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "p[M+2H+Na]^3")
+
+
+class TestFragmentSequenceInternalCharge(unittest.TestCase):
+    """Fragment.sequence must emit external charge, not charge_state (which includes internal)."""
+
+    def test_sequence_uses_external_charge(self):
+        # b2 carries external_charge=1 (one proton) plus an internal +1 formula charge.
+        # Fragment.sequence must serialize /1 (external), not /2 (regression: it used
+        # charge_state and double-counted the internal formula charge).
+        frags = pt.parse("PE[Formula:CH2:z+1]PTIDE").set_charge(1).fragment(ion_types="b", charges=[1])
+        b2 = next(f for f in frags if f.position == 2)
+        self.assertEqual(b2.external_charge, 1)
+        self.assertEqual(b2.charge_state, 2)
+        self.assertEqual(b2.sequence, "PE[Formula:CH2:z+1]/1")
+
+
 if __name__ == "__main__":
     unittest.main()
