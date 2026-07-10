@@ -68,12 +68,24 @@ class Fragment:
         composition: Mapping[ElementInfo, int] | None = None,
         parent_sequence: str | None = None,
         parent_sequence_length: int | None = None,
+        chain_index: int | None = None,
+        cross_link_series: str | None = None,
+        extra_composition: Mapping[ElementInfo, int] | None = None,
     ) -> None:
         self.ion_type: IonType = ion_type
         self.position: int | tuple[int, int] | None = position
         self.mass: int | float = mass
         self.monoisotopic: bool = monoisotopic
         self.charge_state: int = charge_state
+        # Cross-link provenance (set by MultiProFormaAnnotation.fragment): which chain this
+        # fragment came from, and which cross-link series it belongs to
+        # ("linear", "cleavable" or "non_cleavable"). None for ordinary single-peptide fragments.
+        self.chain_index: int | None = chain_index
+        self.cross_link_series: str | None = cross_link_series
+        # Extra neutral composition folded into this fragment on top of its own slice — used by
+        # non-cleavable cross-link fragments to carry the intact partner chain(s). `mass` already
+        # includes the corresponding extra mass; this keeps `composition` consistent lazily.
+        self._extra_composition: Counter[ElementInfo] | None = Counter(extra_composition) if extra_composition is not None else None
         # If None and charge_state != 0: means protonated
         self._charge_adducts: tuple[str, ...] | None = charge_adducts
         # The portion of charge_state that comes from real external adducts/charge carriers,
@@ -94,24 +106,52 @@ class Fragment:
     @property
     def composition(self) -> Counter[ElementInfo] | None:
         if self._composition is not None:
-            return self._composition
+            base = self._composition
+        else:
+            if self.parent_sequence is None:
+                raise ValueError("Cannot calculate composition without parent sequence or explicit composition")
 
-        if self.parent_sequence is None:
-            raise ValueError("Cannot calculate composition without parent sequence or explicit composition")
+            if self.parent_sequence_length is None:
+                raise ValueError("Cannot calculate composition without parent sequence length")
 
-        if self.parent_sequence_length is None:
-            raise ValueError("Cannot calculate composition without parent sequence length")
+            from .annotation import ProFormaAnnotation
 
-        from .annotation import ProFormaAnnotation
+            annot = ProFormaAnnotation.parse_single(self.parent_sequence)
 
-        annot = ProFormaAnnotation.parse_single(self.parent_sequence)
+            pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
+            if pos is not None:
+                start, end = pos
+                annot = annot[slice(start, end)]
 
-        pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
-        if pos is not None:
-            start, end = pos
-            annot = annot[slice(start, end)]
+            base = annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.external_charge if self._charge_adducts is None else self.charge_adducts)  # type: ignore
 
-        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.external_charge if self._charge_adducts is None else self.charge_adducts)  # type: ignore
+        if self._extra_composition is not None and base is not None:
+            # Fold in any partner-chain composition carried by a non-cleavable cross-link fragment.
+            combined: Counter[ElementInfo] = Counter(base)
+            combined.update(self._extra_composition)
+            return combined
+        return base
+
+    def copy(self) -> "Fragment":
+        """Return a shallow copy of this fragment (same ion, mass and provenance)."""
+        clone = Fragment(
+            ion_type=self.ion_type,
+            position=self.position,
+            mass=self.mass,
+            monoisotopic=self.monoisotopic,
+            charge_state=self.charge_state,
+            charge_adducts=self._charge_adducts,
+            external_charge=self.external_charge,
+            isotopes=self._isotopes,
+            deltas=self._losses,
+            composition=self._composition,
+            parent_sequence=self.parent_sequence,
+            parent_sequence_length=self.parent_sequence_length,
+            chain_index=self.chain_index,
+            cross_link_series=self.cross_link_series,
+        )
+        clone._extra_composition = Counter(self._extra_composition) if self._extra_composition is not None else None
+        return clone
 
     @property
     def mz(self) -> float:

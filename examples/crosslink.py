@@ -68,6 +68,24 @@ def run():
     except ValueError as e:
         print(f"Rejected: {e}")
 
+    # ============================================================================
+    # FRAGMENTATION (cleavable / non-cleavable / both)
+    # ============================================================================
+
+    print("\n" + "=" * 60)
+    print("FRAGMENTATION")
+    print("=" * 60)
+
+    # The cross_link_mode setting controls how the linker behaves:
+    #   cleavable     - linker breaks; each chain fragments independently
+    #   non_cleavable - linker survives; link-spanning fragments carry the partner chain
+    #   both          - the union of the two
+    for mode in ("cleavable", "non_cleavable", "both"):
+        frags = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode=mode)
+        print(f"\nmode={mode}: {len(frags)} fragments")
+        for f in frags[:4]:
+            print(f"  chain{f.chain_index} {f.cross_link_series:13s} {f.ion_type.name:2s} pos={f.position} mass={f.mass:.3f}")
+
 
 if __name__ == "__main__":
     run()

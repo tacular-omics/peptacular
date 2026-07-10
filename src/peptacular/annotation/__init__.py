@@ -7,6 +7,7 @@ which is accessible via the annot.prop attribute.
 
 from .annotation import (
     AnnotationProperties,
+    CrossLinkFragmentMode,
     MultiProFormaAnnotation,
     ProFormaAnnotation,
     validate_crosslink_labels,
@@ -19,6 +20,7 @@ __all__ = [
     "Interval",
     "ProFormaAnnotation",
     "MultiProFormaAnnotation",
+    "CrossLinkFragmentMode",
     "AnnotationProperties",
     "validate_crosslink_labels",
     "Mod",

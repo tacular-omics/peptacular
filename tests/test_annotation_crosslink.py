@@ -160,10 +160,81 @@ class TestValidation:
 
 
 class TestFragmentation:
-    def test_fragment_not_supported(self):
+    def test_returns_fragments_tagged_with_provenance(self):
         ion = pt.parse(INTERCHAIN)
-        with pytest.raises(NotImplementedError, match="not yet supported"):
-            ion.fragment()
+        frags = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="cleavable")
+        assert frags
+        # Every fragment records which chain it came from and its cross-link series.
+        assert all(f.chain_index in (0, 1) for f in frags)
+        assert all(f.cross_link_series in ("linear", "cleavable") for f in frags)
+
+    def test_cleavable_matches_independent_chain_fragmentation(self):
+        # In cleavable mode each chain fragments as a plain linear peptide, so masses match
+        # fragmenting the chains directly.
+        ion = pt.parse(INTERCHAIN)
+        frags = ion.fragment(ion_types=["b"], charges=[1], cross_link_mode="cleavable")
+        chain0_direct = ion[0].set_charge(ion.charge).fragment(ion_types=["b"], charges=[1])
+        by_pos = {f.position: f.mass for f in frags if f.chain_index == 0}
+        for d in chain0_direct:
+            assert math.isclose(by_pos[d.position], d.mass, rel_tol=1e-9)
+
+    def test_non_cleavable_link_fragment_carries_partner_mass(self):
+        ion = pt.parse(INTERCHAIN)
+        cl = {(f.chain_index, f.ion_type.name, f.position): f for f in ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="cleavable")}
+        nc = {(f.chain_index, f.ion_type.name, f.position): f for f in ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="non_cleavable")}
+        partner_mass = ion[1].mass(charge=0)  # chain 0's link fragments carry intact chain 1
+        # chain 0 b4 spans the link site (K at index 3).
+        key = (0, "B", 4)
+        assert nc[key].cross_link_series == "non_cleavable"
+        assert math.isclose(nc[key].mass - cl[key].mass, partner_mass, abs_tol=1e-3)
+
+    def test_non_cleavable_full_length_fragments_reconstruct_whole_ion(self):
+        # The full-length link-spanning b-ion of either chain equals the whole ion's mass.
+        ion = pt.parse(INTERCHAIN)
+        nc = ion.fragment(ion_types=["b"], charges=[1], cross_link_mode="non_cleavable")
+        full0 = next(f for f in nc if f.chain_index == 0 and f.position == len(ion[0]))
+        full1 = next(f for f in nc if f.chain_index == 1 and f.position == len(ion[1]))
+        assert math.isclose(full0.mass, full1.mass, abs_tol=1e-3)
+
+    def test_both_is_union_of_cleavable_and_non_cleavable(self):
+        ion = pt.parse(INTERCHAIN)
+        cl = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="cleavable")
+        both = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="both")
+        n_linear = sum(1 for f in cl if f.cross_link_series == "linear")
+        n_span = sum(1 for f in cl if f.cross_link_series == "cleavable")
+        # both = linear (once) + spanning fragments in each of the two series.
+        assert len(both) == n_linear + 2 * n_span
+
+    def test_non_cleavable_composition_consistent_with_mass(self):
+        # Uses the eager composition path (calculate_composition=True), which is charge/ion-type aware.
+        ion = pt.parse(INTERCHAIN)
+        nc = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="non_cleavable", calculate_composition=True)
+        for f in nc:
+            if f.cross_link_series == "non_cleavable":
+                comp_mass = sum(el.get_mass() * n for el, n in f.composition.items())
+                assert math.isclose(comp_mass, f.mass, abs_tol=1e-2)
+
+    def test_intra_chain_loop_suppressed_in_non_cleavable(self):
+        # A single-chain ion whose two link ends sit on the same chain (K at index 3 and 6).
+        loop = MultiProFormaAnnotation.parse("EVTK[XLMOD:02001#XL1]LEK[#XL1]SEFD/2")
+        cl = loop.fragment(ion_types=["b"], charges=[1], cross_link_mode="cleavable")
+        nc = loop.fragment(ion_types=["b"], charges=[1], cross_link_mode="non_cleavable")
+        # b4/b5/b6 cover one link end but not the other -> loop-breaking -> dropped in non-cleavable.
+        cl_pos = {f.position for f in cl}
+        nc_pos = {f.position for f in nc}
+        assert {4, 5, 6} <= cl_pos
+        assert cl_pos - nc_pos == {4, 5, 6}
+
+    def test_internal_ion_type_rejected(self):
+        ion = pt.parse(INTERCHAIN)
+        with pytest.raises(ValueError, match="forward/backward"):
+            ion.fragment(ion_types=["by"], charges=[1])
+
+    def test_mode_default_is_both(self):
+        ion = pt.parse(INTERCHAIN)
+        default = ion.fragment(ion_types=["b", "y"], charges=[1])
+        both = ion.fragment(ion_types=["b", "y"], charges=[1], cross_link_mode="both")
+        assert len(default) == len(both)
 
 
 class TestContainerBehavior:

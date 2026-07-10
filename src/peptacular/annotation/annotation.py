@@ -6,7 +6,7 @@ from enum import StrEnum
 from itertools import product
 from typing import (
     Any,
-    NoReturn,
+    Literal,
     Self,
     cast,
 )
@@ -4999,6 +4999,57 @@ def validate_crosslink_labels(chains: Sequence[ProFormaAnnotation]) -> list[str]
     return errors
 
 
+def _crosslink_sites(chains: Sequence[ProFormaAnnotation]) -> dict[str, list[tuple[int, int]]]:
+    """Map each cross-link label to the ``(chain_index, residue_index)`` sites carrying it.
+
+    N-terminal cross-links map to residue index ``0`` and C-terminal ones to the last residue.
+
+    :param chains: The chains of a peptidoform ion.
+    :type chains: Sequence[ProFormaAnnotation]
+    :return: Label-to-sites mapping.
+    :rtype: dict[str, list[tuple[int, int]]]
+    """
+    sites: dict[str, list[tuple[int, int]]] = {}
+
+    def _record(mod_str: str, count: int, chain_idx: int, res_idx: int) -> None:
+        res = _classify_crosslink_ref(mod_str, count)
+        if res is not None:
+            sites.setdefault(res[0], []).append((chain_idx, res_idx))
+
+    for chain_idx, chain in enumerate(chains):
+        if chain._internal_mods:
+            for res_idx, pos_mods in chain._internal_mods.items():
+                for mod_str, count in pos_mods.items():
+                    _record(mod_str, count, chain_idx, res_idx)
+        if chain._nterm_mods:
+            for mod_str, count in chain._nterm_mods.items():
+                _record(mod_str, count, chain_idx, 0)
+        if chain._cterm_mods:
+            last = max(len(chain) - 1, 0)
+            for mod_str, count in chain._cterm_mods.items():
+                _record(mod_str, count, chain_idx, last)
+    return sites
+
+
+class CrossLinkFragmentMode(StrEnum):
+    """How a cross-linker behaves during fragmentation of a :class:`MultiProFormaAnnotation`.
+
+    - ``CLEAVABLE``: the cross-linker breaks apart, so each chain fragments independently as a
+      plain linear peptide (the linker mass rides on whichever residue defines it).
+    - ``NON_CLEAVABLE``: the cross-linker survives, so a backbone fragment that spans a link
+      site drags the intact partner chain(s) along with it; fragments that would sever an
+      intra-chain loop are suppressed.
+    - ``BOTH``: emit both fragment sets (the union).
+    """
+
+    CLEAVABLE = "cleavable"
+    NON_CLEAVABLE = "non_cleavable"
+    BOTH = "both"
+
+
+CROSS_LINK_MODE_TYPE = CrossLinkFragmentMode | Literal["cleavable", "non_cleavable", "both"]
+
+
 class MultiProFormaAnnotation:
     """A cross-linked peptidoform ion: peptide chains joined by ``//`` sharing one charge.
 
@@ -5013,7 +5064,9 @@ class MultiProFormaAnnotation:
     the bare back-reference (``K[#XL1]``) contributes zero, so a plain per-chain sum is
     correct.
 
-    Fragmentation of cross-linked ions is not yet supported and raises ``NotImplementedError``.
+    :meth:`fragment` generates backbone fragments across the chains; a ``cross_link_mode``
+    setting (cleavable / non-cleavable / both) controls how the cross-linker affects
+    link-spanning fragments.
     """
 
     __slots__ = ("chains", "_charge_holder", "compound_name")
@@ -5181,14 +5234,170 @@ class MultiProFormaAnnotation:
             add_composition(total, chain.comp(charge=chain_charge))
         return total
 
-    def fragment(self, *args: Any, **kwargs: Any) -> NoReturn:
-        """Fragmentation of cross-linked peptidoform ions is not yet supported.
+    def _classify_fragment(
+        self,
+        chain_index: int,
+        covered: frozenset[int],
+        label_sites: dict[str, list[tuple[int, int]]],
+    ) -> tuple[bool, set[int], bool]:
+        """Classify one backbone fragment of a chain with respect to the cross-links.
 
-        :raises NotImplementedError: Always.
+        :param chain_index: Index of the chain this fragment belongs to.
+        :type chain_index: int
+        :param covered: Residue indices of ``chain_index`` contained in the fragment.
+        :type covered: frozenset[int]
+        :param label_sites: Output of :func:`_crosslink_sites`.
+        :type label_sites: dict[str, list[tuple[int, int]]]
+        :return: ``(mode_dependent, partner_chains, loop_broken)`` where ``mode_dependent`` is
+            ``True`` when the fragment's mass/existence differs between cleavable and
+            non-cleavable modes, ``partner_chains`` are the chains a non-cleavable fragment must
+            carry, and ``loop_broken`` is ``True`` when a non-cleavable fragment severs an
+            intra-chain loop (and so must be suppressed).
+        :rtype: tuple[bool, set[int], bool]
         """
-        raise NotImplementedError(
-            "Fragmentation of cross-linked peptidoform ions is not yet supported. Fragment the individual chains via `.chains` if you need per-chain ladders."
-        )
+        mode_dependent = False
+        partner_chains: set[int] = set()
+        loop_broken = False
+        for occ in label_sites.values():
+            covered_here = [(ci, ri) for (ci, ri) in occ if ci == chain_index and ri in covered]
+            if not covered_here:
+                continue  # this fragment does not touch this cross-link
+            other_ends = [(ci, ri) for (ci, ri) in occ if not (ci == chain_index and ri in covered)]
+            other_chain_ends = [(ci, ri) for (ci, ri) in other_ends if ci != chain_index]
+            same_chain_uncovered = [(ci, ri) for (ci, ri) in other_ends if ci == chain_index]
+            if other_chain_ends:
+                # Inter-chain: a non-cleavable fragment carries the partner chain(s).
+                mode_dependent = True
+                partner_chains.update(ci for ci, _ in other_chain_ends)
+            if same_chain_uncovered:
+                # Intra-chain loop with only one end inside the fragment.
+                mode_dependent = True
+                loop_broken = True
+        return mode_dependent, partner_chains, loop_broken
+
+    def fragment(
+        self,
+        ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+        charges: Sequence[CHARGE_TYPE] | None = None,
+        monoisotopic: bool = True,
+        *,
+        cross_link_mode: CROSS_LINK_MODE_TYPE = CrossLinkFragmentMode.BOTH,
+        isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+        deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
+        neutral_deltas: Sequence[LOSS_TYPE] = (),
+        calculate_composition: bool = False,
+        max_ndeltas: int = 1,
+        min_length: int | None = None,
+        max_length: int | None = None,
+    ) -> list[Fragment]:
+        """Generate backbone fragment ions for this cross-linked peptidoform ion.
+
+        Each chain is fragmented with the ordinary single-peptide engine; how the cross-linker
+        affects a link-spanning fragment is controlled entirely by ``cross_link_mode`` (no linker
+        chemistry is assumed — all masses come from the cross-linker mass peptacular already
+        computes):
+
+        - ``"cleavable"``: the linker breaks, so every chain fragments independently.
+        - ``"non_cleavable"``: a fragment spanning a link site carries the intact partner
+          chain(s); fragments that would sever an intra-chain loop are suppressed.
+        - ``"both"``: the union of the two.
+
+        Returned fragments carry ``chain_index`` and ``cross_link_series`` (``"linear"``,
+        ``"cleavable"`` or ``"non_cleavable"``) so the series can be told apart. The shared charge
+        is distributed to each chain's fragments; the intact partner mass a non-cleavable fragment
+        carries is neutral.
+
+        :param ion_types: Fragment ion series to generate.
+        :type ion_types: Sequence[ION_TYPE]
+        :param charges: Charge states for the fragments; defaults to the ion's charge range.
+        :type charges: Sequence[CHARGE_TYPE] | None
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses otherwise.
+        :type monoisotopic: bool
+        :param cross_link_mode: Cross-linker fragmentation behaviour (see above).
+        :type cross_link_mode: CROSS_LINK_MODE_TYPE
+        :param isotopes: Isotope offsets to apply per fragment.
+        :type isotopes: Sequence[ISOTOPE_TYPE | None]
+        :param deltas: Custom mass deltas to apply per fragment.
+        :type deltas: Sequence[CUSTOM_LOSS_TYPE | None]
+        :param neutral_deltas: Neutral losses to enumerate per fragment.
+        :type neutral_deltas: Sequence[LOSS_TYPE]
+        :param calculate_composition: Compute elemental composition for each fragment.
+        :type calculate_composition: bool
+        :param max_ndeltas: Maximum number of neutral-loss sites to combine.
+        :type max_ndeltas: int
+        :param min_length: Minimum fragment length to emit.
+        :type min_length: int | None
+        :param max_length: Maximum fragment length to emit.
+        :type max_length: int | None
+        :return: The generated fragments across all chains.
+        :rtype: list[Fragment]
+        :raises ValueError: If cross-link labels are malformed, or an internal/immonium ion type
+            is requested (only forward/backward backbone ions are supported for cross-linked ions).
+        """
+        # Cross-link accounting is only meaningful once the label pairing is well-formed.
+        self.validate_crosslinks()
+        mode = CrossLinkFragmentMode(cross_link_mode)
+
+        for ion in ion_types:
+            ion_info = FRAGMENT_ION_LOOKUP[IonType(ion)]
+            if ion_info.is_internal or ion_info.ion_type == IonType.IMMONIUM:
+                raise ValueError(
+                    f"Cross-linked fragmentation supports only forward/backward backbone ions; got '{IonType(ion).name}'. "
+                    "Fragment the individual chains via `.chains` for internal or immonium ions."
+                )
+
+        label_sites = _crosslink_sites(self.chains)
+        # The shared charge is applied per chain by the single-peptide engine below.
+        holder_charge = self._charge_holder.charge
+        eff_charges = charges if charges is not None else self._charge_holder._default_fragment_charges(self.charge_state)
+
+        results: list[Fragment] = []
+        for c_idx, chain in enumerate(self.chains):
+            charged_chain = chain.set_charge(holder_charge, inplace=False)
+            base_frags = charged_chain.fragment(
+                ion_types=ion_types,
+                charges=eff_charges,
+                monoisotopic=monoisotopic,
+                isotopes=isotopes,
+                deltas=deltas,
+                neutral_deltas=neutral_deltas,
+                calculate_composition=calculate_composition,
+                max_ndeltas=max_ndeltas,
+                min_length=min_length,
+                max_length=max_length,
+            )
+
+            chain_len = len(chain)
+            for frag in base_frags:
+                frag.chain_index = c_idx
+                pos = validate_position(frag.ion_type, frag.position, chain_len)
+                covered = frozenset(range(pos[0], pos[1])) if pos is not None else frozenset(range(chain_len))
+                mode_dependent, partner_chains, loop_broken = self._classify_fragment(c_idx, covered, label_sites)
+
+                if not mode_dependent:
+                    # Linker-independent fragment: identical in both modes, emit once.
+                    frag.cross_link_series = "linear"
+                    results.append(frag)
+                    continue
+
+                if mode in (CrossLinkFragmentMode.CLEAVABLE, CrossLinkFragmentMode.BOTH):
+                    cleaved = frag.copy()
+                    cleaved.cross_link_series = "cleavable"
+                    results.append(cleaved)
+
+                if mode in (CrossLinkFragmentMode.NON_CLEAVABLE, CrossLinkFragmentMode.BOTH) and not loop_broken:
+                    intact = frag.copy()
+                    intact.cross_link_series = "non_cleavable"
+                    partner_mass = sum(self.chains[pc].mass(charge=0, monoisotopic=monoisotopic) for pc in partner_chains)
+                    intact.mass = frag.mass + partner_mass
+                    if partner_chains:
+                        partner_comp: Counter[ElementInfo] = Counter()
+                        for pc in partner_chains:
+                            add_composition(partner_comp, self.chains[pc].comp(charge=0))
+                        intact._extra_composition = partner_comp
+                    results.append(intact)
+
+        return results
 
     def serialize(self, exclude_charge: bool = False) -> str:
         """Serialise this ion to a ProForma string (chains joined by ``//``).

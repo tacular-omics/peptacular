@@ -45,7 +45,8 @@
   joined by `//` sharing one charge); intra-chain cross-links remain a single
   `ProFormaAnnotation`. Mass, m/z, composition and round-trip serialization are
   supported, and cross-link label pairing is validated with `validate=True`.
-  Fragmentation of cross-linked ions is not yet supported.
+  Fragmentation is supported via `MultiProFormaAnnotation.fragment(cross_link_mode=...)`
+  with a cleavable / non-cleavable / both setting.
 
 ## 5.3.5 Level 2-ProForma + Glycans
 
