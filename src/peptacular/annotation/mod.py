@@ -11,6 +11,7 @@ from ..constants import ModType
 from ..proforma_components import (
     FixedModification,
     GlobalChargeCarrier,
+    GlycanTag,
     IsotopeReplacement,
     MassPropertyMixin,
     ModificationTags,
@@ -193,8 +194,20 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                 # (e.g. Amidated's ``O:-1``) survive; Counter's ``+=`` would drop them.
                 add_composition(total_composition, mod.get_composition())
             except ValueError as e:
-                if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
+                first_tag = mod.value.first_tag if isinstance(mod.value, ModificationTags) else None
+                if isinstance(first_tag, TagMass):
                     total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
+                elif isinstance(first_tag, GlycanTag):
+                    # A glycan may mix components that have a composition (monosaccharides,
+                    # formulas) with bare-mass components ({+203.079}); split the two and route
+                    # the mass part to the delta mass. Scale by the mod's occurrence count to
+                    # match Mod.get_composition/get_mass.
+                    comp, delta = first_tag.get_composition_and_delta_mass(monoisotopic=monoisotopic)
+                    if mod.count != 1:
+                        comp = Counter({element: n * mod.count for element, n in comp.items()})
+                        delta *= mod.count
+                    add_composition(total_composition, comp)
+                    total_delta_mass += delta
                 else:
                     raise ValueError(f"Cannot get composition for mod {mod.value}, and no mass tag found.") from e
         return total_composition, total_delta_mass, total_charge

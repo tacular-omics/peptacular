@@ -2,6 +2,8 @@
 Tests for parsing glycan composition modification tags.
 """
 
+import pytest
+
 import peptacular as pt
 
 
@@ -109,3 +111,105 @@ class TestParseGlycan:
         # This should fail during composition parsing
         with pytest.raises(ValueError):
             parse_glycan("Glycan:")
+
+
+class TestGlycanWhitespace:
+    """ProForma allows optional whitespace between monosaccharide/count tokens."""
+
+    def test_space_separated_components(self):
+        from peptacular.proforma_components.parsers import parse_glycan
+
+        spaced = parse_glycan("Glycan:Hex5 HexNAc4")
+        compact = parse_glycan("Glycan:Hex5HexNAc4")
+        assert spaced == compact
+
+    def test_spaced_and_compact_masses_match(self):
+        assert pt.parse("N[Glycan:Hex5 HexNAc4]").mass() == pt.parse("N[Glycan:Hex5HexNAc4]").mass()
+
+    def test_multiple_and_surrounding_whitespace(self):
+        from peptacular.proforma_components.parsers import parse_glycan
+
+        result = parse_glycan("Glycan: Hex5  HexNAc4  NeuAc2 ")
+        assert [(c.monosaccharide, c.occurance) for c in result] == [
+            (pt.Monosaccharide.Hex, 5),
+            (pt.Monosaccharide.HexNAc, 4),
+            (pt.Monosaccharide.NeuAc, 2),
+        ]
+
+    def test_whitespace_between_name_and_count(self):
+        from peptacular.proforma_components.parsers import parse_glycan
+
+        assert parse_glycan("Glycan:Hex 5") == parse_glycan("Glycan:Hex5")
+
+
+class TestGlycanFormulaAndMassComponents:
+    """ProForma 2.1 §10.2: components not in the named list are given as a molecular
+    formula or monoisotopic mass wrapped in curly braces, intermixed with monosaccharides."""
+
+    SPEC_EXAMPLES = [
+        "SEQUEN[Glycan:{C8H13N1O5}1Hex2]CE",  # molecular formula
+        "SEQUEN[Glycan:{C8H13[15N1]O5}1Hex2]CE",  # isotope-labelled formula
+        "SEQUEN[Glycan:{C8H13N1O5Na1:z+1}1Hex2]CE",  # charged formula (level 3)
+        "SEQUEN[Glycan:{+203.079}1Hex2]CE",  # bare monoisotopic mass
+    ]
+
+    @pytest.mark.parametrize("seq", SPEC_EXAMPLES)
+    def test_spec_examples_round_trip(self, seq):
+        assert pt.parse(seq).serialize() == seq
+
+    @pytest.mark.parametrize("seq", SPEC_EXAMPLES)
+    def test_spec_examples_have_mass(self, seq):
+        assert pt.parse(seq).mass() > 0
+
+    def test_formula_component_equals_named_monosaccharide(self):
+        # {C8H13N1O5} is exactly a HexNAc.
+        formula = pt.parse("N[Glycan:{C8H13N1O5}1]")
+        named = pt.parse("N[Glycan:HexNAc1]")
+        assert abs(formula.mass() - named.mass()) < 1e-6
+        assert dict(formula.comp(charge=0)) == dict(named.comp(charge=0))
+
+    def test_formula_component_composition_resolves(self):
+        # A formula component contributes an elemental composition (unlike a bare mass).
+        comp = pt.parse("N[Glycan:{C8H13N1O5}2]").comp(charge=0)
+        assert sum(comp.values()) > 0
+
+    def test_charged_formula_component_surfaces_charge(self):
+        annot = pt.parse("SEQUEN[Glycan:{C8H13N1O5Na1:z+1}1Hex2]CE")
+        # The +1 from the charged formula component is reflected in the peptide's composition path.
+        assert annot.mass() > 0
+        assert annot.serialize() == "SEQUEN[Glycan:{C8H13N1O5Na1:z+1}1Hex2]CE"
+
+    def test_bare_mass_component_adds_its_mass(self):
+        base = pt.parse("N[Glycan:Hex2]").mass()
+        with_mass = pt.parse("N[Glycan:{+500.0}1Hex2]").mass()
+        assert abs((with_mass - base) - 500.0) < 1e-6
+
+    def test_bare_mass_occurrence_multiplies(self):
+        base = pt.parse("N").mass()
+        assert abs((pt.parse("N[Glycan:{+500.0}2]").mass() - base) - 1000.0) < 1e-6
+
+    def test_bare_mass_component_has_no_composition(self):
+        # Consistent with any bare-mass modification: comp() cannot resolve a pure delta mass.
+        with pytest.raises(ValueError):
+            pt.parse("N[Glycan:{+203.079}1Hex2]").comp()
+
+    def test_mixed_mass_and_monosaccharide_mass_is_additive(self):
+        combined = pt.parse("N[Glycan:{+203.079}1Hex2]").mass()
+        parts = pt.parse("N[Glycan:Hex2]").mass() + 203.079
+        assert abs(combined - parts) < 1e-6
+
+    @pytest.mark.parametrize("value", ["{C8H13N1O5}2", "{C8H13N1O5Na1:z+1}1", "{+203.079}1", "HexNAc4"])
+    def test_component_reserializes_without_formula_prefix(self, value):
+        # The real serializer (not the raw-string echo) must not emit a 'Formula:' prefix
+        # inside the braces, and must re-parse to the same mass.
+        from peptacular.proforma_components.parsers import parse_glycan_component
+
+        gc = parse_glycan_component(value)
+        out = gc.serialize()
+        assert "Formula:" not in out
+        assert abs(parse_glycan_component(out).get_mass() - gc.get_mass()) < 1e-9
+
+    def test_glycan_tag_reserialization_preserves_mass(self):
+        gt = pt.GlycanTag.from_string("Glycan:{C8H13N1O5}1Hex2")
+        reparsed = pt.GlycanTag.from_string("Glycan:" + gt.serialize().split(":", 1)[1])
+        assert abs(reparsed.get_mass() - gt.get_mass()) < 1e-9
