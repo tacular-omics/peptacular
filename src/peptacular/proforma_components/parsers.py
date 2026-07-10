@@ -435,7 +435,10 @@ def parse_modification_tag(mod_str: str) -> "MODIFICATION_TAG_TYPE":
 _GLYCAN_PATTERN = re.compile(r"^Glycan:(.+)$", re.IGNORECASE)
 
 
-# TODO: Support mixed glycan and formulas?  Proforma seems to support this yet Peptacular only allows glycans.
+# Note: ProForma glycan compositions are monosaccharide-only. A chemical formula cannot be
+# embedded in a `Glycan:` value (e.g. `Glycan:Hex1Formula:CH2` is invalid) -- the reference
+# parser rejects it too. Whitespace between monosaccharide/count tokens IS allowed and handled
+# below (e.g. `Glycan:Hex5 HexNAc4`).
 @lru_cache(maxsize=1024)
 def parse_glycan(s: str) -> tuple["GlycanComponent", ...]:
     """
@@ -492,12 +495,22 @@ def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
     i = 0
 
     while i < len(glycan_str):
+        # ProForma allows optional whitespace between monosaccharide/count tokens
+        # (e.g. 'Hex5 HexNAc4'); skip it before matching the next token.
+        if glycan_str[i].isspace():
+            i += 1
+            continue
+
         # Try to match a monosaccharide name
         matched = False
         for mono_name in monosaccharide_names:
             if glycan_str[i:].startswith(mono_name):
                 # Found a match
                 i += len(mono_name)
+
+                # Optional whitespace between the name and its count (e.g. 'Hex 5').
+                while i < len(glycan_str) and glycan_str[i].isspace():
+                    i += 1
 
                 # Parse count
                 count_start = i

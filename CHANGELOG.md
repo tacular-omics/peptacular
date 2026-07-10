@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
+## [Unreleased]
+### Fixed
+- Glycan compositions with whitespace between monosaccharide/count tokens (e.g. `Glycan:Hex5 HexNAc4`) are now parsed instead of raising `Could not parse glycan composition`. ProForma permits optional whitespace in a monosaccharide composition (confirmed against the pyteomics reference, which resolves `Hex5 HexNAc4` to the same composition as `Hex5HexNAc4`); `_parse_glycan_composition` now skips whitespace between tokens and between a name and its count. Formula-mixing inside a glycan (e.g. `Glycan:Hex1Formula:CH2`) remains rejected — it is not valid ProForma (the reference parser rejects it too), correcting a stale TODO that assumed otherwise.
+
 ## [3.1.2]
 ### Changed
 - Bumped the `tacular` dependency floor to `>=1.1.0`, which fixes several upstream data-consistency bugs: isotope-labelled modification compositions (e.g. `UNIMOD:536`, `Label:13C(2)15N(1)`) that dropped their isotope atoms while keeping the correct mass, all 9 internal-fragment-ion mass offsets (previously shifted so the default "by" internal fragment was `-CO` instead of `0`), and two neutral-loss formulas (Formic acid, Formamide) that were parsed with a dropped repeated-element count.
