@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
-## [Unreleased]
+## [3.2.0]
 ### Added
 - Glycan composition components given as a molecular formula or monoisotopic mass in curly braces, intermixed with named monosaccharides (ProForma 2.1 §10.2): `Glycan:{C8H13N1O5}1Hex2` (formula), `Glycan:{C8H13[15N1]O5}1Hex2` (isotope-labelled formula), `Glycan:{C8H13N1O5Na1:z+1}1Hex2` (charged formula, level 3), and `Glycan:{+203.079}1Hex2` (bare mass). Formula/charged-formula components contribute an elemental composition (and charge); a bare-mass component contributes mass and routes through the delta-mass path (so `mass()` works and `comp()` raises the same "cannot calculate composition with delta mass" error as any other bare-mass modification). `GlycanComponent` now accepts `Monosaccharide | ChargedFormula | float` — the previous `NotImplementedError` on a formula component is removed — and serializes formula components as `{...}` (no `Formula:` prefix) and masses as `{+m}`.
 
