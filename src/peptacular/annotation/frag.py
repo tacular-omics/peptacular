@@ -111,7 +111,12 @@ class Fragment:
             start, end = pos
             annot = annot[slice(start, end)]
 
-        return annot.comp(isotopes=self.isotopes, deltas=self.losses, charge=self.external_charge if self._charge_adducts is None else self.charge_adducts)  # type: ignore
+        # Apply this fragment's ion-type offset to the (sliced) sub-sequence. Without it the
+        # composition defaulted to the sub-sequence's *precursor* composition, which is heavier
+        # than the actual fragment by the ion-type offset (e.g. +H2O for a b-ion), disagreeing
+        # with the fragment's own `.mass`. y-ions coincidentally matched (y neutral == precursor).
+        charge = self.external_charge if self._charge_adducts is None else self.charge_adducts
+        return annot.comp(ion_type=self.ion_type, isotopes=self.isotopes, deltas=self.losses, charge=charge)  # type: ignore
 
     @property
     def mz(self) -> float:
