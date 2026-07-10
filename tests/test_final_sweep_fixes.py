@@ -120,10 +120,9 @@ class TestGeneratePartitionsOverlap:
     """generate_partitions must respect aa_overlap=0 (no silent window overlap) where possible."""
 
     def test_default_overlap_zero_minimizes_overlap(self):
+        import peptacular.property.core as core_mod
         from peptacular.property.core import generate_partitions
         from peptacular.property.data import HydrophobicityScale
-
-        import peptacular.property.core as core_mod
 
         seen = []
         orig = core_mod.calc_property

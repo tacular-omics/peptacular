@@ -84,6 +84,34 @@ class TestSetChargeInputs:
         with pytest.raises(ValueError, match="Unsupported charge type"):
             pt.parse("PEPTIDE").set_charge(True, inplace=False)
 
+    def test_duplicate_adduct_list_not_collapsed(self):
+        # Two identical adducts must not be deduped into one: charge_state, serialization
+        # and mass must all reflect both carriers (regression: {str: 1} dict collapsed them).
+        a = pt.parse("PEPTIDE").set_charge(["Na:z+1", "Na:z+1"], inplace=False)
+        assert a.charge_state == 2
+        assert a.serialize() == "PEPTIDE/[Na:z+1,Na:z+1]"
+        # equivalent to the occurrence-specifier form and mass-consistent with it
+        assert pt.parse(a.serialize()).charge_state == 2
+        assert a.mass() == pytest.approx(pt.parse("PEPTIDE/[Na:z+1^2]").mass())
+
+    def test_mods_input_preserves_occurrence_count(self):
+        # A Mods carrying a carrier with count 2 must keep both carriers, not drop the count.
+        from peptacular.annotation.mod import Mods
+        from peptacular.constants import ModType
+
+        a = pt.parse("PEPTIDE").set_charge(Mods(mod_type=ModType.CHARGE, _mods={"Na:z+1": 2}), inplace=False)
+        assert a._charge == ["Na:z+1", "Na:z+1"]
+        assert a.charge_state == 2
+
+    def test_mod_count_zero_clears_to_none(self):
+        # A Mod-wrapped carrier with count 0 is neutral: clear to None, never serialize 'PEPTIDE/[]'.
+        from peptacular.annotation.mod import Mod
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        a = pt.parse("PEPTIDE").set_charge(Mod(GlobalChargeCarrier.charged_proton(2), 0), inplace=False)
+        assert a._charge is None
+        assert a.serialize() == "PEPTIDE"
+
 
 class TestChargeCarrierMzPaf:
     """mzPAF serialization of a charge carrier must render the sign correctly."""

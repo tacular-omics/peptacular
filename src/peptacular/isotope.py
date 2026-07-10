@@ -326,9 +326,7 @@ def estimate_isotopic_distribution(
     if not use_neutron_count and distribution:
         averagine_mono_mass = sum(element.get_mass(monoisotopic=True) * count for element, count in total_atoms.items())
         shift = neutral_mass - averagine_mono_mass
-        distribution = [
-            IsotopicData(mass=d.mass + shift, neutron_count=d.neutron_count, abundance=d.abundance) for d in distribution
-        ]
+        distribution = [IsotopicData(mass=d.mass + shift, neutron_count=d.neutron_count, abundance=d.abundance) for d in distribution]
 
     return distribution
 

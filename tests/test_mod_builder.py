@@ -983,5 +983,29 @@ class TestBuildModsFirstProteoformOnly(unittest.TestCase):
         self.assertTrue(has_both)
 
 
+class TestSetInternalModsAmbiguousLabelValidation(unittest.TestCase):
+    """set_internal_mods_at_index only re-validates the global ambiguous-label invariant
+    when the new mods actually carry a concrete label (perf), but must still catch a real
+    duplicate-label violation and leave plain mods alone."""
+
+    def test_duplicate_concrete_label_still_raises(self):
+        a = pt.parse("PEPTIDE", validate=True)
+        a.set_internal_mods_at_index(0, {"Phospho#g1": 1}, validate=True)
+        with self.assertRaises(ValueError):
+            a.set_internal_mods_at_index(2, {"Phospho#g1": 1}, validate=True)
+
+    def test_concrete_plus_bare_reference_allowed(self):
+        a = pt.parse("PEPTIDE", validate=True)
+        a.set_internal_mods_at_index(0, {"Phospho#g2": 1}, validate=True)
+        a.set_internal_mods_at_index(2, {"#g2": 1}, validate=True)
+        self.assertEqual(a.serialize(), "P[Phospho#g2]EP[#g2]TIDE")
+
+    def test_plain_mods_take_fast_path(self):
+        a = pt.parse("PEPTIDE", validate=True)
+        for i in range(7):
+            a.set_internal_mods_at_index(i, {"Oxidation": 1}, validate=True)
+        self.assertEqual(a.serialize().count("Oxidation"), 7)
+
+
 if __name__ == "__main__":
     unittest.main()

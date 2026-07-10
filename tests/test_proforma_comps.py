@@ -1027,3 +1027,36 @@ class TestCompoundPeptidoformIon:
         cpi = self._make()
         assert cpi.serialize() == "PE"
         assert str(cpi) == "PE"
+
+
+class TestNegativeSafeCompositionMerge:
+    """add_composition / merge_compositions must preserve negative element counts;
+    Counter's += / + drop them, which silently loses atom-removing modifications."""
+
+    def test_add_composition_keeps_negative_counts(self) -> None:
+        from peptacular.proforma_components.comps import add_composition
+
+        h = ELEMENT_LOOKUP[(Element.H, None)]
+        total: Counter = Counter()
+        add_composition(total, {h: 2})
+        add_composition(total, {h: -3})
+        assert total[h] == -1
+
+    def test_merge_compositions_keeps_negative_counts(self) -> None:
+        from peptacular.proforma_components.comps import merge_compositions
+
+        # A formula with a negative hydrogen count must survive the merge.
+        comp = ModificationTags.from_string("Formula:C2H-2")
+        merged = merge_compositions([comp])
+        h = ELEMENT_LOOKUP[(Element.H, None)]
+        assert merged[h] == -2
+
+    def test_mods_get_composition_keeps_negative_counts(self) -> None:
+        # Regression: Mods.get_composition used sum(..., Counter()) and dropped the H:-2.
+        from peptacular.annotation.mod import Mods
+        from peptacular.constants import ModType
+
+        m = Mods(mod_type=ModType.INTERNAL, _mods={"Formula:C2H-2": 1})
+        comp = m.get_composition()
+        h = ELEMENT_LOOKUP[(Element.H, None)]
+        assert comp[h] == -2

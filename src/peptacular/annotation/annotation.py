@@ -56,6 +56,7 @@ from ..proforma_components import (
     SequenceElement,
     SequenceRegion,
     TagMass,
+    add_composition,
 )
 from ..property.prop import AnnotationProperties
 from ..spans import Span
@@ -136,6 +137,24 @@ EMPTY_NTERM_MODS = Mods[ModificationTags](mod_type=ModType.NTERM, _mods=None)
 EMPTY_CTERM_MODS = Mods[ModificationTags](mod_type=ModType.CTERM, _mods=None)
 EMPTY_CHARGE_MODS = Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=None)
 EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=None)
+
+
+def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
+    """Yield the ambiguous-position label (``#label``) id of every *concrete* modification
+    in ``mods`` (bare ``[#label]`` references and ``PositionScore`` tags carry no concrete
+    modification and are skipped). A label repeated in the output has multiple concrete
+    occurrences, which ``validate_ambiguous_labels`` treats as an error."""
+    if mods is None:
+        return
+    for mod in mods.mods:
+        value = mod.value
+        if not isinstance(value, ModificationTags):
+            continue
+        for tag in value.tags:
+            position_id = getattr(tag, "position_id", None)
+            if position_id is None or isinstance(tag, PositionScore):
+                continue
+            yield position_id
 
 
 class ChargeType(StrEnum):
@@ -388,17 +407,8 @@ class ProFormaAnnotation:
         concrete_label_counts: Counter[str] = Counter()
 
         def scan(mods: "Mods | None") -> None:
-            if mods is None:
-                return
-            for mod in mods.mods:
-                value = mod.value
-                if not isinstance(value, ModificationTags):
-                    continue
-                for tag in value.tags:
-                    position_id = getattr(tag, "position_id", None)
-                    if position_id is None or isinstance(tag, PositionScore):
-                        continue
-                    concrete_label_counts[position_id] += 1
+            for position_id in _concrete_position_labels(mods):
+                concrete_label_counts[position_id] += 1
 
         if self.has_internal_mods:
             for mods in self.internal_mods.values():
@@ -857,7 +867,10 @@ class ProFormaAnnotation:
                 return None
             return self._charge
         elif isinstance(self._charge, list):
-            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={mod_str: 1 for mod_str in self._charge})
+            # Tally identical adduct strings into occurrence counts: two ``'Na:z+1'``
+            # entries must become ``{'Na:z+1': 2}`` (Mod scales charge/mass/composition
+            # by count), not collapse to a single carrier via a hardcoded count of 1.
+            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=dict(Counter(self._charge)))
 
         return None
 
@@ -1220,20 +1233,18 @@ class ProFormaAnnotation:
             self._internal_mods = {}
 
         self._internal_mods[index] = mods
-        if validate:
+        # The ambiguous-label invariant is global (a label may have at most one concrete
+        # modification across the whole annotation), but a full re-scan on every single-index
+        # set makes residue-by-residue construction O(n^2). Mods that carry no concrete
+        # position label can't introduce a new violation, so only re-validate when they do.
+        new_mods = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=mods)
+        if validate and any(True for _ in _concrete_position_labels(new_mods)):
             self.validate_ambiguous_labels()
         return self
 
     def set_charge(
         self,
-        charge: int
-        | str
-        | list[str]
-        | tuple[str, ...]
-        | Mods[GlobalChargeCarrier]
-        | GlobalChargeCarrier
-        | Mod[GlobalChargeCarrier]
-        | None,
+        charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None,
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
@@ -1275,13 +1286,18 @@ class ProFormaAnnotation:
         elif charge is None:
             set_value = None
         elif isinstance(charge, Mods):
-            set_value = [str(c) for c in charge._mods] if charge._mods is not None else None
+            # Expand each carrier by its occurrence count so repeated adducts survive
+            # the round-trip into the ``list[str]`` storage; iterating keys alone would
+            # drop the count and silently reduce a multi-adduct charge to one carrier.
+            set_value = [str(c) for c, n in charge._mods.items() for _ in range(n)] if charge._mods else None
         elif isinstance(charge, Mod):
             # A Mod wraps a charge carrier value; str(Mod) would emit the dataclass repr
             # (e.g. "Mod(value=GlobalChargeCarrier(...), count=1)"), which is not a valid
             # charge carrier. Serialize the wrapped carrier itself (it already encodes its
             # own occurrence, e.g. "Na:z+1^2"), repeated by the Mod's count.
-            set_value = [str(charge.value)] * charge.count
+            # A count of 0 is a neutral peptidoform: clear to None (matching the empty
+            # list/int-zero branches) rather than storing [] and serializing "PEPTIDE/[]".
+            set_value = [str(charge.value)] * charge.count if charge.count > 0 else None
         elif isinstance(charge, GlobalChargeCarrier):
             set_value = [str(charge)]
         else:
@@ -2617,13 +2633,9 @@ class ProFormaAnnotation:
 
         return isotope_map
 
-    @staticmethod
-    def _merge_comp(total: Counter[ElementInfo], other: Counter[ElementInfo]) -> None:
-        # Merge element-by-element rather than ``total += other``: Counter's ``+=``
-        # discards non-positive counts, which would silently drop atom-removing
-        # modifications (e.g. a Formula tag with negative cardinality).
-        for element, count in other.items():
-            total[element] += count
+    # Thin wrapper over the shared negative-safe merge helper (see
+    # proforma_components.comps.add_composition) so the many call sites below read cleanly.
+    _merge_comp = staticmethod(add_composition)
 
     def _base_comp(self, skip_labile: bool = False, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], int, float]:
         total_composition: Counter[ElementInfo] = self.get_sequence_composition()

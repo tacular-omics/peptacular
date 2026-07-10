@@ -437,8 +437,7 @@ class ProFormaParser:
                 # If we hit something invalid inside parens (that isn't a mod caught above)
                 hint = " (amino acids must be uppercase)" if char.islower() else ""
                 self._raise_parse_error(
-                    f"Unexpected character '{char}' inside interval '(...)'{hint}: "
-                    "expected an uppercase amino acid (A-Z) or ')' to close the interval"
+                    f"Unexpected character '{char}' inside interval '(...)'{hint}: expected an uppercase amino acid (A-Z) or ')' to close the interval"
                 )
 
         if self.cursor >= self.length:
@@ -552,7 +551,7 @@ class ProFormaParser:
             return charge, None
         except ValueError:
             self._raise_parse_error(
-                f"Invalid charge after '/': expected an integer (optionally signed) or an adduct in '[...]', got {seq[slash_pos + 1:] or '(nothing)'!r}",
+                f"Invalid charge after '/': expected an integer (optionally signed) or an adduct in '[...]', got {seq[slash_pos + 1 :] or '(nothing)'!r}",
                 slash_pos,
             )
 
@@ -571,10 +570,18 @@ class ProFormaParser:
         start_pos = self.cursor
         # Skip the (>>> part
         self.cursor += 1 + len(prefix_str)
+        content_start = self.cursor
         content = self._read_until_balanced("(", ")")
 
         if self.cursor >= self.length:
-            self._raise_parse_error("Unmatched '(' for name", start_pos)
+            # No balanced ')' closes the name -- e.g. a name containing a stray unbalanced
+            # '(' like '(>a(b)PEPTIDE'. Fall back to the first ')' so such names stay
+            # parseable (the pre-3.1.2 behavior); only a name with no ')' at all is a real
+            # error. Balanced names like '(>my (special) peptide)' still take the branch above.
+            self.cursor = content_start
+            content = self._read_until_first(")")
+            if self.cursor >= self.length:
+                self._raise_parse_error("Unmatched '(' for name", start_pos)
 
         self.cursor += 1  # Skip )
 
@@ -645,6 +652,15 @@ class ProFormaParser:
                 items.extend([content] * multiplier)
 
         return items
+
+    def _read_until_first(self, terminator: str) -> str:
+        """Scan to the first ``terminator`` without tracking nesting; used as a lenient
+        fallback for names whose parentheses don't balance."""
+        start = self.cursor
+        seq = self.original_sequence
+        while self.cursor < self.length and seq[self.cursor] != terminator:
+            self.cursor += 1
+        return seq[start : self.cursor]
 
     def _read_until_balanced(self, open_char: str, close_char: str) -> str:
         """Scan for the matching ``close_char``, tracking nesting depth so balanced

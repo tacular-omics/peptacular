@@ -81,9 +81,25 @@ def sum_masses(components: Iterable[HasMassComp], monoisotopic: bool = True) -> 
     return sum(comp.get_mass(monoisotopic=monoisotopic) for comp in components)
 
 
+def add_composition(total: Counter[ElementInfo], other: Mapping[ElementInfo, int]) -> None:
+    """Merge ``other`` into ``total`` in place, preserving negative counts.
+
+    Counter's ``+=`` / ``+`` discard non-positive results, which silently drops
+    atom-removing modifications (e.g. ``Formula:H-2`` or Amidated's ``O:-1``). Merging
+    element-by-element keeps them. This is the single canonical composition-merge helper;
+    every additive merge of element compositions should route through it (or the
+    ``merge_compositions`` wrapper below) rather than re-implementing the workaround.
+    """
+    for element, count in other.items():
+        total[element] += count
+
+
 def merge_compositions(components: Iterable[HasMassComp]) -> Counter[ElementInfo]:
-    """Merge compositions from multiple components."""
-    return sum((comp.get_composition() for comp in components), Counter())
+    """Merge compositions from multiple components (negative-count safe)."""
+    total: Counter[ElementInfo] = Counter()
+    for comp in components:
+        add_composition(total, comp.get_composition())
+    return total
 
 
 @runtime_checkable
@@ -321,9 +337,7 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
             for fe in formula.formula:
                 if fe.occurance < 0:
                     raise ValueError("Invalid mzPAF format: negative occurance in negative part")
-            negated = tuple(
-                FormulaElement(element=fe.element, occurance=-fe.occurance, isotope=fe.isotope) for fe in formula.formula
-            )
+            negated = tuple(FormulaElement(element=fe.element, occurance=-fe.occurance, isotope=fe.isotope) for fe in formula.formula)
             return ChargedFormula(
                 formula=negated,
                 charge=formula.charge,

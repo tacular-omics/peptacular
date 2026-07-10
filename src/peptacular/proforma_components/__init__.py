@@ -29,6 +29,8 @@ from .comps import (
     TagInfo,
     TagMass,
     TagName,
+    add_composition,
+    merge_compositions,
 )
 
 __all__ = [
@@ -58,4 +60,6 @@ __all__ = [
     "ModificationTags",
     "MassPropertyMixin",
     "PositionScore",
+    "add_composition",
+    "merge_compositions",
 ]

@@ -142,7 +142,5 @@ class TestJoin:
         assert result == ["PEPTIDEMODIFIED", "PEPTIDEMODIFIED"]
 
     def test_batch_with_parallel_kwargs(self):
-        result = join(
-            [["PEPTIDE", "MODIFIED"], ["PEPTIDE", "MODIFIED"]], n_workers=1, chunksize=1, method="sequential"
-        )
+        result = join([["PEPTIDE", "MODIFIED"], ["PEPTIDE", "MODIFIED"]], n_workers=1, chunksize=1, method="sequential")
         assert result == ["PEPTIDEMODIFIED", "PEPTIDEMODIFIED"]

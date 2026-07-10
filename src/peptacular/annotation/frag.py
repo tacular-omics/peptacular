@@ -140,7 +140,9 @@ class Fragment:
 
         # we have adducts, convert to Mods object
         else:
-            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={k: 1 for k in self._charge_adducts})
+            # Tally identical adduct strings into counts so repeated carriers (e.g. two
+            # 'Na:z+1') are not collapsed to one; Mod scales mass/composition by count.
+            return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=dict(Counter(self._charge_adducts)))
 
     @property
     def is_protonated(self) -> bool:

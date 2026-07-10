@@ -58,9 +58,7 @@ class TestSerializeChimeric:
         assert result == ["PEPTIDE+SEQUENCE", "PEPTIDE+SEQUENCE"]
 
     def test_batch_with_parallel_kwargs(self):
-        result = serialize_chimeric(
-            [["PEPTIDE", "SEQUENCE"], ["PEPTIDE", "SEQUENCE"]], n_workers=1, chunksize=1, method="sequential"
-        )
+        result = serialize_chimeric([["PEPTIDE", "SEQUENCE"], ["PEPTIDE", "SEQUENCE"]], n_workers=1, chunksize=1, method="sequential")
         assert result == ["PEPTIDE+SEQUENCE", "PEPTIDE+SEQUENCE"]
 
     def test_compound_name_mismatch_raises(self):

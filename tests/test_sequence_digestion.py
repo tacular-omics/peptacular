@@ -128,9 +128,7 @@ class TestDigest:
         assert digest(a, "(?<=[KR])", min_len=1, max_len=100) == digest(SEQ, "(?<=[KR])", min_len=1, max_len=100)
 
     def test_batch_with_explicit_parallel_kwargs(self):
-        result = digest(
-            [SEQ, SEQ], "(?<=[KR])", missed_cleavages=0, min_len=1, max_len=100, n_workers=2, chunksize=1, method="sequential"
-        )
+        result = digest([SEQ, SEQ], "(?<=[KR])", missed_cleavages=0, min_len=1, max_len=100, n_workers=2, chunksize=1, method="sequential")
         assert len(result) == 2
 
     def test_semi_flag(self):

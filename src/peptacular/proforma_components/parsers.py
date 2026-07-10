@@ -1005,9 +1005,7 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
         try:
             occurance = int(occ_str)
         except ValueError as e:
-            raise ValueError(
-                f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer."
-            ) from e
+            raise ValueError(f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer.") from e
     else:
         formula_part = s
 

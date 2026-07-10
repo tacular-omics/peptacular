@@ -30,18 +30,14 @@ class TestModify:
 
     def test_scalar_annotation(self):
         a = pt.parse(SEQ)
-        assert modify(a, internal_variable={"P": [79.966]}, max_variable_mods=1) == modify(
-            SEQ, internal_variable={"P": [79.966]}, max_variable_mods=1
-        )
+        assert modify(a, internal_variable={"P": [79.966]}, max_variable_mods=1) == modify(SEQ, internal_variable={"P": [79.966]}, max_variable_mods=1)
 
     def test_batch(self):
         result = modify([SEQ, "PROTEIN"], internal_variable={"P": [79.966]}, max_variable_mods=1)
         assert len(result) == 2
 
     def test_batch_with_parallel_kwargs(self):
-        result = modify(
-            [SEQ, "PROTEIN"], internal_variable={"P": [79.966]}, max_variable_mods=1, n_workers=1, chunksize=1, method="sequential"
-        )
+        result = modify([SEQ, "PROTEIN"], internal_variable={"P": [79.966]}, max_variable_mods=1, n_workers=1, chunksize=1, method="sequential")
         assert len(result) == 2
 
     def test_unique_peptidoforms(self):
