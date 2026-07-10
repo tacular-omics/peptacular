@@ -276,10 +276,13 @@ class TestAnnotationParse:
         ):
             pt.ProFormaAnnotation.parse("PEPTIDE+SEQUENCE")
 
-    def test_parse_rejects_crosslinked(self):
-        """Test that parsing rejects crosslinked peptides"""
-        with pytest.raises(ValueError):
-            pt.ProFormaAnnotation.parse("PEPTK[#XL1]IDE//SEQK[#XL1]")
+    def test_parse_crosslinked_returns_multi(self):
+        """Cross-linked ('//') peptides parse into a MultiProFormaAnnotation."""
+        ion = pt.ProFormaAnnotation.parse("PEPTK[XLMOD:02001#XL1]IDE//SEQK[#XL1]")
+        assert isinstance(ion, pt.MultiProFormaAnnotation)
+        assert len(ion) == 2
+        # Round-trips back to the original string.
+        assert ion.serialize() == "PEPTK[XLMOD:02001#XL1]IDE//SEQK[#XL1]"
 
     def test_round_trip_simple_peptide(self):
         """Test parse -> serialize round trip for simple peptide"""

@@ -1,11 +1,12 @@
 import logging
 import re
 from collections import Counter
-from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Mapping, Sequence
 from enum import StrEnum
 from itertools import product
 from typing import (
     Any,
+    NoReturn,
     Self,
     cast,
 )
@@ -332,6 +333,20 @@ class ProFormaAnnotation:
         """
         if errors := self.static_mods.validate():
             raise ValueError(f"Invalid static modifications: {errors}")
+
+    def validate_crosslinks(self) -> None:
+        """Check that cross-link labels within this chain are correctly paired.
+
+        Each cross-link label must have exactly one primary occurrence (carrying the
+        cross-linker definition) and at least one back-reference. For an inter-chain
+        cross-link whose ends span two chains, validate at the ion level instead via
+        :meth:`MultiProFormaAnnotation.validate_crosslinks`.
+
+        :raises ValueError: If a label is dangling or defined more than once.
+        """
+        errors = validate_crosslink_labels([self])
+        if errors:
+            raise ValueError("Invalid cross-link definition(s): " + "; ".join(errors))
 
     def validate_labile_mods(self) -> None:
         """Check that all labile modifications are structurally valid.
@@ -2498,8 +2513,23 @@ class ProFormaAnnotation:
             yield annot
 
     @classmethod
-    def parse(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
-        """Parse a ProForma string into a ProFormaAnnotation object"""
+    def parse(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation | MultiProFormaAnnotation":
+        """Parse a ProForma string into an annotation object.
+
+        A single peptidoform returns a :class:`ProFormaAnnotation`. A cross-linked
+        peptidoform ion (chains joined by ``//``, ProForma 2.1 §9.2.2/§9.3) returns a
+        :class:`MultiProFormaAnnotation` whose chains share one charge state.
+
+        :param sequence: A ProForma 2.1 string.
+        :type sequence: str
+        :param validate: If ``True``, validate structural fields (and, for cross-linked ions,
+            cross-link label pairing) during construction.
+        :type validate: bool | None
+        :return: The parsed annotation.
+        :rtype: ProFormaAnnotation | MultiProFormaAnnotation
+        :raises ValueError: If the sequence is invalid, or is a chimeric ('+') spectrum
+            (use :meth:`parse_chimeric` for those).
+        """
         if validate is None:
             validate = False
         # Initialize the Generator
@@ -2511,9 +2541,16 @@ class ProFormaAnnotation:
         except StopIteration as e:
             raise ValueError(f"Invalid ProForma sequence: {sequence}") from e
 
-        # Validate that this is a single peptide (not chimeric/crosslinked)
-        if connection is not None:
-            raise ValueError(f"Chimeric and crosslinked peptides not supported in single annotation: {sequence}")
+        # A connection means the string describes more than one chain.
+        if connection is True:
+            # Cross-linked peptidoform ion ('//'): collect all chains into a container.
+            return MultiProFormaAnnotation.parse(sequence, validate=validate)
+        if connection is False:
+            # Chimeric spectrum ('+'): several independent species, not one annotation.
+            raise ValueError(
+                f"Chimeric spectra (peptidoforms joined by '+') are not supported by parse(); "
+                f"use parse_chimeric() to obtain one annotation per species: {sequence}"
+            )
 
         # Ensure there are no subsequent segments waiting in the generator
         try:
@@ -2522,58 +2559,28 @@ class ProFormaAnnotation:
         except StopIteration:
             pass  # This is expected for a single annotation
 
-        # Split Global Mods into Static (Fixed) vs Isotope (Global)
-        # The parser groups all <...> tags together; we separate them by the '@' symbol.
-        static_mods: dict[str, int] | None = None  # e.g., <[Oxidation]@C>
-        isotope_mods: dict[str, int] | None = None  # e.g., <13C>
+        return _build_annotation_from_parser(prof_parser, validate=validate)
 
-        if prof_parser.global_mods:
-            for mod, count in prof_parser.global_mods.items():
-                if "@" in mod:
-                    if static_mods is None:
-                        static_mods = {}
-                    static_mods[mod] = count
-                else:
-                    if isotope_mods is None:
-                        isotope_mods = {}
-                    isotope_mods[mod] = count
+    @classmethod
+    def parse_single(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
+        """Parse a ProForma string that must describe a single peptidoform.
 
-        charge = None
-        if prof_parser.charge is not None:
-            charge = prof_parser.charge
-        elif prof_parser.charge_adducts is not None:
-            charge = prof_parser.charge_adducts
+        Like :meth:`parse`, but narrows the result to a :class:`ProFormaAnnotation`: a
+        cross-linked (``//``) or chimeric (``+``) ion raises instead of returning a container.
+        Use this at call sites that can only operate on one chain.
 
-            def convert_charge_count(cnt: int) -> str:
-                if cnt <= 0:
-                    raise ValueError("Charge count cannot be less than or equal to zero.")
-                elif cnt == 1:
-                    return ""
-                else:
-                    return f"^{int(cnt)}"
-
-            charge = [f"{adduct}{convert_charge_count(count)}" for adduct, count in charge.items()]
-
-        # Construct the object
-        # We cast defaultdicts to standard dicts to prevent side effects
-        annot = ProFormaAnnotation(
-            sequence="".join(prof_parser.amino_acids),
-            compound_name=prof_parser.compound_name,
-            ion_name=prof_parser.ion_name,
-            peptide_name=prof_parser.peptide_name,
-            isotope_mods=isotope_mods,
-            static_mods=static_mods,
-            labile_mods=prof_parser.labile_mods,
-            unknown_mods=prof_parser.unknown_mods,
-            nterm_mods=prof_parser.nterm_mods,
-            cterm_mods=prof_parser.cterm_mods,
-            internal_mods=prof_parser.internal_mods,
-            intervals=prof_parser.intervals,
-            charge=charge,
-            validate=validate,
-        )
-
-        return annot
+        :param sequence: A ProForma 2.1 string describing a single peptidoform.
+        :type sequence: str
+        :param validate: If ``True``, validate structural fields during construction.
+        :type validate: bool | None
+        :return: The parsed single-peptidoform annotation.
+        :rtype: ProFormaAnnotation
+        :raises ValueError: If the sequence is invalid or describes more than one chain.
+        """
+        result = cls.parse(sequence, validate=validate)
+        if not isinstance(result, ProFormaAnnotation):
+            raise ValueError(f"Expected a single peptidoform, but got a multi-chain (cross-linked) ion: {sequence}")
+        return result
 
     def serialize(self, exclude_charge: bool = False) -> str:
         """Serialise this annotation to a ProForma string.
@@ -4401,7 +4408,7 @@ class ProFormaAnnotation:
 
         sequence = re.sub(r"(?:\[[^\]]+\]){2,}$", _dash_before_later_brackets, sequence)
 
-        return ProFormaAnnotation.parse(sequence)
+        return ProFormaAnnotation.parse_single(sequence)
 
     def to_diann(self) -> str:
         """Convert this annotation to DIA-NN format string.
@@ -4424,7 +4431,7 @@ class ProFormaAnnotation:
         elif re.search(r"_\[[^\]]+\]$", sequence):
             sequence = re.sub(r"_\[([^\]]+)\]$", r"-[\1]", sequence)
 
-        return ProFormaAnnotation.parse(sequence)
+        return ProFormaAnnotation.parse_single(sequence)
 
     def to_casanovo(self) -> str:
         """Convert this annotation to Casanovo format string.
@@ -4470,7 +4477,7 @@ class ProFormaAnnotation:
             new_sequence_comps.append("]")
 
         sequence = "".join(new_sequence_comps)
-        return ProFormaAnnotation.parse(sequence)
+        return ProFormaAnnotation.parse_single(sequence)
 
     def to_ms2_pip(
         self,
@@ -4814,3 +4821,433 @@ class ProFormaAnnotation:
     def prop(self) -> AnnotationProperties:
         """Get the properties of this annotation."""
         return AnnotationProperties(self.stripped_sequence)
+
+
+# =============================================================================
+# Cross-linked / multi-chain peptidoform ions (ProForma 2.1 §9.2.2, §9.3)
+# =============================================================================
+
+
+def _split_global_mods(
+    global_mods: dict[str, int] | None,
+) -> tuple[dict[str, int] | None, dict[str, int] | None]:
+    """Split a parser's global ``<...>`` mods into static (``@``-bearing) and isotope mods.
+
+    :param global_mods: Raw global-mod counts from the parser.
+    :type global_mods: dict[str, int] | None
+    :return: A ``(static_mods, isotope_mods)`` tuple, either element ``None`` if empty.
+    :rtype: tuple[dict[str, int] | None, dict[str, int] | None]
+    """
+    static_mods: dict[str, int] | None = None
+    isotope_mods: dict[str, int] | None = None
+    if global_mods:
+        for mod, count in global_mods.items():
+            if "@" in mod:
+                if static_mods is None:
+                    static_mods = {}
+                static_mods[mod] = count
+            else:
+                if isotope_mods is None:
+                    isotope_mods = {}
+                isotope_mods[mod] = count
+    return static_mods, isotope_mods
+
+
+def _charge_from_parser(prof_parser: ProFormaParser) -> int | list[str] | None:
+    """Extract the charge from a parser state as the internal ``int | list[str]`` form.
+
+    :param prof_parser: A populated parser segment.
+    :type prof_parser: ProFormaParser
+    :return: Integer charge, list of adduct strings, or ``None`` when uncharged.
+    :rtype: int | list[str] | None
+    """
+    if prof_parser.charge is not None:
+        return prof_parser.charge
+    if prof_parser.charge_adducts is not None:
+
+        def _count(cnt: int) -> str:
+            if cnt <= 0:
+                raise ValueError("Charge count cannot be less than or equal to zero.")
+            return "" if cnt == 1 else f"^{int(cnt)}"
+
+        return [f"{adduct}{_count(count)}" for adduct, count in prof_parser.charge_adducts.items()]
+    return None
+
+
+def _build_annotation_from_parser(
+    prof_parser: ProFormaParser,
+    validate: bool = False,
+    include_charge: bool = True,
+) -> ProFormaAnnotation:
+    """Build a :class:`ProFormaAnnotation` from a single parser segment.
+
+    Shared by :meth:`ProFormaAnnotation.parse` and :meth:`MultiProFormaAnnotation.parse`.
+
+    :param prof_parser: A populated parser segment.
+    :type prof_parser: ProFormaParser
+    :param validate: Validate structural fields during construction.
+    :type validate: bool
+    :param include_charge: If ``False``, omit the charge (used for multi-chain ions where
+        the charge is shared at the ion level rather than carried per chain).
+    :type include_charge: bool
+    :return: The constructed annotation.
+    :rtype: ProFormaAnnotation
+    """
+    static_mods, isotope_mods = _split_global_mods(prof_parser.global_mods)
+    charge = _charge_from_parser(prof_parser) if include_charge else None
+    return ProFormaAnnotation(
+        sequence="".join(prof_parser.amino_acids),
+        compound_name=prof_parser.compound_name,
+        ion_name=prof_parser.ion_name,
+        peptide_name=prof_parser.peptide_name,
+        isotope_mods=isotope_mods,
+        static_mods=static_mods,
+        labile_mods=prof_parser.labile_mods,
+        unknown_mods=prof_parser.unknown_mods,
+        nterm_mods=prof_parser.nterm_mods,
+        cterm_mods=prof_parser.cterm_mods,
+        internal_mods=prof_parser.internal_mods,
+        intervals=prof_parser.intervals,
+        charge=charge,
+        validate=validate,
+    )
+
+
+def _classify_crosslink_ref(mod_str: str, count: int) -> tuple[str, bool, int] | None:
+    """Classify a modification string as a cross-linker reference, if it is one.
+
+    A cross-linker reference contains ``#`` and its label (the token after ``#``) starts
+    with ``XL`` or equals ``BRANCH`` (ProForma 2.1 §9). A reference is *primary* when it
+    carries a definition before the ``#`` (e.g. ``XLMOD:02001#XL1``); a bare ``#XL1`` is a
+    *secondary* back-reference. The ``#1``/``#1(0.95)`` position-grouping syntax (§7.6) is
+    intentionally not treated as a cross-link.
+
+    :param mod_str: Raw modification string.
+    :type mod_str: str
+    :param count: Occurrence count of this modification.
+    :type count: int
+    :return: ``(label, is_primary, count)`` or ``None`` if not a cross-link reference.
+    :rtype: tuple[str, bool, int] | None
+    """
+    if "#" not in mod_str:
+        return None
+    defn, rest = mod_str.split("#", 1)
+    label = rest.split("(", 1)[0]  # drop a trailing position score, e.g. '#XL1(0.9)'
+    upper = label.upper()
+    if not (upper.startswith("XL") or upper == "BRANCH"):
+        return None  # ambiguity grouping (#1, #2, ...), not a cross-link
+    return label, defn.strip() != "", count
+
+
+def _iter_crosslink_refs(annotation: ProFormaAnnotation) -> Generator[tuple[str, bool, int], None, None]:
+    """Yield ``(label, is_primary, count)`` for every cross-linker reference in a chain.
+
+    Scans internal, N-terminal and C-terminal modifications.
+
+    :param annotation: The chain to scan.
+    :type annotation: ProFormaAnnotation
+    :return: Generator of cross-link reference tuples.
+    :rtype: Generator[tuple[str, bool, int], None, None]
+    """
+    if annotation._internal_mods:
+        for pos_mods in annotation._internal_mods.values():
+            for mod_str, count in pos_mods.items():
+                res = _classify_crosslink_ref(mod_str, count)
+                if res is not None:
+                    yield res
+    for term_mods in (annotation._nterm_mods, annotation._cterm_mods):
+        if term_mods:
+            for mod_str, count in term_mods.items():
+                res = _classify_crosslink_ref(mod_str, count)
+                if res is not None:
+                    yield res
+
+
+def validate_crosslink_labels(chains: Sequence[ProFormaAnnotation]) -> list[str]:
+    """Check cross-link label pairing across one peptidoform ion's chains.
+
+    Every cross-link label must have exactly one primary occurrence (the one carrying the
+    cross-linker definition) and at least one secondary back-reference. This resolves the
+    pairing at the *ion* level, so an inter-chain link whose two ends sit on different
+    chains validates correctly.
+
+    :param chains: The chains making up a single (possibly cross-linked) peptidoform ion.
+    :type chains: Sequence[ProFormaAnnotation]
+    :return: A list of human-readable error messages; empty when all labels are well-formed.
+    :rtype: list[str]
+    """
+    primaries: dict[str, int] = {}
+    secondaries: dict[str, int] = {}
+    for chain in chains:
+        for label, is_primary, count in _iter_crosslink_refs(chain):
+            target = primaries if is_primary else secondaries
+            target[label] = target.get(label, 0) + count
+
+    errors: list[str] = []
+    for label in sorted(set(primaries) | set(secondaries)):
+        n_primary = primaries.get(label, 0)
+        n_secondary = secondaries.get(label, 0)
+        if n_primary == 0:
+            errors.append(f"cross-link '#{label}' is referenced but never defined: no occurrence carries the cross-linker (e.g. '[XLMOD:...#{label}]')")
+        elif n_primary > 1:
+            errors.append(
+                f"cross-link '#{label}' is defined {n_primary} times: exactly one occurrence may carry "
+                f"the cross-linker definition; the rest must be bare back-references '[#{label}]'"
+            )
+        if n_secondary == 0:
+            errors.append(f"cross-link '#{label}' is defined but never referenced: add a back-reference '[#{label}]'")
+    return errors
+
+
+class MultiProFormaAnnotation:
+    """A cross-linked peptidoform ion: peptide chains joined by ``//`` sharing one charge.
+
+    Represents ProForma 2.1 §9.2.2 (inter-chain cross-links) and §9.3 (branched peptides):
+    two or more :class:`ProFormaAnnotation` chains connected by a cross-linker whose two ends
+    live on different chains. The chains share a single charge state, so the ion's mass,
+    composition and m/z are computed by summing the chains' neutral contributions and
+    applying the shared charge exactly once.
+
+    The cross-linker mass itself needs no special handling: within any single chain the
+    primary occurrence (e.g. ``K[XLMOD:02001#XL1]``) already contributes the linker mass and
+    the bare back-reference (``K[#XL1]``) contributes zero, so a plain per-chain sum is
+    correct.
+
+    Fragmentation of cross-linked ions is not yet supported and raises ``NotImplementedError``.
+    """
+
+    __slots__ = ("chains", "_charge_holder", "compound_name")
+
+    def __init__(
+        self,
+        chains: Sequence[ProFormaAnnotation],
+        charge: int | list[str] | None = None,
+        compound_name: str | None = None,
+        validate: bool = False,
+    ) -> None:
+        """Construct a cross-linked peptidoform ion.
+
+        :param chains: The peptide chains making up the ion. Any per-chain charge is dropped;
+            the shared ``charge`` argument is authoritative.
+        :type chains: Sequence[ProFormaAnnotation]
+        :param charge: The shared charge state (integer or list of adduct strings).
+        :type charge: int | list[str] | None
+        :param compound_name: Optional compound-level name (``(>>>Name)``).
+        :type compound_name: str | None
+        :param validate: If ``True``, validate cross-link label pairing across the chains.
+        :type validate: bool
+        :raises ValueError: If ``chains`` is empty, or (when ``validate``) a cross-link label
+            is dangling or defined more than once.
+        """
+        chain_list = [c.copy() for c in chains]
+        if not chain_list:
+            raise ValueError("A MultiProFormaAnnotation requires at least one chain.")
+        for c in chain_list:
+            c.set_charge(None, inplace=True)
+        self.chains: list[ProFormaAnnotation] = chain_list
+        # A throwaway annotation is the simplest way to reuse the library's charge parsing,
+        # normalisation, serialisation and net-charge (charge_state) logic for the shared charge.
+        self._charge_holder: ProFormaAnnotation = ProFormaAnnotation(sequence="", charge=charge)
+        self.compound_name: str | None = compound_name
+        if validate:
+            self.validate_crosslinks()
+
+    @classmethod
+    def parse(cls, sequence: str, validate: bool | None = None) -> "MultiProFormaAnnotation":
+        """Parse a ProForma string describing a cross-linked peptidoform ion.
+
+        Accepts either a multi-chain string (chains joined by ``//``) or a single peptidoform
+        (yielding a one-chain ion). Chimeric ``+`` spectra are rejected.
+
+        :param sequence: ProForma 2.1 string.
+        :type sequence: str
+        :param validate: If ``True``, validate structural fields and cross-link label pairing.
+        :type validate: bool | None
+        :return: The parsed cross-linked peptidoform ion.
+        :rtype: MultiProFormaAnnotation
+        :raises ValueError: On an invalid sequence, or a combined chimeric+cross-linked ion.
+        """
+        if validate is None:
+            validate = False
+
+        segments = list(ProFormaParser(sequence).parse())
+        if not segments:
+            raise ValueError(f"Invalid ProForma sequence: {sequence}")
+
+        chains: list[ProFormaAnnotation] = []
+        charge: int | list[str] | None = None
+        for i, (prof_parser, connection) in enumerate(segments):
+            if connection is False:
+                raise ValueError(f"Combined chimeric ('+') and cross-linked ('//') ions are not supported: {sequence}")
+            chains.append(_build_annotation_from_parser(prof_parser, validate=validate, include_charge=False))
+            if i == 0:
+                # The parser distributes one shared charge to every chain in a '//' group.
+                charge = _charge_from_parser(prof_parser)
+
+        compound_name = chains[0].compound_name if chains[0].has_compound_name else None
+        return cls(chains, charge=charge, compound_name=compound_name, validate=validate)
+
+    def validate_crosslinks(self) -> None:
+        """Validate cross-link label pairing across this ion's chains.
+
+        :raises ValueError: If any label is dangling (referenced-but-undefined or
+            defined-but-unreferenced) or defined more than once.
+        """
+        errors = validate_crosslink_labels(self.chains)
+        if errors:
+            raise ValueError("Invalid cross-link definition(s): " + "; ".join(errors))
+
+    @property
+    def charge(self) -> int | Mods[GlobalChargeCarrier] | None:
+        """The shared charge state (integer or adduct ``Mods``); ``None`` when uncharged."""
+        return self._charge_holder.charge
+
+    @property
+    def charge_state(self) -> int:
+        """The net numeric charge of the ion (0 when uncharged)."""
+        return self._charge_holder.charge_state
+
+    def _resolve_charge_holder(self, charge: int | list[str] | None) -> ProFormaAnnotation:
+        if charge is None:
+            return self._charge_holder
+        return ProFormaAnnotation(sequence="", charge=charge)
+
+    def mass(
+        self,
+        charge: int | list[str] | None = None,
+        monoisotopic: bool = True,
+    ) -> float:
+        """Calculate the total ion mass (all chains plus the shared charge carriers).
+
+        :param charge: Override the shared charge for this calculation.
+        :type charge: int | list[str] | None
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses otherwise.
+        :type monoisotopic: bool
+        :return: The ion mass in daltons.
+        :rtype: float
+        """
+        holder = self._resolve_charge_holder(charge)
+        total = 0.0
+        for i, chain in enumerate(self.chains):
+            # Apply the shared charge to the first chain only; the rest contribute their
+            # neutral mass, so the charge carriers are counted exactly once for the ion.
+            chain_charge = holder.charge if i == 0 else 0
+            total += chain.mass(charge=chain_charge, monoisotopic=monoisotopic)
+        return total
+
+    def neutral_mass(self, monoisotopic: bool = True) -> float:
+        """Calculate the neutral (uncharged) mass of the whole ion.
+
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses otherwise.
+        :type monoisotopic: bool
+        :return: The neutral mass in daltons.
+        :rtype: float
+        """
+        return sum(chain.mass(charge=0, monoisotopic=monoisotopic) for chain in self.chains)
+
+    def mz(
+        self,
+        charge: int | list[str] | None = None,
+        monoisotopic: bool = True,
+    ) -> float:
+        """Calculate the mass-to-charge ratio of the ion.
+
+        :param charge: Override the shared charge for this calculation.
+        :type charge: int | list[str] | None
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses otherwise.
+        :type monoisotopic: bool
+        :return: The m/z value.
+        :rtype: float
+        :raises ValueError: If the net charge is zero (m/z is undefined).
+        """
+        holder = self._resolve_charge_holder(charge)
+        net = holder.charge_state
+        if net == 0:
+            raise ValueError("Cannot compute m/z for a neutral (0-charge) peptidoform ion.")
+        return self.mass(charge=charge, monoisotopic=monoisotopic) / abs(net)
+
+    def comp(self, charge: int | list[str] | None = None) -> Counter[ElementInfo]:
+        """Calculate the elemental composition of the whole ion.
+
+        :param charge: Override the shared charge for this calculation.
+        :type charge: int | list[str] | None
+        :return: Element-to-count composition.
+        :rtype: Counter[ElementInfo]
+        """
+        holder = self._resolve_charge_holder(charge)
+        total: Counter[ElementInfo] = Counter()
+        for i, chain in enumerate(self.chains):
+            chain_charge = holder.charge if i == 0 else 0
+            add_composition(total, chain.comp(charge=chain_charge))
+        return total
+
+    def fragment(self, *args: Any, **kwargs: Any) -> NoReturn:
+        """Fragmentation of cross-linked peptidoform ions is not yet supported.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError(
+            "Fragmentation of cross-linked peptidoform ions is not yet supported. Fragment the individual chains via `.chains` if you need per-chain ladders."
+        )
+
+    def serialize(self, exclude_charge: bool = False) -> str:
+        """Serialise this ion to a ProForma string (chains joined by ``//``).
+
+        :param exclude_charge: If ``True``, omit the trailing charge suffix.
+        :type exclude_charge: bool
+        :return: A ProForma-compliant string.
+        :rtype: str
+        """
+        parts: list[str] = []
+        for i, chain in enumerate(self.chains):
+            if i == 0:
+                # The first chain keeps any shared global block (compound name, <isotope>,
+                # <static> mods); the parser duplicated it onto every chain, so it is
+                # suppressed on the rest to avoid re-emitting it after each '//'.
+                parts.append(chain.serialize(exclude_charge=True))
+            else:
+                tail = chain.copy()
+                tail.set_compound_name(None, inplace=True)
+                tail.set_isotope_mods(None, inplace=True)
+                tail.set_static_mods(None, inplace=True)
+                parts.append(tail.serialize(exclude_charge=True))
+        body = "//".join(parts)
+        if not exclude_charge:
+            body += serialize_charge(self._charge_holder)
+        return body
+
+    def copy(self) -> "MultiProFormaAnnotation":
+        """Return a deep copy of this ion.
+
+        :return: An independent copy.
+        :rtype: MultiProFormaAnnotation
+        """
+        return MultiProFormaAnnotation(
+            self.chains,
+            charge=self._charge_holder._charge,
+            compound_name=self.compound_name,
+        )
+
+    def __len__(self) -> int:
+        """Number of chains in the ion."""
+        return len(self.chains)
+
+    def __iter__(self) -> "Iterator[ProFormaAnnotation]":
+        return iter(self.chains)
+
+    def __getitem__(self, index: int) -> ProFormaAnnotation:
+        return self.chains[index]
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MultiProFormaAnnotation):
+            return NotImplemented
+        return self.chains == other.chains and self._charge_holder._charge == other._charge_holder._charge and self.compound_name == other.compound_name
+
+    def __hash__(self) -> int:
+        return hash((tuple(self.chains), self._charge_holder._charge, self.compound_name))
+
+    def __repr__(self) -> str:
+        return f"MultiProFormaAnnotation(chains={len(self.chains)}, charge={self.charge}, sequence={self.serialize()!r})"
+
+    def __str__(self) -> str:
+        return self.serialize()

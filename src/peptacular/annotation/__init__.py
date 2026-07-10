@@ -5,7 +5,12 @@ All methods/properties are available on the ProFormaAnnotation class. The one ex
 which is accessible via the annot.prop attribute.
 """
 
-from .annotation import AnnotationProperties, ProFormaAnnotation
+from .annotation import (
+    AnnotationProperties,
+    MultiProFormaAnnotation,
+    ProFormaAnnotation,
+    validate_crosslink_labels,
+)
 from .mod import Mod, Mods
 from .parser import Interval
 from .utils import Fragment
@@ -13,7 +18,9 @@ from .utils import Fragment
 __all__ = [
     "Interval",
     "ProFormaAnnotation",
+    "MultiProFormaAnnotation",
     "AnnotationProperties",
+    "validate_crosslink_labels",
     "Mod",
     "Mods",
     "Fragment",

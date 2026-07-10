@@ -40,7 +40,7 @@ def generate_permutations(annotation: ProFormaAnnotation, size: int | None = Non
     for permutation in itertools.permutations(split_aas, size):
         # Create new annotation from permuted sequence
         combined_sequence = "".join(aa.serialize() for aa in permutation)
-        result = ProFormaAnnotation.parse(combined_sequence)
+        result = ProFormaAnnotation.parse_single(combined_sequence)
         _apply_extracted_mods(result, outside_mods)
         yield result
 
@@ -71,7 +71,7 @@ def generate_product(annotation: ProFormaAnnotation, repeat: int | None = None) 
 
     for product in itertools.product(split_aas, repeat=repeat):
         combined_sequence = "".join(aa.serialize() for aa in product)
-        result = ProFormaAnnotation.parse(combined_sequence)
+        result = ProFormaAnnotation.parse_single(combined_sequence)
         _apply_extracted_mods(result, outside_mods)
         yield result
 
@@ -101,7 +101,7 @@ def generate_combinations(annotation: ProFormaAnnotation, r: int | None = None) 
 
     for combination in itertools.combinations(split_aas, r=r):
         combined_sequence = "".join(aa.serialize() for aa in combination)
-        result = ProFormaAnnotation.parse(combined_sequence)
+        result = ProFormaAnnotation.parse_single(combined_sequence)
         _apply_extracted_mods(result, outside_mods)
         yield result
 
@@ -131,7 +131,7 @@ def generate_combinations_with_replacement(annotation: ProFormaAnnotation, r: in
 
     for combination in itertools.combinations_with_replacement(split_aas, r=r):
         combined_sequence = "".join(aa.serialize() for aa in combination)
-        result = ProFormaAnnotation.parse(combined_sequence)
+        result = ProFormaAnnotation.parse_single(combined_sequence)
         _apply_extracted_mods(result, outside_mods)
         yield result
 

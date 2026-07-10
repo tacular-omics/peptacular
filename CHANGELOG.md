@@ -8,6 +8,15 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
+## [Unreleased]
+### Added
+- Cross-linked and branched peptidoform ion support (ProForma 2.1 §9.2.2, §9.3), completing the last three unchecked boxes in `PROFORMA_COMPLIANCE.md`. A ProForma string whose chains are joined by `//` now parses into a new `MultiProFormaAnnotation` container (exported from `peptacular`) whose chains share one charge state; a single peptidoform (including an intra-chain cross-link, §9.2.1) still parses into a `ProFormaAnnotation`. The container computes `mass()`/`neutral_mass()`/`mz()`/`comp()` by summing the chains' neutral contributions and applying the shared charge exactly once (the cross-linker mass needs no special handling: within any chain the primary occurrence already carries the linker mass and a bare `[#XL1]` back-reference contributes zero), and `serialize()` round-trips the `//`-joined form (global `<...>` mods and the `(>>>Name)` compound name are emitted once rather than per chain). `pt.parse()` returns the container automatically for cross-linked input.
+- Cross-link label validation. `MultiProFormaAnnotation.validate_crosslinks()` and `ProFormaAnnotation.validate_crosslinks()` (and the module-level `validate_crosslink_labels`) check that every cross-link label (`#XL...`, `#BRANCH`) has exactly one primary definition and at least one back-reference across the whole ion — catching dangling references, dangling definitions, and duplicate definitions. Validation runs when parsing with `validate=True`. The `#1`/`#1(0.95)` position-grouping syntax (§7.6) is correctly *not* treated as a cross-link.
+- `ProFormaAnnotation.parse_single()`, a variant of `parse()` that narrows the result to a single `ProFormaAnnotation` and raises on multi-chain (cross-linked) input; used internally wherever only one chain is meaningful.
+
+### Changed
+- `ProFormaAnnotation.parse()` / `pt.parse()` no longer raise `"Chimeric and crosslinked peptides not supported in single annotation"` for cross-linked (`//`) sequences — they return a `MultiProFormaAnnotation`. Chimeric (`+`) sequences still raise, now with a message pointing at `parse_chimeric()`.
+
 ## [3.1.2]
 ### Changed
 - Bumped the `tacular` dependency floor to `>=1.1.0`, which fixes several upstream data-consistency bugs: isotope-labelled modification compositions (e.g. `UNIMOD:536`, `Label:13C(2)15N(1)`) that dropped their isotope atoms while keeping the correct mass, all 9 internal-fragment-ion mass offsets (previously shifted so the default "by" internal fragment was `-CO` instead of `0`), and two neutral-loss formulas (Formic acid, Formamide) that were parsed with a dropped repeated-element count.

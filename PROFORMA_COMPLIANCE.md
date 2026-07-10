@@ -37,9 +37,15 @@
 ## 5.3.4 Level 2-ProForma + Cross-Linking
 
 - [x] **XL-MOD modifications** - `EVTK[X:Aryl azide]LEK[XLMOD:00114]SEFD` (§9.1)
-- [ ] **Cross-linkers (intrachain)** - `EVTK[X:Aryl azide#XL1]LEK[#XL1]SEFD` (§9.2.1)
-- [ ] **Cross-linkers (interchain)** - `EVTK[X:Aryl azide#XL1]L//EK[#XL1]SEFD` (§9.2.2)
-- [ ] **Branches** - `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR` (§9.3) 
+- [x] **Cross-linkers (intrachain)** - `EVTK[X:Aryl azide#XL1]LEK[#XL1]SEFD` (§9.2.1)
+- [x] **Cross-linkers (interchain)** - `EVTK[X:Aryl azide#XL1]L//EK[#XL1]SEFD` (§9.2.2)
+- [x] **Branches** - `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR` (§9.3)
+
+  Inter-chain cross-links and branches parse into a `MultiProFormaAnnotation` (chains
+  joined by `//` sharing one charge); intra-chain cross-links remain a single
+  `ProFormaAnnotation`. Mass, m/z, composition and round-trip serialization are
+  supported, and cross-link label pairing is validated with `validate=True`.
+  Fragmentation of cross-linked ions is not yet supported.
 
 ## 5.3.5 Level 2-ProForma + Glycans
 

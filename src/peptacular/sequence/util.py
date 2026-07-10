@@ -2,7 +2,7 @@ from ..annotation import ProFormaAnnotation
 
 
 def sequence_to_annotation(sequence: str) -> ProFormaAnnotation:
-    return ProFormaAnnotation.parse(sequence)
+    return ProFormaAnnotation.parse_single(sequence)
 
 
 def round_to_precision(value: float, precision: int | None = None) -> float:

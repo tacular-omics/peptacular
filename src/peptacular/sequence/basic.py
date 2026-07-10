@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import Any, overload
 
 from ..annotation import (
+    MultiProFormaAnnotation,
     ProFormaAnnotation,
 )
 from ..constants import parallelMethod, parallelMethodLiteral
@@ -127,7 +128,7 @@ def serialize_chimeric(
         return _serialize_chimeric_single(sequence)  # type: ignore[arg-type]
 
 
-def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation:
+def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation | MultiProFormaAnnotation:
     return ProFormaAnnotation.parse(s, validate=validate)
 
 
@@ -139,7 +140,7 @@ def parse(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
     reuse_pool: bool = True,
-) -> ProFormaAnnotation: ...
+) -> ProFormaAnnotation | MultiProFormaAnnotation: ...
 
 
 @overload
@@ -150,7 +151,7 @@ def parse(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
     reuse_pool: bool = True,
-) -> list[ProFormaAnnotation]: ...
+) -> list[ProFormaAnnotation | MultiProFormaAnnotation]: ...
 
 
 def parse(
@@ -160,8 +161,12 @@ def parse(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
     reuse_pool: bool = True,
-) -> ProFormaAnnotation | list[ProFormaAnnotation]:
-    """Parse a ProForma string or list of strings into ProFormaAnnotation object(s)."""
+) -> ProFormaAnnotation | MultiProFormaAnnotation | list[ProFormaAnnotation | MultiProFormaAnnotation]:
+    """Parse a ProForma string or list of strings into annotation object(s).
+
+    A cross-linked peptidoform ion (chains joined by ``//``) yields a
+    :class:`MultiProFormaAnnotation`; a single peptidoform yields a :class:`ProFormaAnnotation`.
+    """
     if isinstance(s, Sequence) and not isinstance(s, str):
         return parallel_apply_internal(
             _parse_single,

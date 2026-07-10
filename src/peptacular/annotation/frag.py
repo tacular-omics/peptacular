@@ -104,7 +104,7 @@ class Fragment:
 
         from .annotation import ProFormaAnnotation
 
-        annot = ProFormaAnnotation.parse(self.parent_sequence)
+        annot = ProFormaAnnotation.parse_single(self.parent_sequence)
 
         pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
         if pos is not None:
@@ -241,7 +241,7 @@ class Fragment:
                 if include_sequence and self.parent_sequence is not None:
                     seq = self.sequence
                     if seq is not None:
-                        seq_no_charge = ProFormaAnnotation.parse(seq).serialize(exclude_charge=True)
+                        seq_no_charge = ProFormaAnnotation.parse_single(seq).serialize(exclude_charge=True)
                         parts.append(f"{{{seq_no_charge}}}")
 
             elif ion_info.properties & IonTypeProperty.INTERNAL:
@@ -250,7 +250,7 @@ class Fragment:
                     if self.parent_sequence is not None:
                         seq = self.sequence
                         if seq is not None:
-                            annot = ProFormaAnnotation.parse(seq)
+                            annot = ProFormaAnnotation.parse_single(seq)
                             parts.append(f"I{annot.sequence}")
 
                             if annot.has_internal_mods_at_index(0):
@@ -279,7 +279,7 @@ class Fragment:
                     if include_sequence and self.parent_sequence is not None:
                         seq = self.sequence
                         if seq is not None:
-                            seq_no_charge = ProFormaAnnotation.parse(seq).serialize(exclude_charge=True)
+                            seq_no_charge = ProFormaAnnotation.parse_single(seq).serialize(exclude_charge=True)
                             parts.append(f"{{{seq_no_charge}}}")
 
                     # Add internal mass diff neutral loss
@@ -417,7 +417,7 @@ class Fragment:
 
             start, end = pos
             return (
-                ProFormaAnnotation.parse(self.parent_sequence)[slice(start, end)]
+                ProFormaAnnotation.parse_single(self.parent_sequence)[slice(start, end)]
                 .set_charge(self.external_charge if self._charge_adducts is None else self.charge_adducts)
                 .serialize()
             )
