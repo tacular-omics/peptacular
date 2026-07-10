@@ -732,14 +732,21 @@ class TagCustom(MassPropertyMixin, PositionScoreMixin):
 
 @dataclass(frozen=True, slots=True)
 class GlycanComponent(MassPropertyMixin):
-    """A single component of a glycan composition"""
+    """A single component of a glycan composition.
 
-    monosaccharide: Monosaccharide | ChargedFormula
+    A component is a named monosaccharide, or -- for components not in the supported list --
+    a molecular formula or a monoisotopic mass wrapped in curly braces (ProForma 2.1 §10.2),
+    e.g. ``{C8H13N1O5}1``, ``{C8H13N1O5Na1:z+1}1`` (a charged formula) or ``{+203.079}1`` (a
+    bare mass). A mass component contributes mass but has no elemental composition.
+    """
+
+    monosaccharide: Monosaccharide | ChargedFormula | float
     occurance: int
 
-    def __post_init__(self):
-        if isinstance(self.monosaccharide, ChargedFormula):
-            raise NotImplementedError("GlycanComponent with ChargedFormula is not fully supported yet.")
+    @property
+    def is_mass(self) -> bool:
+        """True when this component is a bare monoisotopic mass (no elemental composition)."""
+        return isinstance(self.monosaccharide, (int, float))
 
     def validate(self) -> str | None:
         try:
@@ -753,30 +760,40 @@ class GlycanComponent(MassPropertyMixin):
         return self.validate() is None
 
     def get_mass(self, monoisotopic: bool = True) -> float:
-        if isinstance(self.monosaccharide, ChargedFormula):
-            return self.monosaccharide.get_mass(monoisotopic=monoisotopic) * self.occurance
+        value = self.monosaccharide
+        if isinstance(value, (int, float)):
+            return value * self.occurance
+        elif isinstance(value, ChargedFormula):
+            return value.get_mass(monoisotopic=monoisotopic) * self.occurance
         else:
-            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(self.monosaccharide)
+            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
             mass = monosaccharide.mass(monoisotopic=monoisotopic)
             if mass is None:
-                raise ValueError(f"Unknown mass for monosaccharide: {self.monosaccharide}")
+                raise ValueError(f"Unknown mass for monosaccharide: {value}")
             return mass * self.occurance
 
     def get_composition(self) -> Counter[ElementInfo]:
         # Must multiply by occurance to match get_mass (e.g. Glycan:Hex3 is three Hex units).
-        if isinstance(self.monosaccharide, ChargedFormula):
-            composition = self.monosaccharide.get_composition()
+        value = self.monosaccharide
+        if isinstance(value, (int, float)):
+            # A bare mass has no elemental composition; callers that need the whole glycan's
+            # composition route this through GlycanTag.get_composition_and_delta_mass instead.
+            raise ValueError(f"Glycan mass component {{{value:+f}}} has no elemental composition")
+        elif isinstance(value, ChargedFormula):
+            composition = value.get_composition()
         else:
-            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(self.monosaccharide)
+            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
             comp = monosaccharide.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for monosaccharide: {self.monosaccharide}")
+                raise ValueError(f"Unknown composition for monosaccharide: {value}")
             composition = Counter(comp)
         if self.occurance != 1:
             composition = Counter({element: count * self.occurance for element, count in composition.items()})
         return composition
 
     def get_charge(self) -> int | None:
+        if isinstance(self.monosaccharide, ChargedFormula) and self.monosaccharide.charge is not None:
+            return self.monosaccharide.charge * self.occurance
         return None
 
     @staticmethod
@@ -819,8 +836,30 @@ class GlycanTag(MassPropertyMixin, PositionScoreMixin):
     def get_composition(self) -> Counter[ElementInfo]:
         return merge_compositions(self.components)
 
+    def get_composition_and_delta_mass(self, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float]:
+        """Split this glycan into an elemental composition plus a residual delta mass.
+
+        Formula and named-monosaccharide components contribute to the composition; bare-mass
+        components (e.g. ``{+203.079}``) have no composition and contribute to the delta mass.
+        Used by the composition path so a glycan that mixes the two still resolves.
+
+        :param monoisotopic: Use monoisotopic masses when ``True``, average masses otherwise.
+        :type monoisotopic: bool
+        :return: A ``(composition, delta_mass)`` tuple.
+        :rtype: tuple[Counter[ElementInfo], float]
+        """
+        composition: Counter[ElementInfo] = Counter()
+        delta_mass = 0.0
+        for component in self.components:
+            if component.is_mass:
+                delta_mass += component.get_mass(monoisotopic=monoisotopic)
+            else:
+                add_composition(composition, component.get_composition())
+        return composition, delta_mass
+
     def get_charge(self) -> int | None:
-        return None
+        total = sum(component.get_charge() or 0 for component in self.components)
+        return total or None
 
     def __len__(self) -> int:
         """Get the number of components in this glycan tag"""
@@ -1105,6 +1144,9 @@ class ModificationTags(MassPropertyMixin):
         """Get the charge of this modification, if any."""
         if isinstance(self.first_tag, ChargedFormula):
             return self.first_tag.charge
+        if isinstance(self.first_tag, GlycanTag):
+            # A glycan may carry a charged formula component (e.g. {C8H13N1O5Na1:z+1}).
+            return self.first_tag.get_charge()
         return None
 
     def __len__(self) -> int:

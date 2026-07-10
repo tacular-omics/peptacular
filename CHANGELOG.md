@@ -9,8 +9,11 @@ All notable changes to this project will be documented in this file.
 - ensure str values are properly handles with intern and that mod values are cached
 
 ## [Unreleased]
+### Added
+- Glycan composition components given as a molecular formula or monoisotopic mass in curly braces, intermixed with named monosaccharides (ProForma 2.1 §10.2): `Glycan:{C8H13N1O5}1Hex2` (formula), `Glycan:{C8H13[15N1]O5}1Hex2` (isotope-labelled formula), `Glycan:{C8H13N1O5Na1:z+1}1Hex2` (charged formula, level 3), and `Glycan:{+203.079}1Hex2` (bare mass). Formula/charged-formula components contribute an elemental composition (and charge); a bare-mass component contributes mass and routes through the delta-mass path (so `mass()` works and `comp()` raises the same "cannot calculate composition with delta mass" error as any other bare-mass modification). `GlycanComponent` now accepts `Monosaccharide | ChargedFormula | float` — the previous `NotImplementedError` on a formula component is removed — and serializes formula components as `{...}` (no `Formula:` prefix) and masses as `{+m}`.
+
 ### Fixed
-- Glycan compositions with whitespace between monosaccharide/count tokens (e.g. `Glycan:Hex5 HexNAc4`) are now parsed instead of raising `Could not parse glycan composition`. ProForma permits optional whitespace in a monosaccharide composition (confirmed against the pyteomics reference, which resolves `Hex5 HexNAc4` to the same composition as `Hex5HexNAc4`); `_parse_glycan_composition` now skips whitespace between tokens and between a name and its count. Formula-mixing inside a glycan (e.g. `Glycan:Hex1Formula:CH2`) remains rejected — it is not valid ProForma (the reference parser rejects it too), correcting a stale TODO that assumed otherwise.
+- Glycan compositions with whitespace between monosaccharide/count tokens (e.g. `Glycan:Hex5 HexNAc4`) are now parsed instead of raising `Could not parse glycan composition`. Per ProForma 2.1 §10.2 ("Spaces MAY be used around the names or numbers"), `_parse_glycan_composition` now skips whitespace between tokens and between a name and its count.
 
 ## [3.1.2]
 ### Changed

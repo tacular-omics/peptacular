@@ -435,10 +435,11 @@ def parse_modification_tag(mod_str: str) -> "MODIFICATION_TAG_TYPE":
 _GLYCAN_PATTERN = re.compile(r"^Glycan:(.+)$", re.IGNORECASE)
 
 
-# Note: ProForma glycan compositions are monosaccharide-only. A chemical formula cannot be
-# embedded in a `Glycan:` value (e.g. `Glycan:Hex1Formula:CH2` is invalid) -- the reference
-# parser rejects it too. Whitespace between monosaccharide/count tokens IS allowed and handled
-# below (e.g. `Glycan:Hex5 HexNAc4`).
+# ProForma 2.1 §10.2 glycan compositions are a sequence of components, each a named
+# monosaccharide OR a curly-brace molecular formula / monoisotopic mass (e.g.
+# `Glycan:{C8H13N1O5}1Hex2`, `Glycan:{+203.079}1Hex2`, `Glycan:{C8H13N1O5Na1:z+1}1Hex2`),
+# each followed by an optional count. Whitespace MAY surround names and numbers. Note the
+# `Formula:`-keyword form (`Glycan:Hex1Formula:CH2`) is NOT valid -- only the `{...}` form is.
 @lru_cache(maxsize=1024)
 def parse_glycan(s: str) -> tuple["GlycanComponent", ...]:
     """
@@ -479,6 +480,29 @@ def parse_glycan(s: str) -> tuple["GlycanComponent", ...]:
     return _parse_glycan_composition(glycan_str)
 
 
+def _parse_glycan_curly_component(content: str) -> "ChargedFormula | float":
+    """Parse the inside of a curly-brace glycan component (ProForma 2.1 §10.2).
+
+    A leading sign or digit marks a monoisotopic mass (e.g. ``+203.079``); anything else is a
+    molecular formula, optionally isotope-labelled and/or charged (e.g. ``C8H13N1O5``,
+    ``C8H13[15N1]O5``, ``C8H13N1O5Na1:z+1``).
+
+    :param content: The text between the curly braces.
+    :type content: str
+    :return: A parsed mass (``float``) or charged formula.
+    :rtype: ChargedFormula | float
+    :raises ValueError: If the content is empty or cannot be parsed.
+    """
+    if not content:
+        raise ValueError("Empty '{}' glycan component")
+    if content[0] in "+-" or content[0].isdigit():
+        try:
+            return float(content)
+        except ValueError as e:
+            raise ValueError(f"Invalid glycan mass component '{{{content}}}'") from e
+    return parse_charged_formula(content, require_formula_prefix=False)
+
+
 def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
     """
     Parse a glycan composition string into GlycanComponents.
@@ -499,6 +523,25 @@ def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
         # (e.g. 'Hex5 HexNAc4'); skip it before matching the next token.
         if glycan_str[i].isspace():
             i += 1
+            continue
+
+        # Curly-brace component: a molecular formula or a monoisotopic mass for a component
+        # not in the named list, e.g. '{C8H13N1O5}1', '{C8H13N1O5Na1:z+1}1', '{+203.079}1'
+        # (ProForma 2.1 section 10.2).
+        if glycan_str[i] == "{":
+            close = glycan_str.find("}", i)
+            if close == -1:
+                raise ValueError(f"Unclosed '{{' in glycan composition: '{glycan_str[i:]}'")
+            content = glycan_str[i + 1 : close].strip()
+            i = close + 1
+            # Optional whitespace before the count, then the count digits.
+            while i < len(glycan_str) and glycan_str[i].isspace():
+                i += 1
+            count_start = i
+            while i < len(glycan_str) and glycan_str[i].isdigit():
+                i += 1
+            count = int(glycan_str[count_start:i]) if i > count_start else 1
+            components.append(GlycanComponent(monosaccharide=_parse_glycan_curly_component(content), occurance=count))
             continue
 
         # Try to match a monosaccharide name
@@ -917,19 +960,14 @@ def parse_glycan_component(s: str) -> "GlycanComponent":
 
             return GlycanComponent(monosaccharide=monosaccharide, occurance=count)
 
-    # If no monosaccharide match, it might be a formula in parentheses
-    if s.startswith("(") and ")" in s:
-        close_paren = s.find(")")
-        formula_str = s[1:close_paren]
-        count_str = s[close_paren + 1 :]
-
-        # Parse the formula
-        formula = parse_charged_formula(f"Formula:{formula_str}")
-
-        # Parse count
+    # Otherwise it may be a curly-brace formula/mass component (ProForma 2.1 §10.2),
+    # e.g. '{C8H13N1O5}1' or '{+203.079}1'.
+    if s.startswith("{") and "}" in s:
+        close_brace = s.find("}")
+        content = s[1:close_brace].strip()
+        count_str = s[close_brace + 1 :].strip()
         count = int(count_str) if count_str else 1
-
-        return GlycanComponent(monosaccharide=formula, occurance=count)
+        return GlycanComponent(monosaccharide=_parse_glycan_curly_component(content), occurance=count)
 
     raise ValueError(f"Could not parse glycan component: '{s}'")
 

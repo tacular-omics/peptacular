@@ -508,10 +508,20 @@ class TestGlycanComponent:
         gc = GlycanComponent(monosaccharide=Monosaccharide.Hex, occurance=1)
         assert gc.get_charge() is None
 
-    def test_charged_formula_monosaccharide_is_rejected(self) -> None:
+    def test_charged_formula_monosaccharide_is_supported(self) -> None:
+        # ProForma 2.1 §10.2: a glycan component may be given as a molecular formula.
         cf = ChargedFormula(formula=(FormulaElement(element=Element.C, occurance=1),))
-        with pytest.raises(NotImplementedError):
-            GlycanComponent(monosaccharide=cf, occurance=1)
+        gc = GlycanComponent(monosaccharide=cf, occurance=2)
+        assert gc.get_mass() == cf.get_mass() * 2
+        assert not gc.is_mass
+
+    def test_mass_monosaccharide_is_supported(self) -> None:
+        # ProForma 2.1 §10.2: a glycan component may be given as a bare monoisotopic mass.
+        gc = GlycanComponent(monosaccharide=203.079, occurance=2)
+        assert gc.is_mass
+        assert gc.get_mass() == 203.079 * 2
+        with pytest.raises(ValueError):
+            gc.get_composition()
 
     def test_from_string_serialize_round_trip(self) -> None:
         gc = GlycanComponent.from_string("Hex2")
