@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
 - ensure str values are properly handles with intern and that mod values are cached
 
+## [Unreleased]
+### Fixed
+- `Fragment.composition` on the lazy path (`calculate_composition=False`) now applies the fragment's ion-type offset instead of returning the sub-sequence's *precursor* composition. A b-ion's lazily computed composition was heavier than its own `.mass` by a full water (e.g. `EVTKLE` `b4`: composition implied 476.27 Da vs the fragment's 458.26 Da); y-ions coincidentally matched because a y-ion's neutral composition equals its C-terminal sub-sequence's precursor. The lazy path now agrees element-for-element with the eager (`calculate_composition=True`) path across b/y/a/c/x/z ions, charges, mods, custom deltas and global isotope labels.
+
 ## [3.1.2]
 ### Changed
 - Bumped the `tacular` dependency floor to `>=1.1.0`, which fixes several upstream data-consistency bugs: isotope-labelled modification compositions (e.g. `UNIMOD:536`, `Label:13C(2)15N(1)`) that dropped their isotope atoms while keeping the correct mass, all 9 internal-fragment-ion mass offsets (previously shifted so the default "by" internal fragment was `-CO` instead of `0`), and two neutral-loss formulas (Formic acid, Formamide) that were parsed with a dropped repeated-element count.

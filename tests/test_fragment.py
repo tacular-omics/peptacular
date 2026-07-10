@@ -978,5 +978,30 @@ class TestFragmentSequenceInternalCharge(unittest.TestCase):
         self.assertEqual(b2.sequence, "PE[Formula:CH2:z+1]/1")
 
 
+class TestFragmentLazyCompositionIonType(unittest.TestCase):
+    """Fragment.composition (lazy path) must apply the fragment's ion-type offset.
+
+    Regression: the lazy path (calculate_composition=False) returned the sub-sequence's
+    *precursor* composition, ignoring the ion-type offset, so a b-ion's composition was heavier
+    than its own mass by H2O. y-ions coincidentally matched (y neutral == precursor).
+    """
+
+    def _elem_mass(self, comp):
+        return sum(el.get_mass() * n for el, n in comp.items())
+
+    def test_b_ion_lazy_composition_matches_mass(self):
+        # Use charge 0 so the neutral mass and the element-sum align exactly (no electron term).
+        b4 = next(f for f in pt.parse("EVTKLE").fragment(ion_types=["b"], charges=[0], calculate_composition=False) if f.position == 4)
+        self.assertAlmostEqual(self._elem_mass(b4.composition), b4.mass, places=3)
+
+    def test_lazy_matches_eager_across_ion_types(self):
+        annot = pt.parse("PEM[Oxidation]TIDE")
+        for ion in ("b", "y", "a", "c", "x", "z"):
+            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=False)
+            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=True)
+            for fl, fe in zip(lazy, eager):
+                self.assertEqual(dict(fl.composition), dict(fe.composition), f"{ion} pos={fl.position}")
+
+
 if __name__ == "__main__":
     unittest.main()
