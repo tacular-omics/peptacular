@@ -27,6 +27,7 @@ User Guide
    features
    proforma_compliance
    examples
+   interoperability
    masses
    mass_calculation
 
