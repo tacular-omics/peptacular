@@ -1,0 +1,80 @@
+{
+  "title": "Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis",
+  "description": "A ProForma 2.1-compliant Python package for parsing, annotating, and analyzing peptide and protein sequences, including mass, composition, fragmentation, isotope, digestion, and property calculations.",
+  "creators": [
+    {
+      "name": "Garrett, Patrick T.",
+      "orcid": "0000-0002-8434-9693",
+      "affiliation": "Scripps Research Institute"
+    },
+    {
+      "name": "Jung, Titus",
+      "affiliation": "Scripps Research Institute"
+    },
+    {
+      "name": "Yates III, John R.",
+      "orcid": "0000-0001-5267-1672",
+      "affiliation": "Scripps Research Institute"
+    }
+  ],
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "mit",
+  "language": "eng",
+  "keywords": [
+    "Python",
+    "Proteomics",
+    "Mass Spectrometry",
+    "ProForma",
+    "Bioinformatics"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://peptacular.readthedocs.io",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://pypi.org/project/peptacular/",
+      "relation": "isAlternateIdentifier",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.5281/zenodo.18475556",
+      "relation": "requires",
+      "scheme": "doi",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "10.1021/acs.jproteome.1c00771",
+      "relation": "references",
+      "scheme": "doi",
+      "resource_type": "publication-article"
+    }
+  ],
+  "communities": [
+    {
+      "identifier": "proteomics"
+    },
+    {
+      "identifier": "hupo-psi"
+    }
+  ],
+  "grants": [
+    {
+      "id": "10.13039/100000002::R01AG077046"
+    },
+    {
+      "id": "10.13039/100000002::R01MH132570"
+    },
+    {
+      "id": "10.13039/100000002::R01MH100175"
+    },
+    {
+      "id": "10.13039/100000002::R01HL165168"
+    },
+    {
+      "id": "10.13039/100000002::U01AG088679"
+    }
+  ]
+}
