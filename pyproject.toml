@@ -1,15 +1,18 @@
 [project]
 name = "peptacular"
 dynamic = ["version"]
-description = "A ProForma peptide sequence parser and annotation library"
+description = "Parse, annotate, and analyze ProForma 2.1 peptide and protein sequences."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["tacular>=1.1.0"]
 authors = [
-    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+    { name = "Patrick T. Garrett", email = "pgarrett@scripps.edu" },
+    { name = "John R. Yates III", email = "jyates@scripps.edu" },
 ]
+license = "MIT"
+license-files = ["LICENSE"]
 maintainers = [
-    { name = "Patrick Garrett", email = "pgarrett@scripps.edu" }
+    { name = "Patrick T. Garrett", email = "pgarrett@scripps.edu" }
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -24,10 +27,11 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/tacular-omics/peptacular"
-Documentation = "https://peptacular.readthedocs.io"
+Documentation = "https://peptacular.readthedocs.io/"
 Repository = "https://github.com/tacular-omics/peptacular"
 Issues = "https://github.com/tacular-omics/peptacular/issues"
 Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
+DOI = "https://doi.org/10.5281/zenodo.15054278"
 
 [build-system]
 requires = ["hatchling"]
