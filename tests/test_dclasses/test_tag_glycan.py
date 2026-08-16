@@ -188,6 +188,13 @@ class TestGlycanFormulaAndMassComponents:
         base = pt.parse("N").mass()
         assert abs((pt.parse("N[Glycan:{+500.0}2]").mass() - base) - 1000.0) < 1e-6
 
+    def test_repeated_bare_mass_mod_scales_delta_mass(self):
+        mods = pt.Mods(pt.ModType.INTERNAL, {"Glycan:{+203.079}": 2})
+        composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge()
+        assert not composition
+        assert delta_mass == pytest.approx(406.158)
+        assert charge == 0
+
     def test_bare_mass_component_has_no_composition(self):
         # Consistent with any bare-mass modification: comp() cannot resolve a pure delta mass.
         with pytest.raises(ValueError):
@@ -213,3 +220,20 @@ class TestGlycanFormulaAndMassComponents:
         gt = pt.GlycanTag.from_string("Glycan:{C8H13N1O5}1Hex2")
         reparsed = pt.GlycanTag.from_string("Glycan:" + gt.serialize().split(":", 1)[1])
         assert abs(reparsed.get_mass() - gt.get_mass()) < 1e-9
+
+    def test_whitespace_before_curly_component_count(self):
+        spaced = pt.GlycanTag.from_string("Glycan:{C8H13N1O5} 2")
+        compact = pt.GlycanTag.from_string("Glycan:{C8H13N1O5}2")
+        assert spaced == compact
+
+    @pytest.mark.parametrize(
+        ("value", "message"),
+        [
+            ("Glycan:{}", "Empty '{}' glycan component"),
+            ("Glycan:{+not-a-mass}", "Invalid glycan mass component"),
+            ("Glycan:{C8H13N1O5", "Unclosed '{' in glycan composition"),
+        ],
+    )
+    def test_invalid_curly_components_raise_clear_errors(self, value, message):
+        with pytest.raises(ValueError, check=lambda e: message in str(e)):
+            pt.GlycanTag.from_string(value)
