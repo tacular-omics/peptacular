@@ -2585,6 +2585,32 @@ class ProFormaAnnotation:
         """
         return serialize_annotation(self, exclude_charge=exclude_charge)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return a lossless, versioned JSON-compatible representation."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore an annotation from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this annotation."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore an annotation from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
+
     def serialize_charge(self) -> str:
         return serialize_charge(self)
 

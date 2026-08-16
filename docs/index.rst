@@ -29,6 +29,7 @@ User Guide
    examples
    masses
    mass_calculation
+   json_serialization
 
 API Reference
 =============

@@ -3,6 +3,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- A stable, lossless ProForma JSON 1.0 representation with `to_dict`/`from_dict` and `to_json`/`from_json` methods for annotations and structured components, strict versioned decoding, and a bundled JSON Schema.
+
 ### TODO (Next Release?)
 - Take valid mod values from the respective dbs for randomizer
 - W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
