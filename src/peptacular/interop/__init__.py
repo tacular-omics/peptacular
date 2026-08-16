@@ -12,7 +12,13 @@ from ._errors import (
     MissingOptionalDependencyError,
 )
 from ._policy import LossPolicy
-from .alphabase import AlphaBasePeptide, from_alphabase, to_alphabase
+from .alphabase import (
+    AlphaBaseRow,
+    from_alphabase_dataframe,
+    from_alphabase_row,
+    to_alphabase_dataframe,
+    to_alphabase_row,
+)
 from .psm_utils import from_psm_utils, to_psm_utils
 from .pyteomics import (
     from_pyteomics,
@@ -22,17 +28,19 @@ from .pyteomics import (
 )
 
 __all__ = [
-    "AlphaBasePeptide",
+    "AlphaBaseRow",
     "InteropConversionError",
     "InteropError",
     "LossPolicy",
     "LossyConversionWarning",
     "MissingOptionalDependencyError",
-    "from_alphabase",
+    "from_alphabase_dataframe",
+    "from_alphabase_row",
     "from_psm_utils",
     "from_pyteomics",
     "from_pyteomics_composition",
-    "to_alphabase",
+    "to_alphabase_dataframe",
+    "to_alphabase_row",
     "to_psm_utils",
     "to_pyteomics",
     "to_pyteomics_composition",

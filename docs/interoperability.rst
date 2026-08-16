@@ -61,37 +61,44 @@ other PSM metadata remain on the ``psm_utils.PSM`` object.
 AlphaBase
 ---------
 
-AlphaBase represents a peptide using the ``sequence``, ``mods``,
-``mod_sites``, and ``charge`` columns. The adapter returns a small transfer
-object with those fields:
+AlphaBase's native peptide representation is a pandas DataFrame containing
+``sequence``, ``mods``, ``mod_sites``, and ``charge`` columns. The batch
+adapter returns that representation directly and refines it with AlphaBase's
+public API:
 
 .. code-block:: python
 
    import peptacular as pt
-   from peptacular.interop.alphabase import from_alphabase, to_alphabase
+   from alphabase.spectral_library.base import SpecLibBase
+   from peptacular.interop.alphabase import (
+       from_alphabase_dataframe,
+       to_alphabase_dataframe,
+   )
 
-   annotation = pt.parse("[Acetyl]-PEM[Oxidation]TIDE/2")
-   peptide = to_alphabase(annotation)
+   annotations = [pt.parse("[Acetyl]-PEM[Oxidation]TIDE/2")]
+   precursor_df = to_alphabase_dataframe(annotations)
 
-   peptide.as_dict()
-   # {
-   #     "sequence": "PEMTIDE",
-   #     "mods": "Acetyl@Any_N-term;Oxidation@M",
-   #     "mod_sites": "0;3",
-   #     "charge": 2,
-   # }
+   # The result can be assigned directly to an AlphaBase spectral library.
+   library = SpecLibBase()
+   library.precursor_df = precursor_df
 
-   restored = from_alphabase(**peptide.as_dict())
+   restored = from_alphabase_dataframe(precursor_df)
+
+For one annotation, ``to_alphabase_row`` returns a plain row dictionary and
+``from_alphabase_row`` accepts a mapping. These helpers do not
+invent an AlphaBase peptide class; they expose the columns used by AlphaBase's
+actual DataFrame model.
 
 The AlphaBase representation cannot encode every ProForma feature. By default,
-``to_alphabase`` raises ``InteropConversionError`` instead of silently losing
+``to_alphabase_row`` and ``to_alphabase_dataframe`` raise
+``InteropConversionError`` instead of silently losing
 information. Callers can explicitly request warning or drop behavior:
 
 .. code-block:: python
 
    from peptacular.interop import LossPolicy
 
-   peptide = to_alphabase(annotation, loss_policy=LossPolicy.WARN)
+   row = to_alphabase_row(annotation, loss_policy=LossPolicy.WARN)
 
 Global isotope modifications, labile and unlocalized modifications, ambiguous
 intervals or residues, annotation names, charge-adduct identities, and

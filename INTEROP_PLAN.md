@@ -154,31 +154,28 @@ those formats into one PSM model.
 
 ### AlphaBase
 
-AlphaBase stores peptide information across columns rather than in one peptide
-object. Use a small typed transfer object so callers do not have to remember
-tuple positions:
+AlphaBase stores peptide information in pandas DataFrames rather than a native
+single-peptide object. Match that public model directly and provide a row
+mapping only as a lightweight single-item convenience:
 
 ```python
-@dataclass(frozen=True, slots=True)
-class AlphaBasePeptide:
-    sequence: str
-    mods: str
-    mod_sites: str
-    charge: int | None = None
-
-
-def to_alphabase(
+def to_alphabase_row(
     annotation: ProFormaAnnotation,
     *,
     loss_policy: LossPolicy = LossPolicy.ERROR,
-) -> AlphaBasePeptide
+) -> dict[str, object]
 
-def from_alphabase(
-    sequence: str,
-    mods: str = "",
-    mod_sites: str = "",
-    charge: int | None = None,
-) -> ProFormaAnnotation
+def from_alphabase_row(row: Mapping[str, object]) -> ProFormaAnnotation
+
+def to_alphabase_dataframe(
+    annotations: Iterable[ProFormaAnnotation],
+    *,
+    loss_policy: LossPolicy = LossPolicy.ERROR,
+) -> pandas.DataFrame
+
+def from_alphabase_dataframe(
+    dataframe: pandas.DataFrame,
+) -> list[ProFormaAnnotation]
 ```
 
 Mapping rules:
@@ -195,9 +192,11 @@ Mapping rules:
   alone; accept optional `is_protein_nterm` and `is_protein_cterm` flags if that
   distinction is added later.
 
-The return type should also expose `as_dict()` for direct insertion into an
-AlphaBase precursor DataFrame. Avoid taking or returning a pandas DataFrame in
-the core adapter so pandas does not become an integration requirement.
+The DataFrame adapter should call AlphaBase's public `refine_precursor_df()` and
+return a value that can be assigned directly to `SpecLibBase.precursor_df`.
+Pandas remains optional because this module is installed through the AlphaBase
+extra. Do not create a Peptacular-owned class that implies it is an AlphaBase
+domain object.
 
 ## Phase 2 integrations
 
@@ -308,7 +307,7 @@ manual or scheduled jobs for large binary integrations such as pyOpenMS.
 1. PR 1: shared interop errors/policy and Pyteomics annotation/composition
    adapters.
 2. PR 2: `psm_utils` adapter and PSM I/O cookbook.
-3. PR 3: AlphaBase transfer type, adapters, loss reporting, and DataFrame
+3. PR 3: AlphaBase row/DataFrame adapters, loss reporting, and DataFrame
    example.
 4. PR 4: implement the existing IP2, DIA-NN, and Casanovo outbound stubs, or
    move this PR earlier if format symmetry is a release priority.

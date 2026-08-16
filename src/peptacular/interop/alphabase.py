@@ -1,8 +1,8 @@
 """Conversions for AlphaBase peptide-table columns."""
 
 import warnings
-from dataclasses import asdict, dataclass
-from typing import Any
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 from peptacular.annotation import ProFormaAnnotation
 from peptacular.proforma_components import ModificationTags, TagName
@@ -11,23 +11,10 @@ from ._errors import InteropConversionError, LossyConversionWarning
 from ._optional import require_dependency
 from ._policy import LossPolicy
 
+if TYPE_CHECKING:
+    import pandas as pd
 
-@dataclass(frozen=True, slots=True)
-class AlphaBasePeptide:
-    """The AlphaBase columns that describe one peptide precursor."""
-
-    sequence: str
-    mods: str = ""
-    mod_sites: str = ""
-    charge: int | None = None
-
-    def as_dict(self) -> dict[str, str | int | None]:
-        """Return values suitable for a precursor DataFrame row.
-
-        :return: Mapping with AlphaBase column names.
-        :rtype: dict[str, str | int | None]
-        """
-        return asdict(self)
+AlphaBaseRow = dict[str, str | int | None]
 
 
 def _handle_loss(messages: list[str], policy: LossPolicy) -> None:
@@ -71,12 +58,12 @@ def _append_mods(
             output_sites.append(site_index)
 
 
-def to_alphabase(
+def to_alphabase_row(
     annotation: ProFormaAnnotation,
     *,
     loss_policy: LossPolicy | str = LossPolicy.ERROR,
-) -> AlphaBasePeptide:
-    """Convert an annotation to AlphaBase peptide-table values.
+) -> AlphaBaseRow:
+    """Convert an annotation to one AlphaBase precursor-table row.
 
     Fixed modifications are expanded onto individual residues. Advanced
     ProForma constructs are rejected by default and may only be discarded by
@@ -86,8 +73,8 @@ def to_alphabase(
     :type annotation: ProFormaAnnotation
     :param loss_policy: Behavior for unsupported information.
     :type loss_policy: LossPolicy | str
-    :return: AlphaBase peptide columns.
-    :rtype: AlphaBasePeptide
+    :return: Mapping containing ``sequence``, ``mods``, ``mod_sites``, and ``charge``.
+    :rtype: AlphaBaseRow
     :raises InteropConversionError: If strict conversion would lose information.
     """
     policy = LossPolicy(loss_policy)
@@ -125,15 +112,15 @@ def to_alphabase(
     _append_mods(mods, sites, working.cterm_mods, "Any_C-term", -1, valid_mods, losses)
 
     _handle_loss(losses, policy)
-    return AlphaBasePeptide(
-        sequence=working.sequence,
-        mods=";".join(mods),
-        mod_sites=";".join(str(site) for site in sites),
-        charge=working.charge_state or None,
-    )
+    return {
+        "sequence": working.sequence,
+        "mods": ";".join(mods),
+        "mod_sites": ";".join(str(site) for site in sites),
+        "charge": working.charge_state or None,
+    }
 
 
-def from_alphabase(
+def _from_alphabase_fields(
     sequence: str,
     mods: str = "",
     mod_sites: str = "",
@@ -189,3 +176,85 @@ def from_alphabase(
                 raise InteropConversionError(f"Modification {raw_mod!r} targets {target!r}, but residue {site} is {sequence[index]!r}")
             annotation.append_internal_mod_at_index(index, name, inplace=True)
     return annotation
+
+
+def from_alphabase_row(row: Mapping[str, Any]) -> ProFormaAnnotation:
+    """Build a Peptacular annotation from one AlphaBase table row.
+
+    :param row: Mapping with AlphaBase peptide columns.
+    :type row: Mapping[str, Any]
+    :return: Peptacular annotation.
+    :rtype: ProFormaAnnotation
+    :raises InteropConversionError: If required columns are missing or invalid.
+    """
+    if "sequence" not in row:
+        raise InteropConversionError("AlphaBase row is missing required 'sequence' column")
+    sequence = row["sequence"]
+    mods = row.get("mods", "")
+    mod_sites = row.get("mod_sites", "")
+    raw_charge = row.get("charge")
+    if not isinstance(sequence, str) or not isinstance(mods, str) or not isinstance(mod_sites, str):
+        raise InteropConversionError("AlphaBase sequence, mods, and mod_sites values must be strings")
+    try:
+        charge = None if raw_charge in (None, "") else int(raw_charge)
+    except (TypeError, ValueError) as exc:
+        raise InteropConversionError(f"Invalid AlphaBase charge {raw_charge!r}") from exc
+    return _from_alphabase_fields(sequence, mods, mod_sites, charge)
+
+
+def to_alphabase_dataframe(
+    annotations: Iterable[ProFormaAnnotation],
+    *,
+    loss_policy: LossPolicy | str = LossPolicy.ERROR,
+) -> "pd.DataFrame":
+    """Convert annotations to AlphaBase's native precursor DataFrame.
+
+    AlphaBase's public peptide and precursor representation is a pandas
+    DataFrame. The result is passed through
+    :func:`alphabase.peptide.precursor.refine_precursor_df` and can be assigned
+    directly to ``SpecLibBase.precursor_df``.
+
+    :param annotations: Peptacular annotations to convert.
+    :type annotations: Iterable[ProFormaAnnotation]
+    :param loss_policy: Behavior for unsupported information.
+    :type loss_policy: LossPolicy | str
+    :return: Refined pandas DataFrame with AlphaBase columns.
+    :rtype: pandas.DataFrame
+    :raises InteropConversionError: If charged and uncharged rows are mixed.
+    """
+    pandas = require_dependency("pandas", "alphabase")
+    precursor = require_dependency("alphabase.peptide.precursor", "alphabase")
+    rows = [to_alphabase_row(annotation, loss_policy=loss_policy) for annotation in annotations]
+    columns = ["sequence", "mods", "mod_sites", "charge"]
+    dataframe = pandas.DataFrame(rows, columns=columns)
+
+    if rows:
+        has_charge = [row["charge"] is not None for row in rows]
+        if any(has_charge) and not all(has_charge):
+            raise InteropConversionError("AlphaBase DataFrame conversion cannot mix charged and uncharged annotations")
+        if not any(has_charge):
+            dataframe.drop(columns="charge", inplace=True)
+    else:
+        dataframe.drop(columns="charge", inplace=True)
+
+    return precursor.refine_precursor_df(dataframe, ensure_data_validity=True)
+
+
+def from_alphabase_dataframe(dataframe: "pd.DataFrame") -> list[ProFormaAnnotation]:
+    """Convert an AlphaBase precursor DataFrame to Peptacular annotations.
+
+    :param dataframe: AlphaBase pandas DataFrame.
+    :type dataframe: pandas.DataFrame
+    :return: Annotations in DataFrame row order.
+    :rtype: list[ProFormaAnnotation]
+    :raises TypeError: If *dataframe* is not a pandas DataFrame.
+    :raises InteropConversionError: If required columns are absent.
+    """
+    pandas = require_dependency("pandas", "alphabase")
+    require_dependency("alphabase.peptide.precursor", "alphabase")
+    if not isinstance(dataframe, pandas.DataFrame):
+        raise TypeError(f"Expected pandas.DataFrame, got {type(dataframe).__name__}")
+    missing = {"sequence", "mods", "mod_sites"} - set(dataframe.columns)
+    if missing:
+        raise InteropConversionError(f"AlphaBase DataFrame is missing required columns: {', '.join(sorted(missing))}")
+    return [from_alphabase_row(row) for row in dataframe.to_dict(orient="records")]
