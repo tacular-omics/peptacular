@@ -10,8 +10,6 @@ authors:
   - name: Patrick T. Garrett 
     orcid: 0000-0002-8434-9693 
     affiliation: 1
-  - name: Titus Jung
-    affiliation: 1
   - name: John R. Yates III
     orcid: 0000-0001-5267-1672 
     corresponding: true
