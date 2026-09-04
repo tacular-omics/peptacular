@@ -35,6 +35,16 @@ Issues = "https://github.com/tacular-omics/peptacular/issues"
 Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
 DOI = "https://doi.org/10.5281/zenodo.15054278"
 
+[project.optional-dependencies]
+pyteomics = ["pyteomics>=5.0"]
+psm-utils = ["psm-utils>=1.0"]
+alphabase = ["alphabase>=1.9"]
+interop = [
+    "pyteomics>=5.0",
+    "psm-utils>=1.0",
+    "alphabase>=1.9",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -53,7 +63,7 @@ dev = [
     "pytest>=9.0.1",
     "pytest-cov>=6.0.0",
     "pympler>=1.1",
-    "pyteomics>=4.7.5",
+    "pyteomics>=5.0",
     "ruff>=0.14.7",
     "pyupgrade>=3.21.0",
     "ty>=0.0.11",
@@ -89,9 +99,6 @@ select = [
 "__init__.py" = ["F403", "F401"]
 "data.py" = ["E741"]
 "constants.py" = ["E741"]
-
-[tool.uv.sources]
-pyteomics = { git = "https://github.com/levitsky/pyteomics.git" }
 
 [tool.coverage.report]
 exclude_lines = [

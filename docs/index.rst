@@ -28,6 +28,7 @@ User Guide
    streaming
    proforma_compliance
    examples
+   interoperability
    masses
    mass_calculation
    json_serialization
