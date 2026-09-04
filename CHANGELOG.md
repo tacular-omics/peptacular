@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Versioned ProForma JSON serialization for annotations and structured components, with a bundled JSON Schema.
 - Streaming `iter_fasta()` with gzip paths, encoding overrides, line-numbered structure errors, and caller-owned stream preservation.
 - `batch()` and bounded `iter_batch()` APIs with ordered input indexes, opt-in error collection, reusable executors, and local multiprocessing contexts.
 - `diagnose()` and structured diagnostics for parsing, validation, and calculation failures, with specific ValueError subclasses for common scientific errors.
@@ -21,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Small automatic batches run sequentially, worker counts are capped to available work, and worker/chunk settings are validated before execution.
 - Added Python 3.13/3.14 and macOS/Windows CI coverage, documentation and example checks, an installed-wheel smoke check, and an explicit 79% branch coverage baseline with an 83% improvement target.
 - Migrated development dependencies to standard dependency groups without changing locked versions.
+
 
 ### TODO (Next Release?)
 - Take valid mod values from the respective dbs for randomizer

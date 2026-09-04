@@ -13,6 +13,7 @@ from .digestion import *
 from .fasta import *
 from .isotope import *
 from .proforma_components import *
+from .proforma_json import *
 from .property import *
 from .regex_utils import *
 from .sequence import *

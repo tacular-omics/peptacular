@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json",
+  "title": "Peptacular ProForma JSON 1.0",
+  "description": "Versioned, lossless representation of Peptacular ProForma annotations and component objects.",
+  "type": "object",
+  "required": ["$schema", "schema_version", "$type"],
+  "properties": {
+    "$schema": {"const": "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json"},
+    "schema_version": {"const": "1.0"},
+    "$type": {
+      "enum": [
+        "ProFormaAnnotation", "FormulaElement", "ChargedFormula", "PositionRule",
+        "TagAccession", "TagMass", "PositionScore", "TagName", "TagInfo", "TagCustom",
+        "GlycanComponent", "GlycanTag", "PositionTag", "LimitTag", "ComkpTag", "ComupTag",
+        "IsotopeReplacement", "GlobalChargeCarrier", "ModificationTags",
+        "ModificationAmbiguousPrimary", "ModificationAmbiguousSecondary", "ModificationCrossLinker",
+        "FixedModification", "SequenceElement", "SequenceRegion", "Peptidoform", "PeptidoformIon",
+        "CompoundPeptidoformIon"
+      ]
+    }
+  },
+  "additionalProperties": {"$ref": "#/$defs/value"},
+  "$defs": {
+    "value": {
+      "anyOf": [
+        {"type": "null"}, {"type": "string"}, {"type": "number"}, {"type": "boolean"},
+        {"type": "array", "items": {"$ref": "#/$defs/value"}},
+        {"$ref": "#/$defs/enum"}, {"$ref": "#/$defs/component"},
+        {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}}
+      ]
+    },
+    "enum": {
+      "type": "object",
+      "required": ["$enum", "value"],
+      "properties": {
+        "$enum": {"enum": ["AminoAcid", "Element", "Monosaccharide", "CV", "Terminal"]},
+        "value": {"type": ["string", "integer"]}
+      },
+      "additionalProperties": false
+    },
+    "component": {
+      "type": "object",
+      "required": ["$type"],
+      "properties": {"$type": {"type": "string"}},
+      "additionalProperties": {"$ref": "#/$defs/value"}
+    }
+  }
+}

@@ -11,7 +11,7 @@ from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from math import isfinite
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, Self, runtime_checkable
 
 from tacular import (
     AA_LOOKUP,
@@ -76,6 +76,32 @@ class MassPropertyMixin(ABC):
     @property
     def average_mass(self) -> float:
         return self.get_mass(monoisotopic=False)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the versioned, JSON-compatible representation of this component."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore this component from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this component."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore this component from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
 
 
 def sum_masses(components: Iterable[HasMassComp], monoisotopic: bool = True) -> float:
@@ -401,6 +427,32 @@ class PositionRule:
 
     def __str__(self) -> str:
         return self.serialize()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the versioned, JSON-compatible representation of this rule."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore this rule from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this rule."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore this rule from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
 
 
 @dataclass(frozen=True, slots=True)
