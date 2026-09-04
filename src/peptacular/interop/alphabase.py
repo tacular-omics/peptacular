@@ -2,6 +2,8 @@
 
 import warnings
 from collections.abc import Iterable, Mapping
+from math import isfinite
+from numbers import Integral, Real
 from typing import TYPE_CHECKING, Any
 
 from peptacular.annotation import ProFormaAnnotation
@@ -28,10 +30,10 @@ def _handle_loss(messages: list[str], policy: LossPolicy) -> None:
 
 
 def _alphabase_mod_name(modification: Any, site: str) -> str | None:
-    if not isinstance(modification, ModificationTags):
+    if not isinstance(modification, ModificationTags) or len(modification.tags) != 1:
         return None
     for tag in modification.tags:
-        if isinstance(tag, TagName) and tag.position_id is None and tag.score is None:
+        if isinstance(tag, TagName) and tag.cv is None and tag.position_id is None and tag.score is None:
             return f"{tag.name}@{site}"
     return None
 
@@ -46,6 +48,8 @@ def _append_mods(
     losses: list[str],
 ) -> None:
     for mod, count in source.parse_items():
+        if type(count) is not int or count < 0:
+            raise InteropConversionError("Modification counts must be nonnegative integers")
         name = _alphabase_mod_name(mod, site_name)
         if name is None:
             losses.append(f"modification {mod!s} at site {site_index}")
@@ -81,6 +85,12 @@ def to_alphabase_row(
     alphabase_modification = require_dependency("alphabase.constants.modification", "alphabase")
     valid_mods = alphabase_modification.MOD_DF.index
     working = annotation.copy()
+    if not working.sequence:
+        raise InteropConversionError("AlphaBase requires a nonempty sequence")
+    try:
+        working.validate_sequence()
+    except ValueError as exc:
+        raise InteropConversionError(f"Invalid AlphaBase sequence: {exc}") from exc
     losses: list[str] = []
 
     if working.compound_name or working.ion_name or working.peptide_name:
@@ -101,7 +111,7 @@ def to_alphabase_row(
     if working.has_static_mods:
         try:
             working.condense_static_mods(inplace=True)
-        except Exception as exc:
+        except (ValueError, KeyError) as exc:
             losses.append(f"fixed modifications ({exc})")
 
     mods: list[str] = []
@@ -148,6 +158,12 @@ def _from_alphabase_fields(
     alphabase_modification = require_dependency("alphabase.constants.modification", "alphabase")
     valid_mods = alphabase_modification.MOD_DF.index
     annotation = ProFormaAnnotation(sequence=sequence, charge=charge)
+    if not sequence:
+        raise InteropConversionError("AlphaBase requires a nonempty sequence")
+    try:
+        annotation.validate_sequence()
+    except ValueError as exc:
+        raise InteropConversionError(f"Invalid AlphaBase sequence: {exc}") from exc
     for raw_mod, raw_site in zip(mod_values, site_values, strict=True):
         try:
             site = int(raw_site)
@@ -195,11 +211,23 @@ def from_alphabase_row(row: Mapping[str, Any]) -> ProFormaAnnotation:
     raw_charge = row.get("charge")
     if not isinstance(sequence, str) or not isinstance(mods, str) or not isinstance(mod_sites, str):
         raise InteropConversionError("AlphaBase sequence, mods, and mod_sites values must be strings")
-    try:
-        charge = None if raw_charge in (None, "") else int(raw_charge)
-    except (TypeError, ValueError) as exc:
-        raise InteropConversionError(f"Invalid AlphaBase charge {raw_charge!r}") from exc
+    charge = _parse_charge(raw_charge)
     return _from_alphabase_fields(sequence, mods, mod_sites, charge)
+
+
+def _parse_charge(value: Any) -> int | None:
+    if value is None or (isinstance(value, str) and value == ""):
+        return None
+    if isinstance(value, Integral) and not isinstance(value, bool):
+        return int(value)
+    if isinstance(value, Real) and not isinstance(value, bool) and isfinite(value) and value == int(value):
+        return int(value)
+    if isinstance(value, str) and value.strip().lstrip("+-").isascii() and value.strip().lstrip("+-").isdigit():
+        try:
+            return int(value)
+        except ValueError:
+            pass
+    raise InteropConversionError(f"Invalid AlphaBase charge {value!r}, expected an integer")
 
 
 def to_alphabase_dataframe(

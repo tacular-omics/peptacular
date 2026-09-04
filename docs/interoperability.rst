@@ -37,7 +37,7 @@ supported features can be exchanged through ProForma text:
 
 Elemental compositions can also be exchanged with
 ``to_pyteomics_composition`` and ``from_pyteomics_composition``. A
-``pyteomics.mass.Composition`` does not preserve ``ChargedFormula.charge``;
+``pyteomics.mass.Composition`` does not preserve ``ChargedFormula.charge``.
 the outbound adapter therefore rejects charged formula values.
 
 ``psm_utils``
@@ -86,7 +86,7 @@ public API:
 
 For one annotation, ``to_alphabase_row`` returns a plain row dictionary and
 ``from_alphabase_row`` accepts a mapping. These helpers do not
-invent an AlphaBase peptide class; they expose the columns used by AlphaBase's
+invent an AlphaBase peptide class. they expose the columns used by AlphaBase's
 actual DataFrame model.
 
 The AlphaBase representation cannot encode every ProForma feature. By default,
@@ -118,3 +118,27 @@ Their supported subsets may differ from Peptacular's. When a target parser
 rejects a feature, the adapter wraps its parser failure in an
 ``InteropConversionError`` while preserving the original exception as its
 cause.
+
+Release compatibility notes
+---------------------------
+
+The text adapters check a ProForma round trip before returning a target object.
+If the target parser changes any annotation data, conversion raises
+``InteropConversionError``. In particular, Pyteomics 5.0.1 changes negative
+integer charges during serialization, so those outbound conversions are
+rejected. The same guard applies to ``psm_utils``, which uses Pyteomics.
+
+AlphaBase modification conversion currently supports single, unqualified
+modification names registered in AlphaBase. CV accessions, explicit CV name
+prefixes, scores, and additional modification tags require an explicit lossy
+policy. Exact integral charges such as ``2``, ``2.0``, and ``"2"`` are accepted.
+Fractional, boolean, and non-finite charges raise an error.
+
+AlphaBase refines its tables by sorting on peptide length. Returned DataFrame
+row order can therefore differ from input order. The inbound adapter preserves
+the DataFrame's current order. Convert individual rows when you need to keep
+an external association with the original input order.
+
+The default installation includes none of these optional packages. Each extra
+may install substantial transitive dependencies. Install only the integration
+you need.

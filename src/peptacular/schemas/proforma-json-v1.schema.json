@@ -2,48 +2,2040 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json",
   "title": "Peptacular ProForma JSON 1.0",
-  "description": "Versioned, lossless representation of Peptacular ProForma annotations and component objects.",
+  "description": "Typed representation of annotations and components. Scientific validity is checked separately by Peptacular.",
   "type": "object",
-  "required": ["$schema", "schema_version", "$type"],
   "properties": {
-    "$schema": {"const": "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json"},
-    "schema_version": {"const": "1.0"},
-    "$type": {
-      "enum": [
-        "ProFormaAnnotation", "FormulaElement", "ChargedFormula", "PositionRule",
-        "TagAccession", "TagMass", "PositionScore", "TagName", "TagInfo", "TagCustom",
-        "GlycanComponent", "GlycanTag", "PositionTag", "LimitTag", "ComkpTag", "ComupTag",
-        "IsotopeReplacement", "GlobalChargeCarrier", "ModificationTags",
-        "ModificationAmbiguousPrimary", "ModificationAmbiguousSecondary", "ModificationCrossLinker",
-        "FixedModification", "SequenceElement", "SequenceRegion", "Peptidoform", "PeptidoformIon",
-        "CompoundPeptidoformIon"
-      ]
+    "$schema": {
+      "const": "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json"
+    },
+    "schema_version": {
+      "const": "1.0"
     }
   },
-  "additionalProperties": {"$ref": "#/$defs/value"},
+  "required": [
+    "$schema",
+    "schema_version"
+  ],
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ProFormaAnnotation"
+    },
+    {
+      "$ref": "#/$defs/FormulaElement"
+    },
+    {
+      "$ref": "#/$defs/ChargedFormula"
+    },
+    {
+      "$ref": "#/$defs/PositionRule"
+    },
+    {
+      "$ref": "#/$defs/TagAccession"
+    },
+    {
+      "$ref": "#/$defs/TagMass"
+    },
+    {
+      "$ref": "#/$defs/PositionScore"
+    },
+    {
+      "$ref": "#/$defs/TagName"
+    },
+    {
+      "$ref": "#/$defs/TagInfo"
+    },
+    {
+      "$ref": "#/$defs/TagCustom"
+    },
+    {
+      "$ref": "#/$defs/GlycanComponent"
+    },
+    {
+      "$ref": "#/$defs/GlycanTag"
+    },
+    {
+      "$ref": "#/$defs/PositionTag"
+    },
+    {
+      "$ref": "#/$defs/LimitTag"
+    },
+    {
+      "$ref": "#/$defs/ComkpTag"
+    },
+    {
+      "$ref": "#/$defs/ComupTag"
+    },
+    {
+      "$ref": "#/$defs/IsotopeReplacement"
+    },
+    {
+      "$ref": "#/$defs/GlobalChargeCarrier"
+    },
+    {
+      "$ref": "#/$defs/ModificationTags"
+    },
+    {
+      "$ref": "#/$defs/ModificationAmbiguousPrimary"
+    },
+    {
+      "$ref": "#/$defs/ModificationAmbiguousSecondary"
+    },
+    {
+      "$ref": "#/$defs/ModificationCrossLinker"
+    },
+    {
+      "$ref": "#/$defs/FixedModification"
+    },
+    {
+      "$ref": "#/$defs/SequenceElement"
+    },
+    {
+      "$ref": "#/$defs/SequenceRegion"
+    },
+    {
+      "$ref": "#/$defs/Peptidoform"
+    },
+    {
+      "$ref": "#/$defs/PeptidoformIon"
+    },
+    {
+      "$ref": "#/$defs/CompoundPeptidoformIon"
+    }
+  ],
+  "unevaluatedProperties": false,
   "$defs": {
-    "value": {
-      "anyOf": [
-        {"type": "null"}, {"type": "string"}, {"type": "number"}, {"type": "boolean"},
-        {"type": "array", "items": {"$ref": "#/$defs/value"}},
-        {"$ref": "#/$defs/enum"}, {"$ref": "#/$defs/component"},
-        {"type": "object", "additionalProperties": {"$ref": "#/$defs/value"}}
+    "ProFormaAnnotation": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ProFormaAnnotation"
+        },
+        "sequence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "names": {
+          "type": "object",
+          "properties": {
+            "compound": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ion": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "peptide": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "compound",
+            "ion",
+            "peptide"
+          ],
+          "additionalProperties": false
+        },
+        "modifications": {
+          "type": "object",
+          "properties": {
+            "isotope": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fixed": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "labile": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "unlocalized": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "n_terminal": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "c_terminal": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "internal": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "position": {
+                        "type": "integer"
+                      },
+                      "modifications": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer"
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "position",
+                      "modifications"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "isotope",
+            "fixed",
+            "labile",
+            "unlocalized",
+            "n_terminal",
+            "c_terminal",
+            "internal"
+          ],
+          "additionalProperties": false
+        },
+        "intervals": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "ambiguous": {
+                    "type": "boolean"
+                  },
+                  "modifications": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "integer"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "start",
+                  "end",
+                  "ambiguous",
+                  "modifications"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "charge": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "sequence",
+        "names",
+        "modifications",
+        "intervals",
+        "charge"
       ]
     },
-    "enum": {
+    "FormulaElement": {
       "type": "object",
-      "required": ["$enum", "value"],
       "properties": {
-        "$enum": {"enum": ["AminoAcid", "Element", "Monosaccharide", "CV", "Terminal"]},
-        "value": {"type": ["string", "integer"]}
+        "$type": {
+          "const": "FormulaElement"
+        },
+        "element": {
+          "type": "object",
+          "properties": {
+            "$enum": {
+              "const": "Element"
+            },
+            "value": {
+              "enum": [
+                "Ac",
+                "Ag",
+                "Al",
+                "Am",
+                "Ar",
+                "As",
+                "At",
+                "Au",
+                "B",
+                "Ba",
+                "Be",
+                "Bh",
+                "Bi",
+                "Bk",
+                "Br",
+                "C",
+                "Ca",
+                "Cd",
+                "Ce",
+                "Cf",
+                "Cl",
+                "Cm",
+                "Cn",
+                "Co",
+                "Cr",
+                "Cs",
+                "Cu",
+                "Db",
+                "Ds",
+                "Dy",
+                "Er",
+                "Es",
+                "Eu",
+                "F",
+                "Fe",
+                "Fl",
+                "Fm",
+                "Fr",
+                "Ga",
+                "Gd",
+                "Ge",
+                "H",
+                "He",
+                "Hf",
+                "Hg",
+                "Ho",
+                "Hs",
+                "I",
+                "In",
+                "Ir",
+                "K",
+                "Kr",
+                "La",
+                "Li",
+                "Lr",
+                "Lu",
+                "Lv",
+                "Mc",
+                "Md",
+                "Mg",
+                "Mn",
+                "Mo",
+                "Mt",
+                "N",
+                "Na",
+                "Nb",
+                "Nd",
+                "Ne",
+                "Nh",
+                "Ni",
+                "No",
+                "Np",
+                "O",
+                "Og",
+                "Os",
+                "P",
+                "Pa",
+                "Pb",
+                "Pd",
+                "Pm",
+                "Po",
+                "Pr",
+                "Pt",
+                "Pu",
+                "Ra",
+                "Rb",
+                "Re",
+                "Rf",
+                "Rg",
+                "Rh",
+                "Rn",
+                "Ru",
+                "S",
+                "Sb",
+                "Sc",
+                "Se",
+                "Sg",
+                "Si",
+                "Sm",
+                "Sn",
+                "Sr",
+                "Ta",
+                "Tb",
+                "Tc",
+                "Te",
+                "Th",
+                "Ti",
+                "Tl",
+                "Tm",
+                "Ts",
+                "U",
+                "V",
+                "W",
+                "Xe",
+                "Y",
+                "Yb",
+                "Zn",
+                "Zr"
+              ]
+            }
+          },
+          "required": [
+            "$enum",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "occurance": {
+          "type": "integer"
+        },
+        "isotope": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
       },
-      "additionalProperties": false
+      "required": [
+        "$type",
+        "element",
+        "occurance",
+        "isotope"
+      ]
     },
-    "component": {
+    "ChargedFormula": {
       "type": "object",
-      "required": ["$type"],
-      "properties": {"$type": {"type": "string"}},
-      "additionalProperties": {"$ref": "#/$defs/value"}
+      "properties": {
+        "$type": {
+          "const": "ChargedFormula"
+        },
+        "formula": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FormulaElement"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "charge": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "formula",
+        "charge",
+        "position_id",
+        "score"
+      ]
+    },
+    "PositionRule": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "PositionRule"
+        },
+        "terminal": {
+          "type": "object",
+          "properties": {
+            "$enum": {
+              "const": "Terminal"
+            },
+            "value": {
+              "enum": [
+                "Anywhere",
+                "N-term",
+                "C-term"
+              ]
+            }
+          },
+          "required": [
+            "$enum",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "amino_acid": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "$enum": {
+                  "const": "AminoAcid"
+                },
+                "value": {
+                  "enum": [
+                    "A",
+                    "B",
+                    "C",
+                    "D",
+                    "E",
+                    "F",
+                    "G",
+                    "H",
+                    "I",
+                    "J",
+                    "K",
+                    "L",
+                    "M",
+                    "N",
+                    "O",
+                    "P",
+                    "Q",
+                    "R",
+                    "S",
+                    "T",
+                    "U",
+                    "V",
+                    "W",
+                    "X",
+                    "Y",
+                    "Z"
+                  ]
+                }
+              },
+              "required": [
+                "$enum",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "terminal",
+        "amino_acid"
+      ]
+    },
+    "TagAccession": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "TagAccession"
+        },
+        "accession": {
+          "type": "string"
+        },
+        "cv": {
+          "type": "object",
+          "properties": {
+            "$enum": {
+              "const": "CV"
+            },
+            "value": {
+              "enum": [
+                "UNIMOD",
+                "MOD",
+                "RESID",
+                "GNO",
+                "XLMOD",
+                "CUSTOM",
+                "OBSERVED"
+              ]
+            }
+          },
+          "required": [
+            "$enum",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "accession",
+        "cv",
+        "position_id",
+        "score"
+      ]
+    },
+    "TagMass": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "TagMass"
+        },
+        "mass_str": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "cv": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "$enum": {
+                  "const": "CV"
+                },
+                "value": {
+                  "enum": [
+                    "UNIMOD",
+                    "MOD",
+                    "RESID",
+                    "GNO",
+                    "XLMOD",
+                    "CUSTOM",
+                    "OBSERVED"
+                  ]
+                }
+              },
+              "required": [
+                "$enum",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "mass_str",
+        "cv",
+        "position_id",
+        "score"
+      ]
+    },
+    "PositionScore": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "PositionScore"
+        },
+        "position_id": {
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "position_id",
+        "score"
+      ]
+    },
+    "TagName": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "TagName"
+        },
+        "name": {
+          "type": "string"
+        },
+        "cv": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "$enum": {
+                  "const": "CV"
+                },
+                "value": {
+                  "enum": [
+                    "UNIMOD",
+                    "MOD",
+                    "RESID",
+                    "GNO",
+                    "XLMOD",
+                    "CUSTOM",
+                    "OBSERVED"
+                  ]
+                }
+              },
+              "required": [
+                "$enum",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "name",
+        "cv",
+        "position_id",
+        "score"
+      ]
+    },
+    "TagInfo": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "TagInfo"
+        },
+        "info": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "$type",
+        "info"
+      ]
+    },
+    "TagCustom": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "TagCustom"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "name",
+        "position_id",
+        "score"
+      ]
+    },
+    "GlycanComponent": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "GlycanComponent"
+        },
+        "monosaccharide": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "$enum": {
+                  "const": "Monosaccharide"
+                },
+                "value": {
+                  "enum": [
+                    "Sug",
+                    "Tri",
+                    "Tet",
+                    "Pen",
+                    "Hex",
+                    "Hep",
+                    "Oct",
+                    "Non",
+                    "Dec",
+                    "Sulfate",
+                    "Phosphate",
+                    "dHex",
+                    "Fuc",
+                    "en,aHex",
+                    "HexN",
+                    "aHex",
+                    "HexNAc",
+                    "HexNS",
+                    "HexS",
+                    "HexP",
+                    "Neu",
+                    "HexNAcS",
+                    "NeuAc",
+                    "NeuGc"
+                  ]
+                }
+              },
+              "required": [
+                "$enum",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ChargedFormula"
+                }
+              ],
+              "unevaluatedProperties": false
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "occurance": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "$type",
+        "monosaccharide",
+        "occurance"
+      ]
+    },
+    "GlycanTag": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "GlycanTag"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/GlycanComponent"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "components",
+        "position_id",
+        "score"
+      ]
+    },
+    "PositionTag": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "PositionTag"
+        },
+        "residues": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/PositionRule"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "residues"
+      ]
+    },
+    "LimitTag": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "LimitTag"
+        },
+        "limit": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "$type",
+        "limit"
+      ]
+    },
+    "ComkpTag": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ComkpTag"
+        }
+      },
+      "required": [
+        "$type"
+      ]
+    },
+    "ComupTag": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ComupTag"
+        }
+      },
+      "required": [
+        "$type"
+      ]
+    },
+    "IsotopeReplacement": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "IsotopeReplacement"
+        },
+        "element": {
+          "type": "object",
+          "properties": {
+            "$enum": {
+              "const": "Element"
+            },
+            "value": {
+              "enum": [
+                "Ac",
+                "Ag",
+                "Al",
+                "Am",
+                "Ar",
+                "As",
+                "At",
+                "Au",
+                "B",
+                "Ba",
+                "Be",
+                "Bh",
+                "Bi",
+                "Bk",
+                "Br",
+                "C",
+                "Ca",
+                "Cd",
+                "Ce",
+                "Cf",
+                "Cl",
+                "Cm",
+                "Cn",
+                "Co",
+                "Cr",
+                "Cs",
+                "Cu",
+                "Db",
+                "Ds",
+                "Dy",
+                "Er",
+                "Es",
+                "Eu",
+                "F",
+                "Fe",
+                "Fl",
+                "Fm",
+                "Fr",
+                "Ga",
+                "Gd",
+                "Ge",
+                "H",
+                "He",
+                "Hf",
+                "Hg",
+                "Ho",
+                "Hs",
+                "I",
+                "In",
+                "Ir",
+                "K",
+                "Kr",
+                "La",
+                "Li",
+                "Lr",
+                "Lu",
+                "Lv",
+                "Mc",
+                "Md",
+                "Mg",
+                "Mn",
+                "Mo",
+                "Mt",
+                "N",
+                "Na",
+                "Nb",
+                "Nd",
+                "Ne",
+                "Nh",
+                "Ni",
+                "No",
+                "Np",
+                "O",
+                "Og",
+                "Os",
+                "P",
+                "Pa",
+                "Pb",
+                "Pd",
+                "Pm",
+                "Po",
+                "Pr",
+                "Pt",
+                "Pu",
+                "Ra",
+                "Rb",
+                "Re",
+                "Rf",
+                "Rg",
+                "Rh",
+                "Rn",
+                "Ru",
+                "S",
+                "Sb",
+                "Sc",
+                "Se",
+                "Sg",
+                "Si",
+                "Sm",
+                "Sn",
+                "Sr",
+                "Ta",
+                "Tb",
+                "Tc",
+                "Te",
+                "Th",
+                "Ti",
+                "Tl",
+                "Tm",
+                "Ts",
+                "U",
+                "V",
+                "W",
+                "Xe",
+                "Y",
+                "Yb",
+                "Zn",
+                "Zr"
+              ]
+            }
+          },
+          "required": [
+            "$enum",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "isotope": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "$type",
+        "element",
+        "isotope"
+      ]
+    },
+    "GlobalChargeCarrier": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "GlobalChargeCarrier"
+        },
+        "charged_formula": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ChargedFormula"
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        "occurance": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "$type",
+        "charged_formula",
+        "occurance"
+      ]
+    },
+    "ModificationTags": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ModificationTags"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/TagAccession"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ChargedFormula"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/GlycanTag"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/TagInfo"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/TagMass"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/TagName"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/TagCustom"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/PositionScore"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/PositionTag"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/LimitTag"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ComkpTag"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ComupTag"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "tags"
+      ]
+    },
+    "ModificationAmbiguousPrimary": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ModificationAmbiguousPrimary"
+        },
+        "label": {
+          "type": "string"
+        },
+        "tags": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ModificationTags"
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/PositionRule"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comkp": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comup": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "label",
+        "tags",
+        "score",
+        "position",
+        "limit",
+        "comkp",
+        "comup"
+      ]
+    },
+    "ModificationAmbiguousSecondary": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ModificationAmbiguousSecondary"
+        },
+        "label": {
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "label",
+        "score"
+      ]
+    },
+    "ModificationCrossLinker": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "ModificationCrossLinker"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ModificationTags"
+                }
+              ],
+              "unevaluatedProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "label",
+        "tags"
+      ]
+    },
+    "FixedModification": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "FixedModification"
+        },
+        "modifications": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ModificationTags"
+            }
+          ],
+          "unevaluatedProperties": false
+        },
+        "position_rules": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/PositionRule"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "modifications",
+        "position_rules"
+      ]
+    },
+    "SequenceElement": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "SequenceElement"
+        },
+        "amino_acid": {
+          "type": "object",
+          "properties": {
+            "$enum": {
+              "const": "AminoAcid"
+            },
+            "value": {
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "F",
+                "G",
+                "H",
+                "I",
+                "J",
+                "K",
+                "L",
+                "M",
+                "N",
+                "O",
+                "P",
+                "Q",
+                "R",
+                "S",
+                "T",
+                "U",
+                "V",
+                "W",
+                "X",
+                "Y",
+                "Z"
+              ]
+            }
+          },
+          "required": [
+            "$enum",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "modifications": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousPrimary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousSecondary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationCrossLinker"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationTags"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "amino_acid",
+        "modifications"
+      ]
+    },
+    "SequenceRegion": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "SequenceRegion"
+        },
+        "sequence": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/SequenceElement"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "modifications": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousPrimary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousSecondary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationCrossLinker"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationTags"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        },
+        "ambiguous": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "$type",
+        "sequence",
+        "modifications",
+        "ambiguous"
+      ]
+    },
+    "Peptidoform": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "Peptidoform"
+        },
+        "sequence": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/SequenceElement"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/SequenceRegion"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "n_term_modifications": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousPrimary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousSecondary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationCrossLinker"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationTags"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        },
+        "c_term_modifications": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousPrimary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousSecondary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationCrossLinker"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationTags"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        },
+        "labile_modifications": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/ModificationTags"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "unlocalised_modifications": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousPrimary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ModificationAmbiguousSecondary"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "sequence",
+        "name",
+        "n_term_modifications",
+        "c_term_modifications",
+        "labile_modifications",
+        "unlocalised_modifications"
+      ]
+    },
+    "PeptidoformIon": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "PeptidoformIon"
+        },
+        "peptidoforms": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/Peptidoform"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "charge": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/GlobalChargeCarrier"
+                  }
+                ],
+                "unevaluatedProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "$type",
+        "peptidoforms",
+        "name",
+        "charge"
+      ]
+    },
+    "CompoundPeptidoformIon": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "CompoundPeptidoformIon"
+        },
+        "peptidoform_ions": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/PeptidoformIon"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fixed_modifications": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/FixedModification"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "isotope_replacement": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/IsotopeReplacement"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "required": [
+        "$type",
+        "peptidoform_ions",
+        "name",
+        "fixed_modifications",
+        "isotope_replacement"
+      ]
     }
   }
 }

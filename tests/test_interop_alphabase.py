@@ -135,3 +135,37 @@ def test_alphabase_dataframe_rejects_missing_columns():
 def test_alphabase_dataframe_rejects_wrong_type():
     with pytest.raises(TypeError, match="Expected pandas.DataFrame"):
         from_alphabase_dataframe([])
+
+
+@pytest.mark.parametrize("charge", [2.9, True, False, float("nan"), float("inf"), float("-inf"), "2.9"])
+def test_alphabase_rejects_inexact_or_nonfinite_charges(charge):
+    with pytest.raises(InteropConversionError, match="Invalid AlphaBase charge"):
+        from_alphabase_row({"sequence": "PEPTIDE", "charge": charge})
+
+
+@pytest.mark.parametrize("charge", [2, 2.0, "2", "+2", " 2 "])
+def test_alphabase_accepts_exact_integer_charges(charge):
+    assert from_alphabase_row({"sequence": "PEPTIDE", "charge": charge}).charge_state == 2
+
+
+def test_alphabase_preserves_empty_dataframe():
+    assert from_alphabase_dataframe(to_alphabase_dataframe([])) == []
+
+
+@pytest.mark.parametrize("sequence", ["PEM[Oxidation|INFO:important]TIDE", "PEM[U:Oxidation]TIDE"])
+def test_alphabase_rejects_modification_metadata_loss(sequence):
+    with pytest.raises(InteropConversionError, match="cannot represent"):
+        to_alphabase_row(ProFormaAnnotation.parse(sequence))
+
+
+def test_alphabase_does_not_mutate_fixed_modification_input():
+    annotation = ProFormaAnnotation.parse("<[Carbamidomethyl]@C>ACDC")
+    before = annotation.to_dict()
+    to_alphabase_row(annotation)
+    assert annotation.to_dict() == before
+
+
+@pytest.mark.parametrize("sequence", ["", "PEP123", "PEPTIDE/2"])
+def test_alphabase_rejects_invalid_bare_sequence(sequence):
+    with pytest.raises(InteropConversionError, match="sequence"):
+        from_alphabase_row({"sequence": sequence})

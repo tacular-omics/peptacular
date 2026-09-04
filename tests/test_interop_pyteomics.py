@@ -56,3 +56,41 @@ def test_pyteomics_composition_rejects_charge_metadata():
 def test_pyteomics_composition_rejects_special_keys():
     with pytest.raises(InteropConversionError, match="not representable"):
         from_pyteomics_composition({"H+": 1})
+
+
+@pytest.mark.parametrize("count", [True, 1.5, float("nan"), float("inf"), "2"])
+def test_pyteomics_compositions_reject_invalid_counts(count):
+    for convert in [to_pyteomics_composition, from_pyteomics_composition]:
+        with pytest.raises(InteropConversionError, match="integer counts"):
+            convert({"C": count})
+
+
+def test_pyteomics_default_isotope_and_negative_counts():
+    formula = from_pyteomics_composition({"C[0]": 2, "C": 1, "H": -2})
+    assert formula.get_dict_composition() == {"C": 3, "H": -2}
+    assert dict(to_pyteomics_composition(formula)) == {"C": 3, "H": -2}
+
+
+@pytest.mark.parametrize("key", ["Xx", "999C", 1])
+def test_pyteomics_rejects_invalid_elements(key):
+    for convert in [to_pyteomics_composition, from_pyteomics_composition]:
+        with pytest.raises(InteropConversionError):
+            convert({key: 1})
+
+
+def test_pyteomics_negative_charge_never_silently_changes():
+    original = ProFormaAnnotation.parse("PEPTIDE/-2")
+    try:
+        converted = to_pyteomics(original)
+    except InteropConversionError as exc:
+        assert "round trip" in str(exc)
+    else:
+        assert from_pyteomics(converted).to_dict() == original.to_dict()
+
+
+def test_pyteomics_detects_a_target_parser_dropping_metadata(monkeypatch):
+    original = ProFormaAnnotation.parse("(>named)PEPTIDE")
+    converted = proforma.ProForma.parse("PEPTIDE")
+    monkeypatch.setattr(proforma.ProForma, "parse", lambda text: converted)
+    with pytest.raises(InteropConversionError, match="round trip"):
+        to_pyteomics(original)

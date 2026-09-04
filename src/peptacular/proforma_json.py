@@ -12,10 +12,36 @@ from dataclasses import fields, is_dataclass
 from enum import Enum
 from functools import lru_cache
 from importlib.resources import files as resource_files
-from typing import Any, cast
+from math import isfinite
+from types import UnionType
+from typing import Any, cast, get_args, get_origin, get_type_hints
 
 PROFORMA_JSON_SCHEMA_VERSION = "1.0"
 PROFORMA_JSON_SCHEMA_ID = "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json"
+
+
+@lru_cache(maxsize=32)
+def _field_types(component_type: type[Any]) -> dict[str, Any]:
+    hints = get_type_hints(component_type)
+    return {field.name: hints[field.name] for field in fields(component_type)}
+
+
+def _matches_type(value: Any, expected: Any) -> bool:
+    origin = get_origin(expected)
+    args = get_args(expected)
+    if origin is UnionType:
+        return any(_matches_type(value, option) for option in args)
+    if origin is tuple:
+        return isinstance(value, tuple) and all(_matches_type(item, args[0]) for item in value)
+    if expected is float:
+        return type(value) in (int, float) and (not isinstance(value, float) or isfinite(value))
+    return type(value) is expected
+
+
+def _check_type(value: Any, expected: Any, field_name: str) -> None:
+    if not _matches_type(value, expected):
+        raise ValueError(f"{field_name} must have type {expected}")
+
 
 @lru_cache(maxsize=1)
 def _component_types() -> dict[str, type[Any]]:
@@ -83,10 +109,7 @@ def _encode_annotation(annotation: Any) -> dict[str, Any]:
             "n_terminal": _mod_counts(annotation._nterm_mods),
             "c_terminal": _mod_counts(annotation._cterm_mods),
             "internal": (
-                [
-                    {"position": position, "modifications": dict(modifications)}
-                    for position, modifications in annotation._internal_mods.items()
-                ]
+                [{"position": position, "modifications": dict(modifications)} for position, modifications in sorted(annotation._internal_mods.items())]
                 if annotation._internal_mods is not None
                 else None
             ),
@@ -114,13 +137,19 @@ def _encode(value: Any) -> Any:
     if isinstance(value, ProFormaAnnotation):
         return _encode_annotation(value)
     if isinstance(value, Enum):
+        if _enum_types().get(type(value).__name__) is not type(value):
+            raise TypeError(f"Unsupported ProForma JSON enum: {type(value).__name__}")
         return {"$enum": type(value).__name__, "value": value.value}
-    if is_dataclass(value) and type(value).__name__ in _component_types():
+    if is_dataclass(value) and _component_types().get(type(value).__name__) is type(value):
+        for name, expected in _field_types(type(value)).items():
+            _check_type(getattr(value, name), expected, f"{type(value).__name__}.{name}")
         encoded = {"$type": type(value).__name__}
         encoded.update((field.name, _encode(getattr(value, field.name))) for field in fields(value))
         return encoded
     if isinstance(value, tuple):
         return [_encode(item) for item in value]
+    if isinstance(value, float) and not isfinite(value):
+        raise ValueError("JSON numbers must be finite")
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise TypeError(f"Unsupported ProForma JSON value: {type(value).__name__}")
@@ -159,6 +188,9 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
         raise ValueError("names and modifications must be JSON objects")
     _require_keys(names, {"compound", "ion", "peptide"})
     _require_keys(modifications, {"isotope", "fixed", "labile", "unlocalized", "n_terminal", "c_terminal", "internal"})
+    _check_type(data["sequence"], str | None, "sequence")
+    for name, value in names.items():
+        _check_type(value, str | None, f"names.{name}")
 
     internal_value = modifications["internal"]
     internal: dict[int, dict[str, int]] | None = None
@@ -187,6 +219,9 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
             if not isinstance(entry, Mapping):
                 raise ValueError("Each interval must be an object")
             _require_keys(entry, {"start", "end", "ambiguous", "modifications"})
+            _check_type(entry["start"], int, "interval.start")
+            _check_type(entry["end"], int, "interval.end")
+            _check_type(entry["ambiguous"], bool, "interval.ambiguous")
             intervals.append(
                 Interval(
                     start=entry["start"],
@@ -223,25 +258,33 @@ def _decode(value: Any) -> Any:
     if isinstance(value, list):
         return tuple(_decode(item) for item in value)
     if not isinstance(value, Mapping):
+        if isinstance(value, float) and not isfinite(value):
+            raise ValueError("JSON numbers must be finite")
         if value is None or isinstance(value, (str, int, float, bool)):
             return value
         raise ValueError(f"Unsupported JSON value: {type(value).__name__}")
     if "$enum" in value:
         _require_keys(value, {"$enum", "value"})
         enum_name = value["$enum"]
+        _check_type(enum_name, str, "$enum")
         enum_type = _enum_types().get(enum_name)
         if enum_type is None:
             raise ValueError(f"Unknown ProForma JSON enum type: {enum_name!r}")
         return enum_type(value["value"])
     object_name = value.get("$type")
+    _check_type(object_name, str, "$type")
     if object_name == "ProFormaAnnotation":
         return _decode_annotation(value)
     component_type = _component_types().get(object_name)
     if component_type is None:
         raise ValueError(f"Unknown ProForma JSON object type: {object_name!r}")
-    field_names = {field.name for field in fields(component_type)}
+    field_types = _field_types(component_type)
+    field_names = set(field_types)
     _require_keys(value, field_names | {"$type"})
-    return component_type(**{name: _decode(value[name]) for name in field_names})
+    decoded = {name: _decode(value[name]) for name in field_names}
+    for name, expected in field_types.items():
+        _check_type(decoded[name], expected, f"{object_name}.{name}")
+    return component_type(**decoded)
 
 
 def to_proforma_dict(value: Any) -> dict[str, Any]:
@@ -270,6 +313,8 @@ def from_proforma_dict(data: Mapping[str, Any], expected_type: type[Any] | None 
     schema_id = payload.pop("$schema", PROFORMA_JSON_SCHEMA_ID)
     if schema_id != PROFORMA_JSON_SCHEMA_ID:
         raise ValueError(f"Unsupported ProForma JSON schema: {schema_id!r}")
+    if "$type" not in payload:
+        raise ValueError("The root ProForma JSON value must be a supported object with $type")
     decoded = _decode(payload)
     if expected_type is not None and not isinstance(decoded, expected_type):
         raise TypeError(f"Expected {expected_type.__name__}, got {type(decoded).__name__}")
@@ -283,10 +328,23 @@ def to_proforma_json(value: Any, *, indent: int | None = None) -> str:
 
 def from_proforma_json(data: str | bytes | bytearray, expected_type: type[Any] | None = None) -> Any:
     """Decode JSON text produced by :func:`to_proforma_json`."""
-    parsed = json.loads(data)
+    parsed = json.loads(data, object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
     if not isinstance(parsed, Mapping):
         raise ValueError("The root ProForma JSON value must be an object")
     return from_proforma_dict(parsed, expected_type=expected_type)
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON field: {key}")
+        result[key] = value
+    return result
+
+
+def _invalid_constant(value: str) -> Any:
+    raise ValueError(f"JSON numbers must be finite: {value}")
 
 
 def get_proforma_json_schema() -> dict[str, Any]:

@@ -28,6 +28,8 @@
 - **Physiochemical Property Calculations** 
 - **Streaming FASTA and Gzip Input**
 - **Indexed Batch Results and Input Diagnostics**
+- **Versioned JSON Serialization**
+- **Optional Pyteomics, psm_utils, and AlphaBase Integrations**
 - **Built-in Parallel Processing** 
 
 ## Installation
@@ -35,6 +37,18 @@
 ```bash
 pip install peptacular
 ```
+
+Optional package adapters can be installed separately:
+
+```bash
+pip install "peptacular[pyteomics]"
+pip install "peptacular[psm-utils]"
+pip install "peptacular[alphabase]"
+```
+
+See the [interoperability guide](https://peptacular.readthedocs.io/en/latest/interoperability.html)
+and [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html)
+for supported conversions and examples.
 
 ## Quick Start (Object Based)
 

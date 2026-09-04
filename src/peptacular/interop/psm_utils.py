@@ -6,6 +6,7 @@ from peptacular.annotation import ProFormaAnnotation
 
 from ._errors import InteropConversionError
 from ._optional import require_dependency
+from ._roundtrip import check_round_trip
 
 
 def to_psm_utils(annotation: ProFormaAnnotation) -> Any:
@@ -20,7 +21,9 @@ def to_psm_utils(annotation: ProFormaAnnotation) -> Any:
     """
     psm_utils = require_dependency("psm_utils", "psm-utils")
     try:
-        return psm_utils.Peptidoform(annotation.serialize())
+        converted = psm_utils.Peptidoform(annotation.serialize())
+        check_round_trip(annotation, converted.proforma, "psm_utils")
+        return converted
     except Exception as exc:
         raise InteropConversionError(f"psm_utils could not parse the annotation {annotation.serialize()!r}: {exc}") from exc
 

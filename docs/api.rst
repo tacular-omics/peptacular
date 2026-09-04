@@ -125,3 +125,9 @@ see https://tacular.readthedocs.io
    :members:
 
 .. autofunction:: peptacular.iter_fasta
+
+ProForma JSON
+-------------
+
+.. automodule:: peptacular.proforma_json
+   :members:

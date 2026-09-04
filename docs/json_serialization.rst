@@ -30,5 +30,20 @@ The bundled JSON Schema is available without filesystem assumptions:
    schema = pt.get_proforma_json_schema()
 
 The current schema version is ``1.0``. Additive or breaking representation
-changes require a new schema version; existing decoders do not silently accept a
+changes require a new schema version. Existing decoders do not silently accept a
 document from an unknown version.
+
+Validation boundaries
+---------------------
+
+The decoder validates field types, object names, enum values, and required
+fields. It rejects duplicate JSON keys and non-finite numeric values. The
+bundled schema describes the complete field structure for every supported
+component. Internal modification positions are serialized in sorted order.
+
+JSON decoding preserves unresolved modifications and does not run scientific
+calculations. Use ``pt.diagnose(annotation, "mass")`` or another operation to
+check whether a restored annotation supports the calculation you need.
+
+The structured component model can store cross-link notation. This release
+continues to calculate single-chain annotations only.

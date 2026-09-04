@@ -35,6 +35,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  wheel-extras:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [pyteomics, psm-utils, alphabase]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - uses: astral-sh/setup-uv@v4
+    - name: Build package
+      run: uv build
+    - name: Test an independently installed extra
+      run: python scripts/test_wheel.py --extra ${{ matrix.extra }}
+
   build:
 
     runs-on: ${{ matrix.os }}
