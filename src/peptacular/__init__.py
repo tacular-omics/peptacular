@@ -5,8 +5,10 @@ Peptacular: A ProForma peptide sequence parser and annotation library
 from tacular import *
 
 from .annotation import *
+from .batch import BatchOperation, BatchResult, batch, diagnose, iter_batch
 from .chem import *
 from .constants import *
+from .diagnostics import *
 from .digestion import *
 from .fasta import *
 from .isotope import *
@@ -17,4 +19,4 @@ from .sequence import *
 from .spans import *
 from .utils import *
 
-__version__ = "3.2.0"
+__version__ = "3.2.1"

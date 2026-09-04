@@ -21,6 +21,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Chemistry",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
@@ -45,7 +47,9 @@ path = "src/peptacular/__init__.py"
 
 [tool.uv]
 package = true
-dev-dependencies = [
+
+[dependency-groups]
+dev = [
     "pytest>=9.0.1",
     "pytest-cov>=6.0.0",
     "pympler>=1.1",

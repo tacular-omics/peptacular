@@ -8,16 +8,45 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'docs/**'
+      - 'examples/**'
+      - 'scripts/**'
+      - 'PROFORMA_COMPLIANCE.md'
+      - 'COMPLICANCE_NOTES.md'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'justfile'
+      - '.github/workflows/python-package.yml'
+      - '.github/workflows/python-publish.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'docs/**'
+      - 'examples/**'
+      - 'scripts/**'
+      - 'PROFORMA_COMPLIANCE.md'
+      - 'COMPLICANCE_NOTES.md'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'justfile'
+      - '.github/workflows/python-package.yml'
+      - '.github/workflows/python-publish.yml'
   workflow_dispatch:
 
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        include:
+          - {os: ubuntu-latest, python-version: "3.12"}
+          - {os: ubuntu-latest, python-version: "3.13"}
+          - {os: ubuntu-latest, python-version: "3.14"}
+          - {os: macos-latest, python-version: "3.14"}
+          - {os: windows-latest, python-version: "3.14"}
 
     steps:
     - uses: actions/checkout@v4
@@ -30,21 +59,32 @@ jobs:
     - name: Install just
       uses: extractions/setup-just@v2
     - name: Install dependencies
-      run: just install-all
+      run: uv sync --all-extras --frozen
     - name: Lint with ruff
       run: just lint
     - name: Type check with ty
-      run: just check
+      run: just ty
     - name: Test with pytest
-      run: just test-cov codecov-tests
+      run: just test-cov
+    - name: Build documentation and test examples
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+      run: |
+        just docs
+        just docs-test
+        just examples
+    - name: Build package
+      run: uv build
+    - name: Smoke test installed wheel
+      run: uv run python scripts/test_wheel.py
     - name: Upload coverage reports to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: tacular-omics/peptacular
         fail_ci_if_error: false
     - name: Upload test results to Codecov
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

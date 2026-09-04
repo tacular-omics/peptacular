@@ -8,6 +8,7 @@ from typing import Any, Protocol, Self, cast
 from tacular import AA_LOOKUP, ElementInfo
 
 from ..constants import ModType
+from ..diagnostics import CompositionError, UnknownModificationError
 from ..proforma_components import (
     FixedModification,
     GlobalChargeCarrier,
@@ -209,7 +210,9 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                     add_composition(total_composition, comp)
                     total_delta_mass += delta
                 else:
-                    raise ValueError(f"Cannot get composition for mod {mod.value}, and no mass tag found.") from e
+                    if isinstance(e, UnknownModificationError):
+                        raise
+                    raise CompositionError(f"Cannot get composition for mod {mod.value}, and no mass tag found.") from e
         return total_composition, total_delta_mass, total_charge
 
     def get_charge(self) -> int:

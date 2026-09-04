@@ -26,6 +26,8 @@
 - **Enzymatic Protein Digestion** 
 - **Fragment Ion Generation** 
 - **Physiochemical Property Calculations** 
+- **Streaming FASTA and Gzip Input**
+- **Indexed Batch Results and Input Diagnostics**
 - **Built-in Parallel Processing** 
 
 ## Installation
@@ -56,7 +58,7 @@ print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())
 
 ## Quick Start (Functional Based)
 
-When more than one item is passed to the functional API methods, it is automatically parallelized.
+Small lists run sequentially. Larger lists automatically use parallel execution, with explicit backend and worker overrides available.
 
 ```python
 import peptacular as pt
@@ -68,6 +70,15 @@ masses: list[float] = pt.mass(peptides) # [928.4026, 374.1914, 451.2454]
 mzs: list[float] = pt.mz(peptides, charge=2) # [465.2086, 188.103, 225.6227]
 ```
 
+
+For streaming input, optional batch error collection, and operation diagnostics,
+see the [streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html).
+
+```python
+results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE"], errors="collect")
+print(results[0].value)
+print(results[1].error.code)  # unresolved_modification
+```
 
 ## ProForma 2.1 Compliance
 

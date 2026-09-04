@@ -10,7 +10,7 @@
 - **Information tags**: `ELV[INFO:AnyString]IS` 
     - Preserved but not used in calculations. Treated as 0.0 mass.
 - **Glycan compositions**: `NEEYN[Glycan:Hex{H2O}5HexNAc4NeuAc1]K`
-  - ProForma 2.1 mixed formula/glycan notation is **not supported**
+  - Mixed named, molecular-formula, and bare-mass components are supported. Bare-mass components support mass calculation but do not have an elemental composition.
 
 ### Ambiguity Handling
 - **Mass gaps**: `PEX[+147.035]AT`
@@ -30,16 +30,18 @@
   - Mass/mz/composition work (Assuming modification has valid composition), fragmentation fails
 
 
-### Isotope Labeling (Use with Caution)
+### Isotope Labeling
 ```
 <13C>PEPTIDE
 ```
 - Mass calculation flow:
-  1. Collect composition from amino acids, modifications, fragment offsets, user isotopes/losses
-  2. Apply global isotope substitution
-  3. Apply charge state/adducts (unaffected by global isotope)
+  1. Collect amino acid and modification composition, then apply the ion formula offset.
+  2. Apply user isotope substitutions and elemental deltas to the complete neutral ion.
+  3. Apply global isotope substitution.
+  4. Apply external charge carriers, which are unaffected by global isotope substitution.
+  5. Correct electron mass using intrinsic plus external charge. Mass-only deltas remain additive.
 
-Should user provided formulas be taken as is? or should isotope effect these too?
+Global isotope substitutions apply to modification and delta formulas as well as the sequence and ion offset.
 
 - Calculating Composition:
     - All modifications must have a known/valid composition.
@@ -48,7 +50,7 @@ Should user provided formulas be taken as is? or should isotope effect these too
     - Allows for DeltaMass Tags, despite not having a valid composition. Since these are typically user provided, or represent an observed mass shift, they are taken as is (The delta mass is assumed to already have been calculated with the isotopic shift in mind).
     - All other modification types must have a valid composition.
 
-- **Recommendation**: Avoid this notation due to potentially unexpected behavior.
+- Mass and composition calculation paths use the same elemental adjustment order.
 
 ### Fixed Modifications
 ```
@@ -70,16 +72,16 @@ SEQUEN/2
 SEQUEN/[Na:z+1,H:z+1]
 ```
 
-**⚠️ Warning**: Mass calculations are optimized for protonation/deprotonation. Using alternative adduct ions may produce incorrect results for neutral fragment ions.
+Explicit adducts contribute their atom counts and charge. Fragment objects distinguish external carrier charge from intrinsic modification charge. Impossible deprotonation or elemental loss counts raise errors.
 
-### Charged Formulas (Use with Caution)
+### Charged Formulas
 ```
 SEQUEN[Formula:Zn1:z+2]CE
 ```
 - Annotation-level charge and adducts only reflect end-of-sequence tags
 - Internal charged formulas affect mz and fragment ion calculations
 - Fragment objects reflect internal charges, but adducts show only user-supplied / end-of-sequence tags values. 
-- **Recommendation**: Avoid this notation due to potentially unexpected behavior
+- `fast_fragment()` uses regular calculations when modifications carry intrinsic charge
 
 ## Interpretation Hints
 
@@ -109,6 +111,4 @@ Parses correctly but not utilized by peptacular. Accessible if needed for extern
 - ❌ Branches: `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR`
 
 ### Ion Notation
-❌ `SEQUEN-[b-type-ion]`
-
-**Recommendation**: Use mzpaf for fragment ion representations instead.
+`SEQUEN-[b-type-ion]` supports parsing, serialization, mass, and composition calculations. Fragment objects also support mzPAF serialization.

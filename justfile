@@ -22,7 +22,8 @@ test:
 
 # Run tests with coverage
 test-cov:
-    uv run pytest tests --cov=src/peptacular --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml
+    uv run pytest tests --cov=src/peptacular --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json --junitxml=junit.xml -o junit_family=legacy
+    uv run python scripts/check_branch_coverage.py
 
 codecov-tests:
     uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
@@ -59,10 +60,10 @@ check:
 
 # Build documentation
 docs:
-    cd docs && uv run sphinx-build -b html . _build/html
+    cd docs && uv run sphinx-build -W --keep-going -b html . _build/html
 
 docs-test:
-    cd docs && uv run sphinx-build -b doctest . _build/doctest
+    cd docs && uv run sphinx-build -W --keep-going -b doctest . _build/doctest
 
 # Clean documentation build
 docs-clean:

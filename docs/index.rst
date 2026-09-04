@@ -25,6 +25,7 @@ User Guide
 
    quickstart
    features
+   streaming
    proforma_compliance
    examples
    masses

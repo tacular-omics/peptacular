@@ -999,8 +999,18 @@ class TestFragmentLazyCompositionIonType(unittest.TestCase):
         for ion in ("b", "y", "a", "c", "x", "z"):
             lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=False)
             eager = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=True)
-            for fl, fe in zip(lazy, eager):
+            for fl, fe in zip(lazy, eager, strict=True):
                 self.assertEqual(dict(fl.composition), dict(fe.composition), f"{ion} pos={fl.position}")
+
+    def test_intact_ions_support_lazy_composition_and_sequence(self):
+        annot = pt.parse("PEM[Oxidation]TIDE")
+        for ion in ("p", "n"):
+            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=False)[0]
+            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=True)[0]
+
+            self.assertIsNone(lazy.position)
+            self.assertEqual(lazy.sequence, "PEM[Oxidation]TIDE/1")
+            self.assertEqual(dict(lazy.composition), dict(eager.composition))
 
 
 if __name__ == "__main__":

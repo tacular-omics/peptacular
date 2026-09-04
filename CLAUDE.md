@@ -60,7 +60,7 @@ def foo(seq: str, inplace: bool = False) -> "ProFormaAnnotation":
 
 ## Key Design Patterns
 
-- **Factory / method chaining**: `set_*` methods accept `inplace: bool = False`. When `False` they return a new `ProFormaAnnotation` copy, enabling chains like `pt.parse("PEM[Oxidation]TIDE").set_charge(2).serialize()`.
+- **Factory / method chaining**: `set_*` methods generally default to `inplace=True`. Pass `inplace=False` for a copy. When `False` they return a new `ProFormaAnnotation` copy, enabling chains like `pt.parse("PEM[Oxidation]TIDE").set_charge(2).serialize()`.
 - **Batch parallelism**: Functional API functions (e.g. `pt.mass([...])`) auto-parallelize for list inputs via `parallel.py`.
 - **ProForma 2.1**: All serialization/deserialization targets the ProForma 2.1 spec.
 
@@ -77,7 +77,7 @@ def foo(seq: str, inplace: bool = False) -> "ProFormaAnnotation":
 ## Testing
 
 - Tests live in `tests/`
-- Run `just test-cov` to check coverage; target is ≥83%
+- Run `just test-cov` to check coverage. The branch minimum is 79%, with an improvement target of 83%
 - Use `tmp_path` fixture (not `tempfile`) for file-based tests
 - Do not mock the database or internal state — integration tests should exercise real code paths
 

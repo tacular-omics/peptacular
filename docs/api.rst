@@ -99,3 +99,11 @@ Peptacular relies on the python tacular package for data on amino acids, modific
 chemical entities, but are accessible from the peptacular namespace.
 
 see https://tacular.readthedocs.io
+
+.. automodule:: peptacular.batch
+   :members:
+
+.. automodule:: peptacular.diagnostics
+   :members:
+
+.. autofunction:: peptacular.iter_fasta

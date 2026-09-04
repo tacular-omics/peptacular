@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import multiprocessing as mp
+import os
 import sys
 from collections.abc import Callable, Sequence
 from functools import partial
@@ -15,7 +16,13 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-# Global pool cache removed
+# A conservative threshold for automatic execution. Explicit backends always win.
+AUTO_PARALLEL_MIN_ITEMS = 1000
+
+
+def _validate_positive_int(value: int | None, name: str) -> None:
+    if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
+        raise ValueError(f"{name} must be a positive integer")
 
 
 def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = None):
@@ -118,7 +125,8 @@ def parallel_apply_internal[T](
     """
     Internal function for parallel processing.
     Automatically detects if GIL is disabled and uses threading for better performance.
-    Otherwise defaults to multiprocessing.
+    Small automatic batches run sequentially. Larger batches use multiprocessing.
+    Explicit method and worker settings override the small-batch heuristic.
     Results are returned in the same order as the input items.
 
     :param func: Function to apply to each item
@@ -131,6 +139,10 @@ def parallel_apply_internal[T](
     :param func_kwargs: Keyword arguments to pass to the function
     :return: List of results in the same order as input items
     """
+    _validate_positive_int(n_workers, "n_workers")
+    _validate_positive_int(chunksize, "chunksize")
+    method_enum = parallelMethod(method) if method is not None else parallelMethod(_get_optimal_method())
+
     # Convert to list if needed
     items_list = list(items)
 
@@ -140,7 +152,8 @@ def parallel_apply_internal[T](
 
     # When no method is given, auto-detect: use threads on free-threaded (no-GIL)
     # Python, otherwise fall back to processes.
-    method_enum = parallelMethod(method) if method is not None else parallelMethod(_get_optimal_method())
+    if method is None and n_workers is None and len(items_list) < AUTO_PARALLEL_MIN_ITEMS:
+        method_enum = parallelMethod.SEQUENTIAL
 
     # Handle sequential execution
     if method_enum == parallelMethod.SEQUENTIAL:
@@ -148,7 +161,8 @@ def parallel_apply_internal[T](
 
     # Handle parallel execution
     if n_workers is None:
-        n_workers = mp.cpu_count()
+        n_workers = getattr(os, "process_cpu_count", os.cpu_count)() or 1
+    n_workers = min(n_workers, len(items_list))
 
     if verbose:
         logger.debug(f"Using n_workers: {n_workers}")

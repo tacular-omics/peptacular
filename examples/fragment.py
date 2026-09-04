@@ -132,8 +132,8 @@ def run():
         print(f"  {frag}")
 
     # Custom isotopes
-    print("\nb-ions with 2x 17O:")
-    for frag in peptide.fragment(ion_types=["b"], isotopes=[{"17O": 2}]):
+    print("\nb-ions with 1x 17O:")
+    for frag in peptide.fragment(ion_types=["b"], isotopes=[{"17O": 1}]):
         print(f"  {frag}")
 
     # ============================================================================

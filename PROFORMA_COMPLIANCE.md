@@ -1,5 +1,24 @@
 # ProForma Parser Implementation Checklist
 
+The checklist below describes notation support. Parsing a sequence does not imply
+that every calculation is possible. Use `diagnose(sequence, operation)` to check a
+specific calculation and inspect its diagnostic.
+
+| Feature | Parsing and serialization | Mass and m/z | Composition | Fragmentation |
+| --- | --- | --- | --- | --- |
+| Resolved modifications with elemental formulas | Supported | Supported | Supported | Supported where localized |
+| Delta-mass modifications | Supported | Supported | Unavailable without a formula | Mass-based fragments where localized |
+| Mixed glycan names and formulas | Supported | Supported | Supported when all components have formulas | Subject to localization and labile-mod rules |
+| Glycan bare-mass components | Supported | Supported | Unavailable for mass-only components | Mass-based fragments where localized |
+| Global isotope labels | Supported | Supported | Supported | Regular calculations, including fast-API fallback |
+| Charged internal formulas | Supported | Total intrinsic and external charge used | Supported | Regular calculations, including fast-API fallback |
+| Unknown localization and ambiguous intervals | Supported | Supported when masses resolve | Supported when formulas resolve | Restricted by localization |
+| Linked chains and branches | No linked-chain semantics | Unsupported | Unsupported | Unsupported |
+
+`fast_fragment()` supports a, b, c, x, y, z, p, and n, with nonzero integer
+external proton charges. Other ion series require `fragment()`. For detailed
+calculation rules, see [the companion notes](https://github.com/tacular-omics/peptacular/blob/main/COMPLICANCE_NOTES.md).
+
 ## 5.3.1 Base-ProForma Compliance
 
 - [x] **Amino acids (+UO)** - `AAHCFKUOT` (§6.1)

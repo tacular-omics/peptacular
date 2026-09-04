@@ -1,11 +1,13 @@
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache, cached_property
+from functools import cached_property, lru_cache
+from math import isfinite
 from typing import Self, cast
 
 from tacular import ELEMENT_LOOKUP, NEUTRAL_DELTA_LOOKUP, ElementInfo
 
+from ..diagnostics import CompositionError, InvalidAdjustmentError
 from ..proforma_components import ChargedFormula, GlobalChargeCarrier
 
 # ============================================================================
@@ -16,6 +18,13 @@ from ..proforma_components import ChargedFormula, GlobalChargeCarrier
 @dataclass(frozen=True)
 class IsotopeInfo:
     data: tuple[tuple[ElementInfo, int], ...]
+
+    def __post_init__(self) -> None:
+        for element, count in self.data:
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                raise InvalidAdjustmentError("Isotope count must be an integer and cannot be negative")
+            if element.mass_number is None:
+                raise InvalidAdjustmentError(f"Specify an isotope such as 13C, not {element}")
 
     @staticmethod
     def from_input(
@@ -38,7 +47,7 @@ class IsotopeInfo:
 
         if any(v < 0 for v in base_comp.values()):
             negative_counts = {str(k): v for k, v in base_comp.items() if v < 0}
-            raise ValueError(f"Isotopic adjustment resulted in negative element counts: {negative_counts}")
+            raise InvalidAdjustmentError(f"Isotopic adjustment resulted in negative element counts: {negative_counts}")
 
     @property
     def composition(self) -> Counter[ElementInfo]:
@@ -82,7 +91,7 @@ class IsotopeInfo:
 # ============================================================================
 
 
-@cache
+@lru_cache(maxsize=1024)
 def _get_charge_carrier_info(adducts: tuple[GlobalChargeCarrier, ...]) -> "ChargeCarrierInfo":
     """Cached factory for ChargeCarrierInfo."""
     return ChargeCarrierInfo(adducts)
@@ -115,7 +124,8 @@ class ChargeCarrierInfo:
         # mutable Counter would be shared and could be corrupted by any caller.
         composition: Counter[ElementInfo] = Counter()
         for adduct in self.adducts:
-            composition += adduct.get_composition()
+            for element, count in adduct.get_composition().items():
+                composition[element] += count
         return composition
 
     def adjust_composition(self, base_comp: Counter[ElementInfo]) -> None:
@@ -155,7 +165,7 @@ class ChargeCarrierInfo:
             return {}
         return {str(elem_info): count for elem_info, count in composition.items()}
 
-    @cached_property
+    @property
     def to_proforma_charge(self) -> Mapping[str, int] | int | None:
         composition: Counter[ElementInfo] = self.composition
         if not composition:
@@ -186,7 +196,7 @@ class ChargeCarrierInfo:
 # ============================================================================
 
 
-@cache
+@lru_cache(maxsize=1024)
 def _normalize_delta_key(key_str: str) -> ChargedFormula | float:
     """Normalize a delta key string to ChargedFormula or float."""
     # Try as named delta first
@@ -205,7 +215,7 @@ def _normalize_delta_key(key_str: str) -> ChargedFormula | float:
     return ChargedFormula.from_string(key_str, require_formula_prefix=False)
 
 
-@cache
+@lru_cache(maxsize=1024)
 def _get_delta_info(items: tuple[tuple[str, int], ...] | None) -> "DeltaInfo":
     """Cached factory for DeltaInfo."""
     if items is None or len(items) == 0:
@@ -222,9 +232,25 @@ def _get_delta_info(items: tuple[tuple[str, int], ...] | None) -> "DeltaInfo":
     return DeltaInfo(result)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class DeltaInfo:
-    deltas: Mapping[ChargedFormula | float, int]
+    _items: tuple[tuple[ChargedFormula | float, int], ...]
+
+    def __init__(self, deltas: Mapping[ChargedFormula | float, int]):
+        for key, count in deltas.items():
+            if isinstance(count, bool) or not isinstance(count, int):
+                raise InvalidAdjustmentError("Delta counts must be integers")
+            if isinstance(key, ChargedFormula):
+                if key.is_charged:
+                    raise InvalidAdjustmentError("Delta formulas must be neutral (charge=0)")
+            elif isinstance(key, bool) or not isinstance(key, (int, float)) or not isfinite(key):
+                raise InvalidAdjustmentError("Delta masses must be finite real numbers")
+        object.__setattr__(self, "_items", tuple((float(key) if isinstance(key, int) else key, count) for key, count in deltas.items()))
+
+    @property
+    def deltas(self) -> Mapping[ChargedFormula | float, int]:
+        """Return a fresh mapping so cached instances cannot be changed by callers."""
+        return dict(self._items)
 
     @property
     def has_floats(self) -> bool:
@@ -258,7 +284,7 @@ class DeltaInfo:
     @property
     def composition(self) -> Counter[ElementInfo]:
         if self.has_floats:
-            raise ValueError("Cannot get composition when deltas include floats")
+            raise CompositionError("Cannot get composition when deltas include floats. Use mass() or mz() for mass-only adjustments.")
         composition: Counter[ElementInfo] = Counter()
         for key, count in self.deltas.items():
             if isinstance(key, ChargedFormula):
@@ -269,7 +295,7 @@ class DeltaInfo:
 
     def adjust_composition(self, base_comp: Counter[ElementInfo]) -> None:
         if self.has_floats:
-            raise ValueError("Cannot adjust composition when deltas include floats")
+            raise CompositionError("Cannot adjust composition when deltas include floats. Use mass() or mz() for mass-only adjustments.")
         for key, count in self.deltas.items():
             if isinstance(key, ChargedFormula):
                 key_comp = key.get_composition()
@@ -277,7 +303,7 @@ class DeltaInfo:
                     base_comp[elem_info] += elem_count * count
 
         if any(v < 0 for v in base_comp.values()):
-            raise ValueError(f"Delta adjustment resulted in negative element counts: {base_comp}")
+            raise InvalidAdjustmentError(f"Delta adjustment resulted in negative element counts: {base_comp}")
 
     @staticmethod
     def from_input(
@@ -388,6 +414,8 @@ def _handle_delta_input(
     if isinstance(deltas, dict):
         result: dict[ChargedFormula | float, int] = {}
         for key, count in deltas.items():
+            if isinstance(count, bool) or not isinstance(count, int):
+                raise InvalidAdjustmentError("Delta counts must be integers")
             # Recurse on each key to normalize it
             normalized = _handle_delta_input(key)  # Returns single-item dict
             for k, v in normalized.items():
@@ -403,7 +431,12 @@ def _handle_delta_input(
 
         return {ChargedFormula.from_string(deltas, require_formula_prefix=False): 1}
 
-    if isinstance(deltas, (ChargedFormula, float, int)):
+    if isinstance(deltas, (float, int)):
+        if isinstance(deltas, bool) or not isfinite(deltas):
+            raise InvalidAdjustmentError("Delta masses must be finite real numbers")
+        return {float(deltas): 1}
+
+    if isinstance(deltas, ChargedFormula):
         return {deltas: 1}
 
     raise TypeError(f"Invalid delta type: {type(deltas)}")
@@ -439,7 +472,7 @@ def handle_charge_input(
         raise TypeError(f"Invalid charge type: {type(charge)}")
 
 
-@cache
+@lru_cache(maxsize=1024)
 def get_charge_adducts(charge_state: int) -> GlobalChargeCarrier:
     """Get a cached GlobalChargeCarrier for a given charge state."""
     return GlobalChargeCarrier.charged_proton(charge_state)
@@ -448,7 +481,7 @@ def get_charge_adducts(charge_state: int) -> GlobalChargeCarrier:
 C13: ElementInfo = ELEMENT_LOOKUP["13C"]
 
 
-@cache
+@lru_cache(maxsize=1024)
 def _get_isotopes(
     isotopes: int | tuple[tuple[ElementInfo, int], ...],
 ) -> IsotopeInfo:
@@ -483,6 +516,8 @@ def get_isotopes(
         return _get_isotopes(elem_infos_sorted)
 
     if isinstance(isotopes, int):
+        if isinstance(isotopes, bool):
+            raise InvalidAdjustmentError("Isotope count must be an integer, not bool")
         if isotopes < 0:
             raise ValueError("Isotope count cannot be negative")
         return _get_isotopes(isotopes)
@@ -490,7 +525,7 @@ def get_isotopes(
     raise TypeError(f"Invalid isotope type: {type(isotopes)}")
 
 
-@cache
+@lru_cache(maxsize=1024)
 def _get_losses(
     losses: tuple[tuple[ElementInfo, int], ...],
 ) -> Mapping[ChargedFormula, int]:

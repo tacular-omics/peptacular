@@ -236,8 +236,8 @@ Peptacular supports conversion from and to a number of popular peptide sequence 
 Batch Processing
 ~~~~~~~~~~~~~~~~
 
-Most functions in Peptacular support batch processing of multiple sequences via lists. Parallelization is handled automatically when 
-providing a list of sequences to one of the sequential API functions. The sequence API functions support strings and annotation objects as input.
+Most functions in Peptacular support batch processing of multiple sequences via lists. Small automatic batches run sequentially,
+while larger batches use parallel execution. The sequence API functions support strings and annotation objects as input.
 
 .. testcode::
 
