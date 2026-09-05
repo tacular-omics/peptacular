@@ -10,7 +10,7 @@ from peptacular.mcp.outputs import ROWS
 
 
 def calculate(name, annotations, **settings):
-    inputs = {"kind": "inline", "records": [{"annotation": a} for a in annotations]}
+    inputs = [{"annotation": a} for a in annotations]
     request = c.SCIENTIFIC[name].model_validate({"inputs": inputs, **settings})
     records = [{"annotation": a, "id": "duplicate", "source_index": i, "source_key": f"input:{i}"} for i, a in enumerate(annotations)]
     result = run_operation(name, request.model_dump(), records)
@@ -152,7 +152,7 @@ def test_candidate_limit():
 
 
 def test_overlapping_mapping():
-    inputs = {"kind": "inline", "records": [{"annotation": "AAA"}]}
+    inputs = [{"annotation": "AAA"}]
     request = c.Map(inputs=inputs, proteins=inputs)
     result = run_operation(
         "map_peptides",
@@ -190,12 +190,12 @@ def test_reference_and_modification_search():
         {"extra": 1},
         {"monoisotopic": "false"},
         {"execution": {"timeout_seconds": 0}},
-        {"inputs": {"kind": "inline", "records": []}},
+        {"inputs": []},
     ],
 )
 def test_reject_invalid_scientific_contract(settings):
     with pytest.raises(ValidationError):
-        c.Analyze.model_validate({"inputs": {"kind": "inline", "records": [{"annotation": "PEPTIDE"}]}, **settings})
+        c.Analyze.model_validate({"inputs": [{"annotation": "PEPTIDE"}], **settings})
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), True, "15.99"])

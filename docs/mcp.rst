@@ -1,14 +1,15 @@
 Local MCP tools for AI agents
 =============================
 
-Peptacular provides an optional local MCP server with 18 tools. An agent can
+Peptacular provides an optional local MCP server with 12 tools. An agent can
 inspect annotations, calculate theoretical peptide properties, digest protein
-files, and export results without writing Python scripts. The server does not
-use an AI model or require a provider API key.
+sequences, and transform annotations without writing Python scripts. Each call
+accepts records and returns results directly. The server needs no AI model or
+provider API key.
 
 Spectacular owns observed spectra, spectrum matching, scoring, and experimental
-mass errors. Peptacular's MCP tools produce theoretical values and portable
-files that a separate Spectacular integration can consume explicitly.
+mass errors. Peptacular produces theoretical values and portable annotations
+that a separate Spectacular integration can consume explicitly.
 
 Install and connect
 -------------------
@@ -17,15 +18,15 @@ The MCP extra is part of the current unreleased source. From a checkout that
 contains this feature, install it into a virtual environment::
 
     pip install -e ".[mcp]"
-    peptacular-mcp --workspace /absolute/project --check
+    peptacular-mcp --check
 
 For optional conversions, combine extras, for example ``.[mcp,alphabase]``.
-A base installation imports no MCP SDK, starts no workers, and creates no cache.
-The console entry point explains how to install the extra if it is missing.
+A base installation imports no MCP SDK. The console entry point explains how to
+install the extra if it is missing.
 
 Register the executable with Claude Code::
 
-    claude mcp add --transport stdio --scope local peptacular -- peptacular-mcp --workspace /absolute/project
+    claude mcp add --transport stdio --scope local peptacular -- peptacular-mcp
 
 Use an absolute path to the environment's executable if the client's PATH does
 not include it. An equivalent client configuration is:
@@ -36,14 +37,15 @@ not include it. An equivalent client configuration is:
       "mcpServers": {
         "peptacular": {
           "command": "/absolute/venv/bin/peptacular-mcp",
-          "args": ["--workspace", "/absolute/project"]
+          "args": []
         }
       }
     }
 
 On Windows the executable is under the environment's ``Scripts`` directory.
-This configuration launches a local stdio process. It does not configure HTTP,
-open a listening port, or install anything into the client automatically.
+This launches a local stdio process. No workspace configuration is required.
+``--check`` reports installed versions, tools, and limits without starting
+protocol traffic. Logs use stderr, and stdout is reserved for MCP traffic.
 
 Discover and call tools
 -----------------------
@@ -56,26 +58,24 @@ invalid numeric values are rejected. ``get_reference`` accepts an empty request:
     {"request": {}}
 
 Its topics include capabilities, enzymes, ions, scales, notation, conventions,
-and request schemas. Scientific tools accept inline records or references:
+and request schemas. Scientific inputs are lists of annotation records. Each
+record has ProForma text or versioned Peptacular JSON and an optional caller ID.
+For example, pass this request to ``analyze_peptides``:
 
 .. code-block:: json
 
     {
       "request": {
-        "inputs": {
-          "kind": "inline",
-          "records": [
-            {"id": "sample-a", "annotation": "M[Oxidation]PEPTIDE/2"},
-            {"id": "sample-b", "annotation": "PEP[+15.5]TIDE/2"}
-          ]
-        },
+        "inputs": [
+          {"id": "sample-a", "annotation": "M[Oxidation]PEPTIDE/2"},
+          {"id": "sample-b", "annotation": "PEP[+15.5]TIDE/2"}
+        ],
         "measurements": ["neutral_mass_da", "mz", "composition"]
       }
     }
 
-Pass that request to ``analyze_peptides``. A numeric mass shift can have a valid
-mass and m/z while its composition is unavailable. The result retains both
-successful measurements and field diagnostics.
+A numeric mass shift can have a valid mass and m/z while its composition is
+unavailable. The result retains successful measurements and field diagnostics.
 
 The tools are:
 
@@ -84,20 +84,24 @@ The tools are:
   ``compare_peptides``, and ``isotope_envelopes`` for annotation and theoretical calculations.
 * ``digest_proteins``, ``map_peptides``, ``edit_peptides``,
   ``enumerate_modifications``, and ``convert_annotations`` for bounded transformations.
-* ``register_dataset``, ``list_workspace``, ``query_result``, and ``export_result``
-  for reusable snapshots and files.
-* ``get_job`` and ``cancel_job`` for longer calculations.
 
-Structured responses publish output schemas and use contract version ``1.0``.
-Each response includes a request ID, status, records, diagnostics, page metadata,
-and ``computation.complete``. Scientific results also have a persistent result ID.
-A bounded text representation supports clients that display text primarily.
+Responses include typed records, diagnostics, applied settings, a request ID,
+and contract version ``1.0``. Both structured content and text contain the same
+records. ``returned_rows`` counts the delivered rows. ``computation.complete``
+distinguishes a finished calculation from one stopped at a limit, with
+``stop_reason`` explaining an early stop. A ``partial`` status can also mean a
+measurement failed while other measurements succeeded. Inspect the diagnostics
+and completeness separately.
 
-Rows preserve caller IDs alongside internal source keys. Duplicate caller IDs
-are valid. Derived rows use distinct row keys, and downstream inputs identify
-the source result and row. Digestion preserves original protein keys and spans
-through later calculations. Earlier computed values are not silently copied
-into a new calculation.
+Scientific results are returned entirely within the call's output budget.
+``total_rows`` is null when calculation stopped early because the full count is
+unknown. Nothing is retained for later retrieval. Only reference lookups use
+``offset``, ``limit``, and ``next_offset`` for paging through reference data.
+
+Rows preserve caller IDs alongside source indexes. Duplicate caller IDs are
+valid. Source keys and derived row keys are local to one call. An agent can
+reuse returned ``proforma`` or ``annotation`` values as inputs to another tool.
+It must keep any association with earlier rows itself.
 
 Scientific conventions
 ----------------------
@@ -135,138 +139,82 @@ composition failure does not discard a valid numeric fragment. Formula and
 numeric deltas are distinct. Cross-link calculations and unfinished outbound
 annotation formats remain excluded.
 
-Reusable file workflow
-----------------------
+A short multi-step workflow
+---------------------------
 
-An agent can complete a FASTA-to-precursor-table task with these calls:
-
-1. ``register_dataset`` with ``path: "proteins.fasta.gz"`` and ``format: "fasta"``.
-2. ``digest_proteins`` with ``inputs`` referencing the returned dataset ID,
-   ``enzyme: "trypsin"``, desired length bounds, and missed cleavages.
-3. ``analyze_peptides`` with ``inputs`` referencing the digestion result ID,
-   ``charges: [2, 3]``, and ``measurements: ["mz", "length"]``.
-4. ``query_result`` with finite filters and ``create_view: true``.
-5. ``export_result`` with the view ID, ``format: "csv"``, and a relative destination.
-
-A reference input looks like:
+To digest a protein and calculate precursor m/z, first call ``digest_proteins``:
 
 .. code-block:: json
 
     {
-      "kind": "reference",
-      "reference_id": "result_ID_RETURNED_BY_THE_SERVER",
-      "column": "proforma"
+      "request": {
+        "inputs": [{"id": "protein-a", "annotation": "MPEPTIDERAAK"}],
+        "enzyme": "trypsin",
+        "min_length": 3,
+        "max_length": 30
+      }
     }
 
-Column values must be annotation text or stable JSON on every selected row.
-Filter out failed rows before reusing a mixed result. A view contains the entire
-selection, including rows outside its displayed first page. Views and exports do
-not rerun scientific calculations. Query cursors bind to a result and query
-shape. Repeat the filters, projection, and sort when requesting another page.
+The returned rows contain peptide ProForma strings, protein identifiers, and
+zero-based end-exclusive spans. Pass the selected peptide strings to
+``analyze_peptides``, with distinct IDs that associate them with the earlier rows:
 
-Queries support equality, inequality, numeric comparisons, membership, null
-checks, sorting, count, min, max, and grouped counts. They accept no SQL or code.
-Projection is a list of top-level column names. Request an export when an entire
-row exceeds the page byte limit.
+.. code-block:: json
 
-Input formats are FASTA, gzip-compressed input, CSV, TSV, JSONL, and Peptacular
-stable JSON. Table inputs require an annotation column, with an optional ID
-column. FASTA identifiers and full headers are retained separately. Duplicate
-identifiers keep distinct internal record keys. Files are snapshotted at
-registration, so later source edits do not alter the registered data.
+    {
+      "request": {
+        "inputs": [
+          {"id": "protein-a:0-9", "annotation": "MPEPTIDER"},
+          {"id": "protein-a:9-12", "annotation": "AAK"}
+        ],
+        "charges": [2, 3],
+        "measurements": ["mz", "length"]
+      }
+    }
 
-Exports support JSON, JSONL, CSV, and plain-sequence FASTA. JSON exports include
-result metadata. CSV serializes nested cells as JSON and prefixes formula-like
-text cells with an apostrophe for spreadsheet safety. Numeric cells keep their
-numeric values. FASTA rejects annotated sequences unless a plain sequence column
-is selected. User destinations require explicit overwrite, with atomic file
-publication. JSON and JSONL are preferable for exact portable structured data.
+For file ingestion, filtering, and saving tables, use the client's existing
+file tools or Peptacular's Python APIs. Large FASTA workflows can use
+``iter_fasta`` and ``iter_batch`` from the :doc:`streaming` guide. The MCP
+interface is intended for individual annotations and small batches.
 
 Execution and limits
 --------------------
 
-``execution.mode`` accepts ``auto``, ``inline``, or ``job``. Auto routes larger
-requests, isotope calculations, and enumeration to jobs before calculation.
-``preflight: true`` explains the chosen mode and basic input budgets without
-performing science. Jobs execute the same adapters as inline calls.
+Tools call the existing scientific API synchronously using the SDK's normal
+thread handling. The server has no custom worker processes, job queue, stored
+results, cache, or cleanup command. Repeating a request recalculates its result.
+There is no hard computation deadline, and client cancellation does not
+forcibly stop an active calculation thread.
 
-Default limits include:
+Limits include:
 
-* At most 100 inline records, 16 MiB ingested bytes, 50,000 registered records,
-  and 2 million annotation characters in a resolved input.
-  The complete tool argument object is limited to 1 MiB.
-* At most two active spawned workers, 32 pending requests, five seconds for
-  inline calculation, and a configurable per-job deadline up to 300 seconds.
-* At most 50,000 output rows, 32 MB worker result data, and 1,000 modification
-  candidates per peptide. Enumeration accepts peptides up to 200 residues.
-* At most 50,000 eager fragment combinations per charge and 1,000 residues
-  for an isotope calculation. Mapping is capped at 100,000 peptide/protein pairs.
-* At most 500 rows and 256 KB per query page. Scientific previews target 16 KB.
-* A 256 MiB workspace storage quota and 24-hour retention.
+* At most 100 records per input list and 10,000 characters per text annotation.
+  The request is limited to 1 MiB, with a combined 100,000-character budget for
+  serialized annotations, including comparison references and mapping proteins.
+* ``max_rows`` defaults to 1,000 and can be increased to 5,000. Scientific row
+  data is limited to 240,000 serialized bytes, excluding response metadata and
+  the second content representation.
+* At most 50,000 eager fragment combinations per charge and 1,000 residues per
+  isotope calculation.
+* At most 1,000 modification candidates per peptide. Enumeration accepts
+  peptides up to 200 residues and at most five variable modifications.
 
-The character budget conservatively includes annotation syntax. Byte, record,
-sequence, expansion, and elapsed-time limits complement each other. Increasing
-the page limit does not increase a computation budget. Some bounded datasets
-and result queries are materialized in memory, so this local server is intended
-for bounded analyses rather than whole-proteome fragment libraries.
-
-Job progress reports input records consumed and rows generated. Final progress
-also includes failed rows. A deadline or cancellation stops the isolated worker.
-A cancelled computation does not publish a success result. Completed retained
-results survive a restart. Jobs from another server instance report unavailable
-live state, and one instance cannot cancel another instance's work. Client
-disconnect stops this instance's jobs. There is no background daemon or resume.
-
-Scientific requests and exports accept idempotency keys. Reusing a key with a
-different request is rejected. Keys are scoped to the workspace and operation
-family. Keep referenced snapshots until a retry has completed.
-
-Local files and cleanup
------------------------
-
-``--workspace`` defines the default input root. Add ``--read-root`` explicitly
-for additional directories, and choose ``--output-root`` when exports belong
-elsewhere. Paths are resolved against those roots, including symlinks. Export
-destinations are relative to the output root.
-
-The default cache is an application cache directory namespaced by a hash of the
-workspace path. ``--cache`` can override it, but a cache cannot be reused for a
-different workspace. SQLite stores immutable snapshots and metadata, and worker
-scratch files belong to their creating instance. Completed managed exports count
-toward the storage quota. Temporary worker and export staging files can require
-additional disk space within their operation limits.
-
-Clean expired service-owned objects with::
-
-    peptacular-mcp --workspace /absolute/project cache clean
-
-Cleanup runs at server startup as well. It never deletes source files or exports
-written to user destinations. It does not take over another instance's active
-jobs or remove unverified scratch files from a crashed instance. Such orphaned
-scratch files may require manual cleanup after all instances have stopped.
-
-``--check`` validates configuration and reports versions and limits without
-creating a cache or starting protocol traffic. It does not prove that future
-file writes will succeed. Logs use stderr. Stdout is reserved for MCP traffic.
+The character budget conservatively includes annotation syntax. Expansion
+limits also constrain work that occurs before output rows become available.
+If a result stops at a row, byte, candidate, or resource limit, narrow the
+request or split its inputs into smaller calls. There is no hidden next page of
+scientific results. Splitting a batch cannot make an oversized individual
+annotation or expansion fit, so reduce its settings instead.
 
 Resources and testing
 ---------------------
 
-Resources expose conventions, individual request schemas, bounded result pages,
-and export metadata at ``peptacular://`` URIs. The same essential information is
-available through tools for clients with limited resource support. Export
-resource URIs describe files, they do not transfer an arbitrary file's contents.
-A different MCP server cannot dereference these opaque workspace IDs directly.
+Resources expose conventions at ``peptacular://conventions`` and request schemas
+at ``peptacular://schemas/{tool}``. The same information is available through
+``get_reference`` for clients with limited resource support.
 
 The implementation targets official MCP Python SDK 2.1.x, with a deliberately
-narrow dependency range. Tests cover SDK discovery, structured schemas, real
-stdio subprocess calls, worker cancellation and deadlines, optional imports,
-scientific parity, file boundaries, and multi-step workflows. The repository
-also includes agent scenario fixtures for manual evaluation. Passing protocol
-tests is distinct from measuring Claude Code's task success with a live model.
-
-With SDK 2.1.1, the 18 input schemas occupy approximately 37 KB of compact JSON.
-Full discovery metadata, including typed output schemas, is approximately 104 KB.
-This exceeds the initial full-interface token-budget target in the design plan.
-The implementation keeps explicit scientific types. Client-specific capability
-profiles remain a possible follow-up if agent evaluations show context pressure.
+narrow dependency range. Tests cover discovery, structured schemas, real stdio
+subprocess calls, protocol-safe dependency output, optional imports, scientific
+parity, request and result bounds, and direct multi-step workflows. Manual agent
+scenario fixtures are separate from these automated protocol tests.

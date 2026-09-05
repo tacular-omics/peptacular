@@ -96,12 +96,13 @@ print(results[1].error.code)  # unresolved_modification
 
 ## Local MCP integration
 
-The unreleased source includes 18 optional MCP tools for agents to inspect annotations,
-calculate theoretical properties, digest FASTA files, and query or export reusable results.
-Install from this checkout with `pip install -e ".[mcp]"`, then check the configuration:
+The unreleased source includes 12 optional MCP tools for agents to inspect annotations,
+calculate theoretical properties, digest protein sequences, and transform annotations.
+Calls accept small inline batches and return results directly, with no stored data or job setup.
+Install from this checkout with `pip install -e ".[mcp]"`, then check the installation:
 
 ```text
-peptacular-mcp --workspace /absolute/project --check
+peptacular-mcp --check
 ```
 
 See the [local MCP guide](docs/mcp.rst) for Claude Code setup, tool examples, limits,

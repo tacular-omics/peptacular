@@ -8,7 +8,7 @@ from .contracts import Diagnostic, Envelope
 
 
 class Row(BaseModel):
-    # Additional fields preserve upstream lineage through chained operations.
+    # Operation-specific details accompany the common scientific fields.
     model_config = ConfigDict(extra="allow", allow_inf_nan=False)
     source_id: str | None = None
     source_key: str
@@ -128,19 +128,4 @@ ROWS = {
 }
 
 
-# Job submissions and preflights contain execution metadata instead of scientific rows.
-class ExecutionRow(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    mode: Literal["inline", "job"]
-    input_records: int
-
-
-class JobStateRow(BaseModel):
-    model_config = ConfigDict(extra="allow")
-    state: Literal["queued", "running", "succeeded", "partially_succeeded", "failed", "cancelled", "interrupted", "unavailable"]
-
-
-OUTPUTS = {
-    name: create_model(f"{row.__name__}Envelope", __base__=Envelope, records=(list[row | ExecutionRow | JobStateRow], Field(default_factory=list)))
-    for name, row in ROWS.items()
-}
+OUTPUTS = {name: create_model(f"{row.__name__}Envelope", __base__=Envelope, records=(list[row], Field(default_factory=list))) for name, row in ROWS.items()}

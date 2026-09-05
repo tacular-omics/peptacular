@@ -2,49 +2,101 @@
   {
     "id": "mixed_measurements",
     "prompt": "Inspect PEPTIDE/2 and PEP[+15.5]TIDE/2, then calculate their neutral mass, m/z, and composition. Explain any unavailable values.",
-    "expected_tools": ["inspect_peptides", "analyze_peptides"],
-    "checks": ["Both mass calculations succeed", "The numeric modification has a composition diagnostic", "No helper Python script is needed"]
+    "expected_tools": [
+      "inspect_peptides",
+      "analyze_peptides"
+    ],
+    "checks": [
+      "Both mass calculations succeed",
+      "The numeric modification has a composition diagnostic",
+      "No helper Python script is needed"
+    ]
   },
   {
-    "id": "fasta_to_csv",
-    "prompt": "Register the supplied proteins.fasta, digest with trypsin and one missed cleavage, keep peptides of length 3 through 30, calculate m/z at charges 2 and 3, filter m/z to 300 through 1000, and export precursors.csv with the protein identifiers and spans.",
-    "expected_tools": ["register_dataset", "digest_proteins", "analyze_peptides", "query_result", "export_result"],
-    "checks": ["Pass result references between operations", "Export every filtered row, not just the preview", "Keep duplicate protein identifiers distinct by source key"]
+    "id": "digest_to_precursors",
+    "prompt": "Digest MPEPTIDERAAK with trypsin, keeping peptides of length 3 through 30. Calculate m/z at charges 2 and 3 for the resulting peptides, retaining their protein spans in your explanation.",
+    "expected_tools": [
+      "digest_proteins",
+      "analyze_peptides"
+    ],
+    "checks": [
+      "Pass returned ProForma strings into analysis",
+      "Associate results using caller IDs",
+      "Keep the protein spans from the digestion response",
+      "No helper Python script is needed"
+    ]
   },
   {
     "id": "charge_conflict",
     "prompt": "Calculate PEPTIDE/2 at charge 3, explicitly overriding the encoded charge.",
-    "expected_tools": ["analyze_peptides"],
-    "checks": ["Use charge_policy override", "Report applied charge 3"]
+    "expected_tools": [
+      "analyze_peptides"
+    ],
+    "checks": [
+      "Use charge_policy override",
+      "Report applied charge 3"
+    ]
   },
   {
     "id": "modification_candidates",
     "prompt": "Find UniMod candidates near a 15.9949 Da modification with a 0.001 Da tolerance. Do not assign a modification identity automatically.",
-    "expected_tools": ["find_modifications"],
-    "checks": ["Use explicit Da tolerance", "Include Oxidation among candidates", "Describe candidate status"]
+    "expected_tools": [
+      "find_modifications"
+    ],
+    "checks": [
+      "Use explicit Da tolerance",
+      "Include Oxidation among candidates",
+      "Describe candidate status"
+    ]
   },
   {
     "id": "bounded_candidates",
     "prompt": "Enumerate possible oxidation placements on MMMM with at most two variable modifications and a maximum of three candidates. Tell me whether enumeration finished.",
-    "expected_tools": ["enumerate_modifications", "get_job"],
-    "checks": ["No more than three candidates", "Report incomplete enumeration", "Treat candidates as structures, not probabilities"]
+    "expected_tools": [
+      "enumerate_modifications"
+    ],
+    "checks": [
+      "No more than three candidates",
+      "Report incomplete enumeration",
+      "Treat candidates as structures, not probabilities"
+    ]
   },
   {
     "id": "repeated_mapping",
     "prompt": "Map AAA into AAAAA and retain all overlapping locations.",
-    "expected_tools": ["map_peptides"],
-    "checks": ["Report starts 0, 1, and 2", "Explain zero-based end-exclusive spans", "Report ambiguity"]
+    "expected_tools": [
+      "map_peptides"
+    ],
+    "checks": [
+      "Report starts 0, 1, and 2",
+      "Explain zero-based end-exclusive spans",
+      "Report ambiguity"
+    ]
   },
   {
     "id": "spectacular_boundary",
     "prompt": "Generate theoretical b and y ions for PEPTIDE/2. Can this Peptacular server also match them to my measured spectrum?",
-    "expected_tools": ["fragment_peptides", "get_reference"],
-    "checks": ["Generate theoretical ions", "Explain that observed matching belongs to Spectacular", "Do not invent a matching tool"]
+    "expected_tools": [
+      "fragment_peptides",
+      "get_reference"
+    ],
+    "checks": [
+      "Generate theoretical ions",
+      "Explain that observed matching belongs to Spectacular",
+      "Do not invent a matching tool"
+    ]
   },
   {
-    "id": "workspace_recovery",
-    "prompt": "Find the retained precursor results from my earlier work, show only their m/z values, and export the full retained result as JSON without recalculating.",
-    "expected_tools": ["list_workspace", "query_result", "export_result"],
-    "checks": ["Discover the retained result ID", "Do not repeat calculations", "Export full rows rather than the displayed projection"]
+    "id": "bounded_fragments",
+    "prompt": "Generate b and y ions at charge 2 for PEPTIDE with a maximum of three output rows. Tell me whether these are all the ions and how to obtain a complete result.",
+    "expected_tools": [
+      "fragment_peptides"
+    ],
+    "checks": [
+      "Return at most three rows",
+      "Explain that computation stopped at the row limit",
+      "Suggest a larger max_rows or narrower ion settings",
+      "Do not invent a stored result handle or continuation page"
+    ]
   }
 ]

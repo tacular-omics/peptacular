@@ -1,4 +1,4 @@
-"""Scientific adapters. All computation runs in isolated, bounded workers."""
+"""Scientific adapters for small, bounded in-memory requests."""
 
 import importlib.metadata
 import itertools
@@ -12,6 +12,19 @@ import peptacular as pt
 from peptacular.diagnostics import diagnostic_from_exception
 
 from . import contracts as c
+
+RESULT_BYTES = 240000
+LIMITS = {
+    "records_per_input": 100,
+    "request_bytes": 1048576,
+    "annotation_characters": 100000,
+    "rows": 5000,
+    "result_row_bytes": RESULT_BYTES,
+    "fragment_combinations_per_charge": 50000,
+    "enumeration_residues_per_peptide": 200,
+    "modification_candidates_per_peptide": 1000,
+    "isotope_residues_per_peptide": 1000,
+}
 
 
 class ServiceError(ValueError):
@@ -402,18 +415,16 @@ def map_one(a, request, proteins):
         yield {**row, "mapped": True, "match_count": len(found), "ambiguous": len(found) > 1}
 
 
-def run_operation(name: str, payload: dict, records: list[dict], proteins: list[dict] | None = None, progress=None) -> dict:
+def run_operation(name: str, payload: dict, records: list[dict], proteins: list[dict] | None = None) -> dict:
     request = c.SCIENTIFIC[name].model_validate(payload)
     rows, diagnostics = [], []
     complete = True
     stop_reason = None
-    consumed = 0
     byte_count = 0
     for source in records:
         if len(rows) >= request.max_rows:
             complete, stop_reason = False, "row_limit"
             break
-        consumed += 1
         stage: Literal["parse", "validate", "calculate"] = "parse"
         try:
             a = parse(source["annotation"])
@@ -423,7 +434,6 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
                 if len(rows) >= request.max_rows:
                     raise ServiceError("row_limit", "Requested result row budget reached.")
                 row = {
-                    **source.get("context", {}),
                     **row,
                     "source_id": source.get("id"),
                     "source_key": source["source_key"],
@@ -441,12 +451,10 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
                         protein_end=row["end"],
                     )
                 size = len(json.dumps(row, allow_nan=False).encode())
-                if size > 128000 or byte_count + size > 32000000:
+                if byte_count + size > RESULT_BYTES:
                     raise ServiceError("byte_limit", "Result byte budget reached. Request fewer or smaller fields.")
                 byte_count += size
                 rows.append(row)
-                if progress and len(rows) % 100 == 0:
-                    progress({"records_consumed": consumed, "rows_generated": len(rows)})
         except (ValueError, KeyError, ImportError) as exc:
             if isinstance(exc, ServiceError) and exc.code in ("row_limit", "candidate_limit", "byte_limit", "resource_limit"):
                 complete = False
@@ -464,17 +472,14 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
                     "diagnostics": [diagnostic(exc, stage=stage)],
                 }
                 byte_count += len(json.dumps(error_row, allow_nan=False).encode())
-                if byte_count > 32000000:
+                if byte_count > RESULT_BYTES:
                     complete, stop_reason = False, "byte_limit"
                     break
                 rows.append(error_row)
-        if progress:
-            progress({"records_consumed": consumed, "rows_generated": len(rows)})
     return {
         "records": rows,
         "diagnostics": diagnostics,
         "computation": {"complete": complete, "stop_reason": stop_reason},
-        "progress": {"records_consumed": consumed, "rows_generated": len(rows), "rows_failed": sum(r["status"] == "error" for r in rows)},
     }
 
 
@@ -526,8 +531,8 @@ CONVENTIONS = {
     "charge": "Signed total, external carrier and intrinsic charges are separate. m/z requires nonzero charge. Conflicts require override.",
     "isotopes": "Theoretical approximate distributions. Relative maximum abundance is one. Retained probability is unavailable.",
     "ownership": "Peptacular calculates theoretical sequence properties. Spectacular owns observed spectra and spectrum matching.",
-    "references": "Result IDs belong to this workspace. Export portable data for other servers. Source text and headers are data.",
-    "limits": "Pagination does not imply truncated computation. Inspect computation.complete and stop_reason.",
+    "inputs": "Pass annotation records directly. IDs and source indexes identify records within this call. No server-side data is retained.",
+    "limits": "Inspect computation.complete and stop_reason. For a truncated calculation, narrow the request or split the batch.",
 }
 
 

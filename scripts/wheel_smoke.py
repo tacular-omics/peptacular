@@ -68,15 +68,15 @@ if "mcp" in extras:
     async def check_mcp():
         parameters = StdioServerParameters(
             command=sys.executable,
-            args=["-I", "-m", "peptacular.mcp", "--workspace", str(Path.cwd()), "--cache", str(Path.cwd() / "cache")],
+            args=["-I", "-m", "peptacular.mcp"],
         )
         async with Client(parameters) as client:
             tools = await client.list_tools()
-            assert len(tools.tools) == 18
+            assert len(tools.tools) == 12
             result = await client.call_tool(
                 "analyze_peptides",
                 {
-                    "request": {"inputs": {"kind": "inline", "records": [{"annotation": "PEPTIDE/2"}]}, "measurements": ["mz"]},
+                    "request": {"inputs": [{"annotation": "PEPTIDE/2"}], "measurements": ["mz"]},
                 },
             )
             assert not result.is_error

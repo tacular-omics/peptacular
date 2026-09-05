@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [3.3.0] (Unreleased)
 
 ### Added
-- Optional local MCP integration with 18 structured tools, reusable dataset/result references, bounded queries and exports, and cancellable process jobs.
+- Optional local MCP integration with 12 stateless tools for theoretical calculations, annotation transformations, and reference lookup. Small inline batches return bounded structured results with diagnostics.
 - Optional Pyteomics, psm_utils, and AlphaBase interoperability adapters with separate installation extras.
 - Versioned ProForma JSON serialization for annotations and structured components, with a bundled JSON Schema.
 - Streaming `iter_fasta()` with gzip paths, encoding overrides, line-numbered structure errors, and caller-owned stream preservation.

@@ -1,15 +1,14 @@
-"""Finite JSON contracts shared by the transport and isolated workers."""
+"""Typed requests for stateless peptide calculations."""
 
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-Count = Annotated[int, Field(strict=True, ge=1, le=50000)]
+Count = Annotated[int, Field(strict=True, ge=1, le=5000)]
 Index = Annotated[int, Field(strict=True, ge=0, le=1000000)]
 Charge = Annotated[int, Field(strict=True, ge=-20, le=20)]
 Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
-Text = Annotated[str, Field(min_length=1, max_length=100000)]
-Column = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")]
+Text = Annotated[str, Field(min_length=1, max_length=10000)]
 
 
 class Contract(BaseModel):
@@ -21,31 +20,12 @@ class Record(Contract):
     annotation: Text | dict[str, Any]
 
 
-class Inline(Contract):
-    kind: Literal["inline"] = "inline"
-    records: Annotated[list[Record], Field(min_length=1, max_length=100)]
-
-
-class Reference(Contract):
-    kind: Literal["reference"]
-    reference_id: Text
-    column: Column = "proforma"
-
-
-Inputs = Annotated[Inline | Reference, Field(discriminator="kind")]
-
-
-class Execution(Contract):
-    mode: Literal["auto", "inline", "job"] = "auto"
-    timeout_seconds: Annotated[int, Field(strict=True, ge=1, le=300)] = 60
-    idempotency_key: Annotated[str, Field(min_length=1, max_length=128)] | None = None
+Inputs = Annotated[list[Record], Field(min_length=1, max_length=100)]
 
 
 class Scientific(Contract):
     inputs: Inputs
-    execution: Execution = Field(default_factory=Execution)
-    max_rows: Count = 10000
-    preflight: bool = False
+    max_rows: Count = 1000
 
 
 class Inspect(Scientific):
@@ -224,72 +204,6 @@ class GetReference(Contract):
     limit: Annotated[int, Field(strict=True, ge=1, le=100)] = 25
 
 
-class Dataset(Contract):
-    name: Annotated[str, Field(min_length=1, max_length=200)] = "dataset"
-    records: Annotated[list[Record], Field(min_length=1, max_length=100)] | None = None
-    path: Text | None = None
-    format: Literal["fasta", "csv", "tsv", "jsonl", "stable_json"] = "fasta"
-    annotation_column: Column = "proforma"
-    id_column: Column | None = None
-
-    @model_validator(mode="after")
-    def check_source(self):
-        if (self.path is None) == (self.records is None):
-            raise ValueError("Provide exactly one of path or records")
-        return self
-
-
-class WorkspaceList(Contract):
-    kind: Literal["dataset", "result", "view", "export", "job"] | None = None
-    search: Annotated[str, Field(max_length=100)] = ""
-    offset: Index = 0
-    limit: Annotated[int, Field(strict=True, ge=1, le=100)] = 25
-
-
-class Job(Contract):
-    job_id: Text
-
-
-class Filter(Contract):
-    column: Column
-    operator: Literal["eq", "ne", "lt", "le", "gt", "ge", "in", "is_null"]
-    value: str | Number | bool | None | Annotated[list[str | Number | bool | None], Field(max_length=100)] = None
-
-
-class Sort(Contract):
-    column: Column
-    descending: bool = False
-
-
-class Query(Contract):
-    result_id: Text
-    columns: Annotated[list[Column], Field(min_length=1, max_length=50)] | None = None
-    filters: Annotated[list[Filter], Field(max_length=20)] = []
-    sort: Annotated[list[Sort], Field(max_length=5)] = []
-    aggregate: Literal["count", "min", "max", "group_count"] | None = None
-    aggregate_column: Column | None = None
-    cursor: Text | None = None
-    limit: Annotated[int, Field(strict=True, ge=1, le=500)] = 25
-    create_view: bool = False
-
-    @model_validator(mode="after")
-    def check_aggregate(self):
-        if self.aggregate in ("min", "max", "group_count") and not self.aggregate_column:
-            raise ValueError("This aggregation requires aggregate_column")
-        if self.aggregate and self.create_view:
-            raise ValueError("Create a view of rows before aggregating")
-        return self
-
-
-class Export(Contract):
-    result_id: Text
-    format: Literal["json", "jsonl", "csv", "fasta"] = "csv"
-    destination: Text | None = None
-    overwrite: bool = False
-    sequence_column: Column = "sequence"
-    idempotency_key: Annotated[str, Field(min_length=1, max_length=128)] | None = None
-
-
 class Diagnostic(Contract):
     code: str
     message: str
@@ -297,12 +211,6 @@ class Diagnostic(Contract):
     field: str | None = None
     source_key: str | None = None
     recovery: str = "Review the input and applied settings."
-
-
-class Page(Contract):
-    returned_rows: int = 0
-    total_rows: int | None = 0
-    next_cursor: str | None = None
 
 
 class Computation(Contract):
@@ -313,13 +221,13 @@ class Computation(Contract):
 class Envelope(Contract):
     contract_version: Literal["1.0"] = "1.0"
     request_id: str
-    status: Literal["complete", "partial", "error", "queued", "running", "cancelled", "interrupted"] = "complete"
+    status: Literal["complete", "partial", "error"] = "complete"
     applied_settings: dict[str, Any] = {}
     records: list[dict[str, Any]] = []
     diagnostics: list[Diagnostic] = []
-    result_id: str | None = None
-    job_id: str | None = None
-    page: Page = Field(default_factory=Page)
+    returned_rows: int = 0
+    total_rows: int | None = None
+    next_offset: int | None = None
     computation: Computation = Field(default_factory=Computation)
 
 
@@ -339,10 +247,4 @@ REQUESTS = {
     **SCIENTIFIC,
     "get_reference": GetReference,
     "find_modifications": FindModifications,
-    "register_dataset": Dataset,
-    "list_workspace": WorkspaceList,
-    "get_job": Job,
-    "cancel_job": Job,
-    "query_result": Query,
-    "export_result": Export,
 }
