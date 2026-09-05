@@ -4668,7 +4668,9 @@ class ProFormaAnnotation:
         if charge is not None:  # update charge
             frag_annot = frag_annot.set_charge(charge, inplace=False)
 
-        composition: Counter[ElementInfo] = frag_annot.comp(ion_type=ion_type, isotopes=isotopes, deltas=deltas)
+        fragment = frag_annot.frag(ion_type=ion_type, isotopes=isotopes, deltas=deltas, calculate_composition=True)
+        composition = fragment.composition
+        assert composition is not None
 
         return isotopic_distribution(
             chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
@@ -4677,7 +4679,7 @@ class ProFormaAnnotation:
             distribution_resolution=distribution_resolution,
             use_neutron_count=use_neutron_count,
             conv_min_abundance_threshold=conv_min_abundance_threshold,
-            charge_state=frag_annot.charge_state,
+            charge_state=fragment.charge_state,
         )
 
     def estimate_isotopic_distribution(

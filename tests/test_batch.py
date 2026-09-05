@@ -166,3 +166,30 @@ def test_invalid_input_and_execution_modes():
         pt.batch("mass", [], method="invalid")
     with pytest.raises(ValueError):
         pt.batch("mass", [], method="thread", start_method="spawn")
+
+
+@pytest.mark.parametrize("method,start_method", [("sequential", None), ("process", "spawn")])
+def test_digest_batch_materializes_process_safe_spans(method, start_method):
+    import pickle
+
+    from peptacular import batch, parse
+
+    result = batch("digest", ["AKPEPTIDERAAK"], enzyme="trypsin", method=method, start_method=start_method, n_workers=1)[0]
+    assert result.ok
+    assert isinstance(result.value, list)
+    assert result.value == list(parse("AKPEPTIDERAAK").digest(enzyme="trypsin"))
+    assert pickle.loads(pickle.dumps(result)).value == result.value
+
+
+def test_digest_batch_collects_lazy_iterator_failure(monkeypatch):
+    from peptacular import ProFormaAnnotation, batch
+
+    def failing_digest(self, enzyme):
+        yield (0, 1, 0)
+        raise ValueError("lazy digestion failure")
+
+    monkeypatch.setattr(ProFormaAnnotation, "digest", failing_digest)
+    result = batch("digest", ["PEPTIDE"], enzyme="trypsin", errors="collect", method="sequential")[0]
+    assert result.error.code == "calculation_error"
+    assert "lazy digestion failure" in result.error.message
+    assert result.value is None

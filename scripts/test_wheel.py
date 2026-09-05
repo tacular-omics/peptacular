@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 
 root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase"])
+parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
 args = parser.parse_args()
 wheels = sorted((root / "dist").glob("peptacular-*.whl"), key=lambda path: path.stat().st_mtime)
 if not wheels:

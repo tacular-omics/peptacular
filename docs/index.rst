@@ -32,6 +32,7 @@ User Guide
    masses
    mass_calculation
    json_serialization
+   mcp
 
 API Reference
 =============

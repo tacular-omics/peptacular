@@ -75,6 +75,9 @@ def _run_item(
         else:
             stage = "calculate"
             value = getattr(annotation, operation)(**kwargs)
+            if operation == "digest":
+                # Consume lazy failures here and return a process-safe value.
+                value = list(value)
         return BatchResult(index, sequence, value=value)
     except (ValueError, KeyError) as exc:
         if errors == "raise":

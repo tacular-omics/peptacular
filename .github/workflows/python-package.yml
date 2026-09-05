@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        extra: [pyteomics, psm-utils, alphabase]
+        extra: [pyteomics, psm-utils, alphabase, mcp, 'mcp,pyteomics', 'mcp,psm-utils', 'mcp,alphabase']
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
