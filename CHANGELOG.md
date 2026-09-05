@@ -3,7 +3,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.3.0] (Unreleased)
+## [3.3.0] (2026-09-04)
 
 ### Added
 - Optional local MCP integration with 12 stateless tools for theoretical calculations, annotation transformations, and reference lookup. Small inline batches return bounded structured results with diagnostics.

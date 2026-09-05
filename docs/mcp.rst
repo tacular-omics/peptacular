@@ -14,13 +14,12 @@ that a separate Spectacular integration can consume explicitly.
 Install and connect
 -------------------
 
-The MCP extra is part of the current unreleased source. From a checkout that
-contains this feature, install it into a virtual environment::
+Install the MCP extra into a virtual environment::
 
-    pip install -e ".[mcp]"
+    pip install "peptacular[mcp]"
     peptacular-mcp --check
 
-For optional conversions, combine extras, for example ``.[mcp,alphabase]``.
+For optional conversions, combine extras, for example ``peptacular[mcp,alphabase]``.
 A base installation imports no MCP SDK. The console entry point explains how to
 install the extra if it is missing.
 
