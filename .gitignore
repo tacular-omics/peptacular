@@ -163,3 +163,4 @@ htmlcov/
 *.cover
 .pytest_cache/
 junit.xml
+coverage.json

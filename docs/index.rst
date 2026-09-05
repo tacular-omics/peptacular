@@ -25,10 +25,14 @@ User Guide
 
    quickstart
    features
+   streaming
    proforma_compliance
    examples
+   interoperability
    masses
    mass_calculation
+   json_serialization
+   mcp
 
 API Reference
 =============

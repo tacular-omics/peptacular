@@ -27,7 +27,7 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
+html_extra_path = ["../src/peptacular/schemas/proforma-json-v1.schema.json"]
 
 # Autodoc settings
 autodoc_default_options = {

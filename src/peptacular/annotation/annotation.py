@@ -26,6 +26,7 @@ from tacular import (
 )
 
 from ..constants import PROTON_MASS, ModType, ModTypeLiteral, Terminal
+from ..diagnostics import CompositionError, UnsupportedOperationError
 from ..digestion.core import (
     EnzymeConfig,
     digest_annotation_by_aa,
@@ -110,9 +111,11 @@ from .slicing import (
 )
 from .utils import (
     Fragment,
+    _ion_mass,
     adjust_comp,
     adjust_mass_mz,
     can_fragment_sequence,
+    validate_mass,
 )
 
 logger = logging.getLogger(__name__)
@@ -2585,6 +2588,32 @@ class ProFormaAnnotation:
         """
         return serialize_annotation(self, exclude_charge=exclude_charge)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return a lossless, versioned JSON-compatible representation."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore an annotation from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this annotation."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore an annotation from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
+
     def serialize_charge(self) -> str:
         return serialize_charge(self)
 
@@ -2593,7 +2622,7 @@ class ProFormaAnnotation:
         for aa in self.stripped_sequence:
             aa_info = AA_LOOKUP.one_letter(aa)
             if aa_info.composition is None:
-                raise ValueError(f"Composition not available for amino acid: {aa}")
+                raise CompositionError(f"Composition not available for amino acid: {aa}")
             for element, count in aa_info.composition.items():
                 sequence_composition[element] += count
         return sequence_composition
@@ -2818,7 +2847,7 @@ class ProFormaAnnotation:
         :raises ValueError: If the annotation contains unknown mods or interval mods.
         """
         if self.has_unknown_mods or self.has_intervals:
-            raise ValueError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
+            raise UnsupportedOperationError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
 
         aa_lookup = AA_LOOKUP.one_letter_to_info
         masses: list[float] = []
@@ -2947,53 +2976,41 @@ class ProFormaAnnotation:
         if ion_type == IonType.NEUTRAL or ion_type == IonType.PRECURSOR:
             skip_labile = False
 
-        if self.has_isotope_mods or calculate_composition:
+        # Elemental adjustments share one order in both calculation modes.
+        # Mass-only modifications remain additive and do not invent atom counts.
+        formula_deltas = {key: count for key, count in delta.deltas.items() if isinstance(key, ChargedFormula)}
+        charge_carriers = self.charge_adducts
+        removes_atoms = any(count < 0 for mod in charge_carriers for count in mod.get_composition().values())
+        if self.has_isotope_mods or calculate_composition or isotope.data or formula_deltas or removes_atoms:
             base_comp, base_charge, delta_mass = self._base_comp(skip_labile=skip_labile, monoisotopic=monoisotopic)
-
-            if calculate_composition and delta_mass != 0.0:
-                raise ValueError("Cannot calculate composition with delta mass changes.")
-            elif calculate_composition and delta_mass == 0.0:
-                return adjust_comp(
-                    base_comp=base_comp,
-                    charge=self.charge_adducts,
-                    ion_type=ion_type,
-                    monoisotopic=monoisotopic,
-                    isotope=isotope,
-                    delta=delta,
-                    inplace=True,
-                    isotope_map=self._map_isotopes() if self.has_isotope_mods else None,
-                    position=position,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    internal_charge=base_charge,
-                )
-            else:
-                # Apply global isotope substitutions (e.g. <13C>) before summing masses;
-                # otherwise the mass path would ignore them while the composition path applies them.
-                isotope_map = self._map_isotopes() if self.has_isotope_mods else None
-                if isotope_map:
-                    for original_element, replaced_element in isotope_map.items():
-                        if original_element in base_comp:
-                            base_comp[replaced_element] += base_comp.pop(original_element)
-                base_mass = sum(element.get_mass(monoisotopic=monoisotopic) * count for element, count in base_comp.items())
-                return adjust_mass_mz(
-                    base=base_mass + delta_mass,
-                    charge=self.charge_adducts,
-                    monoisotopic=monoisotopic,
-                    ion_type=ion_type,
-                    isotope=isotope,
-                    delta=delta,
-                    position=position,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    internal_charge=base_charge,
-                )
+            if calculate_composition and (delta_mass != 0.0 or delta.has_floats):
+                raise CompositionError("Cannot calculate composition with delta mass changes. Use mass() or mz() instead.")
+            result = adjust_comp(
+                base_comp=base_comp,
+                charge=charge_carriers,
+                ion_type=ion_type,
+                monoisotopic=monoisotopic,
+                isotope=isotope,
+                delta=DeltaInfo(formula_deltas),
+                inplace=True,
+                isotope_map=self._map_isotopes() if self.has_isotope_mods else None,
+                position=position,
+                parent_sequence=parent_sequence,
+                parent_sequence_length=parent_sequence_length,
+                internal_charge=base_charge,
+            )
+            if not calculate_composition:
+                result.mass += delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
+                result._composition = None
+            result._losses = delta.to_fragment_mapping
+            validate_mass(result.mass)
+            return result
 
         base_mass, base_charge = self._base_mass(monoisotopic=monoisotopic, skip_labile=skip_labile)
 
         return adjust_mass_mz(
             base=base_mass,
-            charge=self.charge_adducts,
+            charge=charge_carriers,
             monoisotopic=monoisotopic,
             ion_type=ion_type,
             isotope=isotope,
@@ -3283,7 +3300,10 @@ class ProFormaAnnotation:
                             calculate_composition=calculate_composition,
                             parent_sequence=parent_sequence,
                             parent_sequence_length=parent_sequence_length,
-                            position=len(self),  # Precursor position
+                            # Intact precursor/neutral ions represent the whole sequence.
+                            # Keep position unset so Fragment.composition/sequence do not
+                            # try to validate an integer cleavage position for a non-series ion.
+                            position=None,
                         )
         elif ion_info.is_internal:
             if ion_info.ion_type == IonType.IMMONIUM:
@@ -3422,8 +3442,6 @@ class ProFormaAnnotation:
                 )
         return fragments
 
-    _UNSUPPORTED_META_ION_TYPES: frozenset[IonType] = frozenset({IonType.W, IonType.D})
-
     def fast_fragment(
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
@@ -3433,12 +3451,12 @@ class ProFormaAnnotation:
         """Compute fragment ion m/z values using a fast prefix/suffix-sum approach.
 
         Returns a mapping of ``(ion_type, charge)`` to a list of m/z values of
-        length ``len(self)``, ordered from fragment position 1 to N. No neutral
-        losses, isotope shifts, or custom deltas are applied.
+        length ``len(self)``, ordered from fragment position 1 to N. Annotation
+        isotope labels, intrinsic charges, and labile modifications use the
+        regular calculation path. No additional losses or deltas are applied.
 
         :param ion_types: Ion series to generate (e.g. ``IonType.B``, ``IonType.Y``).
-            Meta-types such as ``IonType.W`` and ``IonType.D`` are not supported;
-            pass their concrete sub-types (``WA``/``WB``, ``DA``/``DB``) directly.
+            Supports a, b, c, x, y, z, p, and n. Use ``fragment()`` for other series.
         :type ion_types: Sequence[ION_TYPE]
         :param charges: Proton charge states to compute m/z for.  When ``None``,
             defaults to ``1`` through ``precursor_charge - 1`` if the annotation
@@ -3448,19 +3466,39 @@ class ProFormaAnnotation:
         :type monoisotopic: bool
         :return: Dict mapping ``(IonType, charge)`` to a list of m/z values.
         :rtype: dict[tuple[IonType, int], list[float]]
-        :raises ValueError: If a meta ion type (``W``, ``D``) is requested, or if the
-            annotation contains unknown mods or interval mods.
+        :raises ValueError: If the ion type is unsupported, a charge is invalid,
+            or the annotation contains unknown mods or interval mods.
         """
         if charges is None:
             charges = self._default_fragment_charges(self.charge_state)
+        for charge in charges:
+            if isinstance(charge, bool) or not isinstance(charge, int) or charge == 0:
+                raise ValueError("fast_fragment charges must be nonzero integers")
+        supported = {IonType.A, IonType.B, IonType.C, IonType.X, IonType.Y, IonType.Z, IonType.PRECURSOR, IonType.NEUTRAL}
         for ion_type_input in ion_types:
-            if IonType(ion_type_input) in self._UNSUPPORTED_META_ION_TYPES:
-                raise ValueError(
-                    f"Meta ion type {ion_type_input!r} is not supported in fast_fragment(). Pass concrete sub-types (e.g. IonType.WA, IonType.WB) directly."
-                )
+            if IonType(ion_type_input) not in supported:
+                raise UnsupportedOperationError(f"Ion type {ion_type_input!r} is not supported in fast_fragment(). Use fragment() instead.")
 
         n = len(self)
         mass_vec = self._build_mass_vector(monoisotopic=monoisotopic)
+        mod_groups = [self.nterm_mods, self.cterm_mods, *self.internal_mods.values()]
+        intrinsic_charge = any(mod.get_charge() for mods in mod_groups for mod in mods)
+        intrinsic_charge |= any(mod.get_charge() for mods in self.map_static_mods_to_indexes().values() for mod in mods)
+        needs_fallback = self.has_isotope_mods or self.has_labile_mods or intrinsic_charge or not monoisotopic or any(c < 0 for c in charges)
+        if needs_fallback:
+            fallback: dict[tuple[IonType, int], list[float]] = {}
+            for charge in charges:
+                for ion_type_input in ion_types:
+                    ion_type = IonType(ion_type_input)
+                    ion_info = FRAGMENT_ION_LOOKUP[ion_type]
+                    if ion_info.is_intact:
+                        value = self.frag(ion_type=ion_type, charge=charge, monoisotopic=monoisotopic).mz
+                        fallback[(ion_type, charge)] = [value] * n
+                    else:
+                        fallback[(ion_type, charge)] = [
+                            self.frag(ion_type=ion_type, charge=charge, monoisotopic=monoisotopic, position=position).mz for position in range(1, n + 1)
+                        ]
+            return fallback
         result: dict[tuple[IonType, int], list[float]] = {}
 
         for charge in charges:
@@ -3468,7 +3506,7 @@ class ProFormaAnnotation:
             for ion_type_input in ion_types:
                 ion_type = IonType(ion_type_input)
                 ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
-                ion_offset = ion_info.get_mass(monoisotopic=monoisotopic)
+                ion_offset = _ion_mass(ion_type, monoisotopic)
 
                 abs_charge = abs(charge)
                 if ion_info.is_forward:
@@ -3495,6 +3533,9 @@ class ProFormaAnnotation:
                 elif ion_info.is_internal:
                     result[(ion_type, charge)] = [(mass_vec[i] + ion_offset + charge_offset) / abs_charge for i in range(n)]
 
+        for values in result.values():
+            for value in values:
+                validate_mass(value)
         return result
 
     """
@@ -3761,7 +3802,7 @@ class ProFormaAnnotation:
         :rtype: Self
         """
         if inplace is False:
-            return self.copy().filter_mods(mods=mods, inplace=True)
+            return self.copy().filter_mods(mods=mods, inplace=True, keep=keep)
 
         if keep:
             # Keep only specified mods
@@ -4627,7 +4668,9 @@ class ProFormaAnnotation:
         if charge is not None:  # update charge
             frag_annot = frag_annot.set_charge(charge, inplace=False)
 
-        composition: Counter[ElementInfo] = frag_annot.comp(ion_type=ion_type, isotopes=isotopes, deltas=deltas)
+        fragment = frag_annot.frag(ion_type=ion_type, isotopes=isotopes, deltas=deltas, calculate_composition=True)
+        composition = fragment.composition
+        assert composition is not None
 
         return isotopic_distribution(
             chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
@@ -4636,7 +4679,7 @@ class ProFormaAnnotation:
             distribution_resolution=distribution_resolution,
             use_neutron_count=use_neutron_count,
             conv_min_abundance_threshold=conv_min_abundance_threshold,
-            charge_state=frag_annot.charge_state,
+            charge_state=fragment.charge_state,
         )
 
     def estimate_isotopic_distribution(

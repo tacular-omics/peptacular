@@ -3,10 +3,42 @@
 
 All notable changes to this project will be documented in this file.
 
-### TODO (Next Release?)
-- Take valid mod values from the respective dbs for randomizer
-- W/V/D iosn should pop the terminal mods if present? and/or internal mods on first/last aa?
-- ensure str values are properly handles with intern and that mod values are cached
+## [3.3.0] (2026-09-04)
+
+### Added
+- Optional local MCP integration with 12 stateless tools for theoretical calculations, annotation transformations, and reference lookup. Small inline batches return bounded structured results with diagnostics.
+- Optional Pyteomics, psm_utils, and AlphaBase interoperability adapters with separate installation extras.
+- Versioned ProForma JSON serialization for annotations and structured components, with a bundled JSON Schema.
+- Streaming `iter_fasta()` with gzip paths, encoding overrides, line-numbered structure errors, and caller-owned stream preservation.
+- `batch()` and bounded `iter_batch()` APIs with ordered input indexes, opt-in error collection, reusable executors, and local multiprocessing contexts.
+- `diagnose()` and structured diagnostics for parsing, validation, and calculation failures, with specific ValueError subclasses for common scientific errors.
+
+### Fixed
+- Materialized batch digestion spans so lazy failures are collected and process workers can serialize their results.
+- Included intrinsic charge when applying electron-mass corrections to annotation isotope distributions.
+- Hardened JSON field and number validation, expanded the bundled schema, and rejected duplicate JSON keys.
+- Guarded optional conversions against annotation data loss, invalid element counts, and truncated AlphaBase charges.
+- Precursor (`p`) and neutral (`n`) fragments generated through `fragment()` now leave their position unset, allowing the default lazy `.composition` and `.sequence` properties to represent the complete parent sequence instead of raising an invalid-position `ValueError`.
+- Curly-brace glycan mass components now reject non-finite and malformed numeric values such as `{+nan}`, `{+inf}`, and `{1e309}` instead of propagating `NaN` or infinity through mass calculations.
+- Programmatically constructed integer glycan masses are normalized to floats and serialize consistently instead of being mistaken for charged formulas.
+- Corrected John R. Yates III's given name, surname, and suffix fields in the JATS paper metadata.
+- Unified global isotope and elemental adjustment handling across mass and composition paths, including ion terminal atoms and impossible isotope or loss counts.
+- Fast fragmentation now accounts for annotation isotope labels, intrinsic charges, labile precursor modifications, and average masses through regular-path fallbacks. Unsupported ion series and invalid charges now raise instead of returning misleading values.
+- Derived ion mass offsets from elemental formulas so charge states share consistent mass precision.
+- Forwarded `keep=False` correctly when filtering modifications on a copy.
+- Protected cached delta and charge mappings against caller mutation, bounded helper caches, preserved negative charge-carrier atom counts, and rejected non-finite delta values and invalid counts.
+
+### Changed
+- Expanded package CI to cover pull requests and release-relevant configuration files, removed redundant test-suite executions, added package-build validation, and made the publishing workflow run lint, type, test, and build checks before uploading to PyPI.
+- Small automatic batches run sequentially, worker counts are capped to available work, and worker/chunk settings are validated before execution.
+- Added Python 3.13/3.14 and macOS/Windows CI coverage, documentation and example checks, an installed-wheel smoke check, and an explicit 79% branch coverage baseline with an 83% improvement target.
+- Migrated development dependencies to standard dependency groups and resolved the new optional dependency extras.
+
+### Deferred
+- Cross-link calculations remain on the separate feature branch.
+- Select random modifications from the reference databases.
+- Review terminal modification handling for w, v, and d ions.
+- Review string interning and modification cache reuse.
 
 ## [3.2.0]
 ### Added

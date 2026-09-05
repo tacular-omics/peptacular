@@ -21,6 +21,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Chemistry",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
@@ -32,6 +34,20 @@ Repository = "https://github.com/tacular-omics/peptacular"
 Issues = "https://github.com/tacular-omics/peptacular/issues"
 Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
 DOI = "https://doi.org/10.5281/zenodo.15054278"
+
+[project.optional-dependencies]
+mcp = ["mcp>=2.1.1,<2.2", "pydantic>=2.13,<3"]
+pyteomics = ["pyteomics>=5.0"]
+psm-utils = ["psm-utils>=1.0"]
+alphabase = ["alphabase>=1.9"]
+interop = [
+    "pyteomics>=5.0",
+    "psm-utils>=1.0",
+    "alphabase>=1.9",
+]
+
+[project.scripts]
+peptacular-mcp = "peptacular.mcp.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -45,11 +61,15 @@ path = "src/peptacular/__init__.py"
 
 [tool.uv]
 package = true
-dev-dependencies = [
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.0",
     "pytest>=9.0.1",
+    "jsonschema>=4.0",
     "pytest-cov>=6.0.0",
     "pympler>=1.1",
-    "pyteomics>=4.7.5",
+    "pyteomics>=5.0",
     "ruff>=0.14.7",
     "pyupgrade>=3.21.0",
     "ty>=0.0.11",
@@ -85,9 +105,6 @@ select = [
 "__init__.py" = ["F403", "F401"]
 "data.py" = ["E741"]
 "constants.py" = ["E741"]
-
-[tool.uv.sources]
-pyteomics = { git = "https://github.com/levitsky/pyteomics.git" }
 
 [tool.coverage.report]
 exclude_lines = [

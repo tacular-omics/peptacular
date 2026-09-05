@@ -1,5 +1,7 @@
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from functools import lru_cache
+from math import isfinite
 from typing import Any, TypeVar, overload
 
 from tacular import (
@@ -13,12 +15,25 @@ from tacular import (
 )
 
 from ..constants import ELECTRON_MASS
+from ..diagnostics import InvalidAdjustmentError
 from ..proforma_components.comps import ChargedFormula, GlobalChargeCarrier
 from .cached_comps import DeltaInfo, IsotopeInfo
 from .frag import Fragment
 from .mod import Mods
 
 H_ELEMENT_INFO = ELEMENT_LOOKUP["H"]
+
+
+@lru_cache(maxsize=128)
+def _ion_mass(ion_type: IonType, monoisotopic: bool) -> float:
+    """Derive ion offsets from atoms so mass and composition share precision."""
+    return sum(element.get_mass(monoisotopic=monoisotopic) * count for element, count in FRAGMENT_ION_LOOKUP[ion_type].composition.items())
+
+
+def validate_mass(mass: float) -> None:
+    """Reject non-finite or negative calculated masses."""
+    if not isfinite(mass) or mass < 0:
+        raise InvalidAdjustmentError(f"Calculated mass must be finite and non-negative, got {mass}")
 
 
 def adjust_mass_mz(
@@ -53,7 +68,7 @@ def adjust_mass_mz(
     base_mass += charge.get_mass(monoisotopic)
 
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
-    base_mass += ion_info.get_mass(monoisotopic=monoisotopic)
+    base_mass += _ion_mass(ion_info.ion_type, monoisotopic)
 
     base_mass -= total_charge * ELECTRON_MASS
 
@@ -63,6 +78,7 @@ def adjust_mass_mz(
     else:
         adducts = tuple(key for key, count in charge._mods.items() for _ in range(count)) if charge._mods else None
 
+    validate_mass(base_mass)
     return Fragment(
         ion_type=ion_info.ion_type,
         position=position,
@@ -98,12 +114,6 @@ def adjust_comp(
     if not inplace:
         base_comp = base_comp.copy()
 
-    # corrects base_comp for user specified isotopes
-    isotope.adjust_composition(base_comp)
-
-    # Build fragment notation for losses
-    delta.adjust_composition(base_comp)
-
     ion_info = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
 
     # Merge element-by-element rather than ``base_comp += ion_info.composition``:
@@ -112,6 +122,13 @@ def adjust_comp(
     # base composition has, instead of surfacing it via the negative-count check below.
     for element, count in ion_info.composition.items():
         base_comp[element] += count
+
+    # User adjustments apply to the complete neutral ion composition, including
+    # terminal atoms introduced by its ion offset.
+    if isotope.data:
+        isotope.adjust_composition(base_comp)
+    if delta.deltas:
+        delta.adjust_composition(base_comp)
 
     # correct for global isotopes
     if isotope_map:
@@ -126,7 +143,7 @@ def adjust_comp(
 
     # Validate no negative counts
     if any(count < 0 for count in base_comp.values()):
-        raise ValueError(f"Negative element counts after adjustments: {base_comp}")
+        raise InvalidAdjustmentError(f"Negative element counts after adjustments: {base_comp}")
 
     total_charge = charge.get_charge() + internal_charge
 
@@ -145,6 +162,7 @@ def adjust_comp(
     else:
         adducts = tuple(key for key, count in charge._mods.items() for _ in range(count)) if charge._mods else None
 
+    validate_mass(base_mass)
     return Fragment(
         ion_type=ion_info.ion_type,
         position=position,

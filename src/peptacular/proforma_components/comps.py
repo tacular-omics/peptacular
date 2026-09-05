@@ -10,7 +10,8 @@ from abc import ABC, abstractmethod
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from math import isfinite
+from typing import Any, Protocol, Self, runtime_checkable
 
 from tacular import (
     AA_LOOKUP,
@@ -33,6 +34,7 @@ from tacular import (
 )
 
 from ..constants import CV, Terminal
+from ..diagnostics import CompositionError, UnknownModificationError
 
 # Reusable hint appended to "unknown modification" errors so callers (including AI
 # agents) can immediately see how to specify a resolvable modification.
@@ -74,6 +76,32 @@ class MassPropertyMixin(ABC):
     @property
     def average_mass(self) -> float:
         return self.get_mass(monoisotopic=False)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the versioned, JSON-compatible representation of this component."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore this component from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this component."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore this component from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
 
 
 def sum_masses(components: Iterable[HasMassComp], monoisotopic: bool = True) -> float:
@@ -400,6 +428,32 @@ class PositionRule:
     def __str__(self) -> str:
         return self.serialize()
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return the versioned, JSON-compatible representation of this rule."""
+        from ..proforma_json import to_proforma_dict
+
+        return to_proforma_dict(self)
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore this rule from its versioned JSON-compatible representation."""
+        from ..proforma_json import from_proforma_dict
+
+        return from_proforma_dict(data, expected_type=cls)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for this rule."""
+        from ..proforma_json import to_proforma_json
+
+        return to_proforma_json(self, indent=indent)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore this rule from versioned JSON text."""
+        from ..proforma_json import from_proforma_json
+
+        return from_proforma_json(data, expected_type=cls)
+
 
 @dataclass(frozen=True, slots=True)
 class TagAccession(MassPropertyMixin, PositionScoreMixin):
@@ -450,7 +504,7 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
                 kind = "monoisotopic" if monoisotopic else "average"
                 raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
+        raise UnknownModificationError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -460,9 +514,9 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
+                raise CompositionError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
+        raise UnknownModificationError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
     @staticmethod
     def from_string(s: str) -> TagAccession:
@@ -625,16 +679,16 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
                 kind = "monoisotopic" if monoisotopic else "average"
                 raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
-        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
+        raise UnknownModificationError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_composition(self) -> Counter[ElementInfo]:
         mod_info = self._get_mod_info_by_name()
         if mod_info is not None:
             comp = mod_info.composition
             if comp is None:
-                raise ValueError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
+                raise CompositionError(f"Modification '{self}' was found but has no elemental composition in its controlled vocabulary.")
             return Counter(comp)
-        raise ValueError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
+        raise UnknownModificationError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
     def get_charge(self) -> int | None:
         return None
@@ -740,8 +794,18 @@ class GlycanComponent(MassPropertyMixin):
     bare mass). A mass component contributes mass but has no elemental composition.
     """
 
-    monosaccharide: Monosaccharide | ChargedFormula | float
+    monosaccharide: Monosaccharide | ChargedFormula | int | float
     occurance: int
+
+    def __post_init__(self) -> None:
+        value = self.monosaccharide
+        if isinstance(value, bool):
+            raise TypeError("Glycan mass component must be a real number, not bool")
+        if isinstance(value, int):
+            value = float(value)
+            object.__setattr__(self, "monosaccharide", value)
+        if isinstance(value, float) and not isfinite(value):
+            raise ValueError(f"Glycan mass component must be finite, got {value}")
 
     @property
     def is_mass(self) -> bool:
@@ -778,7 +842,7 @@ class GlycanComponent(MassPropertyMixin):
         if isinstance(value, (int, float)):
             # A bare mass has no elemental composition; callers that need the whole glycan's
             # composition route this through GlycanTag.get_composition_and_delta_mass instead.
-            raise ValueError(f"Glycan mass component {{{value:+f}}} has no elemental composition")
+            raise CompositionError(f"Glycan mass component {{{value:+f}}} has no elemental composition")
         elif isinstance(value, ChargedFormula):
             composition = value.get_composition()
         else:

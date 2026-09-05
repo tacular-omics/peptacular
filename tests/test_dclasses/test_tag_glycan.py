@@ -188,6 +188,13 @@ class TestGlycanFormulaAndMassComponents:
         base = pt.parse("N").mass()
         assert abs((pt.parse("N[Glycan:{+500.0}2]").mass() - base) - 1000.0) < 1e-6
 
+    def test_integer_mass_component_normalizes_and_round_trips(self):
+        component = pt.GlycanComponent(monosaccharide=203, occurance=1)
+        assert component.is_mass
+        assert component.get_mass() == 203.0
+        assert component.serialize() == "{+203.0}"
+        assert pt.GlycanComponent.from_string(component.serialize()).get_mass() == 203.0
+
     def test_repeated_bare_mass_mod_scales_delta_mass(self):
         mods = pt.Mods(pt.ModType.INTERNAL, {"Glycan:{+203.079}": 2})
         composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge()
@@ -237,3 +244,13 @@ class TestGlycanFormulaAndMassComponents:
     def test_invalid_curly_components_raise_clear_errors(self, value, message):
         with pytest.raises(ValueError, check=lambda e: message in str(e)):
             pt.GlycanTag.from_string(value)
+
+    @pytest.mark.parametrize("value", ["+nan", "-nan", "+inf", "-inf", "1e309"])
+    def test_non_finite_or_overflowing_mass_is_rejected(self, value):
+        with pytest.raises(ValueError, match="Invalid glycan mass component"):
+            pt.GlycanTag.from_string(f"Glycan:{{{value}}}")
+
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_programmatic_non_finite_mass_is_rejected(self, value):
+        with pytest.raises(ValueError, match="must be finite"):
+            pt.GlycanComponent(monosaccharide=value, occurance=1)

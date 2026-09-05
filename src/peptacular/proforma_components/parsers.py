@@ -6,6 +6,7 @@ This module contains all parsing logic, independent of other modules.
 
 import re
 from functools import lru_cache
+from math import isfinite
 from typing import TYPE_CHECKING
 
 from tacular import AminoAcid, Element, Monosaccharide
@@ -433,6 +434,7 @@ def parse_modification_tag(mod_str: str) -> "MODIFICATION_TAG_TYPE":
 # Regex pattern for parsing glycan compositions
 # Matches: Glycan:Hex5HexNAc4
 _GLYCAN_PATTERN = re.compile(r"^Glycan:(.+)$", re.IGNORECASE)
+_GLYCAN_MASS_PATTERN = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
 
 
 # ProForma 2.1 §10.2 glycan compositions are a sequence of components, each a named
@@ -495,11 +497,13 @@ def _parse_glycan_curly_component(content: str) -> "ChargedFormula | float":
     """
     if not content:
         raise ValueError("Empty '{}' glycan component")
-    if content[0] in "+-" or content[0].isdigit():
-        try:
-            return float(content)
-        except ValueError as e:
-            raise ValueError(f"Invalid glycan mass component '{{{content}}}'") from e
+    if content[0] in "+-." or content[0].isdigit():
+        if _GLYCAN_MASS_PATTERN.fullmatch(content) is None:
+            raise ValueError(f"Invalid glycan mass component '{{{content}}}'")
+        value = float(content)
+        if not isfinite(value):
+            raise ValueError(f"Invalid glycan mass component '{{{content}}}': mass must be finite")
+        return value
     return parse_charged_formula(content, require_formula_prefix=False)
 
 

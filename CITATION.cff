@@ -19,7 +19,7 @@ abstract: >-
   analysis pipelines, and research scripts that need one consistent sequence
   notation across parsing, annotation, calculation, and serialization. It
   requires Python 3.12 or later.
-version: "3.2.0"
+version: "3.3.0"
 authors:
   - family-names: Garrett
     given-names: Patrick T.
@@ -34,7 +34,6 @@ repository-code: https://github.com/tacular-omics/peptacular
 url: https://peptacular.readthedocs.io/
 license: MIT
 doi: "10.5281/zenodo.15054278"
-date-released: "2026-08-15"
 keywords:
   - Python
   - Proteomics

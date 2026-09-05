@@ -26,6 +26,10 @@
 - **Enzymatic Protein Digestion** 
 - **Fragment Ion Generation** 
 - **Physiochemical Property Calculations** 
+- **Streaming FASTA and Gzip Input**
+- **Indexed Batch Results and Input Diagnostics**
+- **Versioned JSON Serialization**
+- **Optional Pyteomics, psm_utils, and AlphaBase Integrations**
 - **Built-in Parallel Processing** 
 
 ## Installation
@@ -33,6 +37,18 @@
 ```bash
 pip install peptacular
 ```
+
+Optional package adapters can be installed separately:
+
+```bash
+pip install "peptacular[pyteomics]"
+pip install "peptacular[psm-utils]"
+pip install "peptacular[alphabase]"
+```
+
+See the [interoperability guide](https://peptacular.readthedocs.io/en/latest/interoperability.html)
+and [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html)
+for supported conversions and examples.
 
 ## Quick Start (Object Based)
 
@@ -56,7 +72,7 @@ print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())
 
 ## Quick Start (Functional Based)
 
-When more than one item is passed to the functional API methods, it is automatically parallelized.
+Small lists run sequentially. Larger lists automatically use parallel execution, with explicit backend and worker overrides available.
 
 ```python
 import peptacular as pt
@@ -68,6 +84,29 @@ masses: list[float] = pt.mass(peptides) # [928.4026, 374.1914, 451.2454]
 mzs: list[float] = pt.mz(peptides, charge=2) # [465.2086, 188.103, 225.6227]
 ```
 
+
+For streaming input, optional batch error collection, and operation diagnostics,
+see the [streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html).
+
+```python
+results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE"], errors="collect")
+print(results[0].value)
+print(results[1].error.code)  # unresolved_modification
+```
+
+## Local MCP integration
+
+Peptacular includes 12 optional MCP tools for agents to inspect annotations,
+calculate theoretical properties, digest protein sequences, and transform annotations.
+Calls accept small inline batches and return results directly, with no stored data or job setup.
+Install with `pip install "peptacular[mcp]"`, then check the installation:
+
+```text
+peptacular-mcp --check
+```
+
+See the [local MCP guide](docs/mcp.rst) for Claude Code setup, tool examples, limits,
+and the boundary with Spectacular's spectrum handling.
 
 ## ProForma 2.1 Compliance
 
@@ -86,4 +125,3 @@ MIT
 Working on a JOSS submission, but in the meantime use:
 
 https://doi.org/10.5281/zenodo.15054278
-

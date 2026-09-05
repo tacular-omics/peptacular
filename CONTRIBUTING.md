@@ -74,7 +74,7 @@ def mass(sequence: str, monoisotopic: bool = True) -> float:
 - All new code needs tests. Tests live in `tests/`.
 - Use `pytest.approx` for floating-point comparisons.
 - Use the `tmp_path` fixture for any file I/O; do not mock library internals.
-- Aim to maintain at least **83% branch coverage**.
+- CI enforces at least **79% branch coverage**, the measured baseline. Raise this toward 83% with tests of scientific invariants and option interactions. The combined percentage printed by coverage.py is a different metric.
 
 ```bash
 just test       # run tests

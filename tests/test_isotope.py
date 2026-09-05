@@ -94,3 +94,14 @@ class TestIsotopeChargeState:
             expected = annot.mass(charge=charge)
             mono = annot.isotopic_distribution(charge=charge, distribution_resolution=None)[0].mass
             assert abs(expected - mono) < 1e-5
+
+
+def test_annotation_isotopes_use_total_intrinsic_and_external_charge():
+    from peptacular import parse
+    from peptacular.isotope import isotopic_distribution
+
+    annotation = parse("PEP[Formula:CH2:z+1]TIDE/2")
+    fragment = annotation.frag(calculate_composition=True)
+    assert fragment.charge_state == 3
+    expected = isotopic_distribution(fragment.composition, charge_state=3)
+    assert annotation.isotopic_distribution() == expected

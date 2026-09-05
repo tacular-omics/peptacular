@@ -1,6 +1,6 @@
 {
   "title": "Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Peptacular is a typed Python package for representing and analyzing peptide and protein sequences written in ProForma 2.1 notation. It parses ProForma strings into structured ProFormaAnnotation objects that can be inspected, modified, and serialized. The representation covers sequence annotations, chemical modifications, terminal annotations, charge states, isotope labels, and other constructs defined by the supported ProForma compliance level. Analysis functions calculate neutral mass, mass-to-charge ratio, elemental composition, isotope distributions, fragment ions, digestion products, and physicochemical sequence properties. Users can work through annotation objects or a functional API. Functional calls accept individual sequences or collections, with parallel processing available for batch calculations. The package uses tacular for shared amino-acid, element, modification, protease, and ion reference data. Peptacular is intended for proteomics software, analysis pipelines, and research scripts that need one consistent sequence notation across parsing, annotation, calculation, and serialization. It requires Python 3.12 or later.",
   "creators": [
     {
@@ -55,23 +55,6 @@
     },
     {
       "identifier": "hupo-psi"
-    }
-  ],
-  "grants": [
-    {
-      "id": "10.13039/100000002::R01AG077046"
-    },
-    {
-      "id": "10.13039/100000002::R01MH132570"
-    },
-    {
-      "id": "10.13039/100000002::R01MH100175"
-    },
-    {
-      "id": "10.13039/100000002::R01HL165168"
-    },
-    {
-      "id": "10.13039/100000002::U01AG088679"
     }
   ]
 }

@@ -92,6 +92,24 @@ Some of the core data classes used throughout Peptacular.
 .. autoclass:: peptacular.isotope.IsotopicData
 .. autoclass:: peptacular.isotope.IsotopeLookup
 
+Optional interoperability
+-------------------------
+
+Third-party dependencies are imported only when an adapter is called. See
+:doc:`interoperability` for installation and compatibility details.
+
+.. automodule:: peptacular.interop.pyteomics
+   :members:
+   :show-inheritance:
+
+.. automodule:: peptacular.interop.psm_utils
+   :members:
+   :show-inheritance:
+
+.. automodule:: peptacular.interop.alphabase
+   :members:
+   :show-inheritance:
+
 Data Modules
 ------------
 
@@ -99,3 +117,17 @@ Peptacular relies on the python tacular package for data on amino acids, modific
 chemical entities, but are accessible from the peptacular namespace.
 
 see https://tacular.readthedocs.io
+
+.. automodule:: peptacular.batch
+   :members:
+
+.. automodule:: peptacular.diagnostics
+   :members:
+
+.. autofunction:: peptacular.iter_fasta
+
+ProForma JSON
+-------------
+
+.. automodule:: peptacular.proforma_json
+   :members:

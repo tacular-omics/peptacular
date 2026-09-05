@@ -257,9 +257,9 @@ def serialize_glycan_component(gc: "GlycanComponent") -> str:
     """
     if isinstance(gc.monosaccharide, Monosaccharide):
         mono_str = gc.monosaccharide.value
-    elif isinstance(gc.monosaccharide, float):
+    elif isinstance(gc.monosaccharide, (int, float)):
         # A bare monoisotopic mass, e.g. {+203.079} (ProForma 2.1 section 10.2).
-        mono_str = "{" + format(gc.monosaccharide, "+") + "}"
+        mono_str = "{" + format(float(gc.monosaccharide), "+") + "}"
     else:
         # A molecular / charged formula, e.g. {C8H13N1O5} or {C8H13N1O5Na1:z+1}.
         # No 'Formula:' prefix inside the curly braces (ProForma 2.1 §10.2).

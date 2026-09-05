@@ -103,3 +103,10 @@ parallelized for list inputs.
    :language: python
    :linenos:
 
+
+Streaming and Diagnostics
+-------------------------
+
+.. literalinclude:: ../examples/streaming.py
+   :language: python
+   :linenos:

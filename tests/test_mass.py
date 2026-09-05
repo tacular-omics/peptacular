@@ -167,13 +167,13 @@ class TestApplyMods:
                 isotopes={"15C": 2},
             )
 
-        # will not raise error as we dont check composition directly
-        mass = pt.mass(
-            sequence,
-            charge=1,
-            ion_type="y",
-            isotopes={"13C": 200},
-        )
+        with pytest.raises(ValueError, match="negative element counts"):
+            mass = pt.mass(
+                sequence,
+                charge=1,
+                ion_type="y",
+                isotopes={"13C": 200},
+            )
 
         # will throw error since we check composition directly
         with pytest.raises(ValueError):
