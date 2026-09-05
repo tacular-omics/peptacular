@@ -20,7 +20,7 @@ from peptacular.interop import (
 )
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase"])
+parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
 args = parser.parse_args()
 package = Path(pt.__file__).resolve()
 assert "site-packages" in package.parts, package
@@ -37,15 +37,18 @@ annotation = pt.parse("PEM[Oxidation]TIDE/2")
 assert pt.ProFormaAnnotation.from_json(annotation.to_json()).to_dict() == annotation.to_dict()
 assert pt.get_proforma_json_schema()["$id"] == pt.PROFORMA_JSON_SCHEMA_ID
 
-if args.extra == "pyteomics":
+extras = set((args.extra or "").split(","))
+assert "mcp" not in sys.modules
+
+if "pyteomics" in extras:
     assert from_pyteomics(to_pyteomics(annotation)) == annotation
     assert dict(to_pyteomics_composition({"C": 2, "13C": 1})) == {"C": 2, "C[13]": 1}
-elif args.extra == "psm-utils":
+elif "psm-utils" in extras:
     assert from_psm_utils(to_psm_utils(annotation)) == annotation
-elif args.extra == "alphabase":
+elif "alphabase" in extras:
     assert from_alphabase_dataframe(to_alphabase_dataframe([annotation])) == [annotation]
-else:
-    for optional in ("alphabase", "psm_utils", "pyteomics", "pandas"):
+elif "mcp" not in extras:
+    for optional in ("alphabase", "psm_utils", "pyteomics", "pandas", "mcp", "pydantic"):
         assert importlib.util.find_spec(optional) is None, optional
         assert optional not in sys.modules, optional
     try:
@@ -55,3 +58,29 @@ else:
     else:
         raise AssertionError("A core installation must not include optional integrations")
 print(f"Installed wheel smoke checks passed ({args.extra or 'core'}): {package}")
+
+if "mcp" in extras:
+    import asyncio
+
+    from mcp import Client
+    from mcp.client.stdio import StdioServerParameters
+
+    async def check_mcp():
+        parameters = StdioServerParameters(
+            command=sys.executable,
+            args=["-I", "-m", "peptacular.mcp", "--workspace", str(Path.cwd()), "--cache", str(Path.cwd() / "cache")],
+        )
+        async with Client(parameters) as client:
+            tools = await client.list_tools()
+            assert len(tools.tools) == 18
+            result = await client.call_tool(
+                "analyze_peptides",
+                {
+                    "request": {"inputs": {"kind": "inline", "records": [{"annotation": "PEPTIDE/2"}]}, "measurements": ["mz"]},
+                },
+            )
+            assert not result.is_error
+            assert result.structured_content["records"][0]["mz"] > 400
+
+    asyncio.run(check_mcp())
+    print("Installed MCP stdio smoke check passed")

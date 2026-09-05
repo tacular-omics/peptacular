@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ## [3.3.0] (Unreleased)
 
 ### Added
+- Optional local MCP integration with 18 structured tools, reusable dataset/result references, bounded queries and exports, and cancellable process jobs.
 - Optional Pyteomics, psm_utils, and AlphaBase interoperability adapters with separate installation extras.
 - Versioned ProForma JSON serialization for annotations and structured components, with a bundled JSON Schema.
 - Streaming `iter_fasta()` with gzip paths, encoding overrides, line-numbered structure errors, and caller-owned stream preservation.
@@ -13,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - `diagnose()` and structured diagnostics for parsing, validation, and calculation failures, with specific ValueError subclasses for common scientific errors.
 
 ### Fixed
+- Materialized batch digestion spans so lazy failures are collected and process workers can serialize their results.
+- Included intrinsic charge when applying electron-mass corrections to annotation isotope distributions.
 - Hardened JSON field and number validation, expanded the bundled schema, and rejected duplicate JSON keys.
 - Guarded optional conversions against annotation data loss, invalid element counts, and truncated AlphaBase charges.
 - Precursor (`p`) and neutral (`n`) fragments generated through `fragment()` now leave their position unset, allowing the default lazy `.composition` and `.sequence` properties to represent the complete parent sequence instead of raising an invalid-position `ValueError`.

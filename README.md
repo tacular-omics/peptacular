@@ -94,6 +94,19 @@ print(results[0].value)
 print(results[1].error.code)  # unresolved_modification
 ```
 
+## Local MCP integration
+
+The unreleased source includes 18 optional MCP tools for agents to inspect annotations,
+calculate theoretical properties, digest FASTA files, and query or export reusable results.
+Install from this checkout with `pip install -e ".[mcp]"`, then check the configuration:
+
+```text
+peptacular-mcp --workspace /absolute/project --check
+```
+
+See the [local MCP guide](docs/mcp.rst) for Claude Code setup, tool examples, limits,
+and the boundary with Spectacular's spectrum handling.
+
 ## ProForma 2.1 Compliance
 
 See [PROFORMA_COMPLIANCE.md](PROFORMA_COMPLIANCE.md) for detailed compliance status.
@@ -111,4 +124,3 @@ MIT
 Working on a JOSS submission, but in the meantime use:
 
 https://doi.org/10.5281/zenodo.15054278
-
