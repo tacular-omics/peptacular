@@ -152,3 +152,63 @@ def test_annotation_isotopes_use_total_intrinsic_and_external_charge():
 def test_invalid_compositions_are_rejected(formula):
     with pytest.raises(ValueError):
         isotopic_distribution(formula)
+
+
+@pytest.mark.parametrize("mass", [-1, float("inf"), float("nan")])
+@pytest.mark.parametrize("estimate", [pt.estimate_averagine_comp, estimate_isotopic_distribution])
+def test_averagine_rejects_invalid_target_mass(estimate, mass):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        estimate(mass)
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 2.5])
+def test_isotope_window_requires_a_positive_integer(limit):
+    with pytest.raises(ValueError, match="max_isotopes"):
+        isotopic_distribution({"C": 6}, max_isotopes=limit)
+
+
+@pytest.mark.parametrize("threshold", [-0.1, 1.1, True, float("nan"), float("inf")])
+def test_relative_abundance_threshold_is_validated(threshold):
+    with pytest.raises(ValueError, match="min_abundance_threshold"):
+        isotopic_distribution({"C": 6}, min_abundance_threshold=threshold)
+
+
+@pytest.mark.parametrize("charge", [True, 1.5, "2"])
+def test_isotope_charge_requires_an_integer(charge):
+    with pytest.raises(ValueError, match="charge_state"):
+        isotopic_distribution({"C": 6}, charge_state=charge)
+
+
+def test_zero_threshold_returns_complete_small_envelope_with_isotope_gaps():
+    complete = isotopic_distribution({"Cl": 2}, min_abundance_threshold=0)
+    bounded = isotopic_distribution({"Cl": 2}, max_isotopes=5, min_abundance_threshold=0)
+    assert complete == bounded
+    assert [peak.neutron_count for peak in complete] == [0, 2, 4]
+
+
+def test_zero_threshold_large_envelope_requires_an_explicit_bound():
+    with pytest.raises(ValueError, match="max_isotopes is required"):
+        isotopic_distribution({"C": 5000}, min_abundance_threshold=0)
+    bounded = isotopic_distribution({"C": 5000}, max_isotopes=8, min_abundance_threshold=0)
+    assert len(bounded) == 8
+    assert bounded[0].mass == pytest.approx(60_000)
+
+
+@pytest.mark.parametrize("precision", [None, 2])
+def test_merging_isotope_envelopes_preserves_total_abundance(precision):
+    first = [pt.IsotopicData(101.004, 1, 0.25), pt.IsotopicData(100.001, 0, 1.0)]
+    second = [pt.IsotopicData(100.001, 0, 0.5), pt.IsotopicData(101.003, 1, 0.125)]
+    merged = pt.merge_isotopic_distributions(first, second, merge_precision=precision)
+    assert sum(peak.abundance for peak in merged) == pytest.approx(1.875)
+    assert [peak.mass for peak in merged] == sorted(peak.mass for peak in merged)
+    assert merged[0].abundance == pytest.approx(1.5)
+    if precision is None:
+        assert len(merged) == 3
+    else:
+        assert merged == [pt.IsotopicData(100.0, 0, 1.5), pt.IsotopicData(101.0, 1, 0.375)]
+    assert first[0] == pt.IsotopicData(101.004, 1, 0.25)
+
+
+def test_merging_empty_envelopes_returns_no_peaks():
+    assert pt.merge_isotopic_distributions() == []
+    assert pt.merge_isotopic_distributions([], []) == []
