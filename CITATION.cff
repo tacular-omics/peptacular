@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "Peptacular: A ProForma 2.1 compliant Python package for amino acid sequence analysis"
+title: "Peptacular: A Python package for amino acid sequence analysis with ProForma 2.1"
 abstract: >-
   Peptacular is a typed Python package for representing and analyzing peptide
   and protein sequences written in ProForma 2.1 notation. It parses ProForma
@@ -19,7 +19,7 @@ abstract: >-
   analysis pipelines, and research scripts that need one consistent sequence
   notation across parsing, annotation, calculation, and serialization. It
   requires Python 3.12 or later.
-version: "3.3.0"
+version: "4.0.0"
 authors:
   - family-names: Garrett
     given-names: Patrick T.

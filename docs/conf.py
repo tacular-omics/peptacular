@@ -1,11 +1,15 @@
 import os
 import sys
 
+from peptacular import __version__
+
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "Peptacular"
 copyright = "2024, Patrick Tyler Garrett"
 author = "Patrick Tyler Garrett"
+release = __version__
+version = ".".join(release.split(".")[:2])
 
 extensions = [
     "sphinx.ext.autodoc",

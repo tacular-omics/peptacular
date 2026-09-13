@@ -8,11 +8,12 @@ from tempfile import TemporaryDirectory
 
 root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--dist", type=Path, default=root / "dist", help="Directory containing exactly one Peptacular wheel")
 parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
 args = parser.parse_args()
-wheels = sorted((root / "dist").glob("peptacular-*.whl"), key=lambda path: path.stat().st_mtime)
-if not wheels:
-    raise SystemExit("Build a wheel with uv build before running this check.")
+wheels = list(args.dist.resolve().glob("peptacular-*.whl"))
+if len(wheels) != 1:
+    raise SystemExit("Expected exactly one Peptacular wheel. Build into a fresh directory and select it with --dist.")
 with TemporaryDirectory(prefix="peptacular-wheel-") as temporary:
     env = Path(temporary) / "env"
     subprocess.run(["uv", "venv", "--python", sys.executable, str(env)], check=True)

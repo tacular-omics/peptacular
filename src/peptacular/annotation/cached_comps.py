@@ -15,14 +15,18 @@ from ..proforma_components import ChargedFormula, GlobalChargeCarrier
 # ============================================================================
 
 
+def _validate_isotope_count(count: int) -> None:
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise InvalidAdjustmentError("Isotope count must be an integer and cannot be negative")
+
+
 @dataclass(frozen=True)
 class IsotopeInfo:
     data: tuple[tuple[ElementInfo, int], ...]
 
     def __post_init__(self) -> None:
         for element, count in self.data:
-            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
-                raise InvalidAdjustmentError("Isotope count must be an integer and cannot be negative")
+            _validate_isotope_count(count)
             if element.mass_number is None:
                 raise InvalidAdjustmentError(f"Specify an isotope such as 13C, not {element}")
 
@@ -505,6 +509,8 @@ def get_isotopes(
     if isinstance(isotopes, dict):
         elem_infos: list[tuple[ElementInfo, int]] = []
         for elem, count in isotopes.items():
+            # Validate before cache lookup because True and 1.0 compare equal to 1.
+            _validate_isotope_count(count)
             if isinstance(elem, str):
                 elem_info: ElementInfo = ELEMENT_LOOKUP[elem]
             else:

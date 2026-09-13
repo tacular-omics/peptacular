@@ -106,8 +106,8 @@ Parses correctly but not utilized by peptacular. Accessible if needed for extern
 ## Not Supported
 
 ### Cross-Linking
-- ❌ Intrachain cross-linkers: `EVTK[X:Aryl azide#XL1]LEK[#XL1]SEFD`
-- ❌ Interchain cross-linkers: `EVTK[X:Aryl azide#XL1]L//EK[#XL1]SEFD`
+- ❌ Intrachain cross-linkers: `EVTK[X:DSS#XL1]LEK[#XL1]SEFD`
+- ❌ Interchain cross-linkers: `EVTK[X:DSS#XL1]L//EK[#XL1]SEFD`
 - ❌ Branches: `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR`
 
 ### Ion Notation

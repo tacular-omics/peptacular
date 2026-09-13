@@ -61,10 +61,10 @@ import peptacular as pt
 peptide: pt.ProFormaAnnotation = pt.parse("PEM[Oxidation]TIDE")
 
 # Calculate mass and m/z
-mass: float = peptide.mass() # 849.342
-mz: float = peptide.mz(charge=2) # 425.678
+mass: float = peptide.mass() # 849.343
+mz: float = peptide.mz(charge=2) # 425.679
 
-# Factory pattern
+# Chained edits modify the annotation
 print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())
 # (>Peptacular)PEM[Oxidation]TIDE/2
 ```
@@ -77,11 +77,11 @@ Small lists run sequentially. Larger lists automatically use parallel execution,
 ```python
 import peptacular as pt
 
-peptides = ['[Acetyl]-PEPTIDES', '<C13>ARE', 'SICK/2']
+peptides = ['[Acetyl]-PEPTIDES', '<13C>ARE', 'SICK/2']
 
 # Calculate mass and m/z for all peptides
-masses: list[float] = pt.mass(peptides) # [928.4026, 374.1914, 451.2454]
-mzs: list[float] = pt.mz(peptides, charge=2) # [465.2086, 188.103, 225.6227]
+masses: list[float] = pt.mass(peptides) # [928.4026, 388.2384, 451.2454]
+mzs: list[float] = pt.mz(peptides, charge=2) # [465.2086, 195.1265, 225.6227]
 ```
 
 

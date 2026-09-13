@@ -3,16 +3,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## [4.0.0] (Unreleased)
+## [4.0.0] (2026-09-13)
+
+### Added
+- Added one-command version synchronization for package and citation metadata, with CI checks for release tags, changelog dates, and built distribution versions.
 
 ### Changed
+- Accelerated ordinary precursor and neutral mass/m/z calculations by avoiding fragment allocation and charge-override copies, and using direct residue mass lookups.
 - Replaced exact-mass isotope fine-structure convolution with the BRAIN Newton-Girard recurrence. Isotope distributions now contain one aggregated peak per populated nominal neutron offset with an exact probability-weighted center mass.
 - Isotope envelopes now use adaptive sizing when `max_isotopes` is omitted. Weak leading peaks are retained through the last peak that meets the relative-abundance threshold.
 - Peptide averagine now subtracts the fixed terminal composition before applying mass-scaled elemental ratios.
 
+### Fixed
+- Validate isotope counts before cache lookup so cached integer counts cannot cause boolean or floating-point counts to be accepted.
+- Report a clear validation error when calculating mass, m/z, composition, or fragments from an empty sequence.
+
 ### Removed
 - Removed the `distribution_resolution`, `use_neutron_count`, and `conv_min_abundance_threshold` isotope arguments. Every `IsotopicData` result now provides both center mass and nominal neutron offset directly.
 - Removed `IsotopeLookup`. BRAIN calculations use bounded internal caches and no longer require coarse 50 Da mass bins.
+
+### Migration from 3.x
+- Remove `distribution_resolution`, `use_neutron_count`, and `conv_min_abundance_threshold` from isotope calculation calls.
+- Use each result's `mass` for its probability-weighted center mass and `neutron_count` for its nominal isotope position. Results are aggregated nominal peaks, so callers expecting exact-mass fine structure must use a different calculation method.
+- Replace `IsotopeLookup` with direct isotope calculation calls. Existing mass and m/z APIs remain available.
 
 ## [3.3.0] (2026-09-04)
 

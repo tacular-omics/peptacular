@@ -15,6 +15,9 @@ on:
       - 'COMPLICANCE_NOTES.md'
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'CITATION.cff'
+      - '.zenodo.json'
+      - 'CHANGELOG.md'
       - 'justfile'
       - '.github/workflows/python-package.yml'
       - '.github/workflows/python-publish.yml'
@@ -29,6 +32,9 @@ on:
       - 'COMPLICANCE_NOTES.md'
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'CITATION.cff'
+      - '.zenodo.json'
+      - 'CHANGELOG.md'
       - 'justfile'
       - '.github/workflows/python-package.yml'
       - '.github/workflows/python-publish.yml'
@@ -77,6 +83,8 @@ jobs:
       uses: extractions/setup-just@v2
     - name: Install dependencies
       run: uv sync --all-extras --frozen
+    - name: Verify version metadata
+      run: python scripts/release_version.py check
     - name: Lint with ruff
       run: just lint
     - name: Type check with ty
@@ -91,6 +99,8 @@ jobs:
         just examples
     - name: Build package
       run: uv build
+    - name: Verify built package versions
+      run: python scripts/release_version.py check --dist dist
     - name: Smoke test installed wheel
       run: uv run python scripts/test_wheel.py
     - name: Upload coverage reports to Codecov
