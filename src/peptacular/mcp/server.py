@@ -26,7 +26,7 @@ DESCRIPTIONS = {
         "Compare each input with one explicit reference annotation and theoretical precursor values. Deltas are input minus reference. No spectral matching."
     ),
     "isotope_envelopes": (
-        "Calculate approximate theoretical isotope distributions on an explicit mass, m/z or neutron axis. Reports normalization and truncation settings."
+        "Calculate aggregated theoretical isotope distributions on an explicit mass, m/z or neutron axis. Reports normalization and truncation settings."
     ),
     "digest_proteins": (
         "Digest proteins using a known enzyme ID and bounded full, semi or nonspecific settings. Keeps source IDs and zero-based end-exclusive spans."

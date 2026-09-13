@@ -231,22 +231,26 @@ def isotopes_one(a, request):
         peaks = effective.isotopic_distribution(
             max_isotopes=request.max_peaks,
             min_abundance_threshold=request.min_relative_abundance,
-            distribution_resolution=request.resolution,
-            use_neutron_count=request.axis == "neutron_offset",
         )
         for index, peak in enumerate(peaks):
+            if request.axis == "neutron_offset":
+                position = peak.neutron_count
+            elif request.axis == "mz":
+                position = peak.mass / abs(charges["charge"])
+            else:
+                position = peak.mass
             yield {
                 "proforma": ion.serialize(),
                 "peak_index": index,
                 "axis": request.axis,
-                "position": peak.mass / abs(charges["charge"]) if request.axis == "mz" else peak.mass,
+                "position": position,
                 "relative_abundance": peak.abundance,
                 "neutron_offset": peak.neutron_count,
                 **charges,
                 "normalization": "maximum_retained_peak_equals_one",
-                "distribution_is_approximate": True,
+                "distribution_is_approximate": False,
                 "retained_probability": None,
-                "truncation": {"max_peaks_during_convolution": request.max_peaks, "minimum_relative_abundance": request.min_relative_abundance},
+                "truncation": {"maximum_nominal_window": request.max_peaks, "minimum_relative_abundance": request.min_relative_abundance},
             }
 
 

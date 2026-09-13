@@ -85,8 +85,9 @@ def test_isotope_axis(axis):
     a = pt.parse("PEPTIDE/2")
     rows = calculate("isotope_envelopes", [a.serialize()], axis=axis)["records"]
     effective = a.set_charge(0, inplace=False) if axis == "neutral_mass_da" else a
-    core = effective.isotopic_distribution(use_neutron_count=axis == "neutron_offset")
-    assert rows[0]["position"] == pytest.approx(core[0].mass / (2 if axis == "mz" else 1))
+    core = effective.isotopic_distribution()
+    expected_position = core[0].neutron_count if axis == "neutron_offset" else core[0].mass / (2 if axis == "mz" else 1)
+    assert rows[0]["position"] == pytest.approx(expected_position)
     assert max(row["relative_abundance"] for row in rows) == 1
     assert all(row["retained_probability"] is None for row in rows)
 

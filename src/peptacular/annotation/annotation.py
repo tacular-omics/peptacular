@@ -4633,13 +4633,10 @@ class ProFormaAnnotation:
         charge: CHARGE_TYPE | None = None,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
-        max_isotopes: int | None = 10,
+        max_isotopes: int | None = None,
         min_abundance_threshold: float = 0.001,  # based on the most abundant peak
-        distribution_resolution: int | None = 5,
-        use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
-        """Calculate the exact isotopic distribution from elemental composition.
+        """Calculate the aggregated isotopic distribution from elemental composition.
 
         :param ion_type: Fragment ion type to use.
         :type ion_type: ION_TYPE
@@ -4649,21 +4646,13 @@ class ProFormaAnnotation:
         :type isotopes: ISOTOPE_TYPE | None
         :param deltas: Custom neutral-loss or gain formula(s).
         :type deltas: CUSTOM_LOSS_TYPE | None
-        :param max_isotopes: Maximum number of isotope peaks to return.
+        :param max_isotopes: Maximum nominal isotope window, or ``None`` for adaptive sizing.
         :type max_isotopes: int | None
         :param min_abundance_threshold: Minimum relative abundance (vs. the most abundant peak).
         :type min_abundance_threshold: float
-        :param distribution_resolution: Decimal places used when binning m/z values.
-        :type distribution_resolution: int | None
-        :param use_neutron_count: Use neutron count instead of exact mass offsets.
-        :type use_neutron_count: bool
-        :param conv_min_abundance_threshold: Minimum absolute abundance during convolution.
-        :type conv_min_abundance_threshold: float
-        :return: List of isotopic data points sorted by m/z.
+        :return: Aggregated isotope peaks sorted by neutron offset.
         :rtype: list[IsotopicData]
         """
-        # check if any deltas provided are float?
-
         frag_annot = self
         if charge is not None:  # update charge
             frag_annot = frag_annot.set_charge(charge, inplace=False)
@@ -4676,9 +4665,6 @@ class ProFormaAnnotation:
             chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
             charge_state=fragment.charge_state,
         )
 
@@ -4688,13 +4674,10 @@ class ProFormaAnnotation:
         charge: CHARGE_TYPE | None = None,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
-        max_isotopes: int | None = 10,
+        max_isotopes: int | None = None,
         min_abundance_threshold: float = 0.001,
-        distribution_resolution: int | None = 5,
-        use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
-        """Estimate isotopic distribution based on mass."""
+        """Estimate an aggregated isotopic distribution based on mass."""
 
         mass = self.mass(ion_type=ion_type, charge=charge, isotopes=isotopes, deltas=deltas)
 
@@ -4702,9 +4685,6 @@ class ProFormaAnnotation:
             neutral_mass=mass,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )
 
     @staticmethod

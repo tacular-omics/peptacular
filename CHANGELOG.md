@@ -3,6 +3,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] (Unreleased)
+
+### Changed
+- Replaced exact-mass isotope fine-structure convolution with the BRAIN Newton-Girard recurrence. Isotope distributions now contain one aggregated peak per populated nominal neutron offset with an exact probability-weighted center mass.
+- Isotope envelopes now use adaptive sizing when `max_isotopes` is omitted. Weak leading peaks are retained through the last peak that meets the relative-abundance threshold.
+- Peptide averagine now subtracts the fixed terminal composition before applying mass-scaled elemental ratios.
+
+### Removed
+- Removed the `distribution_resolution`, `use_neutron_count`, and `conv_min_abundance_threshold` isotope arguments. Every `IsotopicData` result now provides both center mass and nominal neutron offset directly.
+- Removed `IsotopeLookup`. BRAIN calculations use bounded internal caches and no longer require coarse 50 Da mass bins.
+
 ## [3.3.0] (2026-09-04)
 
 ### Added

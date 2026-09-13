@@ -27,10 +27,10 @@ Calculate monoisotopic and average masses with comprehensive modification suppor
 Isotopic Distributions
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Generate theoretical isotopic patterns with configurable resolution and abundance filtering.
+Generate aggregated theoretical isotopic patterns with exact center masses and abundance filtering.
 
 - High-performance isotopic pattern generation
-- Configurable resolution and abundance thresholds
+- Adaptive envelope sizing and configurable abundance thresholds
 - Support for modifications (must have composition data)
 
 Protein Digestion
@@ -153,4 +153,3 @@ with invalid modifications/sequences. If you need strict validation:
    # get validation status
    print(a.validate)
    
-
