@@ -33,45 +33,36 @@ def run():
 
     # --- Control Number of Isotopes ---
     dist_limited = annot.isotopic_distribution(max_isotopes=3)
-    print("\nLimited to 3 most abundant isotopes:")
+    print("\nLimited to the first 3 nominal isotope positions:")
     for iso in dist_limited:
         print(f"  mass: {iso.mass:>8.3f} Da, abundance: {iso.abundance:>6.3f}")
 
     # --- Abundance Threshold ---
-    # Only keep isotopes with abundance >= threshold (relative to max peak)
+    # Retain peaks through the last one meeting the threshold, including weaker leading peaks.
     dist_filtered = annot.isotopic_distribution(min_abundance_threshold=0.05)
-    print("\nFiltered (≥5% of max peak):")
+    print("\nEnvelope through the last peak at least 5% of the maximum:")
     for iso in dist_filtered:
         print(f"  mass: {iso.mass:>8.3f} Da, abundance: {iso.abundance:>6.3f}")
 
-    # --- Neutron Offset Mode ---
-    # Use neutron count instead of absolute mass (useful for matching patterns)
-    dist_neutron = annot.isotopic_distribution(use_neutron_count=True)
-    print("\nNeutron offset mode:")
-    for iso in dist_neutron:
-        print(f"  neutron offset: {iso.mass:>3.0f}, abundance: {iso.abundance:>6.3f}")
+    # --- Neutron Offsets ---
+    # Every peak provides both its center mass and nominal neutron count.
+    print("\nNominal neutron offsets:")
+    for iso in dist:
+        print(f"  neutron offset: {iso.neutron_count:>3}, abundance: {iso.abundance:>6.3f}")
 
     # ============================================================================
-    # DISTRIBUTION RESOLUTION
+    # AGGREGATED CENTER MASSES
     # ============================================================================
 
     print("\n" + "=" * 60)
-    print("DISTRIBUTION RESOLUTION")
+    print("AGGREGATED CENTER MASSES")
     print("=" * 60)
 
-    # --- High Resolution ---
-    # More decimal places for precise mass calculations
-    dist_high_res = annot.isotopic_distribution(distribution_resolution=5)
-    print("\nHigh resolution (5 decimals):")
-    for iso in dist_high_res[:3]:
+    # BRAIN produces a probability-weighted center mass per nominal isotope peak.
+    # Formatting controls displayed precision, without changing the calculation.
+    print("\nCenter masses displayed to 5 decimal places:")
+    for iso in dist[:3]:
         print(f"  mass: {iso.mass:.5f} Da, abundance: {iso.abundance:>6.3f}")
-
-    # --- Low Resolution ---
-    # Simulates lower instrument precision, combines nearby masses
-    dist_low_res = annot.isotopic_distribution(distribution_resolution=2)
-    print("\nLow resolution (2 decimals):")
-    for iso in dist_low_res[:3]:
-        print(f"  mass: {iso.mass:.2f} Da, abundance: {iso.abundance:>6.3f}")
 
     # ============================================================================
     # COMBINING WITH COMP PARAMETERS
@@ -88,7 +79,7 @@ def run():
     )
     print("\ny-ion, +2 charge, +1 13C, -H2O:")
     for iso in dist_combined[:4]:
-        print(f"  m/z: {iso.mass:>8.3f}, abundance: {iso.abundance:>6.3f}")
+        print(f"  m/z: {iso.mass / 2:>8.3f}, abundance: {iso.abundance:>6.3f}")
 
 
 if __name__ == "__main__":
