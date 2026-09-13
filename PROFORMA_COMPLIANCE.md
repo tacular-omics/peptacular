@@ -4,6 +4,10 @@ The checklist below describes notation support. Parsing a sequence does not impl
 that every calculation is possible. Use `diagnose(sequence, operation)` to check a
 specific calculation and inspect its diagnostic.
 
+Section numbers and level names follow the
+[final ProForma 2.1 specification](https://www.psidev.info/proforma).
+Checked items indicate notation handling, subject to the calculation limits below.
+
 | Feature | Parsing and serialization | Mass and m/z | Composition | Fragmentation |
 | --- | --- | --- | --- | --- |
 | Resolved modifications with elemental formulas | Supported | Supported | Supported | Supported where localized |
@@ -19,7 +23,7 @@ specific calculation and inspect its diagnostic.
 external proton charges. Other ion series require `fragment()`. For detailed
 calculation rules, see [the companion notes](https://github.com/tacular-omics/peptacular/blob/main/COMPLICANCE_NOTES.md).
 
-## 5.3.1 Base-ProForma Compliance
+## 5.3.1 Level 1-ProForma Compliance
 
 - [x] **Amino acids (+UO)** - `AAHCFKUOT` (§6.1)
 - [x] **Unimod names** - `PEM[Oxidation]AT` (§6.2.1)
@@ -47,29 +51,31 @@ calculation rules, see [the companion notes](https://github.com/tacular-omics/pe
 - [x] **Range position scores** - `(PEP)[Oxidation#1(0.95)]M[#1(0.05)]AT` (§7.6.5)
 - [x] **Amino acid ambiguity** - `(?VCH)AT` (§7.7)
 - [x] **Modification prefixes** - `PEPM[U:Oxidation]AS[M:O-phospho-L-serine]` (§7.8)
+- [x] **Labile locations** - `{Phospho#g1}EMEVS[#g1]` (§7.9)
 
 ## 5.3.3 Level 2-ProForma + Top-Down
 
-- [x] **RESID modifications** - `EM[R:L-methionine sulfone]EM[RESID:AA0581]` (§8.1)
+- [x] **RESID modifications** - `EM[R:L-methionine sulfone]EM[RESID:AA0251]` (§8.1)
 - [x] **Names** - `(>Heavy chain)EVQLVESG` (§8.2)
 
 ## 5.3.4 Level 2-ProForma + Cross-Linking
 
-- [x] **XL-MOD modifications** - `EVTK[X:Aryl azide]LEK[XLMOD:00114]SEFD` (§9.1)
-- [ ] **Cross-linkers (intrachain)** - `EVTK[X:Aryl azide#XL1]LEK[#XL1]SEFD` (§9.2.1)
-- [ ] **Cross-linkers (interchain)** - `EVTK[X:Aryl azide#XL1]L//EK[#XL1]SEFD` (§9.2.2)
+- [x] **XL-MOD modifications** - `EVTK[X:DSS]LEK[XLMOD:02001]SEFD` (§9.1)
+- [ ] **Cross-linkers (intrachain)** - `EVTK[X:DSS#XL1]LEK[#XL1]SEFD` (§9.2.1)
+- [ ] **Cross-linkers (interchain)** - `EVTK[X:DSS#XL1]L//EK[#XL1]SEFD` (§9.2.2)
 - [ ] **Branches** - `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR` (§9.3) 
 
 ## 5.3.5 Level 2-ProForma + Glycans
 
 - [x] **GNO modifications** - `NEEYN[GNO:G59626AS]K` (§10.1)
 - [x] **Glycan compositions** - `NEEYN[Glycan:Hex5HexNAc4NeuAc1]K` (§10.2)
+- [x] **Mixed glycan components** - `N[Glycan:Hex{H2O}{+204.068}]K` (§10.2)
 
-## 5.3.6 Level 2-ProForma + Advanced Complexity
+## 5.3.6 Level 3-ProForma Compliance
 
 - [x] **Charged formulas** - `SEQUEN[Formula:Zn1:z+2]CE` (§11.1)
-- [x] **Controlling placement** - `PTI(MERMERME)[+32|Position:E]PTIDE` (§11.2) 
-- [x] **Global isotope** - `<13C>CARBON` (§11.3.1)
+- [x] **Controlling placement** - `PTI(MERMERME)[+32|Position:E]PTIDE` (§11.2). Preserved, but placement constraints are not applied.
+- [x] **Global isotope** - `<13C>PEPTIDE` (§11.3.1)
 - [x] **Fixed modifications** - `<[Oxidation]@M>ATPEMILTCMGCLK` (§11.3.2)
 - [x] **Chimeric spectra** - `NEEYN+SEQUEN` (§11.4)
 - [x] **Charges** - `SEQUEN/2`, `SEQUEN/[Na:z+1,H:z+1]` (§11.5)

@@ -110,7 +110,9 @@ from .slicing import (
     split_annotation,
 )
 from .utils import (
+    H_ELEMENT_INFO,
     Fragment,
+    _adjust_mass_value,
     _ion_mass,
     adjust_comp,
     adjust_mass_mz,
@@ -140,6 +142,10 @@ EMPTY_NTERM_MODS = Mods[ModificationTags](mod_type=ModType.NTERM, _mods=None)
 EMPTY_CTERM_MODS = Mods[ModificationTags](mod_type=ModType.CTERM, _mods=None)
 EMPTY_CHARGE_MODS = Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=None)
 EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=None)
+
+# Residue masses are fixed reference data, independent of mutable annotations.
+_MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.one_letter_to_info.items()}
+_AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.one_letter_to_info.items()}
 
 
 def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
@@ -2763,9 +2769,9 @@ class ProFormaAnnotation:
 
         # Inline mass lookup to avoid function call overhead
         # Amino acids - hot path, optimize heavily
-        aa_lookup = AA_LOOKUP.one_letter_to_info
+        aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
         for aa in self.stripped_sequence:
-            mass = aa_lookup[aa].get_mass(monoisotopic=monoisotopic)
+            mass = aa_lookup[aa]
             if mass is None:
                 raise ValueError(f"Mass not available for amino acid: {aa}")
             total_mass += mass
@@ -2849,10 +2855,10 @@ class ProFormaAnnotation:
         if self.has_unknown_mods or self.has_intervals:
             raise UnsupportedOperationError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
 
-        aa_lookup = AA_LOOKUP.one_letter_to_info
+        aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
         masses: list[float] = []
         for aa in self.stripped_sequence:
-            m = aa_lookup[aa].get_mass(monoisotopic=monoisotopic)
+            m = aa_lookup[aa]
             if m is None:
                 raise ValueError(f"Mass not available for amino acid: {aa}")
             masses.append(m)
@@ -2914,6 +2920,41 @@ class ProFormaAnnotation:
     ) -> float:
         """Calculate mass, preferring user charge over annotation charge."""
 
+        return self._mass_and_charge(ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)[0]
+
+    def _mass_and_charge(
+        self,
+        ion_type: ION_TYPE,
+        charge: CHARGE_TYPE | None,
+        monoisotopic: bool,
+        isotopes: ISOTOPE_TYPE | None,
+        deltas: CUSTOM_LOSS_TYPE | None,
+        calculate_with_composition: bool,
+    ) -> tuple[float, int]:
+        """Avoid fragment allocation and annotation copies for ordinary intact ions."""
+        effective_charge = self._charge if charge is None else charge
+        if (
+            ion_type in (IonType.PRECURSOR, IonType.NEUTRAL)
+            and isotopes is None
+            and deltas is None
+            and not calculate_with_composition
+            and not self.has_isotope_mods
+            and (effective_charge is None or type(effective_charge) is int and effective_charge >= 0)
+        ):
+            ion_type = IonType(ion_type)
+            can_fragment_sequence(self.sequence, ion_type)
+            base_mass, internal_charge = self._base_mass(monoisotopic=monoisotopic)
+            external_charge = effective_charge or 0
+            total_charge = external_charge + internal_charge
+            mass = _adjust_mass_value(
+                base_mass,
+                H_ELEMENT_INFO.get_mass(monoisotopic) * external_charge,
+                total_charge,
+                ion_type,
+                monoisotopic,
+            )
+            return mass, total_charge
+
         f = self.frag(
             ion_type=ion_type,
             charge=charge,
@@ -2923,7 +2964,7 @@ class ProFormaAnnotation:
             calculate_composition=calculate_with_composition,
             _include_sequence=False,
         )
-        return f.mass
+        return f.mass, f.charge_state
 
     def neutral_mass(
         self,
@@ -2950,15 +2991,14 @@ class ProFormaAnnotation:
         :return: Neutral mass in daltons.
         :rtype: float
         """
-        f = self.frag(
+        return self.mass(
             ion_type=ion_type,
             charge=0,
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_with_composition,
+            calculate_with_composition=calculate_with_composition,
         )
-        return f.mass
 
     def _frag(
         self,
@@ -3102,16 +3142,8 @@ class ProFormaAnnotation:
     ) -> float:
         """Calculate m/z, preferring user charge over annotation charge."""
 
-        f = self.frag(
-            ion_type=ion_type,
-            charge=charge,
-            monoisotopic=monoisotopic,
-            isotopes=isotopes,
-            deltas=deltas,
-            calculate_composition=calculate_with_composition,
-            _include_sequence=False,
-        )
-        return f.mz
+        mass, total_charge = self._mass_and_charge(ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)
+        return mass / abs(total_charge) if total_charge else mass
 
     def _fragment(
         self,
@@ -4633,13 +4665,10 @@ class ProFormaAnnotation:
         charge: CHARGE_TYPE | None = None,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
-        max_isotopes: int | None = 10,
+        max_isotopes: int | None = None,
         min_abundance_threshold: float = 0.001,  # based on the most abundant peak
-        distribution_resolution: int | None = 5,
-        use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
-        """Calculate the exact isotopic distribution from elemental composition.
+        """Calculate the aggregated isotopic distribution from elemental composition.
 
         :param ion_type: Fragment ion type to use.
         :type ion_type: ION_TYPE
@@ -4649,21 +4678,13 @@ class ProFormaAnnotation:
         :type isotopes: ISOTOPE_TYPE | None
         :param deltas: Custom neutral-loss or gain formula(s).
         :type deltas: CUSTOM_LOSS_TYPE | None
-        :param max_isotopes: Maximum number of isotope peaks to return.
+        :param max_isotopes: Maximum nominal isotope window, or ``None`` for adaptive sizing.
         :type max_isotopes: int | None
         :param min_abundance_threshold: Minimum relative abundance (vs. the most abundant peak).
         :type min_abundance_threshold: float
-        :param distribution_resolution: Decimal places used when binning m/z values.
-        :type distribution_resolution: int | None
-        :param use_neutron_count: Use neutron count instead of exact mass offsets.
-        :type use_neutron_count: bool
-        :param conv_min_abundance_threshold: Minimum absolute abundance during convolution.
-        :type conv_min_abundance_threshold: float
-        :return: List of isotopic data points sorted by m/z.
+        :return: Aggregated isotope peaks sorted by neutron offset.
         :rtype: list[IsotopicData]
         """
-        # check if any deltas provided are float?
-
         frag_annot = self
         if charge is not None:  # update charge
             frag_annot = frag_annot.set_charge(charge, inplace=False)
@@ -4676,9 +4697,6 @@ class ProFormaAnnotation:
             chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
             charge_state=fragment.charge_state,
         )
 
@@ -4688,13 +4706,10 @@ class ProFormaAnnotation:
         charge: CHARGE_TYPE | None = None,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
-        max_isotopes: int | None = 10,
+        max_isotopes: int | None = None,
         min_abundance_threshold: float = 0.001,
-        distribution_resolution: int | None = 5,
-        use_neutron_count: bool = False,
-        conv_min_abundance_threshold: float = 1e-14,
     ) -> list[IsotopicData]:
-        """Estimate isotopic distribution based on mass."""
+        """Estimate an aggregated isotopic distribution based on mass."""
 
         mass = self.mass(ion_type=ion_type, charge=charge, isotopes=isotopes, deltas=deltas)
 
@@ -4702,9 +4717,6 @@ class ProFormaAnnotation:
             neutral_mass=mass,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )
 
     @staticmethod

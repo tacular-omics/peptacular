@@ -90,7 +90,6 @@ Some of the core data classes used throughout Peptacular.
 .. autoclass:: peptacular.annotation.mod.Mods
 .. autoclass:: peptacular.spans.Span
 .. autoclass:: peptacular.isotope.IsotopicData
-.. autoclass:: peptacular.isotope.IsotopeLookup
 
 Optional interoperability
 -------------------------

@@ -92,9 +92,8 @@ class Compare(Scientific, ChargeSettings):
 
 class Isotopes(Scientific, ChargeSelection):
     axis: Literal["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"] = "neutral_mass_da"
-    max_peaks: Annotated[int, Field(strict=True, ge=1, le=100)] = 10
+    max_peaks: Annotated[int, Field(strict=True, ge=1, le=100)] | None = None
     min_relative_abundance: Annotated[float, Field(strict=True, gt=0, le=1)] = 0.001
-    resolution: Annotated[int, Field(strict=True, ge=0, le=6)] = 5
 
 
 class Digest(Scientific):

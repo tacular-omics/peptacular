@@ -36,6 +36,25 @@ def validate_mass(mass: float) -> None:
         raise InvalidAdjustmentError(f"Calculated mass must be finite and non-negative, got {mass}")
 
 
+def _adjust_mass_value(
+    base_mass: float,
+    charge_mass: float,
+    total_charge: int,
+    ion_type: IonType,
+    monoisotopic: bool,
+    isotope_mass: float = 0.0,
+    delta_mass: float = 0.0,
+) -> float:
+    """Share scalar and fragment mass arithmetic, including electron correction."""
+    base_mass += isotope_mass
+    base_mass += delta_mass
+    base_mass += charge_mass
+    base_mass += _ion_mass(ion_type, monoisotopic)
+    base_mass -= total_charge * ELECTRON_MASS
+    validate_mass(base_mass)
+    return base_mass
+
+
 def adjust_mass_mz(
     base: float | Counter[ElementInfo],
     charge: Mods[GlobalChargeCarrier],
@@ -57,20 +76,18 @@ def adjust_mass_mz(
     else:
         base_mass = base
 
-    # Apply user specified isotopes
-    base_mass += isotope.get_mass_delta(monoisotopic)
-
-    # Apply losses
-    base_mass += delta.get_mass_delta(monoisotopic)
-
-    total_charge = charge.get_charge() + internal_charge
-    # Correct for electron mass based on charge
-    base_mass += charge.get_mass(monoisotopic)
-
+    external_charge = charge.get_charge()
+    total_charge = external_charge + internal_charge
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
-    base_mass += _ion_mass(ion_info.ion_type, monoisotopic)
-
-    base_mass -= total_charge * ELECTRON_MASS
+    base_mass = _adjust_mass_value(
+        base_mass,
+        charge.get_mass(monoisotopic),
+        total_charge,
+        ion_info.ion_type,
+        monoisotopic,
+        isotope.get_mass_delta(monoisotopic),
+        delta.get_mass_delta(monoisotopic),
+    )
 
     # get adducts only if not protonated (charge_state == 0 means not protonated, None means protonated)
     if all(m.value.is_protonated for m in charge.mods):
@@ -78,7 +95,6 @@ def adjust_mass_mz(
     else:
         adducts = tuple(key for key, count in charge._mods.items() for _ in range(count)) if charge._mods else None
 
-    validate_mass(base_mass)
     return Fragment(
         ion_type=ion_info.ion_type,
         position=position,
@@ -86,7 +102,7 @@ def adjust_mass_mz(
         monoisotopic=monoisotopic,
         charge_state=total_charge,
         charge_adducts=adducts,
-        external_charge=charge.get_charge(),
+        external_charge=external_charge,
         isotopes=isotope.to_fragment_mapping,
         deltas=delta.to_fragment_mapping,
         composition=None,
@@ -326,14 +342,14 @@ def can_fragment_sequence(sequence: str, ion_type: IonType | IonTypeLiteral) -> 
     if not isinstance(ion_type, IonType):
         ion_type = IonType(ion_type)
 
-    first_aa = sequence[0]
-    last_aa = sequence[-1]
+    if not sequence:
+        raise ValueError("Cannot calculate a mass or fragment for an empty sequence")
 
     if ion_type not in FRAGMENT_RULES:
         return ion_type
 
     position, required, excluded, specific_map = FRAGMENT_RULES[ion_type]
-    aa = last_aa if position == "end" else first_aa
+    aa = sequence[-1] if position == "end" else sequence[0]
 
     if excluded and aa in excluded:
         raise ValueError(f"{ion_type.name} fragments cannot be produced from sequences {position}ing in {aa}.")

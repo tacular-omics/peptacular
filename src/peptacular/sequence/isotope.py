@@ -22,11 +22,8 @@ def _isotopic_distribution_single(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,  # based on the most abundant peak
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
 ) -> list[IsotopicData]:
     return get_annotation_input(annotation).isotopic_distribution(
         ion_type=ion_type,
@@ -35,9 +32,6 @@ def _isotopic_distribution_single(
         deltas=deltas,
         max_isotopes=max_isotopes,
         min_abundance_threshold=min_abundance_threshold,
-        distribution_resolution=distribution_resolution,
-        use_neutron_count=use_neutron_count,
-        conv_min_abundance_threshold=conv_min_abundance_threshold,
     )
 
 
@@ -48,11 +42,8 @@ def isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -66,11 +57,8 @@ def isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -83,11 +71,8 @@ def isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -105,9 +90,6 @@ def isotopic_distribution(
             deltas=deltas,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )
     else:
         return _isotopic_distribution_single(
@@ -118,9 +100,6 @@ def isotopic_distribution(
             deltas=deltas,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )
 
 
@@ -130,11 +109,8 @@ def _estimate_isotopic_distribution_single(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
 ) -> list[IsotopicData]:
     return get_annotation_input(annotation).estimate_isotopic_distribution(
         ion_type=ion_type,
@@ -143,9 +119,6 @@ def _estimate_isotopic_distribution_single(
         deltas=deltas,
         max_isotopes=max_isotopes,
         min_abundance_threshold=min_abundance_threshold,
-        distribution_resolution=distribution_resolution,
-        use_neutron_count=use_neutron_count,
-        conv_min_abundance_threshold=conv_min_abundance_threshold,
     )
 
 
@@ -156,11 +129,8 @@ def estimate_isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -174,11 +144,8 @@ def estimate_isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -191,11 +158,8 @@ def estimate_isotopic_distribution(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    max_isotopes: int | None = 10,
+    max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    distribution_resolution: int | None = 5,
-    use_neutron_count: bool = False,
-    conv_min_abundance_threshold: float = 1e-14,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
@@ -213,9 +177,6 @@ def estimate_isotopic_distribution(
             deltas=deltas,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )
     else:
         return _estimate_isotopic_distribution_single(
@@ -226,7 +187,4 @@ def estimate_isotopic_distribution(
             deltas=deltas,
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            distribution_resolution=distribution_resolution,
-            use_neutron_count=use_neutron_count,
-            conv_min_abundance_threshold=conv_min_abundance_threshold,
         )

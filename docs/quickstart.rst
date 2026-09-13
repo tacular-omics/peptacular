@@ -158,8 +158,8 @@ all modifications must be composition resolvable (This means delta mass modifica
 Isotopic Patterns
 ~~~~~~~~~~~~~~~~~
 
-Peptacular also includes functionality to generate isotopic distributions for peptides and fragments. This relies on parsing a valid composition for the peptide/modifications.
-If the composition cannot be resolved, you may use estimate_isotopic_distribution instead which will use an averagine model to estimate the composition based on the peptide's mass.
+Peptacular generates aggregated nominal isotope envelopes for peptides and fragments with the BRAIN algorithm. Each result contains a nominal neutron offset, relative abundance, and exact probability-weighted center mass. This relies on parsing a valid composition for the peptide and its modifications.
+If the composition cannot be resolved, use estimate_isotopic_distribution to predict the envelope from peptide averagine and the molecular mass.
 
 .. testcode::
 
@@ -168,8 +168,12 @@ If the composition cannot be resolved, you may use estimate_isotopic_distributio
    # Generate isotopic distribution
    dist = peptide.isotopic_distribution(
        max_isotopes=5,
-       min_abundance_threshold=0.01,
-       distribution_resolution=3
+       min_abundance_threshold=0.01
+   )
+
+   # Omit max_isotopes to size the envelope adaptively
+   adaptive_dist = peptide.isotopic_distribution(
+       min_abundance_threshold=0.001
    )
 
    # For fragments with modifications

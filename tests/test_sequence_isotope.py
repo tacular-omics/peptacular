@@ -47,8 +47,8 @@ class TestEstimateIsotopicDistribution:
     def test_mono_matches_exact_distribution(self):
         # The estimate's monoisotopic peak should land on the true neutral mass
         # (regression coverage for the averagine-anchoring fix).
-        exact = isotopic_distribution(SEQ, max_isotopes=1, min_abundance_threshold=0.0, distribution_resolution=None)
-        est = estimate_isotopic_distribution(SEQ, max_isotopes=1, min_abundance_threshold=0.0, distribution_resolution=None)
+        exact = isotopic_distribution(SEQ, max_isotopes=1, min_abundance_threshold=0.0)
+        est = estimate_isotopic_distribution(SEQ, max_isotopes=1, min_abundance_threshold=0.0)
         assert abs(exact[0].mass - est[0].mass) < 1e-4
 
     def test_batch_with_parallel_kwargs(self):

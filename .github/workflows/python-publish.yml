@@ -30,6 +30,10 @@ jobs:
       uses: astral-sh/setup-uv@v4
     - name: Install just
       uses: extractions/setup-just@v2
+    - name: Verify release tag and metadata
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: python scripts/release_version.py check --tag "$RELEASE_TAG"
     - name: Install dependencies
       run: uv sync --all-extras --frozen
     - name: Lint with ruff
@@ -40,6 +44,12 @@ jobs:
       run: just test
     - name: Build package with uv
       run: uv build
+    - name: Verify built release versions
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: python scripts/release_version.py check --tag "$RELEASE_TAG" --dist dist
+    - name: Smoke test installed wheel
+      run: uv run python scripts/test_wheel.py
     - name: Publish package
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

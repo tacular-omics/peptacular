@@ -98,6 +98,47 @@ Before opening a PR, confirm:
 
 CI (GitHub Actions) will run lint, type checking, and tests automatically when you push. A maintainer will review your PR and may request changes.
 
+## Preparing a Release
+
+The canonical package version is `__version__` in `src/peptacular/__init__.py`.
+Hatch reads it when building the wheel and source distribution. Sphinx reads it
+for the documentation version. Citation and Zenodo metadata are synchronized by:
+
+```bash
+just set-version 4.0.0
+```
+
+This updates the package, `CITATION.cff`, and `.zenodo.json` in one command.
+Alternatively, edit `__version__` directly and run `just sync-version`.
+The script uses only the Python standard library and does not import Peptacular.
+Use `X.Y.Z`, optionally with an `a`, `b`, `rc`, `.post`, or `.dev` suffix.
+
+Prepare the release notes and date the first changelog heading, for example
+`## [4.0.0] (2026-09-13)`. Historical changelog versions are preserved. A normal
+development check allows the next release to remain marked `Unreleased`:
+
+```bash
+just check-version
+```
+
+Before tagging the release, verify the proposed tag and build in a fresh output
+directory, then check the distribution metadata and packaged runtime versions:
+
+```bash
+uv run --no-sync python scripts/release_version.py check --tag v4.0.0
+uv build --out-dir /tmp/peptacular-release-4.0.0
+uv run --no-sync python scripts/release_version.py check --tag v4.0.0 --dist /tmp/peptacular-release-4.0.0
+uv run --no-sync python scripts/test_wheel.py --dist /tmp/peptacular-release-4.0.0
+```
+
+Commit the synchronized files and dated changelog together. CI checks version
+metadata and built artifacts. Publishing a GitHub release triggers the PyPI
+workflow, which also requires the tag to match and the changelog to be dated.
+The workflow tests the installed wheel before upload. Version synchronization
+itself does not create a tag, publish a release, or update an existing Zenodo
+record or JOSS review. Update those external records through their release and
+editorial workflows.
+
 ## Questions?
 
 Open an [issue](https://github.com/tacular-omics/peptacular/issues) or reach out to the maintainers. We are happy to help.

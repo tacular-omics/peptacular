@@ -82,6 +82,18 @@ paper:
         --env JOURNAL=joss \
         openjournals/inara
 
+# Set the package version and synchronize citation metadata
+set-version version:
+    uv run --no-sync python scripts/release_version.py sync --set {{quote(version)}}
+
+# Synchronize metadata after editing __version__ directly
+sync-version:
+    uv run --no-sync python scripts/release_version.py sync
+
+# Verify package and citation versions
+check-version:
+    uv run --no-sync python scripts/release_version.py check
+
 # Clean, install, and test
 all:
     just clean
