@@ -85,12 +85,12 @@ a Creative Commons Attribution 4.0 International License (CC BY
   et al., 2012</xref>). <bold>Peptacular</bold> is a Python library for
   representing and analyzing peptide and protein sequences using
   ProForma notation. It supports sequence editing, mass and
-  mass-to-charge ratio (m/z) calculations, elemental compositions,
+  mass-to-charge ratio (m/z) determination, elemental composition,
   isotope envelopes, enzymatic digestion, theoretical fragmentation, and
-  physicochemical properties. Its calculation APIs operate on individual
-  peptide chains, while separate interfaces represent chimeric
-  assignments and structured notation. Parsing support and calculation
-  limits are distinguished in Table 1.</p>
+  physicochemical properties. Its chemical analysis APIs operate on
+  individual peptide chains, while separate interfaces represent
+  chimeric assignments and structured notation. Table 1 distinguishes
+  notation support from limits on these operations.</p>
 </sec>
 <sec id="statement-of-need">
   <title>Statement of Need</title>
@@ -102,7 +102,7 @@ a Creative Commons Attribution 4.0 International License (CC BY
   (<xref alt="HUPO Proteomics Standards Initiative, 2026" rid="ref-proforma-2026" ref-type="bibr">HUPO
   Proteomics Standards Initiative, 2026</xref>). Proteomics developers
   still need to carry those annotations through sequence editing,
-  digestion, and chemical calculations without silently discarding
+  digestion, and chemical analysis without silently discarding
   information. Peptacular targets researchers building analysis scripts,
   theoretical peptide libraries, and proteomics software that require
   consistent behavior across these operations.</p>
@@ -111,9 +111,8 @@ a Creative Commons Attribution 4.0 International License (CC BY
   tabular data, including pandas DataFrames
   (<xref alt="The pandas development team, 2025" rid="ref-team-2025" ref-type="bibr">The
   pandas development team, 2025</xref>). Streaming input and optional
-  collection of calculation errors support workflows in which some
-  annotations are unresolved or unsuitable for a requested
-  operation.</p>
+  error collection support workflows in which some annotations are
+  unresolved or unsuitable for a requested operation.</p>
 </sec>
 <sec id="state-of-the-field">
   <title>State of the Field</title>
@@ -139,7 +138,7 @@ a Creative Commons Attribution 4.0 International License (CC BY
   (<xref alt="OpenMS developers, n.d." rid="ref-openms-proforma" ref-type="bibr">OpenMS
   developers, n.d.</xref>).</p>
   <p>Peptacular’s contribution is a common, editable ProForma annotation
-  model shared by sequence transformations and chemical calculations in
+  model shared by sequence transformations and chemical analysis in
   Python. This design allows researchers to inspect and modify
   annotations directly while using consistent charge, modification, and
   ambiguity handling across operations. A dedicated package keeps this
@@ -160,19 +159,19 @@ a Creative Commons Attribution 4.0 International License (CC BY
   <p>Execution can be sequential, threaded, or process-based. Automatic
   functional calls use sequential processing below 1,000 inputs,
   avoiding worker startup costs for small batches. Larger batches use
-  processes with the GIL enabled and threads with it disabled. Explicit
-  settings override this selection. Functional calls create temporary
-  pools, while <monospace>iter_batch()</monospace> reuses an executor
-  across chunks within a call and returns ordered results with optional
+  process-based execution on conventional GIL-enabled Python builds and
+  threads on free-threaded builds. Explicit settings override this
+  selection. Functional calls create temporary pools, while
+  <monospace>iter_batch()</monospace> reuses an executor across chunks
+  within a call and returns ordered results with optional
   diagnostics.</p>
   <p>Lazy modification parsing and bounded caches reduce repeated work.
   Direct residue mass lookups and a scalar path for ordinary precursor
-  calculations avoid unnecessary fragment objects and annotation copies.
-  Composition-based calculations handle isotope labels and elemental
-  adjustments. Both calculation paths account for intrinsic modification
-  charge and electron mass. BRAIN recurrences calculate aggregated
-  isotope envelopes with a probability-weighted center mass per nominal
-  isotope peak
+  mass and m/z avoid unnecessary fragment objects and annotation copies.
+  A composition-based path handles isotope labels and elemental
+  adjustments. Both paths account for intrinsic modification charge and
+  electron mass. BRAIN recurrences generate aggregated isotope envelopes
+  with a probability-weighted center mass per nominal isotope peak
   (<xref alt="Dittwald &amp; Valkenborg, 2014" rid="ref-dittwald-2014" ref-type="bibr">Dittwald
   &amp; Valkenborg, 2014</xref>). Fine structure is not resolved. A
   separate averagine API estimates envelopes from mass alone.</p>
@@ -188,10 +187,11 @@ a Creative Commons Attribution 4.0 International License (CC BY
   (<xref alt="HUPO Proteomics Standards Initiative, n.d.-b" rid="ref-hupo-psi-xlmod" ref-type="bibr">HUPO
   Proteomics Standards Initiative, n.d.-b</xref>), and GNOme
   (<xref alt="GlyGen, n.d." rid="ref-gnome" ref-type="bibr">GlyGen,
-  n.d.</xref>). Embedded data avoid runtime ontology downloads.
-  Calculations require a resolvable mass or composition as appropriate.
-  Unresolved annotations can still be represented, while diagnostics
-  distinguish parsing, validation, and calculation failures.</p>
+  n.d.</xref>). Embedded data avoid runtime ontology downloads. Chemical
+  analyses require a resolvable mass or elemental composition, depending
+  on the operation. Unresolved annotations can still be represented,
+  while diagnostics distinguish parsing, validation, and analysis
+  failures.</p>
   <p>Versioned JSON serialization preserves annotation structure and
   validates input against a closed set of supported types. Streaming
   FASTA input supports plain and gzip files. An optional local Model
@@ -264,10 +264,10 @@ df = pd.DataFrame(
 df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
   </sec>
 </sec>
-<sec id="notation-support-and-calculation-limits">
-  <title>Notation support and calculation limits</title>
-  <p><bold>Table 1: Representative ProForma 2.1 notation
-  support</bold></p>
+<sec id="notation-support-and-operation-limits">
+  <title>Notation support and operation limits</title>
+  <p><bold>Table 1: Representative ProForma 2.1 notation support and
+  operation limits</bold></p>
   <table-wrap>
     <table>
       <colgroup>
@@ -281,7 +281,7 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
           <th>S</th>
           <th>Feature</th>
           <th>Example</th>
-          <th>§ [Support]</th>
+          <th>§ [Level]</th>
         </tr>
       </thead>
       <tbody>
@@ -347,7 +347,7 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
         </tr>
         <tr>
           <td>Y</td>
-          <td>Information tag</td>
+          <td>Information tags</td>
           <td><monospace>ELV[INFO:AnyString]IS</monospace></td>
           <td>6.6 [1]</td>
         </tr>
@@ -535,11 +535,12 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
   (<xref alt="HUPO Proteomics Standards Initiative, 2026" rid="ref-proforma-2026" ref-type="bibr">HUPO
   Proteomics Standards Initiative, 2026</xref>). In column S, Y
   indicates supported notation, P indicates a preserved annotation whose
-  placement constraints are not applied, and N indicates unsupported
-  linked-chain calculation semantics. Levels 1, 2, and 3 follow the
-  specification, with top-down (T), cross-linking (X), and glycan (G)
-  extensions. This table is not a claim that every represented sequence
-  supports every calculation.</p>
+  placement constraints are not applied, and N indicates linked-chain
+  notation that can be represented but is not supported by the analysis
+  operations. Levels 1, 2, and 3 follow the specification, with top-down
+  (T), cross-linking (X), and glycan (G) extensions. Notation support
+  does not imply that every operation is available for every represented
+  sequence.</p>
   <p>Mass-ambiguous residues B and Z cannot produce a unique mass.
   Delta-mass tags and bare-mass glycan components lack elemental
   compositions. Unknown localization and ambiguous intervals restrict
@@ -547,8 +548,9 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
   are omitted from fragment ions. Chimeric assignments are handled
   component-wise through <monospace>parse_chimeric()</monospace>. The
   structured model and JSON format can represent linked notation, but
-  the calculation APIs do not implement cross-links or branches. The
-  documentation provides operation-specific limits and examples.</p>
+  the analysis APIs do not operate on cross-linked or branched
+  structures. The documentation provides operation-specific limits and
+  examples.</p>
 </sec>
 <sec id="ai-usage-disclosure">
   <title>AI usage disclosure</title>

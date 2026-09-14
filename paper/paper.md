@@ -24,29 +24,29 @@ bibliography: paper.bib
 ---
 # Summary
 
-Mass spectrometry identifies and characterizes proteins by measuring molecules and their fragments. Interpreting these measurements requires software that accounts for chemical modifications, charge states, and isotope composition [@angel-2012]. **Peptacular** is a Python library for representing and analyzing peptide and protein sequences using ProForma notation. It supports sequence editing, mass and mass-to-charge ratio (m/z) calculations, elemental compositions, isotope envelopes, enzymatic digestion, theoretical fragmentation, and physicochemical properties. Its calculation APIs operate on individual peptide chains, while separate interfaces represent chimeric assignments and structured notation. Parsing support and calculation limits are distinguished in Table 1.
+Mass spectrometry identifies and characterizes proteins by measuring molecules and their fragments. Interpreting these measurements requires software that accounts for chemical modifications, charge states, and isotope composition [@angel-2012]. **Peptacular** is a Python library for representing and analyzing peptide and protein sequences using ProForma notation. It supports sequence editing, mass and mass-to-charge ratio (m/z) determination, elemental composition, isotope envelopes, enzymatic digestion, theoretical fragmentation, and physicochemical properties. Its chemical analysis APIs operate on individual peptide chains, while separate interfaces represent chimeric assignments and structured notation. Table 1 distinguishes notation support from limits on these operations.
 
 # Statement of Need
 
-ProForma standardizes how peptide and protein sequences describe modifications and ambiguity [@leduc-2022]. Version 2.1 extends this notation with additional chemical and structural annotations [@proforma-2026]. Proteomics developers still need to carry those annotations through sequence editing, digestion, and chemical calculations without silently discarding information. Peptacular targets researchers building analysis scripts, theoretical peptide libraries, and proteomics software that require consistent behavior across these operations.
+ProForma standardizes how peptide and protein sequences describe modifications and ambiguity [@leduc-2022]. Version 2.1 extends this notation with additional chemical and structural annotations [@proforma-2026]. Proteomics developers still need to carry those annotations through sequence editing, digestion, and chemical analysis without silently discarding information. Peptacular targets researchers building analysis scripts, theoretical peptide libraries, and proteomics software that require consistent behavior across these operations.
 
-The library provides scalar and batch interfaces for serialized sequences and parsed annotations. Batch results can be assigned to tabular data, including pandas DataFrames [@team-2025]. Streaming input and optional collection of calculation errors support workflows in which some annotations are unresolved or unsuitable for a requested operation.
+The library provides scalar and batch interfaces for serialized sequences and parsed annotations. Batch results can be assigned to tabular data, including pandas DataFrames [@team-2025]. Streaming input and optional error collection support workflows in which some annotations are unresolved or unsuitable for a requested operation.
 
 # State of the Field
 
 Existing packages address overlapping needs. **Pyteomics** [@goloborodko-2013] supports ProForma parsing, mass and composition calculations, and fragment generation alongside its historical modX format [@pyteomics-docs]. **Biopython** [@cock-2009] provides general sequence analysis, including protein properties. The **mzcore** and related RustyMS libraries provide ProForma support, chemical representations, and theoretical fragmentation, with Python bindings for selected components [@Schulte_mzcore]. **pyOpenMS** [@rost-2014] exposes a broader mass spectrometry toolkit. Current OpenMS documentation also describes ProForma parsing and conversion [@openms-proforma].
 
-Peptacular's contribution is a common, editable ProForma annotation model shared by sequence transformations and chemical calculations in Python. This design allows researchers to inspect and modify annotations directly while using consistent charge, modification, and ambiguity handling across operations. A dedicated package keeps this interface focused on sequence analysis. Optional adapters connect it to Pyteomics, psm_utils, and AlphaBase for their supported representations, with checks for conversion losses. These integrations complement the specialized capabilities of the surrounding ecosystem.
+Peptacular's contribution is a common, editable ProForma annotation model shared by sequence transformations and chemical analysis in Python. This design allows researchers to inspect and modify annotations directly while using consistent charge, modification, and ambiguity handling across operations. A dedicated package keeps this interface focused on sequence analysis. Optional adapters connect it to Pyteomics, psm_utils, and AlphaBase for their supported representations, with checks for conversion losses. These integrations complement the specialized capabilities of the surrounding ecosystem.
 
 # Software Design
 
 Peptacular offers functional and object-oriented APIs. `ProFormaAnnotation` objects support inspection, serialization, and chained edits. Many editing methods modify the object by default and accept `inplace=False` to return a copy. Functional operations accept strings or annotations and support sequence batches.
 
-Execution can be sequential, threaded, or process-based. Automatic functional calls use sequential processing below 1,000 inputs, avoiding worker startup costs for small batches. Larger batches use processes with the GIL enabled and threads with it disabled. Explicit settings override this selection. Functional calls create temporary pools, while `iter_batch()` reuses an executor across chunks within a call and returns ordered results with optional diagnostics.
+Execution can be sequential, threaded, or process-based. Automatic functional calls use sequential processing below 1,000 inputs, avoiding worker startup costs for small batches. Larger batches use process-based execution on conventional GIL-enabled Python builds and threads on free-threaded builds. Explicit settings override this selection. Functional calls create temporary pools, while `iter_batch()` reuses an executor across chunks within a call and returns ordered results with optional diagnostics.
 
-Lazy modification parsing and bounded caches reduce repeated work. Direct residue mass lookups and a scalar path for ordinary precursor calculations avoid unnecessary fragment objects and annotation copies. Composition-based calculations handle isotope labels and elemental adjustments. Both calculation paths account for intrinsic modification charge and electron mass. BRAIN recurrences calculate aggregated isotope envelopes with a probability-weighted center mass per nominal isotope peak [@dittwald-2014]. Fine structure is not resolved. A separate averagine API estimates envelopes from mass alone.
+Lazy modification parsing and bounded caches reduce repeated work. Direct residue mass lookups and a scalar path for ordinary precursor mass and m/z avoid unnecessary fragment objects and annotation copies. A composition-based path handles isotope labels and elemental adjustments. Both paths account for intrinsic modification charge and electron mass. BRAIN recurrences generate aggregated isotope envelopes with a probability-weighted center mass per nominal isotope peak [@dittwald-2014]. Fine structure is not resolved. A separate averagine API estimates envelopes from mass alone.
 
-Shared reference data are supplied by **Tacular** [@garrett-2026-tacular], including Unimod [@creasy-2004], PSI-MOD [@hupo-psi-mod], RESID [@resid], XLMOD [@hupo-psi-xlmod], and GNOme [@gnome]. Embedded data avoid runtime ontology downloads. Calculations require a resolvable mass or composition as appropriate. Unresolved annotations can still be represented, while diagnostics distinguish parsing, validation, and calculation failures.
+Shared reference data are supplied by **Tacular** [@garrett-2026-tacular], including Unimod [@creasy-2004], PSI-MOD [@hupo-psi-mod], RESID [@resid], XLMOD [@hupo-psi-xlmod], and GNOme [@gnome]. Embedded data avoid runtime ontology downloads. Chemical analyses require a resolvable mass or elemental composition, depending on the operation. Unresolved annotations can still be represented, while diagnostics distinguish parsing, validation, and analysis failures.
 
 Versioned JSON serialization preserves annotation structure and validates input against a closed set of supported types. Streaming FASTA input supports plain and gzip files. An optional local Model Context Protocol interface exposes the same sequence operations to agent clients. The core package requires Python 3.12 or later and Tacular, with additional dependencies installed only for optional integrations. Type annotations support static analysis. Continuous integration runs tests, linting, type checks, and package builds across Python 3.12-3.14 and Linux, macOS, and Windows configurations.
 
@@ -100,11 +100,11 @@ df = pd.DataFrame(
 df["mass"] = pt.mass(df["seq"].tolist())
 ```
 
-# Notation support and calculation limits
+# Notation support and operation limits
 
-**Table 1: Representative ProForma 2.1 notation support**
+**Table 1: Representative ProForma 2.1 notation support and operation limits**
 
-| S | Feature                    | Example                                      | § [Support] |
+| S | Feature                    | Example                                      | § [Level] |
 | - | -------------------------- | -------------------------------------------- | ----------- |
 | Y | Amino acids (+UO)          | `AAHCFKUOT`                                  | 6.1 [1]     |
 | Y | Unimod names               | `PEM[Oxidation]AT`                           | 6.2.1 [1]   |
@@ -116,7 +116,7 @@ df["mass"] = pt.mass(df["seq"].tolist())
 | Y | C-terminal modifications   | `PEPTIDEG-[Methyl]`                          | 6.3 [1]     |
 | Y | Labile modifications       | `{Glycan:Hex}EM[U:Oxidation]EV`              | 6.4 [1]     |
 | Y | Multiple modifications     | `MPGNW[Oxidation][Carboxymethyl]PESQE`       | 6.5 [1]     |
-| Y | Information tag            | `ELV[INFO:AnyString]IS`                      | 6.6 [1]     |
+| Y | Information tags           | `ELV[INFO:AnyString]IS`                      | 6.6 [1]     |
 | Y | Ambiguous amino acids      | `BZJX`                                       | 7.1  [2]    |
 | Y | Prefixed delta masses      | `PEM[U:+15.995]AT`                           | 7.2  [2]    |
 | Y | Mass gap                   | `PEX[+147.035]AT`                            | 7.3  [2]    |
@@ -147,9 +147,9 @@ df["mass"] = pt.mass(df["seq"].tolist())
 | Y | Charges                    | `SEQUEN/2`, `SEQUEN/[Na:z+1,H:z+1]`          | 11.5 [3]    |
 | Y | Ion notation               | `SEQUEN-[b-type-ion]`                        | 11.6 [3]    |
 
-**Table 1** summarizes notation handling against the finalized ProForma 2.1 specification [@proforma-2026]. In column S, Y indicates supported notation, P indicates a preserved annotation whose placement constraints are not applied, and N indicates unsupported linked-chain calculation semantics. Levels 1, 2, and 3 follow the specification, with top-down (T), cross-linking (X), and glycan (G) extensions. This table is not a claim that every represented sequence supports every calculation.
+**Table 1** summarizes notation handling against the finalized ProForma 2.1 specification [@proforma-2026]. In column S, Y indicates supported notation, P indicates a preserved annotation whose placement constraints are not applied, and N indicates linked-chain notation that can be represented but is not supported by the analysis operations. Levels 1, 2, and 3 follow the specification, with top-down (T), cross-linking (X), and glycan (G) extensions. Notation support does not imply that every operation is available for every represented sequence.
 
-Mass-ambiguous residues B and Z cannot produce a unique mass. Delta-mass tags and bare-mass glycan components lack elemental compositions. Unknown localization and ambiguous intervals restrict fragmentation. Labile modifications contribute to precursor mass but are omitted from fragment ions. Chimeric assignments are handled component-wise through `parse_chimeric()`. The structured model and JSON format can represent linked notation, but the calculation APIs do not implement cross-links or branches. The documentation provides operation-specific limits and examples.
+Mass-ambiguous residues B and Z cannot produce a unique mass. Delta-mass tags and bare-mass glycan components lack elemental compositions. Unknown localization and ambiguous intervals restrict fragmentation. Labile modifications contribute to precursor mass but are omitted from fragment ions. Chimeric assignments are handled component-wise through `parse_chimeric()`. The structured model and JSON format can represent linked notation, but the analysis APIs do not operate on cross-linked or branched structures. The documentation provides operation-specific limits and examples.
 
 # AI usage disclosure
 
