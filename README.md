@@ -5,7 +5,7 @@
   
   A Python package for peptide sequence analysis built around **ProForma 2.1 notation**. Calculate masses, generate fragments, predict isotopic patterns, and more. Peptacular uses type annotations extensively, so it is type safe.
   
-  [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/python-package.yml)
+  [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml)
   [![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
   [![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
