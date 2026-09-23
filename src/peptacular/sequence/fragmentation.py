@@ -26,7 +26,7 @@ def _fragment_single(
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
-    neutral_deltas: Sequence[LOSS_TYPE] = (),
+    neutral_deltas: Sequence[LOSS_TYPE | None] = (),
     calculate_composition: bool = False,
     max_ndeltas: int = 1,
 ) -> list[Fragment]:
@@ -47,7 +47,7 @@ def _fragment_single(
 @overload
 def fragment(
     sequence: str | ProFormaAnnotation,
-    ion_types: Sequence[ION_TYPE] | ION_TYPE = (IonType.B, IonType.Y),
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
@@ -64,7 +64,7 @@ def fragment(
 @overload
 def fragment(
     sequence: Sequence[str | ProFormaAnnotation],
-    ion_types: Sequence[ION_TYPE] | ION_TYPE = (IonType.B, IonType.Y),
+    ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
@@ -85,7 +85,7 @@ def fragment(
     monoisotopic: bool = True,
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
-    neutral_deltas: Sequence[LOSS_TYPE] = (),
+    neutral_deltas: Sequence[LOSS_TYPE | None] = (),
     calculate_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: int | None = None,

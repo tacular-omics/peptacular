@@ -474,16 +474,12 @@ def _condense_to_peptidoform(
 @overload
 def condense_to_peptidoform(
     sequence: str | ProFormaAnnotation,
-    include_plus: bool = False,
-    precision: int | None = None,
 ) -> str: ...
 
 
 @overload
 def condense_to_peptidoform(
     sequence: Sequence[str | ProFormaAnnotation],
-    include_plus: bool = False,
-    precision: int | None = None,
 ) -> list[str]: ...
 
 

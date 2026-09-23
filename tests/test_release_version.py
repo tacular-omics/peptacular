@@ -15,9 +15,7 @@ def project(tmp_path):
     source = tmp_path / "src/peptacular/__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text('raise RuntimeError("Must not import the package")\n__version__ = "3.3.0"\n')
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\ndynamic = ["version"]\n[tool.hatch.version]\npath = "src/peptacular/__init__.py"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text('[project]\ndynamic = ["version"]\n[tool.hatch.version]\npath = "src/peptacular/__init__.py"\n')
     (tmp_path / "CITATION.cff").write_text('title: Keep this title\nversion: "3.3.0"\nauthors:\n  - name: Test Author\n')
     (tmp_path / ".zenodo.json").write_text(json.dumps({"version": "3.3.0", "creators": [{"name": "Test Author"}]}))
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## [4.0.0] (Unreleased)\n\nKeep these release notes.\n")

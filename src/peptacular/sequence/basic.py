@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, overload
+from typing import Any, cast, overload
 
 from ..annotation import (
     ProFormaAnnotation,
@@ -124,7 +124,8 @@ def serialize_chimeric(
             method=method,
         )
     else:
-        return _serialize_chimeric_single(sequence)  # type: ignore[arg-type]
+        # Not all elements are themselves sequences, so this is the single-group case.
+        return _serialize_chimeric_single(cast(Sequence[ProFormaAnnotation | str], sequence))
 
 
 def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation:

@@ -18,7 +18,7 @@ def get_all_modules(package, prefix=""):
     # Get the package path
     if hasattr(package, "__path__"):
         # Iterate through all submodules
-        for importer, modname, ispkg in pkgutil.walk_packages(
+        for _importer, modname, _ispkg in pkgutil.walk_packages(
             path=package.__path__,
             prefix=f"{package.__name__}.",
             onerror=lambda x: None,  # Skip modules that fail to import

@@ -230,7 +230,7 @@ class TestDeltaInfoComposition:
     def test_composition_raises_when_deltas_include_floats(self):
         info = DeltaInfo.from_input(1.5)
         with pytest.raises(ValueError, match="Cannot get composition"):
-            info.composition
+            _ = info.composition
 
     def test_adjust_composition_raises_when_deltas_include_floats(self):
         info = DeltaInfo.from_input(1.5)

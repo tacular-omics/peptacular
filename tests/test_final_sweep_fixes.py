@@ -9,7 +9,6 @@ class TestRepeatedModificationComposition:
     """comp() must scale a repeated modification's composition by its count, matching mass()."""
 
     def test_single_vs_repeated_same_mod(self):
-        base = pt.parse("PEPTFIDE").mass()
         for n in (1, 2, 3):
             s = "PEPTF" + "[UNIMOD:310]" * n + "IDE"
             a = pt.parse(s)

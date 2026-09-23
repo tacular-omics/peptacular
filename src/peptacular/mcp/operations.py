@@ -490,7 +490,7 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
 def find_modifications(request):
     import tacular
 
-    rows = []
+    rows: list[dict[str, Any]] = []
     for vocabulary in request.vocabularies:
         lookup = getattr(tacular, f"{vocabulary.upper()}_LOOKUP")
         for entry in lookup:

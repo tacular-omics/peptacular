@@ -3,7 +3,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from math import isfinite
-from typing import Self, cast
 
 from tacular import ELEMENT_LOOKUP, NEUTRAL_DELTA_LOOKUP, ElementInfo
 
@@ -33,8 +32,8 @@ class IsotopeInfo:
     @staticmethod
     def from_input(
         isotopes: int | dict[ElementInfo | str, int] | None,
-    ) -> Self:
-        return cast(Self, get_isotopes(isotopes))
+    ) -> "IsotopeInfo":
+        return get_isotopes(isotopes)
 
     @cached_property
     def _get_adjustments(self) -> tuple[tuple[ElementInfo, int], ...]:
@@ -144,11 +143,11 @@ class ChargeCarrierInfo:
     @staticmethod
     def from_input(
         charge: int | str | GlobalChargeCarrier | tuple[GlobalChargeCarrier, ...] | list[str] | None,
-    ) -> Self:
+    ) -> "ChargeCarrierInfo":
         carriers = handle_charge_input(charge)
         # Sort for consistent caching - use serialized form as sort key
         carriers = tuple(sorted(carriers, key=lambda x: x.serialize()))
-        return cast(Self, _get_charge_carrier_info(carriers))
+        return _get_charge_carrier_info(carriers)
 
     @property
     def to_fragment_mapping(self) -> Mapping[str, int] | None:
@@ -312,9 +311,9 @@ class DeltaInfo:
     @staticmethod
     def from_input(
         deltas: str | ChargedFormula | float | dict[str | ChargedFormula | float, int] | None,
-    ) -> Self:
+    ) -> "DeltaInfo":
         if deltas is None:
-            return cast(Self, _get_delta_info(None))
+            return _get_delta_info(None)
 
         # Normalize to dict first
         normalized_dict = _handle_delta_input(deltas)
@@ -338,7 +337,7 @@ class DeltaInfo:
         # Sort for consistent caching
         items_tuple = tuple(sorted(items, key=lambda x: (x[0], x[1])))
 
-        return cast(Self, _get_delta_info(items_tuple))
+        return _get_delta_info(items_tuple)
 
     def __add__(self, other: "DeltaInfo") -> "DeltaInfo":
         """Combine two DeltaInfo objects (add deltas together)."""
@@ -366,12 +365,12 @@ class DeltaInfo:
 
     def __neg__(self) -> "DeltaInfo":
         """Negate all deltas (flip signs)."""
-        negated = {k: -v for k, v in self.deltas.items()}
+        negated: dict[str | ChargedFormula | float, int] = {k: -v for k, v in self.deltas.items()}
         return DeltaInfo.from_input(negated)
 
     def __mul__(self, scalar: int) -> "DeltaInfo":
         """Multiply all delta counts by a scalar."""
-        multiplied = {k: v * scalar for k, v in self.deltas.items()}
+        multiplied: dict[str | ChargedFormula | float, int] = {k: v * scalar for k, v in self.deltas.items()}
         return DeltaInfo.from_input(multiplied)
 
     def __rmul__(self, scalar: int) -> "DeltaInfo":

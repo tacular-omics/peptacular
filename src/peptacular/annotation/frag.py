@@ -65,7 +65,7 @@ class Fragment:
         external_charge: int | None = None,
         isotopes: Mapping[str, int] | int | None = None,
         deltas: Mapping[str | float, int] | None = None,
-        composition: Mapping[ElementInfo, int] | None = None,
+        composition: Counter[ElementInfo] | None = None,
         parent_sequence: str | None = None,
         parent_sequence_length: int | None = None,
     ) -> None:
@@ -288,8 +288,9 @@ class Fragment:
                             parts.append(f"{{{seq_no_charge}}}")
 
                     # Add internal mass diff neutral loss
-                    internal_ion_key = tuple(list(ion_info.ion_type.value))
-                    if internal_ion_key in _INTERNAL_MASS_DIFFS:
+                    ion_value = ion_info.ion_type.value
+                    internal_ion_key = (ion_value[0], ion_value[1]) if len(ion_value) == 2 else None
+                    if internal_ion_key is not None and internal_ion_key in _INTERNAL_MASS_DIFFS:
                         internal_loss = _INTERNAL_MASS_DIFFS[internal_ion_key]
                     else:
                         raise ValueError(f"Internal ion type {ion_info.ion_type} not supported in mzPAF.")

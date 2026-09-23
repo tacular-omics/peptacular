@@ -278,7 +278,7 @@ def cumsum(numbers: Sequence[float] | Sequence[Counter[Any]], reverse: bool = Fa
             total: Counter[Any] = Counter()
             result: list[Counter[Any]] = []
             for counter in reversed(numbers) if reverse else numbers:
-                total = total + counter  # type: ignore
+                total = total + counter
                 result.append(total.copy())
             return result
 
