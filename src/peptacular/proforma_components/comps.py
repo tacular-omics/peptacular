@@ -694,7 +694,7 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
         return None
 
     @staticmethod
-    def from_string(s: str) -> TagName:
+    def from_string(s: str) -> TagName | TagCustom:
         from ..proforma_components.parsers import parse_tag_name
 
         return parse_tag_name(s)

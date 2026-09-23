@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 
 # Try to match known monosaccharide names (longest first)
-monosaccharide_names: list[str] = sorted(list(Monosaccharide), key=len, reverse=True)  # type: ignore
+monosaccharide_names: list[str] = sorted(list(Monosaccharide), key=len, reverse=True)
 
 # ============================================================================
 # Regex Patterns for Modification Types

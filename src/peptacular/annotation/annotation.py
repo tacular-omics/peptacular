@@ -3018,7 +3018,7 @@ class ProFormaAnnotation:
 
         # Elemental adjustments share one order in both calculation modes.
         # Mass-only modifications remain additive and do not invent atom counts.
-        formula_deltas = {key: count for key, count in delta.deltas.items() if isinstance(key, ChargedFormula)}
+        formula_deltas: dict[ChargedFormula | float, int] = {key: count for key, count in delta.deltas.items() if isinstance(key, ChargedFormula)}
         charge_carriers = self.charge_adducts
         removes_atoms = any(count < 0 for mod in charge_carriers for count in mod.get_composition().values())
         if self.has_isotope_mods or calculate_composition or isotope.data or formula_deltas or removes_atoms:
@@ -3422,7 +3422,7 @@ class ProFormaAnnotation:
         *,
         isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
         deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
-        neutral_deltas: Sequence[LOSS_TYPE] = (),
+        neutral_deltas: Sequence[LOSS_TYPE | None] = (),
         calculate_composition: bool = False,
         max_ndeltas: int = 1,
         min_length: int | None = None,
