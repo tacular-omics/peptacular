@@ -5,8 +5,9 @@
 # package.
 """Indices to be used with ProtParam."""
 
+import warnings
 from enum import StrEnum
-from typing import Final
+from typing import Any, Final
 
 
 class _AA(StrEnum):
@@ -761,11 +762,6 @@ polarity_zimmerman: Final[dict[str, float]] = {
     _AA.S: 1.670, _AA.T: 1.660, _AA.W: 2.100, _AA.Y: 1.610, _AA.V: 0.130
 }
 
-POLARITY_SCALES: Final[dict[str, dict[str, float]]] = {
-    "Grantham": polarity_grantham,
-    "Zimmerman": polarity_zimmerman
-}
-
 """
 Amino acid scale: Relative mutability of amino acids (Ala=100).
 Author(s):
@@ -1320,7 +1316,7 @@ HYDROPHILICITY_SCALES: Final[dict[str, dict[str, float]]] = {
 }
 
 # Flexibility scales
-FLIXIBILITY_SCALES: Final[dict[str, dict[str, float]]] = {
+FLEXIBILITY_SCALES: Final[dict[str, dict[str, float]]] = {
     PhysicalPropertyScale.FLEXIBILITY_VIHINEN: flexibility_vihinen
 }
 
@@ -1349,3 +1345,30 @@ PHYSICAL_PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
     PhysicalPropertyScale.RECOGNITION_FACTORS: recognition_factors,
     PhysicalPropertyScale.TRANSMEMBRANE_TENDENCY: transmembrane_tendency,
 }
+
+
+_DEPRECATED_ALIASES: Final[dict[str, str]] = {"FLIXIBILITY_SCALES": "FLEXIBILITY_SCALES"}
+
+
+def _resolve_deprecated_alias(name: str) -> Any:
+    """Return the object behind a deprecated alias, warning with :class:`DeprecationWarning`.
+
+    The warning is attributed to the code that accessed the alias, whether it went through this module, :mod:`peptacular.property` or
+    :mod:`peptacular`.
+
+    :param name: Attribute name that was accessed.
+    :type name: str
+    :return: The object the deprecated name now refers to.
+    :rtype: Any
+    :raises AttributeError: If ``name`` is not a deprecated alias.
+    """
+    if name not in _DEPRECATED_ALIASES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    new_name = _DEPRECATED_ALIASES[name]
+    warnings.warn(f"{name} is deprecated; use {new_name} instead.", DeprecationWarning, stacklevel=3)
+    return globals()[new_name]
+
+
+def __getattr__(name: str) -> Any:
+    """Resolve deprecated module attributes such as ``FLIXIBILITY_SCALES``."""
+    return _resolve_deprecated_alias(name)

@@ -213,6 +213,28 @@ def get_loss_combinations(losses: dict[NeutralDeltaInfo, int], max_losses: int) 
 
 
 class ProFormaAnnotation:
+    """A single ProForma 2.1 peptidoform: a sequence plus its modifications, intervals, names and charge.
+
+    Create one with :meth:`parse` (or :func:`peptacular.parse`) from a ProForma string, or with the
+    constructor from parts. Modifications are stored as strings and resolved against tacular only
+    when a mass, m/z or composition is requested, so parsing an unknown modification succeeds and
+    ``mass()`` raises :class:`UnknownModificationError`.
+
+    The ``set_*`` / ``append_*`` / ``extend_*`` / ``remove_*`` methods take ``inplace`` (default
+    ``True``) and return the annotation, so calls can be chained. Annotations are mutable but
+    hashable: the hash reflects the current contents, so do not modify an annotation while it is a
+    dict key or set member.
+
+    >>> import peptacular as pt
+    >>> annot = pt.ProFormaAnnotation.parse("PEM[Oxidation]TIDE/2")
+    >>> annot.sequence
+    'PEMTIDE'
+    >>> annot.charge
+    2
+    >>> annot.serialize()
+    'PEM[Oxidation]TIDE/2'
+    """
+
     def __init__(
         self,
         sequence: str | None = None,

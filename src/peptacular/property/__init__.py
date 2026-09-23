@@ -1,8 +1,10 @@
 """Protein property calculation module."""
 
+from typing import Any
+
 from .data import (
     COMPOSITION_SCALES,
-    FLIXIBILITY_SCALES,
+    FLEXIBILITY_SCALES,
     HPLC_SCALES,
     HYDROPHILICITY_SCALES,
     HYDROPHOBICITY_SCALES,
@@ -54,7 +56,7 @@ __all__ = [
     "SURFACE_ACCESSIBILITY_SCALES",
     "HPLC_SCALES",
     "HYDROPHILICITY_SCALES",
-    "FLIXIBILITY_SCALES",
+    "FLEXIBILITY_SCALES",
     "POLARITY_SCALES",
     "COMPOSITION_SCALES",
     "PHYSICAL_PROPERTY_SCALES",
@@ -66,3 +68,12 @@ __all__ = [
     "WeightingMethods",
     "WeightingMethodsLiteral",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Forward deprecated aliases (such as ``FLIXIBILITY_SCALES``) to :mod:`peptacular.property.data`."""
+    from . import data
+
+    if name in data._DEPRECATED_ALIASES:
+        return data._resolve_deprecated_alias(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

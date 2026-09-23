@@ -54,6 +54,49 @@ _ION_TYPE_TO_MZPAF_SERIES: dict[IonType, str] = {
 
 
 class Fragment:
+    """One theoretical ion: a fragment or precursor with its ion type, position, charge and mass.
+
+    Returned by :meth:`ProFormaAnnotation.frag`, :meth:`ProFormaAnnotation.fragment` and
+    :func:`peptacular.fragment`. ``mass`` is the mass of the charged ion (adducts included), so
+    ``mz`` is ``mass / abs(charge_state)`` and ``neutral_mass`` removes the charge carriers.
+    Use :meth:`to_mzpaf` for an mzPAF annotation string.
+
+    >>> import peptacular as pt
+    >>> frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
+    >>> frag.ion_type, frag.position, frag.charge_state
+    (<IonType.B: 'b'>, 2, 1)
+    >>> round(frag.mz, 4)
+    227.1026
+
+    :param ion_type: Ion type (``b``, ``y``, precursor, immonium, ...).
+    :type ion_type: IonType
+    :param position: Ion ordinal (residue count) for terminal ions, a one-based inclusive
+        ``(start, end)`` residue range for internal ions, or None for the precursor.
+    :type position: int | tuple[int, int] | None
+    :param mass: Mass of the charged ion in Da, charge carriers included.
+    :type mass: float
+    :param monoisotopic: True for a monoisotopic mass, False for an average mass.
+    :type monoisotopic: bool
+    :param charge_state: Signed total charge.
+    :type charge_state: int
+    :param charge_adducts: Charge carrier strings (e.g. ``("Na:z+1",)``); None means protonated.
+    :type charge_adducts: tuple[str, ...] | None
+    :param external_charge: Part of ``charge_state`` carried by external adducts rather than a
+        charged modification. Defaults to ``charge_state``.
+    :type external_charge: int | None
+    :param isotopes: Isotope shifts as ``{isotope: count}``, or an int for a number of 13C.
+    :type isotopes: Mapping[str, int] | int | None
+    :param deltas: Neutral losses or gains as ``{formula_or_mass: count}``.
+    :type deltas: Mapping[str | float, int] | None
+    :param composition: Precomputed elemental composition, if known.
+    :type composition: Counter[ElementInfo] | None
+    :param parent_sequence: ProForma string of the parent peptidoform, used to compute
+        ``composition`` and ``sequence`` lazily.
+    :type parent_sequence: str | None
+    :param parent_sequence_length: Residue count of the parent peptidoform.
+    :type parent_sequence_length: int | None
+    """
+
     def __init__(
         self,
         ion_type: IonType,

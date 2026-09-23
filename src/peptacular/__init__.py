@@ -2,6 +2,8 @@
 Peptacular: A ProForma peptide sequence parser and annotation library
 """
 
+from typing import Any
+
 from tacular import *
 
 from .annotation import *
@@ -21,3 +23,12 @@ from .spans import *
 from .utils import *
 
 __version__ = "4.0.1"
+
+
+def __getattr__(name: str) -> Any:
+    """Forward deprecated aliases (such as ``FLIXIBILITY_SCALES``) to :mod:`peptacular.property.data`."""
+    from .property import data
+
+    if name in data._DEPRECATED_ALIASES:
+        return data._resolve_deprecated_alias(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
