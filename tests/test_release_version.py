@@ -17,8 +17,8 @@ def project(tmp_path):
     source.write_text('raise RuntimeError("Must not import the package")\n__version__ = "3.3.0"\n')
     (tmp_path / "pyproject.toml").write_text('[project]\ndynamic = ["version"]\n[tool.hatch.version]\npath = "src/peptacular/__init__.py"\n')
     (tmp_path / "CITATION.cff").write_text('title: Keep this title\nversion: "3.3.0"\nauthors:\n  - name: Test Author\n')
-    (tmp_path / ".zenodo.json").write_text(json.dumps({"version": "3.3.0", "creators": [{"name": "Test Author"}]}))
-    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## [4.0.0] (Unreleased)\n\nKeep these release notes.\n")
+    (tmp_path / ".zenodo.json").write_text(json.dumps({"creators": [{"name": "Test Author"}]}))
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n## [4.0.0] (Unreleased)\n\nKeep these release notes.\n")
     return tmp_path
 
 
@@ -39,6 +39,19 @@ def test_manual_version_edit_is_detected_and_synchronized(project):
     assert release["check"](project) == "4.0.0rc1"
 
 
+@pytest.mark.parametrize("key", ["version", "grants"])
+def test_zenodo_version_and_grants_are_rejected(project, key):
+    (project / ".zenodo.json").write_text(json.dumps({key: "x", "creators": [{"name": "Test Author"}]}))
+    with pytest.raises(ValueError, match=f"must not set {key}"):
+        release["check"](project)
+
+
+def test_changelog_needs_unreleased_heading(project):
+    (project / "CHANGELOG.md").write_text("## [3.3.0] (2026-09-13)\n")
+    with pytest.raises(ValueError, match="Unreleased"):
+        release["check"](project)
+
+
 @pytest.mark.parametrize("version", ["v4.0.0", "04.0.0", "4.0", "4.0.0\n", "4.0.0+bad space"])
 def test_invalid_version_does_not_modify_files(project, version):
     before = {p: p.read_bytes() for p in project.rglob("*") if p.is_file()}
@@ -54,9 +67,9 @@ def test_release_requires_matching_tag_and_dated_current_changelog(project):
     with pytest.raises(ValueError, match="Date the"):
         release["check"](project, "v4.0.0")
     changelog = project / "CHANGELOG.md"
-    changelog.write_text("## [4.0.0] (2026-09-13)\n")
+    changelog.write_text("## [Unreleased]\n\n## [4.0.0] (2026-09-13)\n")
     assert release["check"](project, "v4.0.0") == "4.0.0"
-    changelog.write_text("## [3.3.0] (2026-09-13)\n")
+    changelog.write_text("## [Unreleased]\n\n## [3.3.0] (2026-09-13)\n")
     with pytest.raises(ValueError, match="first changelog release"):
         release["check"](project, "v4.0.0")
 

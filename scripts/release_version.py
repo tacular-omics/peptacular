@@ -5,9 +5,10 @@ tacular-omics workspace at templates/scripts/release_version.py; edit it there
 and re-sync, do not edit a package's copy by hand.
 
 The version lives only in ``__version__`` in the file named by
-``[tool.hatch.version] path``. ``sync`` copies it to CITATION.cff (and
-.zenodo.json when present). ``sync --set X.Y.Z`` also turns the changelog's
-``## [Unreleased]`` section into ``## [X.Y.Z] (today)``.
+``[tool.hatch.version] path``. ``sync`` copies it to CITATION.cff.
+``sync --set X.Y.Z`` also turns the changelog's ``## [Unreleased]`` section into
+``## [X.Y.Z] (today)``. .zenodo.json must not carry a version (Zenodo takes it from
+the release tag) or grants (Zenodo rejects the release when an award is unknown).
 """
 
 import argparse
@@ -64,9 +65,9 @@ def metadata(root: Path) -> tuple[str, dict[Path, str]]:
     citation = (root / "CITATION.cff").read_text(encoding="utf-8")
     updates = {root / "CITATION.cff": replace_field(citation, r"^(version: *)[^\n]+$", version)}
     if (root / ".zenodo.json").exists():
-        zenodo = json.loads((root / ".zenodo.json").read_text(encoding="utf-8"))
-        zenodo["version"] = version
-        updates[root / ".zenodo.json"] = json.dumps(zenodo, indent=2, ensure_ascii=False) + "\n"
+        banned = sorted({"version", "grants"} & json.loads((root / ".zenodo.json").read_text(encoding="utf-8")).keys())
+        if banned:
+            raise ValueError(f".zenodo.json must not set {', '.join(banned)}; see ZENODO.md in the workspace templates")
     return version, updates
 
 
@@ -76,10 +77,6 @@ def sync(root: Path, new_version: str | None = None) -> str:
         version = validate_version(new_version)
         updates[root / SOURCE] = replace_field((root / SOURCE).read_text(encoding="utf-8"), r"^(__version__ = )[^\n]+$", version)
         updates[root / "CITATION.cff"] = replace_field(updates[root / "CITATION.cff"], r"^(version: *)[^\n]+$", version)
-        if root / ".zenodo.json" in updates:
-            zenodo = json.loads(updates[root / ".zenodo.json"])
-            zenodo["version"] = version
-            updates[root / ".zenodo.json"] = json.dumps(zenodo, indent=2, ensure_ascii=False) + "\n"
         changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
         if f"## [{version}]" not in changelog:
             heading = f"## [Unreleased]\n\n## [{version}] ({date.today().isoformat()})"
@@ -97,11 +94,11 @@ def check(root: Path, tag: str | None = None) -> str:
     version, _ = metadata(root)
     citation = re.findall(r"^version: *([^\n]+)$", (root / "CITATION.cff").read_text(encoding="utf-8"), re.MULTILINE)
     actual = {"CITATION.cff": citation[0].strip().strip("\"'")}
-    if (root / ".zenodo.json").exists():
-        actual[".zenodo.json"] = json.loads((root / ".zenodo.json").read_text(encoding="utf-8"))["version"]
     stale = [path for path, value in actual.items() if value != version]
     if stale:
         raise ValueError(f"Stale version metadata: {', '.join(stale)}. Run just sync-version.")
+    if not re.search(r"^## \[Unreleased\]", (root / "CHANGELOG.md").read_text(encoding="utf-8"), re.MULTILINE):
+        raise ValueError("CHANGELOG.md needs a '## [Unreleased]' heading and '## [X.Y.Z] (YYYY-MM-DD)' release headings")
     if tag is not None:
         if tag != f"v{version}":
             raise ValueError(f"Release tag {tag!r} does not match v{version}")
@@ -152,7 +149,7 @@ def check_artifacts(directory: Path, version: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    update = commands.add_parser("sync", help="Copy the package version to citation and Zenodo metadata")
+    update = commands.add_parser("sync", help="Copy the package version to citation metadata")
     update.add_argument("--set", dest="new_version", help="Set the package version and synchronize metadata in one command")
     verify = commands.add_parser("check", help="Fail if release versions disagree")
     verify.add_argument("--tag", help="Also require an exact vX.Y.Z tag and dated changelog entry")
