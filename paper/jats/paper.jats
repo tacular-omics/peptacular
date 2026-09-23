@@ -118,19 +118,25 @@ a Creative Commons Attribution 4.0 International License (CC BY
   <title>State of the Field</title>
   <p>Existing packages address overlapping needs. <bold>Pyteomics</bold>
   (<xref alt="Goloborodko et al., 2013" rid="ref-goloborodko-2013" ref-type="bibr">Goloborodko
-  et al., 2013</xref>) supports ProForma parsing, mass and composition
+  et al., 2013</xref>;
+  <xref alt="Levitsky et al., 2019" rid="ref-levitsky-2019" ref-type="bibr">Levitsky
+  et al., 2019</xref>) supports ProForma parsing, mass and composition
   calculations, and fragment generation alongside its historical modX
   format
   (<xref alt="Pyteomics developers, n.d." rid="ref-pyteomics-docs" ref-type="bibr">Pyteomics
   developers, n.d.</xref>). <bold>Biopython</bold>
   (<xref alt="Cock et al., 2009" rid="ref-cock-2009" ref-type="bibr">Cock
   et al., 2009</xref>) provides general sequence analysis, including
-  protein properties. The <bold>mzcore</bold> and related RustyMS
-  libraries provide ProForma support, chemical representations, and
-  theoretical fragmentation, with Python bindings for selected
+  protein property calculations through its ProtParam module
+  (<xref alt="Biopython contributors, n.d." rid="ref-biopython-protparam" ref-type="bibr">Biopython
+  contributors, n.d.</xref>). The <bold>mzcore</bold> and related
+  RustyMS libraries provide ProForma support, chemical representations,
+  and theoretical fragmentation, with Python bindings for selected
   components
   (<xref alt="Schulte et al., n.d." rid="ref-Schulte_mzcore" ref-type="bibr">Schulte
-  et al., n.d.</xref>). <bold>pyOpenMS</bold>
+  et al., n.d.</xref>,
+  <xref alt="2025" rid="ref-schulte-2025" ref-type="bibr">2025</xref>).
+  <bold>pyOpenMS</bold>
   (<xref alt="Röst et al., 2014" rid="ref-rost-2014" ref-type="bibr">Röst
   et al., 2014</xref>) exposes a broader mass spectrometry toolkit.
   Current OpenMS documentation also describes ProForma parsing and
@@ -143,7 +149,9 @@ a Creative Commons Attribution 4.0 International License (CC BY
   annotations directly while using consistent charge, modification, and
   ambiguity handling across operations. A dedicated package keeps this
   interface focused on sequence analysis. Optional adapters connect it
-  to Pyteomics, psm_utils, and AlphaBase for their supported
+  to Pyteomics, psm_utils
+  (<xref alt="Gabriels et al., 2023" rid="ref-gabriels-2023" ref-type="bibr">Gabriels
+  et al., 2023</xref>), and AlphaBase for their supported
   representations, with checks for conversion losses. These integrations
   complement the specialized capabilities of the surrounding
   ecosystem.</p>
@@ -172,9 +180,13 @@ a Creative Commons Attribution 4.0 International License (CC BY
   adjustments. Both paths account for intrinsic modification charge and
   electron mass. BRAIN recurrences generate aggregated isotope envelopes
   with a probability-weighted center mass per nominal isotope peak
-  (<xref alt="Dittwald &amp; Valkenborg, 2014" rid="ref-dittwald-2014" ref-type="bibr">Dittwald
+  (<xref alt="Claesen et al., 2012" rid="ref-claesen-2012" ref-type="bibr">Claesen
+  et al., 2012</xref>;
+  <xref alt="Dittwald &amp; Valkenborg, 2014" rid="ref-dittwald-2014" ref-type="bibr">Dittwald
   &amp; Valkenborg, 2014</xref>). Fine structure is not resolved. A
-  separate averagine API estimates envelopes from mass alone.</p>
+  separate averagine
+  (<xref alt="Senko et al., 1995" rid="ref-senko-1995" ref-type="bibr">Senko
+  et al., 1995</xref>) API estimates envelopes from mass alone.</p>
   <p>Shared reference data are supplied by <bold>Tacular</bold>
   (<xref alt="P. Garrett, 2026" rid="ref-garrett-2026-tacular" ref-type="bibr">P.
   Garrett, 2026</xref>), including Unimod
@@ -907,6 +919,112 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
       <year iso-8601-date="2025-01">2025</year><month>01</month>
       <uri>https://doi.org/10.1016/b978-0-323-99507-8.00013-5</uri>
       <pub-id pub-id-type="doi">10.1016/b978-0-323-99507-8.00013-5</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-levitsky-2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Levitsky</surname><given-names>Lev I.</given-names></name>
+        <name><surname>Klein</surname><given-names>Joshua A.</given-names></name>
+        <name><surname>Ivanov</surname><given-names>Mark V.</given-names></name>
+        <name><surname>Gorshkov</surname><given-names>Mikhail V.</given-names></name>
+      </person-group>
+      <article-title>Pyteomics 4.0: Five Years of Development of a Python Proteomics Framework</article-title>
+      <source>Journal of Proteome Research</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>18</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1021/acs.jproteome.8b00717</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jproteome.8b00717</pub-id>
+      <fpage>709</fpage>
+      <lpage>714</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-biopython-protparam">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Biopython contributors</string-name>
+      </person-group>
+      <article-title>Bio.SeqUtils.ProtParam module</article-title>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2026-09-22">2026</year><month>09</month><day>22</day></date-in-citation>
+      <uri>https://biopython.org/docs/latest/api/Bio.SeqUtils.ProtParam.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-schulte-2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schulte</surname><given-names>Douwe</given-names></name>
+        <name><surname>Leuvenink</surname><given-names>Rien W.</given-names></name>
+        <name><surname>Jager</surname><given-names>Shelley</given-names></name>
+        <name><surname>Heck</surname><given-names>Albert J. R.</given-names></name>
+        <name><surname>Snijder</surname><given-names>Joost</given-names></name>
+      </person-group>
+      <article-title>A Universal Spectrum Annotator for Complex Peptidoforms in Mass Spectrometry-Based Proteomics</article-title>
+      <source>Analytical Chemistry</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>97</volume>
+      <issue>42</issue>
+      <uri>https://doi.org/10.1021/acs.analchem.5c02832</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.analchem.5c02832</pub-id>
+      <fpage>23120</fpage>
+      <lpage>23130</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabriels-2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gabriels</surname><given-names>Ralf</given-names></name>
+        <name><surname>Declercq</surname><given-names>Arthur</given-names></name>
+        <name><surname>Bouwmeester</surname><given-names>Robbin</given-names></name>
+        <name><surname>Degroeve</surname><given-names>Sven</given-names></name>
+        <name><surname>Martens</surname><given-names>Lennart</given-names></name>
+      </person-group>
+      <article-title>psm_utils: A High-Level Python API for Parsing and Handling Peptide-Spectrum Matches and Proteomics Search Results</article-title>
+      <source>Journal of Proteome Research</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>22</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1021/acs.jproteome.2c00609</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jproteome.2c00609</pub-id>
+      <fpage>557</fpage>
+      <lpage>560</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-claesen-2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Claesen</surname><given-names>Jürgen</given-names></name>
+        <name><surname>Dittwald</surname><given-names>Piotr</given-names></name>
+        <name><surname>Burzykowski</surname><given-names>Tomasz</given-names></name>
+        <name><surname>Valkenborg</surname><given-names>Dirk</given-names></name>
+      </person-group>
+      <article-title>An Efficient Method to Calculate the Aggregated Isotopic Distribution and Exact Center-Masses</article-title>
+      <source>Journal of the American Society for Mass Spectrometry</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>23</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1007/s13361-011-0326-2</uri>
+      <pub-id pub-id-type="doi">10.1007/s13361-011-0326-2</pub-id>
+      <fpage>753</fpage>
+      <lpage>763</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-senko-1995">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Senko</surname><given-names>Michael W.</given-names></name>
+        <name><surname>Beu</surname><given-names>Steven C.</given-names></name>
+        <name><surname>McLafferty</surname><given-names>Fred W.</given-names></name>
+      </person-group>
+      <article-title>Determination of Monoisotopic Masses and Ion Populations for Large Biomolecules from Resolved Isotopic Distributions</article-title>
+      <source>Journal of the American Society for Mass Spectrometry</source>
+      <year iso-8601-date="1995">1995</year>
+      <volume>6</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1016/1044-0305(95)00017-8</uri>
+      <pub-id pub-id-type="doi">10.1016/1044-0305(95)00017-8</pub-id>
+      <fpage>229</fpage>
+      <lpage>233</lpage>
     </element-citation>
   </ref>
 </ref-list>
