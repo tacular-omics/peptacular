@@ -5,8 +5,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [4.0.1] (2026-09-23)
+
 ### Changed
 - Capped the tacular requirement below the next major version (`tacular>=1.1.0,<2`) so a breaking tacular release cannot reach installs before it is tested.
+
+### Maintenance
+* Publish from GitHub Actions with PyPI trusted publishing (`publish.yml`);
+  release metadata is checked against the tag.
+* Keep `__version__`, `CITATION.cff` and `.zenodo.json` in sync with
+  `scripts/release_version.py` (`just set-version X.Y.Z`).
+* CI tests Python 3.12-3.14 on Linux plus macOS and Windows, the lowest
+  direct dependency versions, and the built wheel.
 
 ## [4.0.0] (2026-09-13)
 
