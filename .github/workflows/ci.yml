@@ -1,0 +1,116 @@
+# Standard tacular-omics CI. Canonical copy: tacular-omics workspace templates/.
+# Package-specific jobs (wheel extras matrix, coverage/docs) are appended below
+# the standard jobs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run ty check src
+      - run: python scripts/release_version.py check
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.12", "3.13", "3.14"]
+        include:
+          - { os: macos-latest, python: "3.13" }
+          - { os: windows-latest, python: "3.13" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --all-extras --all-groups
+      - run: uv run pytest tests
+
+  # Proves the declared lower bounds still work: installs the oldest allowed
+  # version of every direct dependency.
+  lowest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --resolution lowest-direct --all-extras --all-groups
+      - run: uv run pytest tests
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv build
+      - run: python scripts/release_version.py check --dist dist
+      - name: Import the built wheel outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          pkg=$(python -c "import tomllib;print(tomllib.load(open('${{ github.workspace }}/pyproject.toml','rb'))['project']['name'].replace('-','_'))")
+          uv run --isolated --no-project --with "$(ls ${{ github.workspace }}/dist/*.whl)" python -c "import $pkg; print($pkg.__version__)"
+
+  # Package-specific: each optional extra installs and imports cleanly on its own.
+  wheel-extras:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [pyteomics, psm-utils, alphabase, mcp, 'mcp,pyteomics', 'mcp,psm-utils', 'mcp,alphabase']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv build
+      - run: python scripts/test_wheel.py --extra ${{ matrix.extra }}
+
+  # Package-specific: branch coverage report, docs build, and example scripts.
+  coverage-and-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - uses: extractions/setup-just@v2
+      - run: uv sync --locked --all-extras --all-groups
+      - run: just test-cov
+      - run: just docs
+      - run: just docs-test
+      - run: just examples
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: tacular-omics/peptacular
+          fail_ci_if_error: false
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: tacular-omics/peptacular
+          report_type: test_results
+          fail_ci_if_error: false
