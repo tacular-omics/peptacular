@@ -1150,7 +1150,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'mcp'", specifier = ">=2.13,<3" },
     { name = "pyteomics", marker = "extra == 'interop'", specifier = ">=5.0" },
     { name = "pyteomics", marker = "extra == 'pyteomics'", specifier = ">=5.0" },
-    { name = "tacular", specifier = ">=1.1.0" },
+    { name = "tacular", specifier = ">=1.1.0,<2" },
 ]
 provides-extras = ["alphabase", "interop", "mcp", "psm-utils", "pyteomics"]
 

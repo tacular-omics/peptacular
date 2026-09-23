@@ -3,6 +3,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- Capped the tacular requirement below the next major version (`tacular>=1.1.0,<2`) so a breaking tacular release cannot reach installs before it is tested.
+
 ## [4.0.0] (2026-09-13)
 
 ### Added
