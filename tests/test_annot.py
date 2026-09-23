@@ -83,7 +83,6 @@ class TestAnnotationConstruction:
         sequence = "PEPTIDE[Resid:AA0367]"
         annot = pt.ProFormaAnnotation.parse(sequence)
         assert annot.serialize() == sequence
-        mass = annot.mass()
 
     def test_get_mod_by_type(self):
         """Test getting modifications by type"""

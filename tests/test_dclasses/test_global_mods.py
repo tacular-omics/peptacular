@@ -100,7 +100,7 @@ class TestGlobalChargeCarrier:
         """Test charge carrier with fractional occurrence"""
         # assert exception
         with pytest.raises(ValueError):
-            result = pt.GlobalChargeCarrier.from_string("H:z+1^1.5")
+            pt.GlobalChargeCarrier.from_string("H:z+1^1.5")
 
     def test_negative_charge_carrier(self):
         """Test charge carrier with negative charge"""

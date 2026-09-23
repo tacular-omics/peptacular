@@ -49,7 +49,7 @@ def test_single_double_multi_mod():
     # assert raises ValueError
     try:
         pt.ProFormaAnnotation.parse(proforma)
-        assert False, "Expected ValueError not raised"
+        raise AssertionError("Expected ValueError not raised")
     except ValueError:
         pass
 
@@ -75,7 +75,7 @@ def test_nterm_double_multi_mod():
     proforma = "[Hello]^2[World]^3-PEPTIDE"
     try:
         pt.ProFormaAnnotation.parse(proforma)
-        assert False, "Expected ValueError not raised"
+        raise AssertionError("Expected ValueError not raised")
     except ValueError:
         pass
 
@@ -277,7 +277,7 @@ def test_static_mod_with_target_double_multi():
     proforma = "<Phospho@S>^2<Acetyl@K>^3PEPTIDE"
     try:
         pt.ProFormaAnnotation.parse(proforma)
-        assert False, "Expected ValueError not raised"
+        raise AssertionError("Expected ValueError not raised")
     except ValueError:
         pass
 
@@ -300,7 +300,7 @@ def test_mod_with_multiplier():
     proforma = "PEPTIDE[HelloWorld]^3"
     try:
         pt.ProFormaAnnotation.parse(proforma)
-        assert False, "Expected ValueError not raised"
+        raise AssertionError("Expected ValueError not raised")
     except ValueError:
         pass
 

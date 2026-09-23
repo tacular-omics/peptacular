@@ -382,7 +382,7 @@ class TestFragment(unittest.TestCase):
         for i in "abcxyz":
             frags = annot.fragment([i], [1])
 
-            for n, (pt_frag, py_frag) in enumerate(zip(frags, pyteomics_fragments[i][::-1])):
+            for n, (pt_frag, py_frag) in enumerate(zip(frags, pyteomics_fragments[i][::-1], strict=False)):
                 self.assertAlmostEqual(
                     pt_frag.mz,
                     py_frag,
@@ -534,7 +534,7 @@ class TestFragment(unittest.TestCase):
         for i in "abcxyz":
             frags = annot.fragment(ion_types=[i], charges=[2])
 
-            for n, (pt_frag, py_frag) in enumerate(zip(frags, pyteomics_fragments[i][::-1])):
+            for n, (pt_frag, py_frag) in enumerate(zip(frags, pyteomics_fragments[i][::-1], strict=False)):
                 try:
                     self.assertAlmostEqual(
                         pt_frag.mz,

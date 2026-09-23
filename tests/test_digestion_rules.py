@@ -56,7 +56,6 @@ class TestMissedCleavages:
         assert counts[0] < counts[-1]
 
     def test_missed_cleavage_peptides_are_superset(self):
-        ann = pt.parse("AKBKCK")
         p0 = set(_peptides("AKBKCK", cleave_on="K", missed_cleavages=0))
         p1 = set(_peptides("AKBKCK", cleave_on="K", missed_cleavages=1))
         assert p0.issubset(p1)

@@ -320,7 +320,7 @@ class TestGlobalChargeCarrierFromString:
     def test_carrier_with_fractional_occurrence(self):
         """Test parsing charge carrier with fractional occurrence"""
         with pytest.raises(ValueError):
-            carrier = pt.GlobalChargeCarrier.from_string("Na:z+1^1.5")
+            pt.GlobalChargeCarrier.from_string("Na:z+1^1.5")
 
     def test_round_trip(self):
         """Test round-trip conversion"""

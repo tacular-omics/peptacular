@@ -113,7 +113,7 @@ class TestDigest(unittest.TestCase):
             semi=False,
         )
         peptides = {annotation[span].serialize() for span in spans}
-        expected = {"TIDER", "TIDERTIDEK", "TIDEK", "TIDEKTIDEK", "TIDEK"}
+        expected = {"TIDER", "TIDERTIDEK", "TIDEK", "TIDEKTIDEK"}
         self.assertEqual(peptides, expected)
 
     def test_digest_protein_with_double_k(self):
@@ -290,7 +290,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("PEPT")
         spans = annotation.nonspecific_spans()
         sequences = {annotation[span].serialize() for span in spans}
-        expected = {"P", "E", "P", "T", "PE", "EP", "PT", "PEP", "EPT", "PEPT"}
+        expected = {"P", "E", "T", "PE", "EP", "PT", "PEP", "EPT", "PEPT"}
         self.assertEqual(sequences, expected)
 
     def test_non_enzymatic_sequences_min_1_max_2(self):
@@ -298,7 +298,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("PEPT")
         spans = annotation.nonspecific_spans(min_len=1, max_len=2)
         sequences = {annotation[span].serialize() for span in spans}
-        expected = {"P", "E", "P", "T", "PE", "EP", "PT"}
+        expected = {"P", "E", "T", "PE", "EP", "PT"}
         self.assertEqual(sequences, expected)
 
     def test_non_enzymatic_sequences_min_2_max_4(self):
@@ -422,7 +422,7 @@ class TestDigest(unittest.TestCase):
         spans = annotation.sequential_digest(enzyme_configs=[trypsin, asp_n])
         peptides = {annotation[span].serialize() for span in spans}
 
-        expected = {"P", "DER", "EK", "PK", "P"}
+        expected = {"P", "DER", "EK", "PK"}
         self.assertEqual(peptides, expected)
 
     def test_sequential_digest_partial_digestion(self):
