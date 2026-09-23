@@ -8,6 +8,7 @@
   [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml)
   [![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
   [![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15054278.svg)](https://doi.org/10.5281/zenodo.15054278)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
   
