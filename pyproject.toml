@@ -36,7 +36,7 @@ Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
 DOI = "https://doi.org/10.5281/zenodo.15054278"
 
 [project.optional-dependencies]
-mcp = ["mcp>=2.1.1,<2.2", "pydantic>=2.13,<3"]
+mcp = ["mcp>=2.1.1,<2.3", "pydantic>=2.13,<3"]
 pyteomics = ["pyteomics>=5.0"]
 psm-utils = ["psm-utils>=1.0"]
 alphabase = ["alphabase>=1.9"]
