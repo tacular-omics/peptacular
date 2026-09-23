@@ -27,10 +27,11 @@ Key entry points:
 just install        # uv sync --all-extras (dev + all extras)
 just test           # uv run pytest tests/          (~2860 tests, ~15 s)
 just test-cov       # pytest with branch coverage + scripts/check_branch_coverage.py (min 79%)
-just lint           # ruff check src/    (CI runs `ruff check src tests`)
+just lint           # ruff check src/ tests/ (same as CI)
+just format-check   # ruff format --check src/ tests/ (same as CI)
 just format         # ruff isort + F401 fix + format on src/tests/profile  -- WRITES FILES
 just ty             # ty check src/
-just check          # lint + test + ty  (no format check; CI also runs `ruff format --check src tests`)
+just check          # lint + format-check + test + ty
 just docs           # sphinx-build -W docs -> docs/_build/html
 just docs-test      # sphinx doctest build (the rst testcode blocks; 16 tests)
 just examples       # run every examples/*.py (CI runs this)

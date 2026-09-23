@@ -38,9 +38,13 @@ clean:
     find . -type f -name "*.pyo" -delete
     find . -type f -name ".coverage" -delete
 
-# Run linter
+# Run linter (same scope as CI)
 lint:
-    uv run ruff check src/
+    uv run ruff check src/ tests/
+
+# Check formatting without writing files (same as CI)
+format-check:
+    uv run ruff format --check src/ tests/
 
 # Format code
 format:
@@ -52,9 +56,10 @@ format:
 ty:
     uv run ty check src/
 
-# Run lint and tests
+# Run lint, format check, tests and type checking
 check:
     just lint
+    just format-check
     just test
     just ty
 
