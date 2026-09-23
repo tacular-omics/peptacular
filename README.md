@@ -2,120 +2,142 @@
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/tacular-omics/peptacular/main/peptacular_logo.png" alt="Peptacular Logo" width="400" style="margin: 20px;"/>
-  
-  A Python package for peptide sequence analysis built around **ProForma 2.1 notation**. Calculate masses, generate fragments, predict isotopic patterns, and more. Peptacular uses type annotations extensively, so it is type safe.
-  
-  [![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml)
-  [![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
-  [![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
-  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15054278.svg)](https://doi.org/10.5281/zenodo.15054278)
-  [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
-  
+
+[![Python package](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml/badge.svg)](https://github.com/tacular-omics/peptacular/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/tacular-omics/peptacular/graph/badge.svg?token=1CTVZVFXF7)](https://codecov.io/github/tacular-omics/peptacular)
+[![PyPI version](https://badge.fury.io/py/peptacular.svg)](https://badge.fury.io/py/peptacular)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15054278.svg)](https://doi.org/10.5281/zenodo.15054278)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-g.svg)](https://opensource.org/licenses/MIT)
+
 </div>
 
-### Documentation/ Examples
+Peptacular parses [ProForma 2.1](https://github.com/HUPO-PSI/ProForma) peptide
+sequences and calculates their masses, fragments, and isotopic distributions.
+It's for anyone working with peptide-level proteomics data in Python who wants
+exact masses and fragment ions without hand-rolling ProForma parsing and mass
+tables. It's built on [tacular](https://github.com/tacular-omics/tacular)'s
+lookup data, and its fragments export directly as mzPAF strings readable by
+[paftacular](https://github.com/tacular-omics/paftacular).
 
-[ReadTheDocs](https://peptacular.readthedocs.io/en/latest/index.html)
+## Why peptacular?
 
-## Features
+- **Full ProForma 2.1 parsing** into a chainable, editable `ProFormaAnnotation`
+  object — or use the functional API directly on strings.
+- **Mass, m/z, composition, and predicted isotopic distributions**, with
+  monoisotopic and average mass support.
+- **Enzymatic digestion** with missed cleavages, semi-specific, and
+  non-specific modes.
+- **Fragment ion generation** for 20+ ion types, exportable straight to
+  mzPAF strings for [paftacular](https://github.com/tacular-omics/paftacular).
+- **Batch-friendly**: functional API calls on lists of sequences parallelize
+  automatically, with streaming FASTA/gzip input and per-item error collection.
+- **Type-annotated throughout**, plus optional Pyteomics, psm_utils, AlphaBase,
+  and MCP integrations.
 
-- **ProForma 2.1 Parsing**
-- **Modifiable ProFormaAnnotation Objects (Factory Pattern)**
-- **Mass/Mz/Composition Calculations**
-- **Predicted Isotopic Distributions**
-- **Enzymatic Protein Digestion** 
-- **Fragment Ion Generation** 
-- **Physiochemical Property Calculations** 
-- **Streaming FASTA and Gzip Input**
-- **Indexed Batch Results and Input Diagnostics**
-- **Versioned JSON Serialization**
-- **Optional Pyteomics, psm_utils, and AlphaBase Integrations**
-- **Built-in Parallel Processing** 
-
-## Installation
+## Install
 
 ```bash
 pip install peptacular
 ```
 
-Optional package adapters can be installed separately:
+Optional integrations install as extras:
 
 ```bash
 pip install "peptacular[pyteomics]"
 pip install "peptacular[psm-utils]"
 pip install "peptacular[alphabase]"
+pip install "peptacular[mcp]"
 ```
 
 See the [interoperability guide](https://peptacular.readthedocs.io/en/latest/interoperability.html)
-and [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html)
-for supported conversions and examples.
+for supported conversions.
 
-## Quick Start (Object Based)
-
-See docs for more detail.
+## Quick example
 
 ```python
 import peptacular as pt
 
 # Parse a sequence into a ProFormaAnnotation
-peptide: pt.ProFormaAnnotation = pt.parse("PEM[Oxidation]TIDE")
+peptide = pt.parse("PEM[Oxidation]TIDE")
 
 # Calculate mass and m/z
-mass: float = peptide.mass() # 849.343
-mz: float = peptide.mz(charge=2) # 425.679
+print(peptide.mass())              # 849.3426002717299
+print(peptide.mz(charge=2))        # 425.67857658818554
 
-# Chained edits modify the annotation
+# Chained edits return a modified annotation
 print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())
 # (>Peptacular)PEM[Oxidation]TIDE/2
 ```
 
+## What else it can do
 
-## Quick Start (Functional Based)
-
-Small lists run sequentially. Larger lists automatically use parallel execution, with explicit backend and worker overrides available.
+Digest a protein and generate fragment ions that round-trip through
+[paftacular](https://github.com/tacular-omics/paftacular)'s mzPAF parser:
 
 ```python
 import peptacular as pt
 
-peptides = ['[Acetyl]-PEPTIDES', '<13C>ARE', 'SICK/2']
+trypsin = pt.PROTEASE_LOOKUP["trypsin"]
+peptides = pt.digest("MKVLATSAGERTIDEK", enzyme_regex=trypsin.regex, missed_cleavages=1)
+print([seq for seq, _ in peptides])
+# ['MK', 'MKVLATSAGER', 'VLATSAGER', 'VLATSAGERTIDEK', 'TIDEK']
 
-# Calculate mass and m/z for all peptides
-masses: list[float] = pt.mass(peptides) # [928.4026, 388.2384, 451.2454]
-mzs: list[float] = pt.mz(peptides, charge=2) # [465.2086, 195.1265, 225.6227]
+fragments = pt.fragment("PEPTIDE", ion_types=("b", "y"), charges=[1])
+print(fragments[1].to_mzpaf())  # b2{PE}
 ```
 
-
-For streaming input, optional batch error collection, and operation diagnostics,
-see the [streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html).
+The functional API operates on lists directly, auto-parallelizing for larger
+batches:
 
 ```python
-results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE"], errors="collect")
-print(results[0].value)
-print(results[1].error.code)  # unresolved_modification
+import peptacular as pt
+
+peptides = ["[Acetyl]-PEPTIDES", "<13C>ARE", "SICK/2"]
+print(pt.mass(peptides))               # [928.4025574375299, 388.23835027296, 451.245357946571]
+print(pt.mz(peptides, charge=2))       # [465.20855517108555, 195.12645158880056, 225.6226789732855]
 ```
+
+For streaming input and per-item error collection instead of a raised
+exception, see the [streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html):
+
+```python
+import peptacular as pt
+
+results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE"], errors="collect")
+print(results[0].value)                # 799.3599640328299
+print(results[1].error.code)           # unresolved_modification
+```
+
+| Area | Entry points |
+|---|---|
+| Digestion | `pt.digest`, `pt.semi_digest`, `pt.nonspecific_digest` |
+| Fragmentation | `pt.fragment`, `pt.fast_fragment` |
+| Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
+| FASTA / streaming | `pt.fasta`, `pt.batch`, `pt.iter_batch` |
+| JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |
 
 ## Local MCP integration
 
 Peptacular includes 12 optional MCP tools for agents to inspect annotations,
-calculate theoretical properties, digest protein sequences, and transform annotations.
-Calls accept small inline batches and return results directly, with no stored data or job setup.
-Install with `pip install "peptacular[mcp]"`, then check the installation:
+calculate theoretical properties, digest protein sequences, and transform
+annotations. Calls accept small inline batches and return results directly,
+with no stored data or job setup. Install with `pip install "peptacular[mcp]"`,
+then check the installation:
 
 ```text
 peptacular-mcp --check
 ```
 
-See the [local MCP guide](docs/mcp.rst) for Claude Code setup, tool examples, limits,
-and the boundary with Spectacular's spectrum handling.
+See the [local MCP guide](https://github.com/tacular-omics/peptacular/blob/main/docs/mcp.rst)
+for client setup, tool examples, and limits.
 
-## ProForma 2.1 Compliance
+## Documentation
 
-See [PROFORMA_COMPLIANCE.md](PROFORMA_COMPLIANCE.md) for detailed compliance status.
-
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on setting up the development environment, code style, testing, and submitting pull requests.
+- Full docs: [peptacular.readthedocs.io](https://peptacular.readthedocs.io/en/latest/index.html)
+- Changelog: [CHANGELOG.md](https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md)
+- ProForma 2.1 compliance status: [PROFORMA_COMPLIANCE.md](https://github.com/tacular-omics/peptacular/blob/main/PROFORMA_COMPLIANCE.md)
+- Contributing: [CONTRIBUTING.md](https://github.com/tacular-omics/peptacular/blob/main/CONTRIBUTING.md)
 
 ## License
 
