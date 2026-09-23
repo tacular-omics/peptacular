@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [4.1.0] (2026-09-23)
+
 ### Fixed
 - `pt.get_mods` is the documented functional `get_mods(sequence, mods)` again. The internal `peptacular.utils.get_mods` (a `ModType` list helper) had shadowed it through the star imports.
 - `chem`, `constants`, `regex_utils`, `spans` and `utils` define `__all__`, so `from peptacular import *` and `pt.` no longer expose stdlib/typing helpers (`re`, `sys`, `Counter`, `Sequence`, `Final`, ...).

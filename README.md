@@ -114,7 +114,7 @@ print(results[1].error.code)           # unresolved_modification
 | Digestion | `pt.digest`, `pt.semi_digest`, `pt.nonspecific_digest` |
 | Fragmentation | `pt.fragment`, `pt.fast_fragment` |
 | Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
-| FASTA / streaming | `pt.fasta`, `pt.batch`, `pt.iter_batch` |
+| FASTA / streaming | `pt.parse_fasta`, `pt.iter_fasta`, `pt.batch`, `pt.iter_batch` |
 | JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |
 
 ## Local MCP integration
