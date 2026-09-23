@@ -1,0 +1,714 @@
+# peptacular
+
+> ProForma 2.1 peptide sequence library for Python: parse and serialize ProForma,
+> edit modifications, and calculate mass, m/z, elemental composition, fragment ions
+> (exportable as mzPAF), isotopic envelopes, enzymatic digests and physicochemical
+> properties. Built on tacular's reference data.
+
+This is the complete usage guide for tools and agents that *use* peptacular. It is
+self-contained: the public names, their signatures, and working examples (every
+`python` block below was run against the version described). To work *on*
+peptacular itself, read CLAUDE.md in the repository instead.
+
+- Repository: https://github.com/tacular-omics/peptacular
+- Docs: https://peptacular.readthedocs.io/en/latest/
+- PyPI: https://pypi.org/project/peptacular/
+- Version described: 4.0.x
+- ProForma spec: https://github.com/HUPO-PSI/ProForma
+
+## Install
+
+```bash
+pip install peptacular              # or: uv add peptacular
+pip install "peptacular[mcp]"       # local MCP server (peptacular-mcp)
+pip install "peptacular[pyteomics]" # also: psm-utils, alphabase; "interop" installs all three
+```
+
+Requires Python >= 3.12. The one runtime dependency is `tacular` (`>=1.1.0,<2`).
+Ships `py.typed`.
+
+Import it as `pt`. Everything public is on the top-level namespace, including every
+tacular lookup (`pt.UNIMOD_LOOKUP`, `pt.PROTEASE_LOOKUP`, `pt.AA_LOOKUP`, `pt.IonType`,
+...), because `peptacular/__init__.py` runs `from tacular import *`.
+
+## Core idea
+
+There are two equivalent APIs:
+
+1. **Object API**: `pt.parse(s)` returns a `ProFormaAnnotation`. It is mutable. Its
+   methods edit modifications, slice, and calculate.
+2. **Functional API**: `pt.mass(x)`, `pt.fragment(x)`, `pt.digest(x)`, ... take a
+   ProForma string, a `ProFormaAnnotation`, or a list of either. A list input returns a
+   list. Lists of 1000 or more items run in a process pool automatically.
+
+```python
+import peptacular as pt
+
+peptide = pt.parse("PEM[Oxidation]TIDE")
+print(peptide.mass())                   # 849.3426002717299
+print(peptide.mz(charge=2))             # 425.67857658818554
+print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())  # (>Peptacular)PEM[Oxidation]TIDE/2
+
+print(pt.mass("PEM[Oxidation]TIDE"))    # 849.3426002717299
+print(pt.mass(["PEPTIDE", "SICK/2"]))   # [799.3599640328299, 451.245357946571]
+```
+
+Masses are in daltons. `mass()` is the mass of the ion, including any charge: a `/2`
+annotation adds two protons. `neutral_mass()` is the uncharged mass, and `mz()` is
+m/z.
+
+## ProForma in one screen
+
+| syntax | meaning |
+|---|---|
+| `PEM[Oxidation]TIDE` | named mod on M (UNIMOD/PSI-MOD name lookup) |
+| `PEM[UNIMOD:35]TIDE`, `[MOD:00046]`, `[R:...]`, `[G:...]`, `[X:...]` | CV accession / prefixed name |
+| `PEM[+15.9949]TIDE` | delta mass (no composition) |
+| `PEP[Formula:HO3P]TIDE` | formula |
+| `N[Glycan:HexNAc1Hex2]` | glycan composition |
+| `[Acetyl]-PEPTIDE-[Amidated]` | N-/C-terminal mods |
+| `<[Carbamidomethyl]@C>PEPTCIDE` | fixed (static) mod |
+| `<13C>PEPTIDE` | global isotope replacement |
+| `{Glycan:Hex}PEPTIDE` | labile mod |
+| `[Phospho]?PEPTIDE` | unknown-position mod |
+| `PE(PT)[Phospho]IDE` | mod on an interval |
+| `PEPT[Phospho#1]IDES[#1]` | ambiguous-position group |
+| `PEPTIDE/2`, `PEPTIDE/[Na:z+1,H:z+1]` | charge, explicit charge carriers |
+| `(>name)PEPTIDE` | peptide name (also `(>>ion)`, `(>>>compound)`) |
+| `PEPTIDE/2+ELVIS/3` | chimeric (use `parse_chimeric`) |
+
+Compliance status: https://github.com/tacular-omics/peptacular/blob/main/PROFORMA_COMPLIANCE.md
+
+## Parse, validate, serialize
+
+```
+parse(s: str | Sequence[str], validate: bool = False, *PAR) -> ProFormaAnnotation | list[ProFormaAnnotation]
+parse_chimeric(s: str | Sequence[str], validate: bool = False, *PAR) -> list[ProFormaAnnotation] | list[list[...]]
+serialize(sequence: SEQS, *PAR) -> str | list[str]
+serialize_chimeric(sequence: Sequence[ProFormaAnnotation | str] | Sequence[Sequence[...]], *PAR) -> str | list[str]
+validate(sequence: SEQS, *PAR) -> bool | list[bool]         # False if any mod does not resolve
+join(annotations, *PAR) -> str | list[str]                    # concatenate annotations
+split(sequence: SEQS, *PAR) -> list[str] | list[list[str]]    # one string per residue
+```
+
+Signature shorthand used in this file:
+
+- `SEQS` = `str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation]`.
+- `*PAR` = the keyword arguments `n_workers: int | None = None`,
+  `chunksize: int | None = None`, and
+  `method: "process" | "thread" | "sequential" | None = None`.
+- `ION` = an `IonType` or its string: `"p"` (precursor), `"n"` (neutral), `"a"`, `"b"`,
+  `"c"`, `"x"`, `"y"`, `"z"`, `"z."`, `"z+H"`, `"c-H"`, `"i"` (immonium), `"d"`, `"w"`,
+  `"v"` and their variants, plus internal types `"by"`, `"ax"`, `"cz"`, and others.
+- `CHARGE` = an `int`, a carrier string such as `"Na:z+1"`, or a list of carrier
+  strings such as `["Na:z+1", "H:z+1"]`.
+
+`parse` checks syntax only. Modifications are looked up in tacular when you calculate
+something. Pass `validate=True` to check them during parsing.
+
+```python
+import peptacular as pt
+
+a = pt.parse("[Acetyl]-PEM[Oxidation]TIDE/2")
+print(a.stripped_sequence, a.charge_state)   # PEMTIDE 2
+print(a.nterm_mods)                          # Mods@Nterm([Acetyl])
+print(a.internal_mods)                       # {2: Mods(mod_type=<ModType.INTERNAL: 'internal'>, _mods={'Oxidation': 1})}
+print(a.serialize())                         # [Acetyl]-PEM[Oxidation]TIDE/2
+
+print(pt.validate("PEP[Foo]TIDE"))           # False
+try:
+    pt.parse("PEP[Foo]TIDE", validate=True)
+except ValueError as e:
+    print(type(e).__name__)                  # ValueError
+
+print(pt.parse_chimeric("PEPTIDE/2+ELVIS/3"))  # [ProFormaAnnot(sequence=PEPTIDE, charge=2), ProFormaAnnot(sequence=ELVIS, charge=3)]
+```
+
+## ProFormaAnnotation
+
+```
+ProFormaAnnotation(sequence: str | None = None, compound_name=None, ion_name=None, peptide_name=None,
+                   isotope_mods=None, static_mods=None, labile_mods=None, unknown_mods=None,
+                   nterm_mods=None, cterm_mods=None, internal_mods: dict[int, Any] | None = None,
+                   intervals: list[Interval] | None = None, charge=None, validate: bool = False)
+```
+
+The class has about 200 methods. They follow a regular naming scheme, so learn the
+pattern:
+
+- **Modification types** (`ModType` / string): `nterm`, `cterm`, `internal` (per index),
+  `static` (fixed `<...@C>`), `isotope` (`<13C>`), `labile` (`{...}`), `unknown` (`[...]?`),
+  `interval`, `charge`.
+- **Per type**: each type has `<type>_mods` (property), `has_<type>_mods`,
+  `set_<type>_mods`, `append_<type>_mod`, `extend_<type>_mods`, `remove_<type>_mod`,
+  `pop_<type>_mods`, `clear_<type>_mods`, `validate_<type>_mods`, and `<type>_mods_str`.
+- **Internal mods** are indexed by residue: `set_internal_mods_at_index(i, mods)`,
+  `append_internal_mod_at_index(i, mod)`, `get_internal_mods_at_index(i)`,
+  `pop_internal_mod_at_index(i)`, `clear_internal_mod_at_index(i)`.
+- **Mod values** can be a name (`"Oxidation"`), an accession (`"UNIMOD:35"`), a number
+  (`15.9949`), a ProForma tag string, or a `{mod: count}` dict.
+- **In place by default.** Every mutator takes `inplace: bool = True` and returns the
+  annotation. That is itself, or a copy when `inplace=False`, so calls chain.
+- **Other state**: `sequence`, `stripped_sequence`, `charge`, `charge_state`,
+  `charge_adducts`, `peptide_name`, `ion_name`, `compound_name`, `set_charge`,
+  `set_peptide_name`, `set_sequence`, `copy()`, `has_mods`, `strip_mods`, `update`.
+- **Calculations**: `mass`, `neutral_mass`, `mz`, `comp`, `fragment`, `frag`,
+  `fast_fragment`, `isotopic_distribution`, `estimate_isotopic_distribution`, `prop`.
+- **Slicing**: `annot[i:j]`, `annot[span]`, `slice`, `slice_by_span`,
+  `sliding_windows`. Mods travel with their residues.
+- **Digestion**: `digest(enzyme, missed_cleavages=0, semi=False, min_len=None,
+  max_len=None)` yields `Span`s. Also `simple_digest`, `semi_spans`,
+  `nonspecific_spans`, `cleavage_sites`, `sequential_digest`.
+- **Conversion**: `to_dict` / `from_dict`, `to_json` / `from_json`, `to_ms2_pip` /
+  `from_ms2_pip`, `to_diann` / `from_diann`, `to_casanovo` / `from_casanovo`,
+  `to_ip2` / `from_ip2_sequence`.
+
+```python
+import peptacular as pt
+
+annot = pt.ProFormaAnnotation(sequence="PEPTIDE")
+annot.set_nterm_mods({"Acetyl": 1})
+annot.set_internal_mods_at_index(2, {"Oxidation": 1})
+annot.set_charge(2)
+print(annot.serialize())                               # [Acetyl]-PEP[Oxidation]TIDE/2
+
+base = pt.parse("PEPTIDE")
+copy = base.set_charge(3, inplace=False)
+print(base.serialize(), copy.serialize())             # PEPTIDE PEPTIDE/3
+
+b = pt.parse("PEM[Oxidation]TIDEK")
+print(b[1:4].serialize())                             # EM[Oxidation]T
+print(b.has_internal_mods, b.strip_mods().serialize())  # True PEMTIDEK
+```
+
+## Mass, m/z, composition
+
+```
+mass(sequence: SEQS, ion_type: ION = "p", charge: CHARGE | None = None, monoisotopic: bool = True,
+     isotopes: int | dict[str | ElementInfo, int] | None = None,
+     deltas: str | ChargedFormula | float | dict[..., int] | None = None,
+     calculate_with_composition: bool = False, *PAR) -> float | list[float]
+mz(...same as mass...) -> float | list[float]
+comp(sequence: SEQS, ion_type: ION = "p", charge=None, isotopes=None, deltas=None, *PAR)
+     -> Counter[ElementInfo] | list[Counter[ElementInfo]]
+ProFormaAnnotation.neutral_mass(ion_type="p", monoisotopic=True, *, isotopes=None, deltas=None, ...) -> float
+```
+
+- `charge=None` uses the annotation's own charge. If it has none, the result is the
+  neutral mass.
+- `isotopes=1` adds one 13C-12C spacing. A dict such as `{"13C": 2}` replaces specific
+  isotopes.
+- `deltas` adds or removes a formula or a mass, for example `{"H-2O-1": 1}` for a water
+  loss or `-17.0265`.
+- `ion_type="y"` or `"b"` gives the mass of the whole sequence as that fragment type.
+
+```python
+import peptacular as pt
+
+p = pt.parse("PEPTIDE/2")
+print(p.mass(), p.neutral_mass(), p.mz())         # 801.3745169374711 799.3599640328299 400.68725846873554
+print(pt.mass("PEPTIDE", charge=2))               # 801.3745169374711
+print(pt.mass("PEPTIDE", monoisotopic=False))     # 799.8238767988298
+print(pt.mass("PEPTIDE", ion_type="y", charge=1)) # 800.3672404851504
+print(pt.mz("PEPTIDE", charge="Na:z+1"))          # 822.3491847349204
+print(round(pt.mass("PEPTIDE", deltas={"H-2O-1": 1}), 4))  # 781.3494
+print(round(pt.mass("PEPTIDE", isotopes=1), 4))   # 800.3633
+
+print(pt.chem_formula(pt.comp("PEPTIDE")))        # C34H53N7O15
+print(pt.mass("PEP[+15.995]TIDE"))                # 815.3549640328299
+try:
+    pt.comp("PEP[+15.995]TIDE")
+except pt.CompositionError as e:
+    print(e)                                      # Cannot calculate composition with delta mass changes. Use mass() or mz() instead.
+```
+
+Chemistry helpers work on formulas, not peptides:
+
+```
+chem_mass(formula: str | Mapping[ElementInfo | str, int] | Sequence[...], monoisotopic: bool = True, *PAR) -> float | list[float]
+chem_comp(formula, *PAR) -> Counter[ElementInfo] | list[...]
+chem_formula(comp, hill_order: bool = True, sep: str = "", include_formula_prefix: bool = False, *PAR) -> str | list[str]
+parse_formula(formula, sep: str = "", *PAR) -> Counter[ElementInfo] | list[...]
+add_composition(total: Counter[ElementInfo], other: Mapping[ElementInfo, int]) -> None   # in place
+merge_compositions(components: Iterable[HasMassComp]) -> Counter[ElementInfo]
+```
+
+```python
+import peptacular as pt
+
+print(pt.chem_mass("C2H4O2"))                     # 60.02112936806
+print(pt.chem_formula(pt.chem_comp("H2O")))       # H2O
+```
+
+## Fragments
+
+```
+fragment(sequence: SEQS, ion_types: Sequence[ION] = ("b", "y"), charges: Sequence[CHARGE] | None = None,
+         monoisotopic: bool = True, isotopes: Sequence[int | dict | None] = (0,),
+         deltas: Sequence[... | None] = (None,), neutral_deltas: Sequence[NeutralDelta | str | None] = (),
+         calculate_composition: bool = False, max_ndeltas: int = 1, *PAR) -> list[Fragment] | list[list[Fragment]]
+frag(...)            # annotation method: one Fragment for the whole sequence as ion_type
+fast_fragment(sequence: SEQS, ion_types=("b", "y"), charges: Sequence[int] | None = None,
+              monoisotopic: bool = True, *PAR) -> dict[tuple[IonType, int], list[float]] | list[dict]
+```
+
+`fragment` returns the full product of ion types, positions, charges, isotopes and
+deltas. `charges=None` uses the peptide's own charge, or 1 if it has none.
+`neutral_deltas` names tacular neutral losses (`"H2O"`, `"NH3"`, `"H3PO4"`, ...).
+
+`Fragment` fields: `ion_type`, `position` (an int, or a `(start, end)` tuple for internal
+ions), `mass`, `monoisotopic`, `charge_state`, `charge_adducts`, `isotopes`, `deltas`,
+`composition`, `parent_sequence`. Properties: `mz`, `neutral_mass`, `sequence`,
+`losses`, `is_c13`, `is_protonated`. Methods: `to_mzpaf()` returns an mzPAF string that
+`paftacular` can parse, and `asdict()`.
+
+`fast_fragment` skips `Fragment` objects and returns m/z lists keyed by
+`(IonType, charge)`. It agrees with `fragment` to about 1e-8 Da.
+
+```python
+import peptacular as pt
+
+frags = pt.fragment("PEPTIDE", ion_types=("b", "y"), charges=[1])
+print(len(frags), frags[0])                       # 14 Fragment(ion_type=b, position=1, mass=98.0600, charge=1)
+print(frags[1].to_mzpaf())                        # b2{PE}
+
+peptide = pt.parse("PEM[Oxidation]TIDE/2")
+for f in peptide.fragment(ion_types=["b", "y"], charges=[1, 2])[:3]:
+    print(f"{f.ion_type}{f.position}+{f.charge_state}: {f.mz:.3f}")
+# b1+1: 98.060
+# b2+1: 227.103
+# b3+1: 374.138
+
+fast = pt.fast_fragment("PEPTIDE", ion_types=("b",), charges=[1])
+print([round(x, 3) for x in fast[(pt.IonType.B, 1)]][:3])  # [98.06, 227.103, 324.155]
+```
+
+## Digestion
+
+```
+digest(sequence: SEQS, enzyme_regex: str, missed_cleavages: int = 0, semi: bool = False,
+       min_len: int | None = None, max_len: int | None = None, *, *PAR) -> list[tuple[str, Span]] | list[list[...]]
+simple_digest(sequence: SEQS, cleave_on: str, restrict_before: str = "", restrict_after: str = "",
+              cterminal: bool = True, missed_cleavages: int = 0, semi: bool = False,
+              min_len=None, max_len=None, *, *PAR) -> list[tuple[str, Span]] | ...
+semi_digest / left_semi_digest / right_semi_digest / nonspecific_digest
+             (sequence: SEQS, min_len=None, max_len=None, *PAR) -> list[tuple[str, Span]] | ...
+cleavage_sites(sequence: SEQS, enzyme_regex: str, *PAR) -> list[int] | list[list[int]]
+simple_cleavage_sites(sequence: SEQS, cleave_on: str, restrict_before="", restrict_after="", cterminal=True, *PAR)
+span_to_sequence(sequence: SEQS, span: Span | tuple[int, int, int], *PAR) -> str | list[str]
+Span(start: int, end: int, missed_cleavages: int)                         # NamedTuple, end exclusive
+EnzymeConfig(enzyme_regex: str, missed_cleavages: int = 0, semi_enzymatic: bool = False, complete_digestion=..., ...)
+build_spans / build_enzymatic_spans(max_index, enzyme_sites, missed_cleavages, min_len=None, max_len=None, semi=False)
+build_semi_spans / build_left_semi_spans / build_right_semi_spans / build_non_enzymatic_spans(span, min_len=None, max_len=None)
+calculate_span_coverage(spans, max_index: int, accumulate: bool = False) -> list[int]
+```
+
+`enzyme_regex` takes a regex or a tacular protease name (`"trypsin"`). You can also pass
+`pt.PROTEASE_LOOKUP["trypsin"].regex` or a `pt.Proteases` member. Modified residues keep
+their mods in the returned strings.
+
+```python
+import peptacular as pt
+
+print(pt.digest("MKVLATSAGERTIDEK", enzyme_regex="trypsin"))
+# [('MK', Span(start=0, end=2, missed_cleavages=0)), ('VLATSAGER', Span(start=2, end=11, missed_cleavages=0)), ('TIDEK', Span(start=11, end=16, missed_cleavages=0))]
+
+trypsin = pt.PROTEASE_LOOKUP["trypsin"]
+peps = pt.digest("MKVLATSAGERTIDEK", enzyme_regex=trypsin.regex, missed_cleavages=1)
+print([s for s, _ in peps])          # ['MK', 'MKVLATSAGER', 'VLATSAGER', 'VLATSAGERTIDEK', 'TIDEK']
+
+print([s for s, _ in pt.simple_digest("MKVLATSAGERTIDEK", cleave_on="KR")])  # ['MK', 'VLATSAGER', 'TIDEK']
+print(pt.cleavage_sites("MKVLATSAGERTIDEK", enzyme_regex="trypsin"))           # [2, 11]
+
+protein = pt.parse("PEM[Oxidation]TREPTIDEK")
+for span in protein.digest(pt.Proteases.TRYPSIN):
+    print(span, protein[span].serialize())
+# Span(start=0, end=5, missed_cleavages=0) PEM[Oxidation]TR
+# Span(start=5, end=12, missed_cleavages=0) EPTIDEK
+```
+
+## Isotopic envelopes
+
+```
+isotopic_distribution(annotations: SEQS, ion_type: ION = "p", charge=None, isotopes=None, deltas=None,
+                      max_isotopes: int | None = None, min_abundance_threshold: float = 0.001, *PAR)
+                      -> list[IsotopicData] | list[list[IsotopicData]]
+brain_isotopic_distribution(chemical_formula: Mapping[str | ElementInfo, int | float], max_isotopes=None,
+                            min_abundance_threshold: float = 0.001, charge_state: int | None = None) -> list[IsotopicData]
+estimate_isotopic_distribution(neutral_mass: float, max_isotopes=None, min_abundance_threshold=0.001) -> list[IsotopicData]
+merge_isotopic_distributions(*distributions: list[IsotopicData], merge_precision: int | None = None) -> list[IsotopicData]
+averagine_comp(neutral_mass: float) -> Counter[ElementInfo]              # nearest integer averagine
+estimate_averagine_comp(neutral_mass: float, ion_type: ION = "p") -> Mapping[ElementInfo, float]
+IsotopicData(mass: float, neutron_count: int, abundance: float)          # abundance relative to the max peak
+```
+
+This uses the BRAIN algorithm. The result has one aggregated peak per nominal neutron
+offset, at its exact probability-weighted center mass. If `max_isotopes` is omitted,
+the envelope is sized adaptively down to `min_abundance_threshold`. Modifications
+without a composition (delta masses) cannot be used; use
+`estimate_isotopic_distribution(mass)` for those.
+
+```python
+import peptacular as pt
+
+for peak in pt.isotopic_distribution("PEPTIDE", max_isotopes=3):
+    print(peak.neutron_count, round(peak.mass, 4), round(peak.abundance, 4))
+# 0 799.36 1.0
+# 1 800.363 0.4051
+# 2 801.3655 0.1108
+
+print(pt.estimate_isotopic_distribution(1000.0, max_isotopes=2)[1].neutron_count)  # 1
+```
+
+## Modifications on strings (functional)
+
+```
+modify(sequence, *, nterm_static=None, cterm_static=None, internal_static=None, labile_static=None,
+       nterm_variable=None, cterm_variable=None, internal_variable=None, labile_variable=None,
+       max_variable_mods: int = 2, use_regex: bool = False, unique_peptidoforms: bool = False, *PAR)
+       -> list[str] | list[list[str]]          # mappings are {residue_or_None: [mods]}
+set_mods / append_mods / extend_mods(sequence: str | ProFormaAnnotation, mods: Mapping[ModType | str | int, Any]) -> str
+pop_mods(sequence, mods: ModType | Iterable[ModType] | None = None) -> tuple[str, dict[ModType, Any]]
+remove_mods / filter_mods(sequence, mods=None) -> str       # remove these types / keep only these types
+strip_mods(sequence: SEQS, mods=None) -> str | list[str]     # bare residues
+condense_static_mods(sequence) -> str                        # apply <...@X> to residues
+condense_to_peptidoform(sequence: SEQS) -> str | list[str]
+is_modified(sequence: SEQS, *PAR) -> bool | list[bool]
+get_mods(mods) -> list[ModType]; get_mod_type(mod) -> ModType
+```
+
+```python
+import peptacular as pt
+
+print(pt.strip_mods("[Acetyl]-PEM[Oxidation]TIDE/2"))   # PEMTIDE
+print(pt.is_modified(["PEPTIDE", "PEM[Oxidation]TIDE"]))  # [False, True]
+print(pt.modify("PEPTIDEMC", internal_static={"C": ["Carbamidomethyl"]}, internal_variable={"M": ["Oxidation"]}))
+# ['PEPTIDEMC[Carbamidomethyl]', 'PEPTIDEM[Oxidation]C[Carbamidomethyl]']
+print(pt.condense_static_mods("<[Carbamidomethyl]@C>PEPTCIDE"))  # PEPTC[Carbamidomethyl]IDE
+```
+
+## Sequence utilities
+
+```
+sequence_length(sequence: SEQS, *PAR) -> int | list[int]
+count_residues(sequence: SEQS, include_mods: bool = True, *PAR) -> dict[str, int] | list[...]
+percent_residues(sequence: SEQS, include_mods: bool = True, *PAR) -> dict[str, float] | list[...]
+is_ambiguous(sequence: SEQS, *PAR) -> bool | list[bool]
+reverse(sequence: SEQS, keep_nterm: int = 0, keep_cterm: int = 0, *PAR) -> str | list[str]
+shift(sequence: SEQS, n: int, keep_nterm: int = 0, keep_cterm: int = 0, *PAR) -> str | list[str]
+shuffle(sequence: SEQS, seed: int | None = None, keep_nterm: int = 0, keep_cterm: int = 0, *PAR) -> str | list[str]
+sort(sequence: SEQS, key=None, reverse: bool = False, *PAR) -> str | list[str]
+permutations / combinations / combinations_with_replacement(sequence: SEQS, size: int | None, *PAR) -> list[str] | ...
+product(sequence: SEQS, repeat: int | None, *PAR) -> list[str] | ...
+coverage(sequence, subsequences, accumulate=False, ignore_mods=False, ignore_ambiguity=False) -> list[int]
+percent_coverage(sequence, subsequences, ignore_mods=False, accumulate=False, ignore_ambiguity=False) -> float
+modification_coverage(sequence, subsequences, accumulate=False) -> dict[int, int]
+find_subsequence_indices(sequence, subsequence, ignore_mods: bool = False) -> list[int]
+is_subsequence(subsequence, sequence, order: bool = True, ignore_mods: bool = False) -> bool
+annotate_ambiguity(sequence, forward_coverage: list[int], reverse_coverage: list[int], mass_shift=None, ...) -> str
+generate_random(count: int | None = None, min_length=6, max_length=20, mod_probability=0.05, ..., require_composition=True, *PAR)
+               -> ProFormaAnnotation | list[ProFormaAnnotation]
+```
+
+```python
+import peptacular as pt
+
+print(pt.sequence_length("[Acetyl]-PEPTIDE"))             # 7
+print(pt.count_residues("PEPTIDE"))                       # {'P': 2, 'E': 2, 'T': 1, 'I': 1, 'D': 1}
+print(pt.reverse("PEPTIDEK", keep_cterm=1))               # EDITPEPK
+print(pt.coverage("PEPTIDEK", ["PEP", "DEK"]))            # [1, 1, 1, 0, 0, 1, 1, 1]
+print(pt.percent_coverage("PEPTIDEK", ["PEP"]))           # 0.375
+print(pt.find_subsequence_indices("PEPTIDEPEP", "PEP"))   # [0, 7]
+```
+
+## Physicochemical properties
+
+These use only the residue sequence. Modifications are ignored.
+
+```
+hydrophobicity / hydrophilicity / flexibility / hplc / polarity / mutability / bulkiness / refractivity /
+recognition_factors / transmembrane_tendency / surface_accessibility / average_buried_area / codons
+    (sequence: SEQS, *PAR) -> float | list[float]            # each uses a default scale
+pi(sequence: SEQS, *PAR) -> float | list[float]              # isoelectric point
+charge_at_ph(sequence: SEQS, pH: float = 7.0, *PAR) -> float | list[float]
+aromaticity(sequence: SEQS, aromatic_residues: list[str] | None = None, *PAR) -> float | list[float]
+aa_property_percentage(sequence: SEQS, residues: list[str], *PAR) -> float | list[float]
+secondary_structure(sequence: SEQS, scale=SecondaryStructureMethod.DELEAGE_ROUX, *PAR) -> dict[str, float] | list[...]
+alpha_helix_percent / beta_sheet_percent / beta_turn_percent / coil_percent(sequence: SEQS, *PAR)
+calc_property(sequence: SEQS, scale: str | dict[str, float], missing_aa_handling="error",
+              aggregation_method="avg", normalize=False, weighting_scheme=..., ...) -> float | list[float]
+calc_window_property(sequence, scale, window_size: int = 9, ...) -> list[float]
+property_partitions(sequence: SEQS, scale, num_windows: int = 5, aa_overlap: int = 0, ...) -> list[float] | ...
+```
+
+Scale enums (their values are valid `scale=` strings): `HydrophobicityScale`,
+`HPLCScale`, `ChargeScale`, `PolarityScale`, `SurfaceAccessibilityScale`,
+`SecondaryStructureScale`, `BetaStrandScale`, `CompositionScale`,
+`PhysicalPropertyScale`. Option enums: `MissingAAHandling` (`zero`, `avg`, `min`, `max`,
+`median`, `error`, `skip`), `AggregationMethod` (`sum`, `avg`), `WeightingMethods`,
+`SecondaryStructureMethod`, `SecondaryStructureType`.
+
+The same calculations are available on an annotation as `annot.prop.<name>`. They are
+properties for the simple scales and methods for the ones that take arguments.
+
+```python
+import peptacular as pt
+
+print(pt.hydrophobicity(["PEPTIDE", "KKK"]))         # [0.34285714285714286, 0.06666666666666668]
+p = pt.parse("PEPTIDE").prop
+print(round(p.pi, 3), p.aromaticity)                 # 2.86 0.0
+ss = p.secondary_structure()
+print(round(ss["alpha_helix"], 3))                   # 0.275
+print(round(pt.calc_property("PEPTIDE", scale=pt.HydrophobicityScale.KYTE_DOOLITTLE), 3))  # -1.414
+```
+
+`secondary_structure` returns fractions from 0 to 1, not percentages.
+
+## Format converters
+
+```
+convert_ip2_sequence(sequence: str | list[str], *PAR) -> str | list[str]        # 'K.PEPTIDE.K' -> ProForma
+convert_diann_sequence(sequence: str | list[str], *PAR) -> str | list[str]      # '_PEM[...]TIDE_'
+convert_casanovo_sequence(sequence: str | list[str], *PAR) -> str | list[str]   # '+43.006PEPTIDE'
+to_ms2_pip(sequence: SEQS, *PAR) -> tuple[str, str] | list[tuple[str, str]]     # (sequence, 'pos|Name|...')
+from_ms2_pip(sequence: tuple[str, str] | Sequence[tuple[str, str]], static_mods: Mapping[str, float] | None = None, *PAR)
+```
+
+```python
+import peptacular as pt
+
+print(pt.convert_ip2_sequence("K.PEPTIDE.K"))              # PEPTIDE
+print(pt.convert_diann_sequence("_PEM[Carbamidomethyl]TIDE_"))  # PEM[Carbamidomethyl]TIDE
+print(pt.convert_casanovo_sequence("+43.006PEPTIDE"))      # [+43.006]-PEPTIDE
+print(pt.to_ms2_pip("PEM[Oxidation]TIDE"))                 # ('PEMTIDE', '3|Oxidation')
+```
+
+## FASTA and streaming
+
+```
+parse_fasta(input_data: str | Path | IOBase, *, encoding: str | None = None) -> list[FastaSequence]
+parse_fasta_text(text: str) -> list[FastaSequence]
+iter_fasta(input_data: str | Path | IOBase, *, encoding: str | None = None) -> Iterator[FastaSequence]
+FastaSequence(header: str, sequence: str)                  # NamedTuple; header has no '>'
+```
+
+A `str` argument to `parse_fasta` / `iter_fasta` is a **path**. Use `parse_fasta_text`
+for FASTA content that is already in a string. `.gz` paths are decompressed. Files
+opened by the iterator are closed when it finishes. Streams you pass in stay open.
+
+```python
+import io
+import peptacular as pt
+
+print(pt.parse_fasta_text(">sp|P1|X\nMKVLATSAGER\n"))   # [FastaSequence(header='sp|P1|X', sequence='MKVLATSAGER')]
+for rec in pt.iter_fasta(io.StringIO(">a\nPEPTIDE\n>b\nMKR\n")):
+    print(rec.header, rec.sequence)
+# a PEPTIDE
+# b MKR
+```
+
+## Batch processing with per-item errors
+
+```
+batch(operation, sequences: Iterable[str | ProFormaAnnotation], *, errors: "raise" | "collect" = "raise",
+      batch_size: int = 1000, n_workers=None, chunksize=None, method=None, start_method=None, **kwargs) -> list[BatchResult]
+iter_batch(...same...) -> Iterator[BatchResult]              # yields results lazily, batch_size at a time
+diagnose(sequence, operation="mass", **kwargs) -> Diagnostic | None
+BatchResult(index: int, input, value=None, error: Diagnostic | None = None)   # .ok
+Diagnostic(code: str, stage: "parse" | "validate" | "calculate", message: str, exception_type: str)
+BatchOperation = Literal["parse", "mass", "mz", "comp", "fragment", "fast_fragment", "digest", "isotopic_distribution"]
+```
+
+`**kwargs` go to the operation, for example `charge=2` for `mz`. With
+`errors="collect"`, expected input errors become `Diagnostic`s and the rest still
+raise. Expected errors are invalid notation, unresolved mods and unavailable
+compositions. Plain `pt.mass(list)` raises on the first bad item.
+
+```python
+import peptacular as pt
+
+results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE", "PEP[TIDE"], errors="collect")
+for r in results:
+    print(r.index, r.ok, round(r.value, 3) if r.ok else r.error.code)
+# 0 True 799.36
+# 1 False unresolved_modification
+# 2 False invalid_notation
+
+print(pt.diagnose("PEPTIDE"))                        # None
+```
+
+## Errors
+
+All of these subclass `ValueError`:
+
+- `UnknownModificationError`: a modification name or accession does not resolve.
+- `CompositionError`: a composition was requested for delta-mass mods.
+- `InvalidAdjustmentError`: bad isotope or delta counts.
+- `UnsupportedOperationError`: the operation does not support this input.
+
+Syntax errors are plain `ValueError`s. Their message includes the position and a caret.
+
+```python
+import peptacular as pt
+
+try:
+    pt.mass("PEP[Foo]TIDE")
+except pt.UnknownModificationError as e:
+    print(str(e).split(":")[0])                      # Unknown modification name 'Foo'
+try:
+    pt.parse("PEP[TIDE")
+except ValueError as e:
+    print(str(e).splitlines()[0])                    # Unclosed '[': reached end of sequence before finding a matching ']'
+```
+
+## JSON interchange
+
+```
+to_proforma_json(value, *, indent: int | None = None) -> str       # deterministic, lossless
+from_proforma_json(data: str | bytes | bytearray, expected_type: type | None = None) -> Any
+to_proforma_dict(value) -> dict[str, Any]
+from_proforma_dict(data: Mapping[str, Any], expected_type: type | None = None) -> Any
+get_proforma_json_schema() -> dict[str, Any]                         # JSON Schema (draft 2020-12)
+PROFORMA_JSON_SCHEMA_ID = "https://peptacular.readthedocs.io/en/latest/proforma-json-v1.schema.json"
+PROFORMA_JSON_SCHEMA_VERSION = "1.0"
+```
+
+This works for `ProFormaAnnotation` and for the `proforma_components` dataclasses. The
+annotation also has `to_json()` / `from_json()` and `to_dict()` / `from_dict()`.
+
+```python
+import peptacular as pt
+
+s = pt.to_proforma_json(pt.parse("PEM[Oxidation]TIDE/2"))
+print(s[:60])                                        # {"$schema": "https://peptacular.readthedocs.io/en/latest/pro
+print(pt.from_proforma_json(s).serialize())          # PEM[Oxidation]TIDE/2
+```
+
+## ProForma component classes
+
+These are frozen dataclasses from `peptacular.proforma_components`. Most have
+`from_string()`, `serialize()`, `get_mass()`, `get_composition()`, and
+`to_dict()`/`from_dict()`.
+
+- Modification tags: `ModificationTags(tags)` and the tag types `TagName(name, cv=None)`,
+  `TagAccession(accession, cv)`, `TagMass(mass_str, cv=None)`, `TagCustom(name)` and
+  `TagInfo(info)`. `CV` is one of `UNIMOD`, `MOD` (PSI-MOD), `RESID`, `GNO`, `XLMOD`,
+  `CUSTOM` or `OBSERVED`. `CV_TO_ACCESSION_PREFIX`, `CV_TO_MASS_PREFIX` and
+  `CV_TO_NAME_PREFIX` hold the prefixes.
+- Formulas: `ChargedFormula(formula, charge=None)` and
+  `FormulaElement(element, occurance, isotope=None)`.
+- Glycans: `GlycanTag(components)` and `GlycanComponent(monosaccharide, occurance)`.
+- Charge: `GlobalChargeCarrier(charged_formula, occurance)`.
+- Global rules: `IsotopeReplacement(element, isotope)`,
+  `FixedModification(modifications, position_rules)`,
+  `PositionRule(terminal, amino_acid=None)`, `Terminal`.
+- Ambiguity and cross-links: `ModificationAmbiguousPrimary`,
+  `ModificationAmbiguousSecondary`, `ModificationCrossLinker`, `PositionTag`,
+  `PositionScore`, `LimitTag`.
+- Whole structures: `SequenceElement`, `SequenceRegion`, `Peptidoform`,
+  `PeptidoformIon`, `CompoundPeptidoformIon`.
+
+`occurance` is the field name used in the code.
+
+```python
+import peptacular as pt
+
+cf = pt.ChargedFormula.from_string("Formula:HO3P")    # the "Formula:" prefix is required
+print(round(cf.get_mass(), 4), cf.serialize())       # 79.9663 Formula:HO3P
+```
+
+## Parallelism
+
+- Every functional-API call accepts `n_workers`, `chunksize` and `method`
+  (`"process"`, `"thread"` or `"sequential"`).
+- With no arguments, a list shorter than 1000 items runs sequentially, and a longer list
+  uses a process pool.
+- `set_start_method("spawn" | "fork" | "forkserver")`, `get_start_method()` and
+  `get_available_start_methods()` control the multiprocessing context.
+- On Linux before Python 3.14 the default is `fork`. `fork` warns if the process already
+  has threads.
+- Scripts that create process pools need an `if __name__ == "__main__":` guard on
+  spawn platforms (Windows and macOS).
+
+## Optional integrations
+
+`peptacular.interop` is not star-imported. It needs the matching extra.
+
+```
+from peptacular.interop import (
+    to_pyteomics, from_pyteomics,                     # pyteomics.proforma objects
+    to_pyteomics_composition, from_pyteomics_composition,
+    to_psm_utils, from_psm_utils,                     # psm_utils.Peptidoform
+    to_alphabase_row, from_alphabase_row,             # AlphaBase sequence/mods/mod_sites/charge columns
+    to_alphabase_dataframe, from_alphabase_dataframe,
+    LossPolicy,                                       # "error" | "warn" | "drop" for features the target cannot hold
+    InteropError, InteropConversionError, MissingOptionalDependencyError, LossyConversionWarning,
+)
+```
+
+Guide: https://peptacular.readthedocs.io/en/latest/interoperability.html
+
+## CLI: local MCP server
+
+`pip install "peptacular[mcp]"` installs `peptacular-mcp`, a stateless stdio MCP
+server. It has 12 tools:
+
+- `inspect_peptides`, `analyze_peptides`, `fragment_peptides`, `compare_peptides`
+- `isotope_envelopes`, `digest_proteins`, `edit_peptides`, `enumerate_modifications`
+- `map_peptides`, `convert_annotations`, `get_reference`, `find_modifications`
+
+```bash
+peptacular-mcp --check      # JSON: available tools, package versions, request limits
+peptacular-mcp              # run the server on stdio (point your MCP client at the absolute path)
+```
+
+Each input is limited to 100 records and 1 MiB per request. Client setup:
+https://peptacular.readthedocs.io/en/latest/mcp.html
+
+## Constants
+
+- `PROTON_MASS` = 1.00727646688
+- `ELECTRON_MASS` = 0.00054857990946
+- `NEUTRON_MASS` = 1.00866491597
+- `C13_NEUTRON_MASS` = 1.00335
+- `PEPTIDE_AVERAGINE_NEUTRON_MASS` = 1.002856
+- `AVERAGINE_RATIOS`: elemental ratios per dalton
+- `ModType` and its string values: `nterm`, `cterm`, `isotope`, `static`, `labile`,
+  `unknown`, `interval`, `internal`, `charge`
+- `parallelMethod`: `process`, `thread`, `sequential`
+
+## Gotchas
+
+1. **`parse` does not resolve modifications.** Unknown names fail later, at
+   `mass`/`comp`. Use `validate=True` or `pt.validate` to catch them early.
+2. **`mass()` is charged when the sequence has a charge.** For `PEPTIDE/2` it is M + 2
+   protons. Use `neutral_mass()` for M and `mz()` for m/z.
+3. **Delta-mass mods (`[+15.995]`) have mass but no composition.** `comp`, composition
+   isotopes and `calculate_with_composition=True` raise `CompositionError`.
+4. **Mutators work in place by default.** Pass `inplace=False` or call `.copy()` to keep
+   the original. An annotation is hashable but mutable, so do not mutate one that is used
+   as a dict key.
+5. **Indexes are 0-based and spans are end-exclusive.** `Span(0, 2, 0)` is residues 0
+   and 1. MS2PIP output is 1-based, because that is its format.
+6. **`fast_fragment` returns a dict of m/z lists**, not `Fragment` objects.
+7. **A single `parse` cannot hold `+`-joined chimeric input.** Use `parse_chimeric`.
+8. **A string passed to `parse_fasta` / `iter_fasta` is a path.** Use
+   `parse_fasta_text` for FASTA content already in a string.
+9. **Properties ignore modifications.** `secondary_structure` returns fractions, not
+   percentages.
+10. **Star imports leak names.** `pt.` also exposes some typing helpers (`pt.Counter`,
+    `pt.Literal`, ...) from modules without `__all__`. They are not part of the API.
+11. **Component `from_string` parsers take the ProForma tag text.** For example,
+    `ChargedFormula.from_string("Formula:HO3P")` needs the `Formula:` prefix. Charge
+    carriers are written `Na:z+1`, not `+2Na+`.
+
+## More
+
+- Quick start: https://peptacular.readthedocs.io/en/latest/quickstart.html
+- Mass calculation details: https://peptacular.readthedocs.io/en/latest/mass_calculation.html
+- Streaming guide: https://peptacular.readthedocs.io/en/latest/streaming.html
+- JSON serialization: https://peptacular.readthedocs.io/en/latest/json_serialization.html
+- API reference: https://peptacular.readthedocs.io/en/latest/api.html
+- Changelog: https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md
+- mzPAF fragments: https://github.com/tacular-omics/paftacular
+- Reference data: https://github.com/tacular-omics/tacular
