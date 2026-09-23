@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - `POLARITY_SCALES` was defined twice in `property/data.py`; the unused string-keyed copy is removed. The enum-keyed table (the one already in effect) is unchanged.
 - The MCP server instructions and `peptacular://conventions` resource name `spxtacular` (not "Spectacular") as the package for observed spectra.
 - Added docstrings to `ProFormaAnnotation`, `Interval`, `Fragment` and `get_mod_type`.
+- `just lint` now checks `tests/` as CI does, and `just check` runs the new `just format-check`.
 
 ### Deprecated
 - `FLIXIBILITY_SCALES` is renamed `FLEXIBILITY_SCALES`. The old name still works and emits a `DeprecationWarning`.
