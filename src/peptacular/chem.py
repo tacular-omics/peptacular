@@ -11,6 +11,13 @@ from .sequence.parallel import (
     parallelMethodLiteral,
 )
 
+__all__ = [
+    "parse_formula",
+    "chem_comp",
+    "chem_mass",
+    "chem_formula",
+]
+
 
 def _parse_formula_single(formula: str | Mapping[ElementInfo | str, int], sep: str = "") -> Counter[ElementInfo]:
     if isinstance(formula, str):

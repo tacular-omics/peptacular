@@ -12,6 +12,17 @@ from collections.abc import Generator, Iterable
 from itertools import groupby
 from typing import NamedTuple
 
+__all__ = [
+    "Span",
+    "build_non_enzymatic_spans",
+    "build_left_semi_spans",
+    "build_right_semi_spans",
+    "build_enzymatic_spans",
+    "build_semi_spans",
+    "build_spans",
+    "calculate_span_coverage",
+]
+
 
 class Span(NamedTuple):
     start: int

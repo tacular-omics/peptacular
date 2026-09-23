@@ -147,7 +147,7 @@ def create_server():
         instructions="Use structured tools for theoretical peptide and protein calculations. Arguments are under request. "
         "Provide inputs as a list of annotation records. Each call returns results directly and retains no data. "
         "For truncated results, narrow the request or split the batch. Discover conventions with get_reference. "
-        "Spectacular owns observed spectra and spectrum matching.",
+        "spxtacular owns observed spectra and spectrum matching.",
     )
 
     @server.resource("peptacular://conventions", mime_type="application/json")

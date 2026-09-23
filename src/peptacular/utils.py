@@ -4,6 +4,12 @@ from typing import Protocol, runtime_checkable
 
 from .constants import ModType, ModTypeLiteral
 
+__all__ = [
+    "SupportsStr",
+    "handle_number_and_intern_mod",
+    "get_mod_type",
+]
+
 
 @runtime_checkable
 class SupportsStr(Protocol):
@@ -24,7 +30,21 @@ def handle_number_and_intern_mod(mod: SupportsStr | float | int) -> str:
 
 
 def get_mod_type(mod: ModTypeLiteral | ModType | str) -> ModType:
-    # return ModType Enum for the given mod string
+    """
+    Convert a modification type name to its :class:`ModType` member.
+
+    >>> from peptacular.utils import get_mod_type
+    >>> get_mod_type("internal")
+    <ModType.INTERNAL: 'internal'>
+    >>> get_mod_type("nterm")
+    <ModType.NTERM: 'nterm'>
+
+    :param mod: A ModType, or its string value (e.g. ``"nterm"``, ``"internal"``).
+    :type mod: ModTypeLiteral | ModType | str
+    :return: The matching ModType member.
+    :rtype: ModType
+    :raises ValueError: If ``mod`` is not a string or ModType, or names no ModType.
+    """
     if isinstance(mod, ModType):
         return mod
 

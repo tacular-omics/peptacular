@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `pt.get_mods` is the documented functional `get_mods(sequence, mods)` again. The internal `peptacular.utils.get_mods` (a `ModType` list helper) had shadowed it through the star imports.
+- `chem`, `constants`, `regex_utils`, `spans` and `utils` define `__all__`, so `from peptacular import *` and `pt.` no longer expose stdlib/typing helpers (`re`, `sys`, `Counter`, `Sequence`, `Final`, ...).
+- `POLARITY_SCALES` was defined twice in `property/data.py`; the unused string-keyed copy is removed. The enum-keyed table (the one already in effect) is unchanged.
+- The MCP server instructions and `peptacular://conventions` resource name `spxtacular` (not "Spectacular") as the package for observed spectra.
+- Added docstrings to `ProFormaAnnotation`, `Interval`, `Fragment` and `get_mod_type`.
+
+### Deprecated
+- `FLIXIBILITY_SCALES` is renamed `FLEXIBILITY_SCALES`. The old name still works and emits a `DeprecationWarning`.
+
 ## [4.0.1] (2026-09-23)
 
 ### Changed

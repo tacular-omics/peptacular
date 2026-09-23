@@ -299,10 +299,15 @@ Each maps a scale enum member to its per-residue value table. See :class:`~pepta
 
    Hplc scales.
 
+.. py:data:: peptacular.property.FLEXIBILITY_SCALES
+   :type: dict[str, dict[str, float]]
+
+   Flexibility scales.
+
 .. py:data:: peptacular.property.FLIXIBILITY_SCALES
    :type: dict[str, dict[str, float]]
 
-   Flexibility scales (the name keeps its historical spelling).
+   Deprecated misspelled alias of :data:`FLEXIBILITY_SCALES`. Accessing it emits a ``DeprecationWarning``.
 
 .. py:data:: peptacular.property.POLARITY_SCALES
    :type: dict[str, dict[str, float]]

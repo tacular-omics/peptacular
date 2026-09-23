@@ -32,7 +32,8 @@ async def test_sdk_schemas_resources_and_calculation(tmp_path, monkeypatch):
         assert json.loads(result.content[0].text) == result.structured_content
         assert not {"result_id", "job_id", "page"} & result.structured_content.keys()
         resources = await client.read_resource("peptacular://conventions")
-        assert "Spectacular" in str(resources)
+        assert "spxtacular owns observed spectra" in str(resources)
+        assert "Spectacular" not in str(resources)
         schema = await client.read_resource("peptacular://schemas/analyze_peptides")
         assert "measurements" in str(schema)
         invalid = await client.call_tool("analyze_peptides", {"request": {"inputs": INPUT, "unexpected": True}})

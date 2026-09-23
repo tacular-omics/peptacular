@@ -74,7 +74,7 @@
     ]
   },
   {
-    "id": "spectacular_boundary",
+    "id": "spxtacular_boundary",
     "prompt": "Generate theoretical b and y ions for PEPTIDE/2. Can this Peptacular server also match them to my measured spectrum?",
     "expected_tools": [
       "fragment_peptides",
@@ -82,7 +82,7 @@
     ],
     "checks": [
       "Generate theoretical ions",
-      "Explain that observed matching belongs to Spectacular",
+      "Explain that observed matching belongs to spxtacular",
       "Do not invent a matching tool"
     ]
   },

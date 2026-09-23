@@ -408,6 +408,29 @@ EMPTYP_INTERVAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERVAL, _mods=N
 
 
 class Interval:
+    """A ProForma interval: a span of residues that carries modifications, e.g. ``P(EP)[Oxidation]TIDE``.
+
+    ``start`` is zero-based and ``end`` is exclusive, so ``P(EP)TIDE`` gives ``Interval(start=1, end=3)``.
+    An ambiguous interval (``(?EP)``) has ``ambiguous=True``: the residues are known but their order is not.
+
+    >>> import peptacular as pt
+    >>> interval = pt.Interval(1, 3, mods={"Oxidation": 1})
+    >>> interval.start, interval.end, interval.has_mods
+    (1, 3, True)
+
+    :param start: Zero-based index of the first residue in the interval.
+    :type start: int
+    :param end: Zero-based index one past the last residue (exclusive). Must be greater than ``start``.
+    :type end: int
+    :param ambiguous: True for an ambiguous-order interval (``(?...)``).
+    :type ambiguous: bool
+    :param mods: Modifications on the interval: a ``{mod: count}`` mapping, a :class:`Mods`, or None.
+    :type mods: Any | None
+    :param validate: If True, check that each modification string parses.
+    :type validate: bool
+    :raises ValueError: If ``start`` is negative or ``end`` is not greater than ``start``.
+    """
+
     __slots__ = ("_start", "_end", "_ambiguous", "_mods", "_validate")
 
     def __init__(

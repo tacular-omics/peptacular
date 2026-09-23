@@ -534,7 +534,7 @@ CONVENTIONS = {
     "coordinates": "start is zero-based, end is exclusive. Fragment ordinal counts residues. Precursor ordinal is null.",
     "charge": "Signed total, external carrier and intrinsic charges are separate. m/z requires nonzero charge. Conflicts require override.",
     "isotopes": "Theoretical approximate distributions. Relative maximum abundance is one. Retained probability is unavailable.",
-    "ownership": "Peptacular calculates theoretical sequence properties. Spectacular owns observed spectra and spectrum matching.",
+    "ownership": "Peptacular calculates theoretical sequence properties. spxtacular owns observed spectra and spectrum matching.",
     "inputs": "Pass annotation records directly. IDs and source indexes identify records within this call. No server-side data is retained.",
     "limits": "Inspect computation.complete and stop_reason. For a truncated calculation, narrow the request or split the batch.",
 }

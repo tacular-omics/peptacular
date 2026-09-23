@@ -2,6 +2,11 @@ import re
 import warnings
 from collections.abc import Generator
 
+__all__ = [
+    "get_regex_match_indices",
+    "get_regex_match_range",
+]
+
 
 def get_regex_match_indices(input_str: str, regex_str: str | re.Pattern[str], offset: int = 0) -> Generator[int, None, None]:
     """
