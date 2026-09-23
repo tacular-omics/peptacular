@@ -1,14 +1,8 @@
 Quick Start
 ===========
 
-Installation
-------------
-
-Install Peptacular using pip:
-
-.. code-block:: bash
-
-   pip install peptacular
+Install peptacular with ``pip install peptacular`` (see :doc:`installation` for
+extras and source installs).
 
 Basic Usage
 -----------
@@ -203,8 +197,8 @@ Properties are accessible via the `prop` property. See the API documentation for
 
    # Secondary structure prediction
    ss = peptide.prop.secondary_structure()
-   print(f"Alpha helix: {ss['alpha_helix']:.1f}%")
-   print(f"Beta sheet: {ss['beta_sheet']:.1f}%")
+   print(f"Alpha helix: {ss['alpha_helix']:.0%}")
+   print(f"Beta sheet: {ss['beta_sheet']:.0%}")
 
 .. testoutput::
    :hide:

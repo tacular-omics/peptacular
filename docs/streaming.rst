@@ -145,7 +145,7 @@ of these codes. Existing exception-based code can catch the new
 ``CompositionError``, ``UnknownModificationError``, ``InvalidAdjustmentError``, and
 ``UnsupportedOperationError`` classes, all of which inherit from ``ValueError``.
 
-**Calculation behavior tightened in this release**
+**Calculation behavior tightened in 3.3.0**
 
 Global isotope substitutions and elemental adjustments now share the same order
 across mass and composition calculations. Explicit isotope counts and elemental

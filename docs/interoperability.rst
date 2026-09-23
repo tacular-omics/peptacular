@@ -9,7 +9,7 @@ small.
 Installation
 ------------
 
-Install one integration or the complete phase-one set:
+Install one integration, or all three with the ``interop`` extra:
 
 .. code-block:: bash
 
@@ -37,8 +37,8 @@ supported features can be exchanged through ProForma text:
 
 Elemental compositions can also be exchanged with
 ``to_pyteomics_composition`` and ``from_pyteomics_composition``. A
-``pyteomics.mass.Composition`` does not preserve ``ChargedFormula.charge``.
-the outbound adapter therefore rejects charged formula values.
+``pyteomics.mass.Composition`` does not preserve ``ChargedFormula.charge``, so
+the outbound adapter rejects charged formula values.
 
 ``psm_utils``
 -------------
@@ -86,7 +86,7 @@ public API:
 
 For one annotation, ``to_alphabase_row`` returns a plain row dictionary and
 ``from_alphabase_row`` accepts a mapping. These helpers do not
-invent an AlphaBase peptide class. they expose the columns used by AlphaBase's
+invent an AlphaBase peptide class. They expose the columns used by AlphaBase's
 actual DataFrame model.
 
 The AlphaBase representation cannot encode every ProForma feature. By default,
@@ -97,6 +97,7 @@ information. Callers can explicitly request warning or drop behavior:
 .. code-block:: python
 
    from peptacular.interop import LossPolicy
+   from peptacular.interop.alphabase import to_alphabase_row
 
    row = to_alphabase_row(annotation, loss_policy=LossPolicy.WARN)
 

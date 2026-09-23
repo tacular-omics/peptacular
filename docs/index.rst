@@ -1,13 +1,13 @@
 Peptacular Documentation
 ========================
 
-A Python package for peptide sequence analysis built around **ProForma 2.1** notation.
+peptacular parses, edits and analyzes peptide and protein sequences written in
+**ProForma 2.1** notation. It calculates mass, m/z and elemental composition,
+generates fragment ions and isotope envelopes, digests proteins, and predicts
+physicochemical properties. List inputs are processed in parallel automatically.
 
-Peptacular provides tools for parsing ProForma sequences, calculating masses, generating fragments,
-predicting isotopic patterns, and analyzing physicochemical properties. Built with performance in mind,
-it supports parallel processing and lazy loading for efficient batch operations.
-
-New to Peptacular? Start with :doc:`quickstart`, then browse :doc:`features` for a tour of what's available.
+New to peptacular? Start with :doc:`installation` and :doc:`quickstart`, then browse
+:doc:`features` for a tour of what's available.
 
 .. code-block:: python
 
@@ -17,12 +17,22 @@ New to Peptacular? Start with :doc:`quickstart`, then browse :doc:`features` for
    peptide.mass()          # 851.357...
    peptide.mz()            # 425.679...
 
+Related packages
+----------------
+
+* `tacular <https://tacular.readthedocs.io/>`_ provides the amino acid, element and
+  modification (UNIMOD, PSI-MOD, RESID, XLMOD, GNOme, UniProt-PTM) lookups that
+  peptacular uses.
+* `paftacular <https://paftacular.readthedocs.io/>`_ parses and serializes mzPAF
+  peak annotations, and can use peptacular for sequence-aware mass calculations.
+
 User Guide
 ==========
 
 .. toctree::
    :maxdepth: 2
 
+   installation
    quickstart
    features
    streaming
@@ -41,6 +51,15 @@ API Reference
    :maxdepth: 2
 
    api
+
+Project
+=======
+
+.. toctree::
+   :maxdepth: 1
+
+   changelog
+   citation
 
 Indices and Tables
 ===================

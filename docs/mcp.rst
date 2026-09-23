@@ -7,9 +7,10 @@ sequences, and transform annotations without writing Python scripts. Each call
 accepts records and returns results directly. The server needs no AI model or
 provider API key.
 
-Spectacular owns observed spectra, spectrum matching, scoring, and experimental
-mass errors. Peptacular produces theoretical values and portable annotations
-that a separate Spectacular integration can consume explicitly.
+Observed spectra, spectrum matching, scoring, and experimental mass errors
+belong to `spxtacular <https://github.com/tacular-omics/spxtacular>`_. Peptacular
+produces theoretical values and portable annotations that a separate spxtacular
+integration can consume explicitly.
 
 Install and connect
 -------------------
@@ -120,8 +121,8 @@ input minus reference. It does not infer an alignment or compare spectra.
 
 Isotope distributions are theoretical approximations. Choose neutral mass, ion
 mass, m/z, or neutron offset explicitly. Abundances are normalized to a maximum
-retained peak of one. The backend prunes during convolution and applies a relative
-abundance threshold. Retained probability is unavailable, and the server does
+retained peak of one. The backend uses the BRAIN algorithm and applies a
+relative abundance threshold. Retained probability is unavailable, and the server does
 not claim that all isotopic probability was calculated.
 
 Sequence properties use an explicit named scale and average or sum aggregation.
