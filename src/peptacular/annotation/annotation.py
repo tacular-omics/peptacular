@@ -2175,7 +2175,7 @@ class ProFormaAnnotation:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ProFormaAnnotation):
-            raise NotImplementedError(f"Cannot compare ProFormaAnnotationBase with {type(other)}")
+            return NotImplemented
 
         return (
             self.sequence == other.sequence
@@ -2223,13 +2223,13 @@ class ProFormaAnnotation:
         return hash(
             (
                 self._sequence,
-                tuple(self._isotope_mods.items()) if self._isotope_mods else None,
-                tuple(self._static_mods.items()) if self._static_mods else None,
-                tuple(self._labile_mods.items()) if self._labile_mods else None,
-                tuple(self._unknown_mods.items()) if self._unknown_mods else None,
-                tuple(self._nterm_mods.items()) if self._nterm_mods else None,
-                tuple(self._cterm_mods.items()) if self._cterm_mods else None,
-                tuple((pos, tuple(sorted(mods.items()))) for pos, mods in sorted(self._internal_mods.items())) if self._internal_mods else None,
+                frozenset(self._isotope_mods.items()) if self._isotope_mods else None,
+                frozenset(self._static_mods.items()) if self._static_mods else None,
+                frozenset(self._labile_mods.items()) if self._labile_mods else None,
+                frozenset(self._unknown_mods.items()) if self._unknown_mods else None,
+                frozenset(self._nterm_mods.items()) if self._nterm_mods else None,
+                frozenset(self._cterm_mods.items()) if self._cterm_mods else None,
+                frozenset((pos, frozenset(mods.items())) for pos, mods in self._internal_mods.items()) if self._internal_mods else None,
                 tuple(self._intervals) if self._intervals else None,
                 self._charge,
             )
@@ -2901,6 +2901,11 @@ class ProFormaAnnotation:
         if self.has_static_mods:
             static_mod_map = self.map_static_mods_to_indexes()
             for pos, mods_list in static_mod_map.items():
+                # map_static_mods_to_indexes uses -1 for N-term and -2 for C-term
+                if pos == -1:
+                    pos = 0
+                elif pos == -2:
+                    pos = len(masses) - 1
                 for mod in mods_list:
                     masses[pos] += mod.get_mass(monoisotopic=monoisotopic)
 
@@ -3368,7 +3373,7 @@ class ProFormaAnnotation:
                     if neutral_deltas:
                         loss_dict.clear()
                         for nd in neutral_deltas:
-                            loss_dict[nd] = min(nd.calculate_loss_sites(self.sequence), max_deltas)
+                            loss_dict[nd] = min(nd.calculate_loss_sites(sub_annot.sequence), max_deltas)
 
                     neutral_delta_combinations = get_loss_combinations(loss_dict, max_deltas)
 
@@ -3400,7 +3405,7 @@ class ProFormaAnnotation:
                         if neutral_deltas:
                             loss_dict.clear()
                             for nd in neutral_deltas:
-                                loss_dict[nd] = min(nd.calculate_loss_sites(self.sequence), max_deltas)
+                                loss_dict[nd] = min(nd.calculate_loss_sites(sub_annot.sequence), max_deltas)
 
                         neutral_delta_combinations = get_loss_combinations(loss_dict, max_deltas)
 
