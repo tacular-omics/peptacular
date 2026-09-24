@@ -4896,13 +4896,13 @@ class ProFormaAnnotation:
         cterminal: bool = True,
     ) -> Generator[int, None, None]:
         """Get cleavage sites using simple amino acid rules."""
-        enzyme_regex = generate_regex(
+        pattern = generate_regex(
             cleave_on=cleave_on,
             restrict_before=restrict_before,
             restrict_after=restrict_after,
             cterminal=cterminal,
         )
-        return self.cleavage_sites(enzyme_regex)
+        return self.cleavage_sites(pattern)
 
     def digest_spans(
         self,

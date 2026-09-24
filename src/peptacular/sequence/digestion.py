@@ -386,13 +386,13 @@ def _simple_cleavage_sites(
     restrict_after: str = "",
     cterminal: bool = True,
 ) -> list[int]:
-    enzyme_regex = generate_regex(
+    pattern = generate_regex(
         cleave_on=cleave_on,
         restrict_before=restrict_before,
         restrict_after=restrict_after,
         cterminal=cterminal,
     )
-    return list(get_annotation_input(sequence, copy=False).cleavage_sites(enzyme=enzyme_regex))
+    return list(get_annotation_input(sequence, copy=False).cleavage_sites(enzyme=pattern))
 
 
 @overload
