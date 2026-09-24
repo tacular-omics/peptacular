@@ -788,7 +788,7 @@ class TestFragmentMzPAF(unittest.TestCase):
         # Regression: tacular>=1.1.0 corrected every non-"by" internal ion offset;
         # peptacular's mzPAF label table must track those corrected values.
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AX, charge=2, position=(3, 5))
-        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-2H^2")
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}-H2^2")
 
     def test_internal_az(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.AZ, charge=2, position=(3, 5))
@@ -796,7 +796,7 @@ class TestFragmentMzPAF(unittest.TestCase):
 
     def test_internal_bx(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BX, charge=2, position=(3, 5))
-        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CO-2H^2")
+        self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}+CO-H2^2")
 
     def test_internal_bz(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BZ, charge=2, position=(3, 5))

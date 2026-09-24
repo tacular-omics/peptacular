@@ -108,6 +108,13 @@ class TestMzPAFLabelMass:
         ("[Acetyl]-PEPTIDE", "i", -1, 1),
         ("PEPTIDE-[Amidated]", "i", 1, 7),
         ("PEP[+10]TIDE", "i", 2, 3),
+        ("PEPTIDE", "y", "H:z-1", 3),
+        ("PEPTIDE", "y", ["H:z-1", "H:z-1"], 3),
+        ("PEPTIDE", "ax", 1, (2, 5)),
+        ("PEPTIDE", "bx", 2, (2, 5)),
+        ("[Acetyl]-TIV", "v", 1, 3),
+        ("[Acetyl]-VIT", "w", 1, 3),
+        ("TIV-[Amidated]", "d", 1, 3),
     )
 
     def test_immonium_terminal_mod_mass_matches_residue_mod(self):
@@ -124,3 +131,102 @@ class TestMzPAFLabelMass:
             parsed = paf.parse(frag.to_mzpaf())
             parsed = parsed[0] if isinstance(parsed, list) else parsed
             assert abs(parsed.mz() - frag.mz) < 1e-6, (seq, ion, z, pos, frag.to_mzpaf())
+
+
+# Every ion type whose full-length ion contains both termini, with a sequence it can be made from.
+_FULL_LENGTH_CASES = (
+    ("a", "TIV"),
+    ("b", "TIV"),
+    ("c", "TIV"),
+    ("x", "TIV"),
+    ("y", "TIV"),
+    ("z", "TIV"),
+    ("z.", "TIV"),
+    ("z+H", "TIV"),
+    ("c-H", "TIV"),
+    ("d", "TIV"),
+    ("d-valine", "TIV"),
+    ("da-threonine", "VIT"),
+    ("db-threonine", "VIT"),
+    ("v", "TIV"),
+    ("w", "VIT"),
+    ("w-valine", "VIT"),
+    ("wa", "TIV"),
+    ("wb", "TIV"),
+    ("wa-threonine", "TIV"),
+    ("wb-threonine", "TIV"),
+    ("p", "TIV"),
+)
+
+
+class TestFullLengthTerminalMods:
+    """A full-length ion contains both termini, so both terminal mods add their mass. The
+    satellite ions (d, v, w) dropped the terminal mod on the residue whose side chain is lost."""
+
+    @pytest.mark.parametrize(("ion", "core"), _FULL_LENGTH_CASES)
+    def test_full_length_ion_carries_both_terminal_mods(self, ion, core):
+        pos = None if ion == "p" else len(core)
+
+        def mass(seq):
+            return pt.parse(seq).frag(ion_type=ion, charge=1, position=pos).mass
+
+        base = mass(core)
+        acetyl = pt.mass("[Acetyl]-G") - pt.mass("G")
+        amidated = pt.mass("G-[Amidated]") - pt.mass("G")
+        assert abs(mass(f"[Acetyl]-{core}") - base - acetyl) < 1e-9
+        assert abs(mass(f"{core}-[Amidated]") - base - amidated) < 1e-9
+
+    def test_partial_satellite_ions_unchanged(self):
+        # v2 of TIV is IV: no N-terminus, so the N-terminal mod is not in it
+        assert pt.parse("[Acetyl]-TIV").frag(ion_type="v", charge=1, position=2).mass == pt.parse("TIV").frag(ion_type="v", charge=1, position=2).mass
+        # da2 of TIV is TI: no C-terminus
+        assert pt.parse("TIV-[Amidated]").frag(ion_type="da", charge=1, position=2).mass == pt.parse("TIV").frag(ion_type="da", charge=1, position=2).mass
+
+    def test_fragment_matches_frag(self):
+        full = [f for f in pt.parse("[Acetyl]-PPA").fragment(ion_types=["v"], charges=[1]) if f.position == 3][0]
+        assert full.mass == pt.parse("[Acetyl]-PPA").frag(ion_type="v", charge=1, position=3).mass
+        assert full.mass > pt.parse("PPA").frag(ion_type="v", charge=1, position=3).mass + 42
+
+
+class TestHydrideCarrier:
+    """``H:z-1`` is a hydride adduct (H plus an electron), not a removed proton."""
+
+    def test_hydride_is_not_protonated(self):
+        assert pt.GlobalChargeCarrier.from_string("H:z+1").is_protonated
+        assert not pt.GlobalChargeCarrier.from_string("H:z-1").is_protonated
+
+    def test_hydride_fragment(self):
+        y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge="H:z-1", position=3)
+        deprot = pt.parse("PEPTIDE").frag(ion_type="y", charge=-1, position=3)
+        assert y3.charge_state == -1
+        assert not y3.is_protonated
+        assert "H:z-1" in str(y3)
+        # hydride adds H + e-; deprotonation removes H - e-: they differ by two H atoms
+        assert abs(y3.mass - deprot.mass - 2 * 1.00782503223) < 1e-9
+        assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
+        assert deprot.to_mzpaf() == "y3{IDE}^-1"
+
+    def test_two_hydrides(self):
+        for charge in (["H:z-1", "H:z-1"], "H:z-1^2"):
+            y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=charge, position=3)
+            assert y3.to_mzpaf() == "y3{IDE}[M+2H]^-2"
+
+    def test_fragment_series_hydride(self):
+        y3 = [f for f in pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=["H:z-1"]) if f.position == 3][0]
+        assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
+
+
+class TestMzPAFHydrogenLoss:
+    """A loss of H2 is written in Hill order (``-H2``), like every other formula delta."""
+
+    def test_delta_h2(self):
+        b3 = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"H2": 1})
+        assert b3.to_mzpaf() == "b3{PEP}+H2"
+        b3 = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"H2": -1})
+        assert b3.to_mzpaf() == "b3{PEP}-H2"
+
+    def test_internal_offsets(self):
+        ax = pt.parse("PEPTIDE").frag(ion_type="ax", charge=1, position=(2, 5))
+        bx = pt.parse("PEPTIDE").frag(ion_type="bx", charge=1, position=(2, 5))
+        assert ax.to_mzpaf() == "m2:5{EPTI}-H2"
+        assert bx.to_mzpaf() == "m2:5{EPTI}+CO-H2"

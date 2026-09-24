@@ -3081,12 +3081,18 @@ class ProFormaAnnotation:
         position: int | tuple[int, int] | None,
     ) -> Fragment:
         # Satellite ions: the residue whose side chain is cleaved is not in the residue sum;
-        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it.
+        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it,
+        # but a terminal modification sits on the backbone and stays: a full-length d ion
+        # keeps the C-terminal mod, a full-length v/w ion keeps the N-terminal mod.
         annot = self
         if ion_type in SATELLITE_TRIM_END:
             annot = self.slice(0, len(self) - 1, inplace=False)
+            if self.has_cterm_mods:
+                annot.set_cterm_mods(self.cterm_mods, validate=False)
         elif ion_type in SATELLITE_TRIM_START:
             annot = self.slice(1, len(self), inplace=False)
+            if self.has_nterm_mods:
+                annot.set_nterm_mods(self.nterm_mods, validate=False)
         return annot._frag_impl(
             ion_type=ion_type,
             monoisotopic=monoisotopic,

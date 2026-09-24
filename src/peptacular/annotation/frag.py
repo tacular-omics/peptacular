@@ -80,13 +80,13 @@ def _mzpaf_formula(formula: ChargedFormula) -> str:
 # None means no difference from "by". Derived from tacular's internal(F,B) = deltaF + deltaB
 # offsets (tacular>=1.1.0, itself derived from mzPAF's own primary-ion formulas: a=b-CO,
 # c=b+NH3, x=y+CO2-H2O, z=y-NH3) and written using mzPAF's neutral-loss conventions: strung
-# together signed tokens (mzPAF section 4.5), an ordinal prefix for a repeated named atom
-# (e.g. "-2H", not "H2"), and the canonical group names the spec requires when they apply
+# together signed tokens (mzPAF section 4.5), formulas in Hill order like every other delta
+# (e.g. "-H2", as paftacular writes it), and the canonical group names the spec requires when they apply
 # (e.g. "NH3" per "do not write an ammonia loss (NH3) as H3N"; "HCONH2"/Formamide for the
 # combined CO+NH3 magnitude).
 _INTERNAL_MASS_DIFFS: dict[tuple[str, str], str | None] = {
-    ("a", "x"): "-2H",
-    ("b", "x"): "+CO-2H",
+    ("a", "x"): "-H2",
+    ("b", "x"): "+CO-H2",
     ("c", "x"): "+CHNO",
     ("a", "y"): "-CO",
     ("b", "y"): None,
