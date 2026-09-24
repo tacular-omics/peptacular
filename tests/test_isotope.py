@@ -143,8 +143,14 @@ def test_annotation_isotopes_use_total_intrinsic_and_external_charge():
     annotation = pt.parse("PEP[Formula:CH2:z+1]TIDE/2")
     fragment = annotation.frag(calculate_with_composition=True)
     assert fragment.charge_state == 3
-    expected = brain_isotopic_distribution(fragment.composition, charge=3)
+    # two external protons each add the H binding term (PROTON_MASS, not H - e); the CH2 carrier does not
+    binding = 2 * pt.HYDROGEN_BINDING_MASS
+    expected = [
+        pt.IsotopicData(mass=p.mass + binding, neutron_count=p.neutron_count, abundance=p.abundance)
+        for p in brain_isotopic_distribution(fragment.composition, charge=3)
+    ]
     assert annotation.isotopic_distribution() == expected
+    assert annotation.isotopic_distribution()[0].mass == pytest.approx(fragment.mass, abs=1e-11)
 
 
 @pytest.mark.parametrize("formula", [{"C": -1}, {"C": float("nan")}, {"C": True}])
