@@ -6,8 +6,9 @@ Most functions in the sequence module accept lists and automatically use
 multiprocessing for better performance on large datasets.
 """
 
-import peptacular as pt
 import time
+
+import peptacular as pt
 
 # ============================================================================
 # BASIC PARALLEL EXECUTION (must be run through __main__)

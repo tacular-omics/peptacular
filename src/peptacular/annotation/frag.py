@@ -1,22 +1,80 @@
 from collections import Counter
 from collections.abc import Mapping
+from dataclasses import FrozenInstanceError
+from functools import cache
 from typing import Any, Literal
 
 from tacular import (
     ELEMENT_LOOKUP,
     FRAGMENT_ION_LOOKUP,
+    NEUTRAL_DELTA_LOOKUP,
     ElementInfo,
     IonType,
     IonTypeProperty,
 )
 
 from ..constants import ELECTRON_MASS, ModType
+from ..diagnostics import PeptacularError
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
 )
 from .mod import Mods
 from .positions import validate_position
+
+__all__ = [
+    "Fragment",
+]
+
+
+_FormulaKey = frozenset[tuple[str, int | None, int]]
+
+
+def _formula_key(formula: ChargedFormula) -> _FormulaKey:
+    """The formula's element magnitudes, ignoring sign and written order (``HCONH2`` == ``CH3NO``)."""
+    counts: Counter[tuple[str, int | None]] = Counter()
+    for fe in formula.formula:
+        counts[(fe.element.value, fe.isotope)] += fe.occurance
+    return frozenset((element, isotope, abs(count)) for (element, isotope), count in counts.items())
+
+
+@cache
+def _named_neutral_deltas() -> dict[_FormulaKey, str]:
+    """Composition -> the canonical mzPAF name of each known neutral delta (``NH3``, not ``H3N``)."""
+    named: dict[_FormulaKey, str] = {}
+    for info in NEUTRAL_DELTA_LOOKUP.values():
+        formula = ChargedFormula.from_string(info.formula, require_formula_prefix=False)
+        named.setdefault(_formula_key(formula), info.formula)
+    return named
+
+
+def _hill_rank(formula: ChargedFormula) -> Any:
+    has_carbon = any(fe.element.value == "C" for fe in formula.formula)
+
+    def rank(fe: Any) -> tuple[int, str, int]:
+        symbol = fe.element.value
+        if has_carbon and symbol in ("C", "H"):
+            return (0 if symbol == "C" else 1, "", fe.isotope or 0)
+        return (2, symbol, fe.isotope or 0)
+
+    return rank
+
+
+def _mzpaf_formula(formula: ChargedFormula) -> str:
+    """A loss/gain formula as a signed mzPAF token: the canonical name of a known neutral delta
+    (``-NH3``, ``-H2O``, ``-H3PO4``), else the formula in Hill order. mzPAF section 4.5 forbids
+    ``H3N`` for ammonia, and tacular stores compositions H-first, so the written order cannot be used.
+    """
+    signs = {fe.occurance > 0 for fe in formula.formula}
+    if len(signs) != 1:
+        return formula.to_mz_paf()  # raises the mixed-sign / empty error
+    sign = "+" if signs.pop() else "-"
+    name = _named_neutral_deltas().get(_formula_key(formula))
+    if name is not None:
+        return sign + name
+    ordered = sorted(formula.formula, key=_hill_rank(formula))
+    return sign + "".join(str(fe.abs()) for fe in ordered)
+
 
 # Maps internal ion type value tuples to their neutral loss diff relative to "by" (the default internal fragment).
 # None means no difference from "by". Derived from tacular's internal(F,B) = deltaF + deltaB
@@ -66,13 +124,69 @@ _MZPAF_SERIES_DELTA: dict[IonType, str] = {
 }
 
 
+_FRAGMENT_FIELDS: dict[str, str] = {
+    "ion_type": "ion_type",
+    "position": "position",
+    "mass": "mass",
+    "monoisotopic": "monoisotopic",
+    "charge_state": "charge_state",
+    "charge_adducts": "_charge_adducts",
+    "external_charge": "external_charge",
+    "isotopes": "_isotopes",
+    "deltas": "_deltas",
+    "composition": "_composition",
+    "parent_sequence": "parent_sequence",
+    "parent_sequence_length": "parent_sequence_length",
+}
+_COMPOSITION_INPUTS = frozenset(_FRAGMENT_FIELDS) - {"mass", "monoisotopic", "composition"}
+
+
+def _freeze(value: Mapping[Any, int] | int | None) -> Any:
+    """Hashable form of an isotope or delta mapping."""
+    if isinstance(value, Mapping):
+        return frozenset(value.items())
+    return value
+
+
+def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:
+    """Store delta keys as strings or masses, so ``Fragment(deltas=frag.deltas)`` round-trips."""
+    if not deltas:
+        return None  # ``frag.deltas`` reports "no deltas" as {}
+    if all(isinstance(key, str | float | int) for key in deltas):
+        return deltas
+    out: dict[str | float, int] = {}
+    for key, count in deltas.items():
+        if isinstance(key, ChargedFormula):
+            key = key.serialize().removeprefix("Formula:")
+        out[key] = out.get(key, 0) + count
+    return out
+
+
+def _isotope_keys(isotopes: Mapping[Any, int] | int | None) -> Mapping[str, int] | int | None:
+    """Store isotope keys as strings (``"15N"``), so ``Fragment(isotopes=frag.isotopes)`` round-trips."""
+    if isinstance(isotopes, int) or isotopes is None:
+        return isotopes
+    if not isotopes:
+        return None  # ``frag.isotopes`` reports "no isotopes" as {}
+    return {str(key): count for key, count in isotopes.items()}
+
+
+def _adduct_strings(adducts: Any) -> tuple[str, ...] | None:
+    """Store charge adducts as a tuple of strings; a :class:`Mods` (``frag.charge_adducts``) is expanded."""
+    if isinstance(adducts, Mods):
+        return tuple(key for key, count in (adducts._mods or {}).items() for _ in range(count))
+    return adducts
+
+
 class Fragment:
     """One theoretical ion: a fragment or precursor with its ion type, position, charge and mass.
 
     Returned by :meth:`ProFormaAnnotation.frag`, :meth:`ProFormaAnnotation.fragment` and
     :func:`peptacular.fragment`. ``mass`` is the mass of the charged ion (adducts included), so
     ``mz`` is ``mass / abs(charge_state)`` and ``neutral_mass`` removes the charge carriers.
-    Use :meth:`to_mzpaf` for an mzPAF annotation string.
+    Use :meth:`to_mzpaf` for an mzPAF annotation string. Fragments are immutable: assigning
+    to an attribute raises :class:`dataclasses.FrozenInstanceError`; :meth:`replace` returns a
+    changed copy. Fragments compare and hash by value.
 
     >>> import peptacular as pt
     >>> frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
@@ -110,6 +224,34 @@ class Fragment:
     :type parent_sequence_length: int | None
     """
 
+    __slots__ = (
+        "ion_type",
+        "position",
+        "mass",
+        "monoisotopic",
+        "charge_state",
+        "_charge_adducts",
+        "external_charge",
+        "_isotopes",
+        "_deltas",
+        "_composition",
+        "parent_sequence",
+        "parent_sequence_length",
+    )
+
+    ion_type: IonType
+    position: int | tuple[int, int] | None
+    mass: int | float
+    monoisotopic: bool
+    charge_state: int
+    _charge_adducts: tuple[str, ...] | None
+    external_charge: int
+    _isotopes: Mapping[str, int] | int | None
+    _deltas: Mapping[str | float, int] | None
+    _composition: Counter[ElementInfo] | None
+    parent_sequence: str | None
+    parent_sequence_length: int | None
+
     def __init__(
         self,
         ion_type: IonType,
@@ -117,6 +259,7 @@ class Fragment:
         mass: float,
         monoisotopic: bool,
         charge_state: int,
+        *,
         charge_adducts: tuple[str, ...] | None = None,
         external_charge: int | None = None,
         isotopes: Mapping[str, int] | int | None = None,
@@ -125,27 +268,48 @@ class Fragment:
         parent_sequence: str | None = None,
         parent_sequence_length: int | None = None,
     ) -> None:
-        self.ion_type: IonType = ion_type
-        self.position: int | tuple[int, int] | None = position
-        self.mass: int | float = mass
-        self.monoisotopic: bool = monoisotopic
-        self.charge_state: int = charge_state
+        _set = object.__setattr__
+        _set(self, "ion_type", ion_type)
+        _set(self, "position", position)
+        _set(self, "mass", mass)
+        _set(self, "monoisotopic", monoisotopic)
+        _set(self, "charge_state", charge_state)
         # If None and charge_state != 0: means protonated
-        self._charge_adducts: tuple[str, ...] | None = charge_adducts
+        _set(self, "_charge_adducts", _adduct_strings(charge_adducts))
         # The portion of charge_state that comes from real external adducts/charge carriers,
         # as opposed to charge intrinsic to an internal formula modification (e.g. [Formula:...:z+N]).
         # Used to reconstruct the default proton adduct when charge_adducts is None, so that
         # internal charge is never mistaken for extra external protons. Defaults to charge_state
-        # (i.e. "assume it's all external protonation") when not given explicitly, matching direct
-        # construction of a Fragment outside the internal internal+external charge-splitting pipeline.
-        self.external_charge: int = external_charge if external_charge is not None else charge_state
+        # (i.e. "assume it's all external protonation") when not given explicitly.
+        _set(self, "external_charge", external_charge if external_charge is not None else charge_state)
         # int means 13C count
-        self._isotopes: Mapping[str, int] | int | None = isotopes
-        self._losses: Mapping[str | float, int] | None = deltas
+        _set(self, "_isotopes", _isotope_keys(isotopes))
+        _set(self, "_deltas", _delta_keys(deltas))
         # Optional composition cache
-        self._composition: Counter[ElementInfo] | None = composition
-        self.parent_sequence: str | None = parent_sequence
-        self.parent_sequence_length: int | None = parent_sequence_length
+        _set(self, "_composition", composition)
+        _set(self, "parent_sequence", parent_sequence)
+        _set(self, "parent_sequence_length", parent_sequence_length)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise FrozenInstanceError(f"cannot assign to field {name!r}: Fragment is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise FrozenInstanceError(f"cannot delete field {name!r}: Fragment is immutable")
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__slots__}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for name, value in state.items():
+            object.__setattr__(self, name, value)
+
+    def _replace(self, **changes: Any) -> "Fragment":
+        """Return a copy with the given slot values replaced (internal helper)."""
+        state = self.__getstate__()
+        state.update(changes)
+        new = Fragment.__new__(Fragment)
+        new.__setstate__(state)
+        return new
 
     @property
     def composition(self) -> Counter[ElementInfo] | None:
@@ -153,10 +317,10 @@ class Fragment:
             return self._composition
 
         if self.parent_sequence is None:
-            raise ValueError("Cannot calculate composition without parent sequence or explicit composition")
+            raise PeptacularError("Cannot calculate composition without parent sequence or explicit composition")
 
         if self.parent_sequence_length is None:
-            raise ValueError("Cannot calculate composition without parent sequence length")
+            raise PeptacularError("Cannot calculate composition without parent sequence length")
 
         from .annotation import ProFormaAnnotation
 
@@ -172,7 +336,7 @@ class Fragment:
         # than the actual fragment by the ion-type offset (e.g. +H2O for a b-ion), disagreeing
         # with the fragment's own `.mass`. y-ions coincidentally matched (y neutral == precursor).
         charge = self.external_charge if self._charge_adducts is None else self.charge_adducts
-        return annot.comp(ion_type=self.ion_type, isotopes=self.isotopes, deltas=self.losses, charge=charge)  # type: ignore
+        return annot.comp(ion_type=self.ion_type, isotopes=self.isotopes, deltas=self.deltas, charge=charge)  # type: ignore
 
     @property
     def mz(self) -> float:
@@ -185,7 +349,7 @@ class Fragment:
         # must be undone to recover the true neutral mass.
         total_adduct_mass = 0.0
         for adduct in self.charge_adducts:
-            total_adduct_mass += adduct.get_mass(self.monoisotopic)
+            total_adduct_mass += adduct.get_mass(monoisotopic=self.monoisotopic)
         return self.mass - total_adduct_mass + self.charge_state * ELECTRON_MASS
 
     @property
@@ -229,17 +393,88 @@ class Fragment:
         return False
 
     @property
-    def losses(self) -> Mapping[ChargedFormula | float, int]:
-        if self._losses is not None:
-            losses = {}
-            for loss_name, count in self._losses.items():
-                if isinstance(loss_name, float | int):
-                    losses[loss_name] = count
+    def deltas(self) -> Mapping[ChargedFormula | float, int]:
+        """Neutral losses and gains as ``{ChargedFormula or mass: count}``.
+
+        A named loss such as ``H2O`` is stored as a negative formula (``H-2O-1``); a plain
+        formula or a positive mass is a gain.
+        """
+        if self._deltas is not None:
+            deltas: dict[ChargedFormula | float, int] = {}
+            for key, count in self._deltas.items():
+                if isinstance(key, float | int):
+                    deltas[key] = count
                     continue
-                loss_formula = ChargedFormula.from_string(loss_name, require_formula_prefix=False)
-                losses[loss_formula] = count
-            return losses
+                deltas[ChargedFormula.from_string(key, require_formula_prefix=False)] = count
+            return deltas
         return {}
+
+    def _value_key(self) -> tuple[Any, ...]:
+        """The fields that define a fragment's value (the composition cache is excluded)."""
+        return (
+            self.ion_type,
+            self.position,
+            self.mass,
+            self.monoisotopic,
+            self.charge_state,
+            self._charge_adducts,
+            self.external_charge,
+            _freeze(self._isotopes),
+            _freeze(self._deltas),
+            self.parent_sequence,
+            self.parent_sequence_length,
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Fragment):
+            return NotImplemented
+        return self._value_key() == other._value_key()
+
+    def __hash__(self) -> int:
+        return hash(self._value_key())
+
+    def replace(self, **changes: Any) -> "Fragment":
+        """Return a copy with the given constructor arguments replaced.
+
+        Takes the :class:`Fragment` constructor names (``mass``, ``charge_state``, ``deltas``,
+        ...). The cached composition is dropped when a field it depends on changes, unless
+        ``composition`` is passed too. Changing ``charge_state`` of a fragment whose charge is
+        all external also moves ``external_charge``. The values the properties return
+        (``frag.deltas``, ``frag.isotopes``, ``frag.charge_adducts``) are accepted as is.
+
+        >>> import peptacular as pt
+        >>> frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
+        >>> frag.replace(mass=100.0).mass
+        100.0
+        >>> frag.replace(mass=frag.mass) == frag
+        True
+
+        :raises TypeError: If a key is not a constructor argument.
+        :return: A new fragment.
+        :rtype: Fragment
+        """
+        unknown = set(changes) - _FRAGMENT_FIELDS.keys()
+        if unknown:
+            raise TypeError(f"Fragment.replace() got unexpected field(s) {sorted(unknown)}; expected any of {sorted(_FRAGMENT_FIELDS)}")
+        if "isotopes" in changes:
+            isotopes = changes["isotopes"]
+            # `isotopes` reports a 13C count as {13C: n}; passing that back keeps the count
+            changes["isotopes"] = self._isotopes if isotopes == self.isotopes else _isotope_keys(isotopes)
+        if "deltas" in changes:
+            changes["deltas"] = _delta_keys(changes["deltas"])
+        if "charge_adducts" in changes:
+            adducts = changes["charge_adducts"]
+            # the default protons that `charge_adducts` reports for a protonated ion stay implicit
+            keep_default = self._charge_adducts is None and isinstance(adducts, Mods) and adducts == self.charge_adducts
+            changes["charge_adducts"] = None if keep_default else _adduct_strings(adducts)
+        slot_changes = {_FRAGMENT_FIELDS[name]: value for name, value in changes.items()}
+        if "external_charge" in changes and changes["external_charge"] is None:
+            slot_changes["external_charge"] = changes.get("charge_state", self.charge_state)
+        elif "charge_state" in changes and "external_charge" not in changes and self.external_charge == self.charge_state:
+            slot_changes["external_charge"] = changes["charge_state"]
+        if "composition" not in changes and _COMPOSITION_INPUTS & changes.keys():
+            slot_changes["_composition"] = None
+        return self._replace(**slot_changes)
 
     def asdict(self) -> dict[str, Any]:
         return {
@@ -250,10 +485,10 @@ class Fragment:
             "monoisotopic": self.monoisotopic,
             "charge_adducts": self.charge_adducts,
             "isotopes": self.isotopes,
-            "losses": self.losses,
+            "deltas": self.deltas,
         }
 
-    def serialize(self, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True) -> str:
+    def serialize(self, *, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True) -> str:
         """Serialize the fragment to a string representation.
 
         :param format: Output format. ``"default"`` returns the human-readable representation,
@@ -269,9 +504,9 @@ class Fragment:
         elif format == "mzpaf":
             return self._serialize_mzpaf(include_sequence=include_sequence)
         else:
-            raise ValueError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
+            raise PeptacularError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
 
-    def to_mzpaf(self, include_sequence: bool = True) -> str:
+    def to_mzpaf(self, *, include_sequence: bool = True) -> str:
         """Serialize the fragment to an mzPAF (Peak Annotation Format) label string.
 
         mzPAF 1.0.1 ``z`` is the z-dot radical (``IonType.Z_RADICAL``). The Biemann ``z``
@@ -286,7 +521,7 @@ class Fragment:
         """
         return self._serialize_mzpaf(include_sequence=include_sequence)
 
-    def _serialize_mzpaf(self, include_sequence: bool = True) -> str:
+    def _serialize_mzpaf(self, *, include_sequence: bool = True) -> str:
         """Build the mzPAF label string for this fragment."""
         from .annotation import ProFormaAnnotation
 
@@ -324,17 +559,17 @@ class Fragment:
                             if annot.has_internal_mods_at_index(0):
                                 internal_mods = annot.get_internal_mods_at_index(0)
                                 if len(internal_mods) > 1:
-                                    raise ValueError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
+                                    raise PeptacularError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
                                 if len(internal_mods) == 1 and internal_mods.mods[0].count > 1:
-                                    raise ValueError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
+                                    raise PeptacularError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
                                 mods_str = internal_mods.serialize()[1:-1]  # remove surrounding brackets
                                 if mods_str == "":
-                                    raise ValueError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
+                                    raise PeptacularError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
                                 parts.append(f"[{mods_str}]")
                         else:
-                            raise ValueError("Immonium ion must have a sequence annotation.")
+                            raise PeptacularError("Immonium ion must have a sequence annotation.")
                     else:
-                        raise ValueError("Immonium ion must have a parent sequence.")
+                        raise PeptacularError("Immonium ion must have a parent sequence.")
                 else:
                     # Internal fragment: m{start}:{end}[{sequence}]
                     if isinstance(self.position, tuple) and len(self.position) == 2:
@@ -356,38 +591,38 @@ class Fragment:
                     if internal_ion_key is not None and internal_ion_key in _INTERNAL_MASS_DIFFS:
                         internal_loss = _INTERNAL_MASS_DIFFS[internal_ion_key]
                     else:
-                        raise ValueError(f"Internal ion type {ion_info.ion_type} not supported in mzPAF.")
+                        raise PeptacularError(f"Internal ion type {ion_info.ion_type} not supported in mzPAF.")
 
             elif ion_info.properties & IonTypeProperty.INTACT:
                 if ion_info.ion_type == IonType.PRECURSOR:
                     parts.append("p")
                 else:
-                    raise ValueError(f"Cannot convert intact ion type {ion_info.id} to mzPAF.")
+                    raise PeptacularError(f"Cannot convert intact ion type {ion_info.id} to mzPAF.")
             else:
-                raise ValueError(f"Cannot convert fragment with ion type {self.ion_type} to mzPAF.")
+                raise PeptacularError(f"Cannot convert fragment with ion type {self.ion_type} to mzPAF.")
 
         # Hydrogen delta of a z/c variant that mzPAF writes as its parent series
         if series_delta is not None:
             parts.append(series_delta)
 
-        # Neutral losses from self.losses
-        if self._losses is not None:
-            for loss_key, count in self._losses.items():
+        # Neutral losses and gains from self._deltas
+        if self._deltas is not None:
+            for loss_key, count in self._deltas.items():
                 if isinstance(loss_key, float | int):
                     # mzPAF's neutral_loss grammar only accepts a chemical formula or a
                     # bracketed reference-group name after the sign (spec section 4.5);
                     # there is no representation for an arbitrary unnamed mass delta.
-                    raise ValueError(
+                    raise PeptacularError(
                         f"Cannot convert numeric neutral loss/gain delta ({loss_key!r}) to mzPAF: "
                         "mzPAF neutral losses must be a chemical formula or a named reference group, "
                         "not a bare mass delta."
                     )
                 else:
                     loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
-                    paf_formula = loss_formula.to_mz_paf()
+                    paf_formula = _mzpaf_formula(loss_formula)
                     sign = paf_formula[0]
                     if sign not in ("+", "-"):
-                        raise ValueError(f"Invalid formula sign in loss: {paf_formula}")
+                        raise PeptacularError(f"Invalid formula sign in loss: {paf_formula}")
                     mult = 1 if sign == "+" else -1
                     abs_count = abs(count * mult)
                     count_str = str(abs_count) if abs_count > 1 else ""
@@ -459,8 +694,8 @@ class Fragment:
         if self.isotopes:
             parts.append(f"isotopes={dict(self.isotopes)}")
 
-        if self.losses:
-            parts.append(f"losses={dict(self.losses)}")
+        if self.deltas:
+            parts.append(f"deltas={dict(self.deltas)}")
 
         return f"Fragment({', '.join(parts)})"
 
@@ -469,7 +704,7 @@ class Fragment:
             f"Fragment(ion_type={self.ion_type!r}, position={self.position!r}, "
             f"mass={self.mass}, monoisotopic={self.monoisotopic}, "
             f"charge_state={self.charge_state}, charge_adducts={self._charge_adducts!r}, "
-            f"isotopes={self._isotopes!r}, deltas={self._losses!r}, "
+            f"isotopes={self._isotopes!r}, deltas={self._deltas!r}, "
             f"composition={self._composition!r}, parent_sequence={self.parent_sequence!r}, "
             f"parent_sequence_length={self.parent_sequence_length})"
         )
@@ -477,10 +712,10 @@ class Fragment:
     @property
     def sequence(self) -> str | None:
         if self.parent_sequence is None:
-            raise ValueError("Cannot determine fragment sequence without parent sequence")
+            raise PeptacularError("Cannot determine fragment sequence without parent sequence")
 
         if self.parent_sequence_length is None:
-            raise ValueError("Cannot determine fragment sequence without parent sequence length")
+            raise PeptacularError("Cannot determine fragment sequence without parent sequence length")
 
         pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
         if pos is None:
@@ -495,4 +730,4 @@ class Fragment:
                 .serialize()
             )
 
-        raise ValueError("Invalid position format for fragment sequence extraction")
+        raise PeptacularError("Invalid position format for fragment sequence extraction")

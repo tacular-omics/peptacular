@@ -2,7 +2,12 @@ import math
 from collections.abc import Sequence
 from typing import Any
 
+from ..diagnostics import PeptacularError
 from .types import WeightingMethods
+
+__all__ = [
+    "get_weights",
+]
 
 
 def _get_uniform_weights(length: int, min_weight: float = 0.1, max_weight: float = 1.0) -> list[float]:
@@ -269,11 +274,11 @@ def get_weights(
                 return _get_cosine_weights(length, min_weight, max_weight, kwargs.get("cycles", 1.0))
             case WeightingMethods.SINUSOIDAL:
                 return _get_sinusoidal_weights(length, min_weight, max_weight, kwargs.get("phase", 0.0))
-            case _:
-                raise ValueError(f"Unsupported weights type: {weights}")
+            case _:  # pragma: no cover - from_str already rejects unknown names
+                raise PeptacularError(f"Unsupported weights type: {weights}")
     else:
         if not isinstance(weights, Sequence):
             raise TypeError("weights must be a sequence of floats or a valid WeightingMethod enum.")
         if len(weights) != length:
-            raise ValueError(f"Length of weights list ({len(weights)}) does not match sequence length ({length}).")
+            raise PeptacularError(f"Length of weights list ({len(weights)}) does not match sequence length ({length}).")
         return weights

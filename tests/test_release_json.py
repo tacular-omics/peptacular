@@ -3,6 +3,7 @@ import runpy
 from pathlib import Path
 
 import pytest
+import tacular
 from jsonschema import Draft202012Validator
 
 import peptacular as pt
@@ -13,11 +14,11 @@ def components():
     formula = pt.ChargedFormula.from_composition({"C": 2, "H": 3})
     tag = pt.ModificationTags((pt.TagName("Oxidation"),))
     rule = pt.PositionRule(pt.Terminal.N_TERM)
-    residue = pt.SequenceElement(pt.AminoAcid.C, (tag,))
+    residue = pt.SequenceElement(tacular.AminoAcid.C, (tag,))
     peptide = pt.Peptidoform((residue,))
     ion = pt.PeptidoformIon((peptide,), charge=2)
     return [
-        pt.FormulaElement(pt.Element.C, 2, 13),
+        pt.FormulaElement(tacular.Element.C, 2, 13),
         formula,
         rule,
         pt.TagAccession("35", pt.CV.UNIMOD),
@@ -32,7 +33,7 @@ def components():
         pt.LimitTag(1),
         pt.ComkpTag(),
         pt.ComupTag(),
-        pt.IsotopeReplacement(pt.Element.C, 13),
+        pt.IsotopeReplacement(tacular.Element.C, 13),
         pt.GlobalChargeCarrier(formula, 1),
         tag,
         pt.ModificationAmbiguousPrimary("g1", tag, 0.7, (rule,), 1, True, False),
@@ -107,7 +108,7 @@ def test_annotation_rejects_wrong_field_types(field, value):
     ("field", "value"), [("occurance", True), ("element", "C"), ("element", {"$enum": "AminoAcid", "value": "C"}), ("isotope", 1.2), ("surprise", 1)]
 )
 def test_component_rejects_wrong_field_types(field, value):
-    data = pt.FormulaElement(pt.Element.C, 1).to_dict()
+    data = pt.FormulaElement(tacular.Element.C, 1).to_dict()
     data[field] = value
     assert not Draft202012Validator(pt.get_proforma_json_schema()).is_valid(data)
     with pytest.raises(ValueError):

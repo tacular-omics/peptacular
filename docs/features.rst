@@ -145,7 +145,7 @@ with invalid modifications/sequences. If you need strict validation:
    
    # Strict validation
    a = pt.parse('PEPTIDE', validate=True)
-   a.static_mods = 'INVALID_MOD'  # Raises ValueError
+   a.static_mods = 'INVALID_MOD'  # raises ProFormaFormatError (a PeptacularError)
 
    a.validate = False  # Disable validation
    a.static_mods = 'INVALID_MOD'  # Works without error

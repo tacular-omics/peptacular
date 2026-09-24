@@ -3,6 +3,7 @@ Tests for parsing isotope replacements and global modifications.
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -14,37 +15,37 @@ class TestIsotopeReplacement:
         """Test parsing deuterium as D"""
         result = pt.IsotopeReplacement.from_string("D")
         assert isinstance(result, pt.IsotopeReplacement)
-        assert result.element == pt.Element.H
+        assert result.element == tacular.Element.H
         assert result.isotope == 2
 
     def test_carbon_13(self):
         """Test parsing 13C"""
         result = pt.IsotopeReplacement.from_string("13C")
-        assert result.element == pt.Element.C
+        assert result.element == tacular.Element.C
         assert result.isotope == 13
 
     def test_nitrogen_15(self):
         """Test parsing 15N"""
         result = pt.IsotopeReplacement.from_string("15N")
-        assert result.element == pt.Element.N
+        assert result.element == tacular.Element.N
         assert result.isotope == 15
 
     def test_oxygen_18(self):
         """Test parsing 18O"""
         result = pt.IsotopeReplacement.from_string("18O")
-        assert result.element == pt.Element.O
+        assert result.element == tacular.Element.O
         assert result.isotope == 18
 
     def test_sulfur_34(self):
         """Test parsing 34S"""
         result = pt.IsotopeReplacement.from_string("34S")
-        assert result.element == pt.Element.S
+        assert result.element == tacular.Element.S
         assert result.isotope == 34
 
     def test_carbon_12(self):
         """Test parsing 12C (natural isotope)"""
         result = pt.IsotopeReplacement.from_string("12C")
-        assert result.element == pt.Element.C
+        assert result.element == tacular.Element.C
         assert result.isotope == 12
 
     def test_missing_isotope_number_raises_error(self):
@@ -88,7 +89,7 @@ class TestGlobalChargeCarrier:
         result = pt.GlobalChargeCarrier.from_string("Na:z+1")
         assert result.occurance == 1.0
         # Check that formula contains Na
-        assert any(fe.element == pt.Element.Na for fe in result.charged_formula.formula)
+        assert any(fe.element == tacular.Element.Na for fe in result.charged_formula.formula)
 
     def test_carrier_with_integer_occurance(self):
         """Test charge carrier with integer occurrence"""
@@ -128,14 +129,14 @@ class TestFixedModification:
         result = pt.FixedModification.from_string("[Oxidation]@M")
         assert isinstance(result, pt.FixedModification)
         assert len(result.position_rules) == 1
-        assert result.position_rules[0].amino_acid == pt.AminoAcid.M
+        assert result.position_rules[0].amino_acid == tacular.AminoAcid.M
 
     def test_fixed_mod_multiple_positions(self):
         """Test fixed modification with multiple positions"""
         result = pt.FixedModification.from_string("[TMT6plex]@K,N-term")
         assert len(result.position_rules) == 2
         # Should have K and N-term
-        assert any(pr.amino_acid == pt.AminoAcid.K for pr in result.position_rules)
+        assert any(pr.amino_acid == tacular.AminoAcid.K for pr in result.position_rules)
         assert any(pr.terminal == pt.Terminal.N_TERM for pr in result.position_rules)
 
     def test_fixed_mod_without_position(self):

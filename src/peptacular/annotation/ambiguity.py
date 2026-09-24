@@ -8,9 +8,17 @@ from tacular import IonType
 
 from ..annotation.parser import Interval
 from ..constants import ModType
+from ..diagnostics import PeptacularError
 
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
+
+__all__ = [
+    "condense_ambiguity_to_xnotation",
+    "annotate_ambiguity",
+    "group_by_ambiguity",
+    "unique_fragments",
+]
 
 
 def condense_ambiguity_to_xnotation(annotation: ProFormaAnnotation, inplace: bool = False) -> ProFormaAnnotation:
@@ -77,7 +85,7 @@ def annotate_ambiguity(
         )
 
     if annotation.has_intervals:
-        raise ValueError("Annotation should not contain intervals")
+        raise PeptacularError("Annotation should not contain intervals")
 
     _validate_coverage_lengths(forward_coverage, reverse_coverage, len(annotation))
 
@@ -85,7 +93,7 @@ def annotate_ambiguity(
     reverse_intervals = _construct_ambiguity_intervals(reverse_coverage, reverse=True)
     ambiguity_intervals = _combine_ambiguity_intervals(forward_intervals, reverse_intervals)
 
-    intervals = [Interval(start, end + 1, True, None, validate=annotation._validate) for start, end in ambiguity_intervals]
+    intervals = [Interval(start, end + 1, ambiguous=True, validate=annotation._validate) for start, end in ambiguity_intervals]
 
     annotation.extend_intervals(intervals)
 
@@ -315,7 +323,7 @@ def _get_mass_shift_interval(forward_coverage: list[int], reverse_coverage: list
 def _validate_coverage_lengths(forward_coverage: list[int], reverse_coverage: list[int], seq_len: int) -> None:
     """Validate that coverage lengths match sequence length"""
     if len(forward_coverage) != seq_len or len(reverse_coverage) != seq_len:
-        raise ValueError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
+        raise PeptacularError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
 
 
 def _apply_mass_shift(
@@ -347,8 +355,6 @@ def _apply_mass_shift(
         mod_interval = Interval(
             mass_shift_interval[0],
             mass_shift_interval[1] + 1,
-            False,
-            None,
             validate=annotation._validate,
         )
         mod_interval.append_mod(mass_shift)
@@ -359,7 +365,7 @@ def group_by_ambiguity(annotations: Iterable[ProFormaAnnotation], precision: int
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
+        raise PeptacularError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 
@@ -410,7 +416,7 @@ def unique_fragments(annotations: Iterable[ProFormaAnnotation], precision: int =
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
+        raise PeptacularError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 

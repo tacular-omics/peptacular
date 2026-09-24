@@ -4,6 +4,8 @@ Each function dispatches on scalar vs. batch input; these tests exercise both
 paths and confirm they agree with the underlying ProFormaAnnotation methods.
 """
 
+import re
+
 import peptacular as pt
 from peptacular.sequence.digestion import (
     cleavage_sites,
@@ -85,14 +87,14 @@ class TestNonspecificDigest:
 
 class TestCleavageSites:
     def test_scalar_regex(self):
-        assert cleavage_sites(SEQ, "(?<=[KR])") == [5, 10]
+        assert cleavage_sites(SEQ, re.compile("(?<=[KR])")) == [5, 10]
 
     def test_batch(self):
-        assert cleavage_sites([SEQ, SEQ], "(?<=[KR])") == [[5, 10], [5, 10]]
+        assert cleavage_sites([SEQ, SEQ], re.compile("(?<=[KR])")) == [[5, 10], [5, 10]]
 
     def test_annotation_input(self):
         a = pt.parse(SEQ)
-        assert cleavage_sites(a, "(?<=[KR])") == cleavage_sites(SEQ, "(?<=[KR])")
+        assert cleavage_sites(a, re.compile("(?<=[KR])")) == cleavage_sites(SEQ, re.compile("(?<=[KR])"))
 
 
 class TestSimpleCleavageSites:
@@ -113,27 +115,27 @@ class TestSimpleCleavageSites:
 
 class TestDigest:
     def test_scalar_regex(self):
-        result = digest(SEQ, "(?<=[KR])", missed_cleavages=1, min_len=1, max_len=100)
+        result = digest(SEQ, re.compile("(?<=[KR])"), missed_cleavages=1, min_len=1, max_len=100)
         peptides = {s for s, _ in result}
         assert "TIDER" in peptides
         assert "TIDERTIDEK" in peptides
 
     def test_batch_matches_scalar(self):
-        scalar = digest(SEQ, "(?<=[KR])", missed_cleavages=0, min_len=1, max_len=100)
-        batch = digest([SEQ, SEQ], "(?<=[KR])", missed_cleavages=0, min_len=1, max_len=100)
+        scalar = digest(SEQ, re.compile("(?<=[KR])"), missed_cleavages=0, min_len=1, max_len=100)
+        batch = digest([SEQ, SEQ], re.compile("(?<=[KR])"), missed_cleavages=0, min_len=1, max_len=100)
         assert batch == [scalar, scalar]
 
     def test_annotation_input(self):
         a = pt.parse(SEQ)
-        assert digest(a, "(?<=[KR])", min_len=1, max_len=100) == digest(SEQ, "(?<=[KR])", min_len=1, max_len=100)
+        assert digest(a, re.compile("(?<=[KR])"), min_len=1, max_len=100) == digest(SEQ, re.compile("(?<=[KR])"), min_len=1, max_len=100)
 
     def test_batch_with_explicit_parallel_kwargs(self):
-        result = digest([SEQ, SEQ], "(?<=[KR])", missed_cleavages=0, min_len=1, max_len=100, n_workers=2, chunksize=1, method="sequential")
+        result = digest([SEQ, SEQ], re.compile("(?<=[KR])"), missed_cleavages=0, min_len=1, max_len=100, n_workers=2, chunksize=1, method="sequential")
         assert len(result) == 2
 
     def test_semi_flag(self):
-        semi_result = digest(SEQ, "(?<=[KR])", semi=True, min_len=1, max_len=100)
-        non_semi_result = digest(SEQ, "(?<=[KR])", semi=False, min_len=1, max_len=100)
+        semi_result = digest(SEQ, re.compile("(?<=[KR])"), semi=True, min_len=1, max_len=100)
+        non_semi_result = digest(SEQ, re.compile("(?<=[KR])"), semi=False, min_len=1, max_len=100)
         assert len(semi_result) >= len(non_semi_result)
 
 

@@ -51,7 +51,7 @@ Digest protein sequences with various proteases.
 FASTA Digestion
 ---------------
 
-Parse protein sequences from a FASTA file and digest each one.
+Read proteins from a FASTA file with fastatacular and digest each entry directly.
 
 .. literalinclude:: ../examples/digest_fasta_file.py
    :language: python

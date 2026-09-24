@@ -8,7 +8,7 @@ def _peptides(sequence: str, **kwargs) -> list[str]:
     ann = pt.parse(sequence)
     kwargs.setdefault("min_len", 1)
     kwargs.setdefault("max_len", 100)
-    return [ann[span].serialize() for span in ann.simple_digest(**kwargs)]
+    return [ann[span].serialize() for span in ann.simple_digest_spans(**kwargs)]
 
 
 class TestCleaveRules:
@@ -51,7 +51,7 @@ class TestAmbiguityCodes:
 class TestMissedCleavages:
     def test_count_monotonic_in_missed_cleavages(self):
         ann = pt.parse("AKBKCKDK")
-        counts = [len(list(ann.simple_digest(cleave_on="K", missed_cleavages=mc, min_len=1, max_len=100))) for mc in range(3)]
+        counts = [len(list(ann.simple_digest_spans(cleave_on="K", missed_cleavages=mc, min_len=1, max_len=100))) for mc in range(3)]
         assert counts == sorted(counts)
         assert counts[0] < counts[-1]
 

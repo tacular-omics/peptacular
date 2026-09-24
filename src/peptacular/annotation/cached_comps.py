@@ -6,8 +6,19 @@ from math import isfinite
 
 from tacular import ELEMENT_LOOKUP, NEUTRAL_DELTA_LOOKUP, ElementInfo
 
-from ..diagnostics import CompositionError, InvalidAdjustmentError
+from ..diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 from ..proforma_components import ChargedFormula, GlobalChargeCarrier
+
+__all__ = [
+    "IsotopeInfo",
+    "ChargeCarrierInfo",
+    "DeltaInfo",
+    "handle_charge_input",
+    "get_charge_adducts",
+    "C13",
+    "get_isotopes",
+    "get_losses",
+]
 
 # ============================================================================
 # IsotopeInfo
@@ -108,7 +119,7 @@ class ChargeCarrierInfo:
     def charge(self) -> int:
         return sum(adduct.get_charge() for adduct in self.adducts)
 
-    def get_mass(self, monoisotopic: bool = False) -> float:
+    def get_mass(self, *, monoisotopic: bool = False) -> float:
         if monoisotopic:
             return self.monoisotopic_mass
         return self.average_mass
@@ -138,7 +149,7 @@ class ChargeCarrierInfo:
                 base_comp[elem_info] += count
 
         if any(v < 0 for v in base_comp.values()):
-            raise ValueError(f"Charge carrier adjustment resulted in negative element counts: {base_comp}")
+            raise PeptacularError(f"Charge carrier adjustment resulted in negative element counts: {base_comp}")
 
     @staticmethod
     def from_input(
@@ -321,7 +332,7 @@ class DeltaInfo:
         # Check for charged formulas
         for key in normalized_dict.keys():
             if isinstance(key, ChargedFormula) and key.is_charged:
-                raise ValueError("Delta formulas must be neutral (charge=0)")
+                raise PeptacularError("Delta formulas must be neutral (charge=0)")
 
         # Convert to sorted tuple of (str_key, count) for caching
         items: list[tuple[str, int]] = []
@@ -341,6 +352,11 @@ class DeltaInfo:
 
     def __add__(self, other: "DeltaInfo") -> "DeltaInfo":
         """Combine two DeltaInfo objects (add deltas together)."""
+        # Instances are immutable, so adding an empty delta can return the other operand.
+        if not other._items:
+            return self
+        if not self._items:
+            return other
         combined: dict[ChargedFormula | float, int] = dict(self.deltas)
         for key, count in other.deltas.items():
             combined[key] = combined.get(key, 0) + count
@@ -524,7 +540,7 @@ def get_isotopes(
         if isinstance(isotopes, bool):
             raise InvalidAdjustmentError("Isotope count must be an integer, not bool")
         if isotopes < 0:
-            raise ValueError("Isotope count cannot be negative")
+            raise PeptacularError("Isotope count cannot be negative")
         return _get_isotopes(isotopes)
 
     raise TypeError(f"Invalid isotope type: {type(isotopes)}")

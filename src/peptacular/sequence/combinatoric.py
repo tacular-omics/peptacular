@@ -2,13 +2,20 @@ from collections.abc import Sequence
 from typing import overload
 
 from ..annotation import ProFormaAnnotation
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "permutations",
+    "product",
+    "combinations",
+    "combinations_with_replacement",
+]
 
 
 def _permutations_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None = None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence, copy=False)
@@ -17,30 +24,33 @@ def _permutations_single(
 
 @overload
 def permutations(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 @overload
 def permutations(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
 def permutations(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Generates all permutations of the input sequence. Terminal sequence are kept in place.
@@ -79,7 +89,7 @@ def permutations(
 
 
 def _product_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     repeat: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -88,30 +98,33 @@ def _product_single(
 
 @overload
 def product(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     repeat: int | None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 @overload
 def product(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     repeat: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
 def product(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     repeat: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Generates all cartesian products of the input sequence of a given size. Terminal sequence are kept in place.
@@ -150,7 +163,7 @@ def product(
 
 
 def _combinations_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -159,30 +172,33 @@ def _combinations_single(
 
 @overload
 def combinations(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 @overload
 def combinations(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
 def combinations(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Generates all combinations of the input sequence of a given size. Terminal sequence are kept in place.
@@ -221,7 +237,7 @@ def combinations(
 
 
 def _combinations_with_replacement_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -230,30 +246,33 @@ def _combinations_with_replacement_single(
 
 @overload
 def combinations_with_replacement(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 @overload
 def combinations_with_replacement(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
 def combinations_with_replacement(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Generates all combinations with replacement of the input sequence of a given size. Terminal sequence are kept

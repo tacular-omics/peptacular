@@ -61,11 +61,11 @@ def test_fallback_matches_fragment(sequence, kwargs):
     assert pt.mz(annot, **kwargs) == fragment.mz
 
 
-@pytest.mark.parametrize("aa", list(AA_LOOKUP.one_letter_to_info))
+@pytest.mark.parametrize("aa", AA_LOOKUP.keys())
 @pytest.mark.parametrize("monoisotopic", [True, False])
 def test_residue_lookup_preserves_reference_masses(aa, monoisotopic):
     annot = pt.ProFormaAnnotation(aa)
-    expected = AA_LOOKUP.one_letter_to_info[aa].get_mass(monoisotopic)
+    expected = AA_LOOKUP[aa].get_mass(monoisotopic=monoisotopic)
     if expected is None:
         with pytest.raises(ValueError, match="Mass not available"):
             annot.mass(monoisotopic=monoisotopic)

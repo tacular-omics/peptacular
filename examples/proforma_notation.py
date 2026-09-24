@@ -196,7 +196,7 @@ def run():
     print(f"C13 and N15 labeled: {multi_isotope.serialize()}")
 
     # Deuterium labeling
-    deuterium = pt.parse("<2H>PEP[Oxidation]TIDE") 
+    deuterium = pt.parse("<2H>PEP[Oxidation]TIDE")
     print(f"Deuterium labeled: {deuterium.serialize()}")
 
     # ============================================================================

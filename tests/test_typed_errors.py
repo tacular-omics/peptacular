@@ -1,5 +1,6 @@
 """Typed errors on the main public paths (4.2). Every class is still a ``ValueError``."""
 
+import re
 import warnings
 
 import pytest
@@ -13,7 +14,6 @@ ERROR_CLASSES = [
     pt.InvalidAdjustmentError,
     pt.UnsupportedOperationError,
     pt.InvalidPositionError,
-    pt.FastaFormatError,
 ]
 
 
@@ -73,29 +73,32 @@ def test_out_of_range_frag_position_is_position_error():
         pt.parse("PEPTIDE").frag(ion_type="b", position=40)
 
 
-@pytest.mark.parametrize(
-    ("text", "match"),
-    [
-        ("garbage", "Sequence data before header"),
-        (">x\n", "No valid FASTA sequences"),
-        ("", "Empty input"),
-        (">\nPEP", "Empty header"),
-    ],
-)
-def test_parse_fasta_text_errors_are_typed(text, match):
-    with pytest.raises(pt.FastaFormatError, match=match):
-        pt.parse_fasta_text(text)
+@pytest.mark.parametrize("enzyme", ["notanenzyme", "trypsn", "(?<=K)", "([KR])", ""])
+def test_digest_rejects_unknown_enzyme_strings(enzyme):
+    # 5.0: a string is only ever a protease name, never silently used as a regex.
+    with pytest.raises(pt.UnknownEnzymeError, match="re.compile") as info:
+        pt.digest("PEPTIDEK", enzyme)
+    assert isinstance(info.value, pt.PeptacularError)
+    assert isinstance(info.value, KeyError)
+    with pytest.raises(pt.UnknownEnzymeError):
+        pt.cleavage_sites("PEPTIDEK", enzyme)
+    with pytest.raises(pt.UnknownEnzymeError):
+        list(pt.parse("PEPTIDEK").digest_spans(enzyme))
 
 
-def test_digest_warns_on_unknown_plain_enzyme_name():
-    with pytest.warns(UserWarning, match="notanenzyme"):
-        result = pt.digest("PEPTIDEK", "notanenzyme")
-    assert [seq for seq, *_ in result] == ["PEPTIDEK"]
+def test_digest_rejects_non_string_enzyme():
+    with pytest.raises(TypeError, match="enzyme"):
+        pt.digest("PEPTIDEK", 42)  # ty: ignore[invalid-argument-type]
 
 
-@pytest.mark.parametrize("enzyme", ["trypsin", "Trypsin", "([KR])", "(?<=K)"])
-def test_digest_known_protease_or_regex_does_not_warn(enzyme):
+def test_digest_enzyme_regex_keyword_is_gone():
+    with pytest.raises(TypeError):
+        pt.digest("PEPTIDEK", enzyme_regex="trypsin")  # ty: ignore[unknown-argument]
+
+
+@pytest.mark.parametrize("enzyme", ["trypsin", "Trypsin", pt.Protease.TRYPSIN, re.compile("(?<=[KR])")])
+def test_digest_accepts_names_members_and_patterns(enzyme):
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
         warnings.filterwarnings("ignore", message="The regex pattern has a non-zero-length match")
-        pt.digest("PEPTIDEKAAR", enzyme)
+        assert [p for p, _ in pt.digest("PEPTIDEKAAR", enzyme)] == ["PEPTIDEK", "AAR"]

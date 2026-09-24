@@ -30,6 +30,10 @@ from .types import (
     WeightingMethodsLiteral,
 )
 
+__all__ = [
+    "AnnotationProperties",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class AnnotationProperties:
@@ -40,6 +44,7 @@ class AnnotationProperties:
     def calc_property(
         self,
         scale: str | dict[str, float],
+        *,
         missing_aa_handling: (MissingAAHandlingLiteral | MissingAAHandling) = MissingAAHandling.ERROR,
         aggregation_method: (AggregationMethodLiteral | AggregationMethod) = AggregationMethod.AVG,
         normalize: bool = False,
@@ -254,6 +259,7 @@ class AnnotationProperties:
     def property_windows(
         self,
         scale: str | dict[str, float],
+        *,
         window_size: int = 9,
         missing_aa_handling: (MissingAAHandlingLiteral | MissingAAHandling) = MissingAAHandling.ERROR,
         aggregation_method: (AggregationMethodLiteral | AggregationMethod) = AggregationMethod.AVG,
@@ -381,6 +387,7 @@ class AnnotationProperties:
     def property_partitions(
         self,
         scale: str | dict[str, float],
+        *,
         num_windows: int = 5,
         normalize: bool = False,
         aa_overlap: int = 0,

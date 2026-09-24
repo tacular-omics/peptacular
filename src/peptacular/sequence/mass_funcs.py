@@ -12,15 +12,21 @@ from ..annotation.annotation import (
     ISOTOPE_TYPE,
 )
 from ..constants import (
-    parallelMethod,
-    parallelMethodLiteral,
+    ParallelMethod,
+    ParallelMethodLiteral,
 )
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "mass",
+    "mz",
+    "comp",
+]
 
 
 def _mass_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE,
     charge: CHARGE_TYPE | None,
     monoisotopic: bool,
@@ -41,45 +47,48 @@ def _mass_single(
 
 @overload
 def mass(
-    sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def mass(
-    sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def mass(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """
     Calculate the mass of an amino acid 'sequence'.
@@ -111,7 +120,7 @@ def mass(
 
 
 def _mz_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE,
     charge: CHARGE_TYPE | None,
     monoisotopic: bool,
@@ -132,45 +141,48 @@ def _mz_single(
 
 @overload
 def mz(
-    sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def mz(
-    sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def mz(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """
     Calculate the m/z (mass-to-charge ratio) of an amino acid 'sequence'.
@@ -202,7 +214,7 @@ def mz(
 
 
 def _comp_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -220,39 +232,42 @@ def _comp_single(
 
 @overload
 def comp(
-    sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Counter[ElementInfo]: ...
 
 
 @overload
 def comp(
-    sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Counter[ElementInfo]]: ...
 
 
 def comp(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Counter[ElementInfo] | list[Counter[ElementInfo]]:
     """
     Calculates the elemental composition of a peptide sequence, including modifications.

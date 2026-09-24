@@ -4,9 +4,25 @@ from typing import Any, cast, overload
 from ..annotation import (
     ProFormaAnnotation,
 )
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
+from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "parse_chimeric",
+    "serialize_chimeric",
+    "parse",
+    "serialize",
+    "sequence_length",
+    "is_ambiguous",
+    "is_modified",
+    "count_residues",
+    "percent_residues",
+    "annotate_ambiguity",
+    "validate",
+    "generate_random",
+]
 
 
 def _parse_chimeric_single(s: str, validate: bool = False) -> list[ProFormaAnnotation]:
@@ -16,10 +32,11 @@ def _parse_chimeric_single(s: str, validate: bool = False) -> list[ProFormaAnnot
 @overload
 def parse_chimeric(
     s: str,
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[ProFormaAnnotation]: ...
 
@@ -27,20 +44,22 @@ def parse_chimeric(
 @overload
 def parse_chimeric(
     s: Sequence[str],
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[list[ProFormaAnnotation]]: ...
 
 
 def parse_chimeric(
     s: str | Sequence[str],
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[ProFormaAnnotation] | list[list[ProFormaAnnotation]]:
     """Parse a chimeric ProForma string or list of strings into lists of ProFormaAnnotation objects."""
@@ -68,17 +87,17 @@ def _serialize_chimeric_single(
     # ensure all annots share the same compound name and global mods
     compound_names = {annot.compound_name for annot in annots}
     if len(compound_names) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same compound name.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same compound name.")
 
     static_mods = {annot.static_mods for annot in annots}
 
     if len(static_mods) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same static modifications.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same static modifications.")
 
     isotope_mods = {annot.isotope_mods for annot in annots}
 
     if len(isotope_mods) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same isotopic modifications.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same isotopic modifications.")
 
     for i, annot in enumerate(annots):
         if i == 0:
@@ -93,26 +112,29 @@ def _serialize_chimeric_single(
 @overload
 def serialize_chimeric(
     sequence: Sequence[ProFormaAnnotation | str],
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
 @overload
 def serialize_chimeric(
     sequence: Sequence[Sequence[ProFormaAnnotation | str]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 def serialize_chimeric(
     sequence: Sequence[ProFormaAnnotation | str] | Sequence[Sequence[ProFormaAnnotation | str]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """Serialize a chimeric peptide sequence or list of sequences to ProForma string format."""
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and all(isinstance(seq, Sequence) and not isinstance(seq, str) for seq in sequence):
@@ -128,42 +150,62 @@ def serialize_chimeric(
         return _serialize_chimeric_single(cast(Sequence[ProFormaAnnotation | str], sequence))
 
 
-def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation:
-    return ProFormaAnnotation.parse(s, validate=validate)
+def _parse_single(s: object, validate: bool = False) -> ProFormaAnnotation:
+    value = s if isinstance(s, str) else getattr(s, "sequence", None)
+    if not isinstance(value, str):
+        raise TypeError(
+            "parse() takes a ProForma str, an object with a str 'sequence' attribute (e.g. a FASTA entry), "
+            f"or a list of these; got {type(s).__name__}: {s!r:.80}"
+        )
+    return ProFormaAnnotation.parse(value, validate=validate)
 
 
 @overload
 def parse(
-    s: str,
+    s: str | HasSequence,
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> ProFormaAnnotation: ...
 
 
 @overload
 def parse(
-    s: Sequence[str],
+    s: Sequence[str | HasSequence],
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[ProFormaAnnotation]: ...
 
 
 def parse(
-    s: str | Sequence[str],
+    s: str | HasSequence | Sequence[str | HasSequence],
+    *,
     validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> ProFormaAnnotation | list[ProFormaAnnotation]:
-    """Parse a ProForma string or list of strings into ProFormaAnnotation object(s)."""
-    if isinstance(s, Sequence) and not isinstance(s, str):
+    """Parse a ProForma string or list of strings into ProFormaAnnotation object(s).
+
+    An object with a str ``sequence`` attribute (a fastatacular or PEFF entry) is parsed from
+    that attribute. Anything else (bytes, None, a number) raises :class:`TypeError`.
+
+    >>> import peptacular as pt
+    >>> pt.parse("PEM[Oxidation]TIDE/2").charge
+    2
+
+    :raises TypeError: If the input is not a str, an object with a str ``sequence``, or a list of these.
+    :raises ProFormaFormatError: If the string is not valid ProForma.
+    """
+    if isinstance(s, Sequence) and not isinstance(s, (str, bytes, bytearray)):
         return parallel_apply_internal(
             _parse_single,
             s,
@@ -178,34 +220,37 @@ def parse(
 
 
 def _serialize_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     return get_annotation_input(sequence, copy=False).serialize()
 
 
 @overload
 def serialize(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
 @overload
 def serialize(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 def serialize(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """Serialize a peptide sequence or list of sequences to ProForma string format."""
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -220,33 +265,36 @@ def serialize(
         return _serialize_single(sequence)
 
 
-def _sequence_length_single(sequence: str | ProFormaAnnotation) -> int:
+def _sequence_length_single(sequence: str | ProFormaAnnotation | HasSequence) -> int:
     return len(get_annotation_input(sequence, copy=False))
 
 
 @overload
 def sequence_length(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> int: ...
 
 
 @overload
 def sequence_length(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int]: ...
 
 
 def sequence_length(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> int | list[int]:
     """Compute the length of the peptide sequence based on the unmodified sequence."""
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -261,33 +309,36 @@ def sequence_length(
         return _sequence_length_single(sequence)
 
 
-def _is_ambiguous_single(sequence: str | ProFormaAnnotation) -> bool:
+def _is_ambiguous_single(sequence: str | ProFormaAnnotation | HasSequence) -> bool:
     return get_annotation_input(sequence, copy=False).has_sequence_ambiguity
 
 
 @overload
 def is_ambiguous(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool: ...
 
 
 @overload
 def is_ambiguous(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[bool]: ...
 
 
 def is_ambiguous(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool | list[bool]:
     """Check if the sequence contains ambiguous amino acids."""
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -302,33 +353,36 @@ def is_ambiguous(
         return _is_ambiguous_single(sequence)
 
 
-def _is_modified_single(sequence: str | ProFormaAnnotation) -> bool:
+def _is_modified_single(sequence: str | ProFormaAnnotation | HasSequence) -> bool:
     return get_annotation_input(sequence, copy=False).has_mods()
 
 
 @overload
 def is_modified(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool: ...
 
 
 @overload
 def is_modified(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[bool]: ...
 
 
 def is_modified(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool | list[bool]:
     """Check if the sequence contains any modifications."""
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -343,7 +397,7 @@ def is_modified(
         return _is_modified_single(sequence)
 
 
-def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: bool = True) -> dict[str, int]:
+def _count_residues_single(sequence: str | ProFormaAnnotation | HasSequence, include_mods: bool = True) -> dict[str, int]:
     # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
     # caller-supplied ProFormaAnnotation in what is meant to be a read-only query.
     return get_annotation_input(sequence, copy=True).condense_static_mods(inplace=True).count_residues(include_mods=include_mods)
@@ -351,30 +405,33 @@ def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: boo
 
 @overload
 def count_residues(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     include_mods: bool = True,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, int]: ...
 
 
 @overload
 def count_residues(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[dict[str, int]]: ...
 
 
 def count_residues(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, int] | list[dict[str, int]]:
     """
     Counts the occurrences of each amino acid in the input sequence.
@@ -407,7 +464,7 @@ def count_residues(
 
 
 def _percent_residues_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     include_mods: bool = True,
 ) -> dict[str, float]:
     # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
@@ -417,30 +474,33 @@ def _percent_residues_single(
 
 @overload
 def percent_residues(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     include_mods: bool = True,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, float]: ...
 
 
 @overload
 def percent_residues(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[dict[str, float]]: ...
 
 
 def percent_residues(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, float] | list[dict[str, float]]:
     """
     Calculates the percentage of each amino acid in the input sequence.
@@ -475,9 +535,10 @@ def percent_residues(
 
 
 def annotate_ambiguity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     forward_coverage: list[int],
     reverse_coverage: list[int],
+    *,
     mass_shift: Any | None = None,
     add_mods_to_intervals: bool = False,
     sort_mods: bool = True,
@@ -502,7 +563,7 @@ def annotate_ambiguity(
         '(?PE)PTI(?DE)'
 
         # With a phosphorylation mass shift (note the '+' sign)
-        >>> annotate_ambiguity('PEPTIDE', [1,1,1,0,0,0,0], [0,0,0,0,1,1,1], 79.966)
+        >>> annotate_ambiguity('PEPTIDE', [1,1,1,0,0,0,0], [0,0,0,0,1,1,1], mass_shift=79.966)
         'PEPT[+79.966]IDE'
 
         # Handling existing modifications
@@ -510,17 +571,17 @@ def annotate_ambiguity(
         'P[+10]EP(?TI)DE'
 
         # When mass shift can't be localized to a specific residue
-        >>> annotate_ambiguity('PEPTIDE', [0,1,1,0,0,0,0], [0,0,0,0,0,1,0], 120)
+        >>> annotate_ambiguity('PEPTIDE', [0,1,1,0,0,0,0], [0,0,0,0,0,1,0], mass_shift=120)
         '(?PE)P(?TI)[+120](?DE)'
 
         # When mass shift is completely unlocalized, it becomes a labile modification
-        >>> annotate_ambiguity('PEPTIDE', [0,1,1,1,1,0,0], [0,0,1,1,1,1,0], 120)
+        >>> annotate_ambiguity('PEPTIDE', [0,1,1,1,1,0,0], [0,0,1,1,1,1,0], mass_shift=120)
         '{+120}(?PE)PTI(?DE)'
 
         # Complex example with multiple intervals
         >>> for_ions = list(map(int, '00011101001000000000000000000000000000'))
         >>> rev_ions = list(map(int, '00000000000110000000101111111111010100'))
-        >>> annotate_ambiguity('SSGSIASSYVQWYQQRPGSAPTTVIYEDDERPSGVPDR', for_ions, rev_ions, 120)
+        >>> annotate_ambiguity('SSGSIASSYVQWYQQRPGSAPTTVIYEDDERPSGVPDR', for_ions, rev_ions, mass_shift=120)
         '(?SSGS)IA(?SS)(?YVQ)W[+120](?YQQRPGSA)(?PT)TVIYEDDER(?PS)(?GV)(?PDR)'
     """
     annot = get_annotation_input(sequence=sequence, copy=True).annotate_ambiguity(
@@ -539,7 +600,7 @@ def annotate_ambiguity(
 
 
 def _validate_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> bool:
     try:
         get_annotation_input(sequence, copy=False).validate_annotation()
@@ -550,27 +611,30 @@ def _validate_single(
 
 @overload
 def validate(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool: ...
 
 
 @overload
 def validate(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[bool]: ...
 
 
 def validate(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> bool | list[bool]:
     """
     Checks if the input sequence is a valid ProForma sequence.
@@ -623,6 +687,7 @@ def _generate_random_single(
 @overload
 def generate_random(
     count: None = None,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -638,13 +703,14 @@ def generate_random(
     require_composition: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> ProFormaAnnotation: ...
 
 
 @overload
 def generate_random(
     count: int,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -660,12 +726,13 @@ def generate_random(
     require_composition: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[ProFormaAnnotation]: ...
 
 
 def generate_random(
     count: int | None = None,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -681,7 +748,7 @@ def generate_random(
     require_composition: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> ProFormaAnnotation | list[ProFormaAnnotation]:
     """Generate random ProForma annotation(s) with configurable features.
 

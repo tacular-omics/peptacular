@@ -3,18 +3,19 @@
 import io
 from contextlib import closing
 
+from fastatacular import FastaReader
+
 import peptacular as pt
 
 
 def run():
     fasta = io.StringIO(">first\nPEPTIDE\n>second\nMKR\n")
-    with closing(pt.iter_fasta(fasta)) as proteins:
-        sequences = (protein.sequence for protein in proteins)
-        with closing(pt.iter_batch("mass", sequences, batch_size=2, errors="collect")) as results:
+    # FastaReader yields entries lazily; iter_batch takes them as-is (anything with a .sequence str).
+    with FastaReader(fasta) as proteins:
+        with closing(pt.iter_batch("mass", proteins, batch_size=2, errors="collect")) as results:
             for result in results:
                 assert result.ok
-                print(result.index, result.input, round(result.value, 4))
-    assert not fasta.closed
+                print(result.index, result.input.identifier, round(result.value, 4))
 
     results = pt.batch("mass", ["PEPTIDE", "PEP[UnknownModification]TIDE"], errors="collect")
     assert results[0].ok

@@ -11,6 +11,7 @@ from collections import Counter
 import pytest
 from tacular import AA_LOOKUP, ELEMENT_LOOKUP, AminoAcid, Element, Monosaccharide
 
+import peptacular as pt
 from peptacular.constants import CV, Terminal
 from peptacular.proforma_components.comps import (
     ChargedFormula,
@@ -904,7 +905,7 @@ class TestFixedModification:
 class TestSequenceElement:
     def test_get_mass_adds_amino_acid_and_modification_mass(self) -> None:
         se = SequenceElement(amino_acid=AminoAcid.A)
-        aa = AA_LOOKUP.one_letter(AminoAcid.A)
+        aa = AA_LOOKUP[AminoAcid.A]
         assert se.get_mass() == aa.monoisotopic_mass
 
     def test_get_mass_raises_for_amino_acid_with_no_defined_mass(self) -> None:
@@ -915,7 +916,7 @@ class TestSequenceElement:
 
     def test_get_composition_returns_amino_acid_composition(self) -> None:
         se = SequenceElement(amino_acid=AminoAcid.A)
-        aa = AA_LOOKUP.one_letter(AminoAcid.A)
+        aa = AA_LOOKUP[AminoAcid.A]
         assert se.get_composition() == Counter(aa.composition)
 
     def test_get_composition_raises_for_amino_acid_with_no_defined_composition(self) -> None:
@@ -1007,13 +1008,14 @@ class TestPeptidoformIon:
         pf = Peptidoform(sequence=(SequenceElement(amino_acid=AminoAcid.P), SequenceElement(amino_acid=AminoAcid.E)))
         return PeptidoformIon(peptidoforms=(pf,))
 
-    def test_get_mass_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
+    def test_get_mass_is_unsupported_with_a_hint(self) -> None:
+        with pytest.raises(pt.UnsupportedOperationError, match="parse"):
             self._make().get_mass()
+        with pytest.raises(TypeError):
+            self._make().get_mass(True)  # type: ignore[misc]
 
-    def test_get_composition_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            self._make().get_composition()
+    def test_no_dead_get_composition(self) -> None:
+        assert not hasattr(self._make(), "get_composition")
 
     def test_from_string_not_implemented(self) -> None:
         with pytest.raises(NotImplementedError):
@@ -1031,13 +1033,14 @@ class TestCompoundPeptidoformIon:
         pfi = PeptidoformIon(peptidoforms=(pf,))
         return CompoundPeptidoformIon(peptidoform_ions=(pfi,))
 
-    def test_get_mass_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
+    def test_get_mass_is_unsupported_with_a_hint(self) -> None:
+        with pytest.raises(pt.UnsupportedOperationError, match="parse"):
             self._make().get_mass()
+        with pytest.raises(TypeError):
+            self._make().get_mass(True)  # type: ignore[misc]
 
-    def test_get_composition_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            self._make().get_composition()
+    def test_no_dead_get_composition(self) -> None:
+        assert not hasattr(self._make(), "get_composition")
 
     def test_from_string_not_implemented(self) -> None:
         with pytest.raises(NotImplementedError):

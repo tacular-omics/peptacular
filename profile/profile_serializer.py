@@ -3,8 +3,8 @@ import pstats
 import random
 import statistics
 import time
+from collections.abc import Callable
 from io import StringIO
-from typing import Callable
 
 import peptacular as pt
 
@@ -94,7 +94,7 @@ def profile_serialization():
 
         result = benchmark(test_serialize, iterations=5000, warmup=500)
         results[name] = result
-        print_results(f"  Serialization", result)
+        print_results("  Serialization", result)
 
         # Verify output
         serialized = pt.serialize(annotation)
@@ -233,9 +233,9 @@ def profile_edge_cases():
             reserialized = pt.serialize(reparsed)
 
             if serialized == reserialized:
-                print(f"  ✓ Round-trip successful")
+                print("  ✓ Round-trip successful")
             else:
-                print(f"  ✗ Round-trip FAILED")
+                print("  ✗ Round-trip FAILED")
                 print(f"    Original:  {serialized}")
                 print(f"    Reparsed:  {reserialized}")
         except Exception as e:

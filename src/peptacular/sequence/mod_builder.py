@@ -2,9 +2,27 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, cast, overload
 
 from ..annotation import ProFormaAnnotation
-from ..constants import ModType, ModTypeLiteral, parallelMethod, parallelMethodLiteral
+from ..constants import ModType, ModTypeLiteral, ParallelMethod, ParallelMethodLiteral
+from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "MOD_BUILDER_INPUT_TYPE",
+    "modify",
+    "get_mods",
+    "set_mods",
+    "append_mods",
+    "extend_mods",
+    "condense_static_mods",
+    "pop_mods",
+    "remove_mods",
+    "strip_mods",
+    "filter_mods",
+    "to_ms2_pip",
+    "from_ms2_pip",
+    "condense_to_peptidoform",
+]
 
 MOD_BUILDER_INPUT_TYPE = Mapping[str | None, Iterable[Any]]
 
@@ -61,7 +79,7 @@ def modify(
     unique_peptidoforms: bool = False,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
@@ -82,7 +100,7 @@ def modify(
     unique_peptidoforms: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
@@ -102,7 +120,7 @@ def modify(
     unique_peptidoforms: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Build modified sequences by applying static and variable modifications to a sequence or list of sequences.
@@ -161,7 +179,7 @@ def modify(
 
 
 def get_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | ModTypeLiteral | None = None,
 ) -> dict[ModType | ModTypeLiteral, Any]:
     """
@@ -172,7 +190,7 @@ def get_mods(
 
 
 def set_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any] | None,
 ) -> str:
     """Replace modifications and return the new ProForma string.
@@ -188,7 +206,7 @@ def set_mods(
 
 
 def append_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
     """Add one modification per key and return the new ProForma string.
@@ -203,7 +221,7 @@ def append_mods(
 
 
 def extend_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
     """Add several modifications per key and return the new ProForma string.
@@ -218,7 +236,7 @@ def extend_mods(
 
 
 def condense_static_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     """
     Condenses static modifications into internal modifications.
@@ -251,7 +269,7 @@ def condense_static_mods(
 
 
 def pop_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> tuple[str, dict[ModType, Any]]:
     """
@@ -275,7 +293,7 @@ def pop_mods(
 
 
 def remove_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     """Remove modifications of the given types and return the new ProForma string.
@@ -290,7 +308,7 @@ def remove_mods(
 
 
 def _strip_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     annotation = get_annotation_input(sequence=sequence, copy=True)
@@ -299,20 +317,20 @@ def _strip_mods(
 
 @overload
 def strip_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str: ...
 
 
 @overload
 def strip_mods(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     mods: ModType | Iterable[ModType] | None = None,
 ) -> list[str]: ...
 
 
 def strip_mods(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str | list[str]:
     """
@@ -339,7 +357,7 @@ def strip_mods(
 
 
 def filter_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     """
@@ -365,26 +383,29 @@ def _to_ms2_pip_single(
 @overload
 def to_ms2_pip(
     sequence: ProFormaAnnotation | str,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> tuple[str, str]: ...
 
 
 @overload
 def to_ms2_pip(
     sequence: Sequence[ProFormaAnnotation | str],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, str]]: ...
 
 
 def to_ms2_pip(
     sequence: ProFormaAnnotation | str | Sequence[ProFormaAnnotation | str],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> tuple[str, str] | list[tuple[str, str]]:
     """
     Convert a peptide sequence to MS2PIP format by condensing modifications.
@@ -428,29 +449,32 @@ def _from_ms2_pip_single(
 @overload
 def from_ms2_pip(
     sequence: tuple[str, str],
+    *,
     static_mods: Mapping[str, float] | None = None,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
 @overload
 def from_ms2_pip(
     sequence: Sequence[tuple[str, str]],
+    *,
     static_mods: Mapping[str, float] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 def from_ms2_pip(
     sequence: tuple[str, str] | Sequence[tuple[str, str]],
+    *,
     static_mods: Mapping[str, float] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Convert MS2PIP format to ProForma string(s).
@@ -474,7 +498,7 @@ def from_ms2_pip(
     if isinstance(sequence, Sequence) and not isinstance(sequence, tuple):
         # Validate that all items are tuples
         if not all(isinstance(item, tuple) and len(item) == 2 for item in sequence):
-            raise ValueError("All items in sequence must be tuples of (sequence, modifications)")
+            raise PeptacularError("All items in sequence must be tuples of (sequence, modifications)")
 
         return parallel_apply_internal(
             _from_ms2_pip_single,
@@ -487,7 +511,7 @@ def from_ms2_pip(
     else:
         # Single tuple processing
         if not isinstance(sequence, tuple) or len(sequence) != 2:
-            raise ValueError("sequence must be a tuple of (sequence, modifications) for single processing")
+            raise PeptacularError("sequence must be a tuple of (sequence, modifications) for single processing")
 
         item = cast(tuple[str, str], sequence)
         return _from_ms2_pip_single(
@@ -497,25 +521,25 @@ def from_ms2_pip(
 
 
 def _condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     return get_annotation_input(sequence=sequence, copy=True).condense_to_peptidoform(inplace=False).serialize()
 
 
 @overload
 def condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str: ...
 
 
 @overload
 def condense_to_peptidoform(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
 ) -> list[str]: ...
 
 
 def condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
 ) -> str | list[str]:
     """
     Condenses all modifications into a peptidoform representation for a sequence or list of sequences.

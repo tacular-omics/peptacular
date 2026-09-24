@@ -5,6 +5,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "serialize_charge",
+    "serialize_annotation",
+]
+
 
 # Bracket constants
 _MOD_BRACKETS = ("[", "]")

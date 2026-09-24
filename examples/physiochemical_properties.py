@@ -7,6 +7,7 @@ Note: These calculations use only the amino acid sequence; modifications are not
 
 import peptacular as pt
 
+
 def run():
     # Parse a test peptide
     annot = pt.parse('PEPTIDE')
@@ -47,7 +48,7 @@ def run():
 
     # Predicted secondary structure using different methods
     ss_dr = annot.prop.secondary_structure(pt.SecondaryStructureMethod.DELEAGE_ROUX)
-    print(f"\nSecondary structure (Deleage-Roux method):")
+    print("\nSecondary structure (Deleage-Roux method):")
     print(f"  Alpha helix: {ss_dr['alpha_helix']:.1f}%")
     print(f"  Beta sheet: {ss_dr['beta_sheet']:.1f}%")
     print(f"  Beta turn: {ss_dr['beta_turn']:.1f}%")
@@ -104,7 +105,7 @@ def run():
 
     # --- Custom scale dictionary ---
     custom_scale = {
-        'A': 1.0, 'C': 2.0, 'D': 3.0, 'E': 4.0, 
+        'A': 1.0, 'C': 2.0, 'D': 3.0, 'E': 4.0,
         'F': 5.0, 'G': 6.0, 'H': 7.0, 'I': 8.0,
         'K': 9.0, 'L': 10.0, 'M': 11.0, 'N': 12.0,
         'P': 13.0, 'Q': 14.0, 'R': 15.0, 'S': 16.0,
@@ -177,7 +178,7 @@ def run():
         min_weight=0.0,
         max_weight=1.0,
     )
-    print(f"\nWindow size 4 (overlapping):")
+    print("\nWindow size 4 (overlapping):")
     print(f"  Values: {[f'{v:.2f}' for v in windows]}")
     print(f"  Number of windows: {len(windows)}")
 
@@ -186,7 +187,7 @@ def run():
         scale=pt.HydrophobicityScale.ABRAHAM_LEO,
         window_size=3
     )
-    print(f"\nWindow size 3:")
+    print("\nWindow size 3:")
     print(f"  Values: {[f'{v:.2f}' for v in windows_large]}")
 
     # ============================================================================
@@ -209,7 +210,7 @@ def run():
         min_weight=0.0,
         max_weight=1.0,
     )
-    print(f"\n3 partitions (no overlap):")
+    print("\n3 partitions (no overlap):")
     print(f"  Values: {[f'{v:.2f}' for v in partitions]}")
 
     # With overlap between partitions
@@ -218,7 +219,7 @@ def run():
         num_windows=3,
         aa_overlap=1
     )
-    print(f"\n3 partitions (1 AA overlap):")
+    print("\n3 partitions (1 AA overlap):")
     print(f"  Values: {[f'{v:.2f}' for v in partitions_overlap]}")
 
     # ============================================================================
@@ -236,7 +237,7 @@ def run():
         window_size=9
     )
     print(f"\nTransmembrane peptide: {tm_peptide}")
-    print(f"Kyte-Doolittle hydrophobicity profile (window=9):")
+    print("Kyte-Doolittle hydrophobicity profile (window=9):")
     for i, val in enumerate(tm_windows):
         print(f"  Position {i+1}: {val:.2f}")
 
@@ -249,7 +250,7 @@ def run():
         missing_aa_handling='zero'
     )
     print(f"\nCharged peptide: {charged_peptide}")
-    print(f"Charge distribution (4 regions):")
+    print("Charge distribution (4 regions):")
     for i, val in enumerate(charge_partitions):
         print(f"  Region {i+1}: {val:+.1f}")
 

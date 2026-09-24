@@ -5,6 +5,7 @@ API Reference
    :members:
    :undoc-members:
    :show-inheritance:
+   :ignore-module-all:
 
 Core
 ----
@@ -129,12 +130,14 @@ Digestion and spans
    :members:
    :show-inheritance:
 
-FASTA
-~~~~~
+Input protocol
+~~~~~~~~~~~~~~
 
-.. automodule:: peptacular.fasta
-   :members:
-   :show-inheritance:
+Sequence functions accept a ProForma ``str``, a :class:`~peptacular.ProFormaAnnotation`,
+or any object with a ``sequence`` string attribute, such as a fastatacular
+``SequenceEntry``. peptacular itself does not read FASTA files.
+
+.. autoclass:: peptacular.sequence.util.HasSequence
 
 Properties and scales
 ~~~~~~~~~~~~~~~~~~~~~
@@ -155,42 +158,47 @@ Constants and utilities
    :members:
    :undoc-members:
 
-.. automodule:: peptacular.regex_utils
-   :members:
-
 .. automodule:: peptacular.sequence.parallel
    :members:
 
 Constants, type aliases and data tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All of these are also available from the top-level ``peptacular`` namespace.
+These are available from the top-level ``peptacular`` namespace, except the
+``proforma_components`` type aliases, which are importable from that module.
 
 **Physical constants** (Da)
 
 .. py:data:: peptacular.constants.PROTON_MASS
    :type: float
-   :value: 1.00727646688
+   :value: 1.007276466621
 
-   Proton mass.
+   Proton mass (CODATA 2018). Re-exported from ``tacular.constants``.
+
+.. py:data:: peptacular.constants.PROTON_CARRIER_MASS
+   :type: float
+   :value: 1.007276452320935
+
+   ``HYDROGEN_MASS - ELECTRON_MASS``: the monoisotopic mass one default (protonated) charge
+   adds. See :doc:`mass_calculation` for why this, not ``PROTON_MASS``.
 
 .. py:data:: peptacular.constants.ELECTRON_MASS
    :type: float
-   :value: 0.00054857990946
+   :value: 0.000548579909065
 
-   Electron mass.
+   Electron mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
 .. py:data:: peptacular.constants.NEUTRON_MASS
    :type: float
-   :value: 1.00866491597
+   :value: 1.00866491595
 
-   Neutron mass.
+   Neutron mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
 .. py:data:: peptacular.constants.C13_NEUTRON_MASS
    :type: float
    :value: 1.00335483507
 
-   Mass difference between carbon-13 and carbon-12.
+   Mass difference between carbon-13 and carbon-12 (``tacular.constants.C13_C12_MASS_DIFF``).
 
 .. py:data:: peptacular.constants.PEPTIDE_AVERAGINE_NEUTRON_MASS
    :type: float
@@ -203,30 +211,13 @@ All of these are also available from the top-level ``peptacular`` namespace.
 
    Elemental ratios (C, H, N, O, S per Da) of the peptide averagine model.
 
-**Controlled vocabulary prefixes**
-
-.. py:data:: peptacular.constants.CV_TO_NAME_PREFIX
-   :type: dict[CV, str]
-
-   ProForma name prefix for each :class:`~peptacular.constants.CV` (for example ``'R:'`` for RESID).
-
-.. py:data:: peptacular.constants.CV_TO_ACCESSION_PREFIX
-   :type: dict[CV, str]
-
-   ProForma accession prefix for each :class:`~peptacular.constants.CV`.
-
-.. py:data:: peptacular.constants.CV_TO_MASS_PREFIX
-   :type: dict[CV, str]
-
-   ProForma delta-mass prefix for each :class:`~peptacular.constants.CV`.
-
 **Literal and union type aliases**
 
 .. py:data:: peptacular.constants.ModTypeLiteral
 
    ``Literal['nterm', 'cterm', 'isotope', 'static', 'labile', 'unknown', 'interval', 'internal', 'charge']``
 
-.. py:data:: peptacular.constants.parallelMethodLiteral
+.. py:data:: peptacular.constants.ParallelMethodLiteral
 
    ``Literal['process', 'thread', 'sequential']``
 
@@ -245,10 +236,6 @@ All of these are also available from the top-level ``peptacular`` namespace.
 .. py:data:: peptacular.property.WeightingMethodsLiteral
 
    ``Literal['uniform', 'linear', 'exponential', 'gaussian', 'sigmoid', 'cosine', 'sinusoidal']``
-
-.. py:data:: peptacular.fasta.FASTA_INPUT_TYPE
-
-   Accepted FASTA inputs: ``str | pathlib.Path | io.IOBase``.
 
 .. py:data:: peptacular.proforma_components.SEQUENCE_TYPE
 
@@ -303,11 +290,6 @@ Each maps a scale enum member to its per-residue value table. See :class:`~pepta
    :type: dict[str, dict[str, float]]
 
    Flexibility scales.
-
-.. py:data:: peptacular.property.FLIXIBILITY_SCALES
-   :type: dict[str, dict[str, float]]
-
-   Deprecated misspelled alias of :data:`FLEXIBILITY_SCALES`. Accessing it emits a ``DeprecationWarning``.
 
 .. py:data:: peptacular.property.POLARITY_SCALES
    :type: dict[str, dict[str, float]]
@@ -371,9 +353,10 @@ Reference data from tacular
 
 Amino acid, element, modification (UNIMOD, PSI-MOD, RESID, XLMOD, GNOme,
 UniProt-PTM), ion type, neutral delta, protease and reference molecule lookups
-come from `tacular <https://tacular.readthedocs.io/>`_ and are re-exported in
-the peptacular namespace (for example ``pt.UNIMOD_LOOKUP``, ``pt.IonType`` and
-``pt.Proteases``). They are documented in the
+come from `tacular <https://tacular.readthedocs.io/>`_. Import them from
+``tacular`` (for example ``from tacular import UNIMOD_LOOKUP``). Only the enums
+``pt.IonType``, ``pt.NeutralDelta`` and ``pt.Protease`` are re-exported by
+peptacular, because its own signatures take them. They are documented in the
 `tacular API reference <https://tacular.readthedocs.io/en/latest/api/index.html>`_.
 
 ProForma JSON

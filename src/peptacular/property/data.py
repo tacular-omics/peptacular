@@ -5,9 +5,112 @@
 # package.
 """Indices to be used with ProtParam."""
 
-import warnings
 from enum import StrEnum
-from typing import Any, Final
+from typing import Final
+
+__all__ = [
+    "NEGATIVE_AMINO_ACIDS",
+    "POSITIVE_AMINO_ACIDS",
+    "CHARGED_AMINO_ACIDS",
+    "AROMATIC_AMINO_ACIDS",
+    "hphob_kyte_doolittle",
+    "hphob_aboderin",
+    "hphob_abraham_leo",
+    "hphob_argos",
+    "hphob_rao_argos",
+    "hphob_black_mould",
+    "hphob_bull_breese",
+    "hphob_casari_sippl",
+    "hphob_cid",
+    "hphob_cowan_3_4",
+    "hphob_cowan_7_5",
+    "hphob_eisenberg",
+    "hphob_engelman",
+    "hphob_fasman",
+    "hphob_fauchere",
+    "hphob_goldsack",
+    "hphob_guy",
+    "hphob_jones",
+    "hphob_juretic",
+    "hphob_kidera",
+    "hphob_miyazawa",
+    "hphob_parker",
+    "hphob_ponnuswamy",
+    "hphob_manavalan",
+    "hphob_rose",
+    "hphob_roseman",
+    "hphob_sweet",
+    "hphob_tanford",
+    "hphob_wilson",
+    "hphob_zimmerman",
+    "hphob_chothia",
+    "hphob_janin",
+    "hphob_wolfenden",
+    "hphob_welling",
+    "flexibility_vihinen",
+    "hydrophilicity_hopp_wood",
+    "surface_accessibility_vergoten",
+    "surface_accessibility_janin",
+    "DIWV",
+    "pk_nterminal",
+    "pk_cterminal",
+    "pk_sidechain",
+    "deleage_roux_alpha_helix",
+    "deleage_roux_beta_sheet",
+    "deleage_roux_beta_turn",
+    "deleage_roux_coil",
+    "levitt_alpha_helix",
+    "levitt_beta_sheet",
+    "levitt_beta_turn",
+    "chou_fasman_alpha_helix",
+    "chou_fasman_beta_sheet",
+    "chou_fasman_beta_turn",
+    "beta_strand_parallel",
+    "beta_strand_antiparallel",
+    "beta_strand_total",
+    "ratioside",
+    "polarity_grantham",
+    "polarity_zimmerman",
+    "mutability",
+    "codons",
+    "refractivity",
+    "bulkiness",
+    "recognition_factors",
+    "aa_composition_mccaldron",
+    "aa_composition_swissprot",
+    "aa_composition_scales",
+    "transmembrane_tendency",
+    "accessible_residues",
+    "average_buried_area",
+    "molecular_weights",
+    "hplc_meek_2_1",
+    "hplc_browne",
+    "hplc_meek_7_4",
+    "hplc_browne_tfa",
+    "SecondaryStructureMethod",
+    "SecondaryStructureType",
+    "PropertyScale",
+    "HydrophobicityScale",
+    "SecondaryStructureScale",
+    "SurfaceAccessibilityScale",
+    "ChargeScale",
+    "PolarityScale",
+    "HPLCScale",
+    "BetaStrandScale",
+    "PhysicalPropertyScale",
+    "CompositionScale",
+    "secondary_structure_scales",
+    "secondary_structure_scales_by_name",
+    "PROPERTY_SCALES",
+    "HYDROPHOBICITY_SCALES",
+    "SURFACE_ACCESSIBILITY_SCALES",
+    "HPLC_SCALES",
+    "HYDROPHILICITY_SCALES",
+    "FLEXIBILITY_SCALES",
+    "POLARITY_SCALES",
+    "COMPOSITION_SCALES",
+    "PHYSICAL_PROPERTY_SCALES",
+]
 
 
 class _AA(StrEnum):
@@ -55,7 +158,7 @@ hphob_kyte_doolittle: Final[dict[str, float]] = {_AA.A: 1.8, _AA.R: -4.5, _AA.N:
 # Aboderin hydrophobicity index
 # International J. of Biochemistry, 2(11), 537-544.
 # "Aboderin"
-hphob_adoberin: Final[dict[str, float]] = {_AA.A: 5.1, _AA.R: 2.0, _AA.N: 0.6, _AA.D: 0.7, _AA.C: 0.0,
+hphob_aboderin: Final[dict[str, float]] = {_AA.A: 5.1, _AA.R: 2.0, _AA.N: 0.6, _AA.D: 0.7, _AA.C: 0.0,
       _AA.Q: 1.4, _AA.E: 1.8, _AA.G: 4.1, _AA.H: 1.6, _AA.I: 9.3,
       _AA.L: 10.0, _AA.K: 1.3, _AA.M: 8.7, _AA.F: 9.6, _AA.P: 4.9,
       _AA.S: 3.1, _AA.T: 3.5, _AA.W: 9.2, _AA.Y: 8.0, _AA.V: 8.5}
@@ -71,7 +174,7 @@ hphob_abraham_leo: Final[dict[str, float]] = {_AA.A: 0.44, _AA.R: -2.42, _AA.N: 
 # Argos hydrophobicity index
 # European Journal of Biochemistry, 128(2-3), 565-575.
 # "Argos"
-hphob_agros: Final[dict[str, float]] = {_AA.A: 0.61, _AA.R: 0.6, _AA.N: 0.06, _AA.D: 0.46, _AA.C: 1.07,
+hphob_argos: Final[dict[str, float]] = {_AA.A: 0.61, _AA.R: 0.6, _AA.N: 0.06, _AA.D: 0.46, _AA.C: 1.07,
       _AA.Q: 0.0, _AA.E: 0.47, _AA.G: 0.07, _AA.H: 0.61, _AA.I: 2.22,
       _AA.L: 1.53, _AA.K: 1.15, _AA.M: 1.18, _AA.F: 2.02, _AA.P: 1.95,
       _AA.S: 0.05, _AA.T: 0.05, _AA.W: 2.65, _AA.Y: 1.88, _AA.V: 1.32}
@@ -376,7 +479,7 @@ surface_accessibility_vergoten: Final[dict[str, float]] = {_AA.A: 0.815, _AA.R: 
       _AA.S: 1.115, _AA.T: 1.184, _AA.W: 0.808, _AA.Y: 1.089, _AA.V: 0.606}
 
 # 2 Janin Interior to surface transfer energy scale
-surface_accessiblility_janin: Final[dict[str, float]] = {_AA.A: 0.28, _AA.R: -1.14, _AA.N: -0.55, _AA.D: -0.52, _AA.C: 0.97,
+surface_accessibility_janin: Final[dict[str, float]] = {_AA.A: 0.28, _AA.R: -1.14, _AA.N: -0.55, _AA.D: -0.52, _AA.C: 0.97,
       _AA.Q: -0.69, _AA.E: -1.01, _AA.G: 0.43, _AA.H: -0.31, _AA.I: 0.60,
       _AA.L: 0.60, _AA.K: -1.62, _AA.M: 0.43, _AA.F: 0.46, _AA.P: -0.42,
       _AA.S: -0.19, _AA.T: -0.32, _AA.W: 0.29, _AA.Y: -0.15, _AA.V: 0.60}
@@ -1023,9 +1126,9 @@ class HydrophobicityScale(PropertyScale):
     """Hydrophobicity scales."""
 
     KYTE_DOOLITTLE = "hphob_kyte_doolittle"
-    ADOBERIN = "hphob_adoberin"
+    ABODERIN = "hphob_aboderin"
     ABRAHAM_LEO = "hphob_abraham_leo"
-    AGROS = "hphob_agros"
+    ARGOS = "hphob_argos"
     RAO_ARGOS = "hphob_rao_argos"
     BLACK_MOULD = "hphob_black_mould"
     BULL_BREESE = "hphob_bull_breese"
@@ -1077,7 +1180,7 @@ class SurfaceAccessibilityScale(PropertyScale):
     """Surface accessibility and area scales."""
 
     VERGOTEN = "surface_accessibility_vergoten"
-    JANIN = "surface_accessiblility_janin"  # Note: keeping original typo
+    JANIN = "surface_accessibility_janin"
     ACCESSIBLE_RESIDUES = "accessible_residues"
     AVERAGE_BURIED_AREA = "average_buried_area"
 
@@ -1174,9 +1277,9 @@ secondary_structure_scales_by_name: dict[str, dict[str, dict[str, float]]] = {
 PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
     # Hydrophobicity scales
     HydrophobicityScale.KYTE_DOOLITTLE: hphob_kyte_doolittle,
-    HydrophobicityScale.ADOBERIN: hphob_adoberin,
+    HydrophobicityScale.ABODERIN: hphob_aboderin,
     HydrophobicityScale.ABRAHAM_LEO: hphob_abraham_leo,
-    HydrophobicityScale.AGROS: hphob_agros,
+    HydrophobicityScale.ARGOS: hphob_argos,
     HydrophobicityScale.RAO_ARGOS: hphob_rao_argos,
     HydrophobicityScale.BLACK_MOULD: hphob_black_mould,
     HydrophobicityScale.BULL_BREESE: hphob_bull_breese,
@@ -1220,7 +1323,7 @@ PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
     SecondaryStructureScale.CHOU_FASMAN_BETA_TURN: chou_fasman_beta_turn,
     # Surface accessibility scales
     SurfaceAccessibilityScale.VERGOTEN: surface_accessibility_vergoten,
-    SurfaceAccessibilityScale.JANIN: surface_accessiblility_janin,
+    SurfaceAccessibilityScale.JANIN: surface_accessibility_janin,
     SurfaceAccessibilityScale.ACCESSIBLE_RESIDUES: accessible_residues,
     SurfaceAccessibilityScale.AVERAGE_BURIED_AREA: average_buried_area,
     # Charge scales
@@ -1257,9 +1360,9 @@ PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
 
 HYDROPHOBICITY_SCALES: Final[dict[str, dict[str, float]]] = {
     HydrophobicityScale.KYTE_DOOLITTLE: hphob_kyte_doolittle,
-    HydrophobicityScale.ADOBERIN: hphob_adoberin,
+    HydrophobicityScale.ABODERIN: hphob_aboderin,
     HydrophobicityScale.ABRAHAM_LEO: hphob_abraham_leo,
-    HydrophobicityScale.AGROS: hphob_agros,
+    HydrophobicityScale.ARGOS: hphob_argos,
     HydrophobicityScale.BLACK_MOULD: hphob_black_mould,
     HydrophobicityScale.BULL_BREESE: hphob_bull_breese,
     HydrophobicityScale.CASARI_SIPPL: hphob_casari_sippl,
@@ -1296,7 +1399,7 @@ HYDROPHOBICITY_SCALES: Final[dict[str, dict[str, float]]] = {
 # Surface accessibility scales
 SURFACE_ACCESSIBILITY_SCALES: Final[dict[str, dict[str, float]]] = {
     SurfaceAccessibilityScale.VERGOTEN: surface_accessibility_vergoten,
-    SurfaceAccessibilityScale.JANIN: surface_accessiblility_janin,
+    SurfaceAccessibilityScale.JANIN: surface_accessibility_janin,
     SurfaceAccessibilityScale.ACCESSIBLE_RESIDUES: accessible_residues,
     SurfaceAccessibilityScale.AVERAGE_BURIED_AREA: average_buried_area,
 }
@@ -1345,30 +1448,3 @@ PHYSICAL_PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
     PhysicalPropertyScale.RECOGNITION_FACTORS: recognition_factors,
     PhysicalPropertyScale.TRANSMEMBRANE_TENDENCY: transmembrane_tendency,
 }
-
-
-_DEPRECATED_ALIASES: Final[dict[str, str]] = {"FLIXIBILITY_SCALES": "FLEXIBILITY_SCALES"}
-
-
-def _resolve_deprecated_alias(name: str) -> Any:
-    """Return the object behind a deprecated alias, warning with :class:`DeprecationWarning`.
-
-    The warning is attributed to the code that accessed the alias, whether it went through this module, :mod:`peptacular.property` or
-    :mod:`peptacular`.
-
-    :param name: Attribute name that was accessed.
-    :type name: str
-    :return: The object the deprecated name now refers to.
-    :rtype: Any
-    :raises AttributeError: If ``name`` is not a deprecated alias.
-    """
-    if name not in _DEPRECATED_ALIASES:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    new_name = _DEPRECATED_ALIASES[name]
-    warnings.warn(f"{name} is deprecated; use {new_name} instead.", DeprecationWarning, stacklevel=3)
-    return globals()[new_name]
-
-
-def __getattr__(name: str) -> Any:
-    """Resolve deprecated module attributes such as ``FLIXIBILITY_SCALES``."""
-    return _resolve_deprecated_alias(name)

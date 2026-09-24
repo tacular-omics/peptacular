@@ -3,6 +3,17 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
+from ..diagnostics import PeptacularError
+
+__all__ = [
+    "MissingAAHandling",
+    "MissingAAHandlingLiteral",
+    "AggregationMethod",
+    "AggregationMethodLiteral",
+    "WeightingMethods",
+    "WeightingMethodsLiteral",
+]
+
 
 class MissingAAHandling(StrEnum):
     """Strategy for handling missing amino acid values"""
@@ -22,7 +33,7 @@ class MissingAAHandling(StrEnum):
         for method in MissingAAHandling:
             if method.value == label:
                 return method
-        raise ValueError(f"Unknown MissingAAHandling: {label}")
+        raise PeptacularError(f"Unknown MissingAAHandling: {label}")
 
 
 MissingAAHandlingLiteral = Literal["zero", "avg", "min", "max", "median", "error", "skip"]
@@ -41,7 +52,7 @@ class AggregationMethod(StrEnum):
         for method in AggregationMethod:
             if method.value == label:
                 return method
-        raise ValueError(f"Unknown AggregationMethod: {label}")
+        raise PeptacularError(f"Unknown AggregationMethod: {label}")
 
 
 AggregationMethodLiteral = Literal["sum", "avg"]
@@ -65,7 +76,7 @@ class WeightingMethods(StrEnum):
         for method in WeightingMethods:
             if method.value == label:
                 return method
-        raise ValueError(f"Unknown WeightingMethods: {label}")
+        raise PeptacularError(f"Unknown WeightingMethods: {label}")
 
 
 WeightingMethodsLiteral = Literal["uniform", "linear", "exponential", "gaussian", "sigmoid", "cosine", "sinusoidal"]

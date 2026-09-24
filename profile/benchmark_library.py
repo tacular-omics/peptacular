@@ -1,10 +1,12 @@
 import time
 
 if __name__ == "__main__":
+    from fastatacular import SequenceEntry, read_fasta
+
     import peptacular as pt
 
     start_time = time.time()
-    fasta_seqs: list[pt.FastaSequence] = pt.parse_fasta("/home/patrick-garrett/Data/fasta/human_and_contaminants.fasta")[:100]
+    fasta_seqs: list[SequenceEntry] = read_fasta("/home/patrick-garrett/Data/fasta/human_and_contaminants.fasta")[:100]
     elapsed = time.time() - start_time
     print(f"Parsed {len(fasta_seqs):,} FASTA sequences in {elapsed:.3f} seconds")
 
@@ -14,7 +16,7 @@ if __name__ == "__main__":
     for i, peptide_spans in enumerate(
         pt.digest(
             proteins,
-            enzyme_regex=pt.Proteases.TRYPSIN,
+            enzyme=pt.Protease.TRYPSIN,
             missed_cleavages=2,
             semi=False,
             min_len=6,

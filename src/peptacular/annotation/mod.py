@@ -1,14 +1,15 @@
 import sys
 from collections import Counter
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cached_property
+from types import MappingProxyType
 from typing import Any, Protocol, Self, cast
 
 from tacular import AA_LOOKUP, ElementInfo
 
 from ..constants import ModType
-from ..diagnostics import CompositionError, UnknownModificationError
+from ..diagnostics import CompositionError, PeptacularError, UnknownModificationError
 from ..proforma_components import (
     FixedModification,
     GlobalChargeCarrier,
@@ -21,6 +22,21 @@ from ..proforma_components import (
     merge_compositions,
 )
 
+__all__ = [
+    "ModValue",
+    "ModificationProtocol",
+    "Mod",
+    "Mods",
+    "VALID_AMINO_ACIDS",
+    "condense_mod_str",
+    "convert_moddict_input",
+    "convert_single_mod_input",
+    "is_mod_collection",
+    "as_mod_iterable",
+    "EMPTYP_INTERVAL_MODS",
+    "Interval",
+]
+
 # Define your modification types
 ModValue = IsotopeReplacement | FixedModification | GlobalChargeCarrier | ModificationTags
 
@@ -28,7 +44,7 @@ ModValue = IsotopeReplacement | FixedModification | GlobalChargeCarrier | Modifi
 class ModificationProtocol(Protocol):
     """Protocol defining the interface all modifications must implement."""
 
-    def get_mass(self, monoisotopic: bool = True) -> float: ...
+    def get_mass(self, *, monoisotopic: bool = True) -> float: ...
 
     def get_composition(self) -> Counter[ElementInfo]: ...
 
@@ -49,7 +65,7 @@ class Mod[T: ModificationProtocol]:
 
     def __post_init__(self):
         if self.count < 0:
-            raise ValueError(f"Count must be non-negative, got {self.count}")
+            raise PeptacularError(f"Count must be non-negative, got {self.count}")
 
     @property
     def is_valid(self) -> bool:
@@ -64,9 +80,9 @@ class Mod[T: ModificationProtocol]:
 
         return None
 
-    def get_mass(self, monoisotopic: bool = True) -> float:
+    def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get total mass for this modification occurrence."""
-        mass: int | float = self.value.get_mass(monoisotopic)
+        mass: int | float = self.value.get_mass(monoisotopic=monoisotopic)
         return mass * self.count
 
     def get_composition(self) -> Counter[ElementInfo]:
@@ -116,12 +132,19 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
     """Collection of modifications of a specific type."""
 
     mod_type: ModType
-    _mods: dict[str, int] | None
+    _mods: Mapping[str, int] | None
 
     def __post_init__(self):
-        """Validate mod_type is supported."""
+        """Validate mod_type and snapshot the modification counts.
+
+        The counts are copied into a read-only mapping, so a ``Mods`` taken from an
+        annotation (``a.nterm_mods``) does not change when the annotation is edited later:
+        its cached ``mods``, mass and hash stay consistent with what it shows.
+        """
         if self.mod_type not in _MOD_PARSERS:
-            raise ValueError(f"Unsupported mod_type: {self.mod_type}")
+            raise PeptacularError(f"Unsupported mod_type: {self.mod_type}")
+        if self._mods is not None and not isinstance(self._mods, MappingProxyType):
+            object.__setattr__(self, "_mods", MappingProxyType(dict(self._mods)))
 
     @property
     def is_valid(self) -> bool:
@@ -174,15 +197,15 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
 
         return tuple(Mod(value=self._parse_mod(mod_str), count=count) for mod_str, count in self._mods.items())
 
-    def get_mass(self, monoisotopic: bool = True) -> float:
+    def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get total mass for all modifications."""
-        return sum(mod.get_mass(monoisotopic) for mod in self.mods)
+        return sum(mod.get_mass(monoisotopic=monoisotopic) for mod in self.mods)
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get total composition for all modifications (negative-count safe)."""
         return merge_compositions(self.mods)
 
-    def get_composition_with_delta_mass_charge(self, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float, int]:
+    def get_composition_with_delta_mass_charge(self, *, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float, int]:
         """Get total composition and when not possible fall back to delta mass for MassTags."""
 
         total_composition = Counter[ElementInfo]()
@@ -219,14 +242,14 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         """Get total charge for all modifications."""
         return sum(mod.get_charge() for mod in self.mods)
 
-    def get_mass_charge(self, monoisotopic: bool = True) -> tuple[float, int]:
+    def get_mass_charge(self, *, monoisotopic: bool = True) -> tuple[float, int]:
         """Get total mass and charge for all modifications."""
         mods = self.mods
 
         if len(mods) == 1:
-            return mods[0].get_mass(monoisotopic), mods[0].get_charge()
+            return mods[0].get_mass(monoisotopic=monoisotopic), mods[0].get_charge()
 
-        total_mass = sum(mod.get_mass(monoisotopic) for mod in mods)
+        total_mass = sum(mod.get_mass(monoisotopic=monoisotopic) for mod in mods)
         total_charge = sum(mod.get_charge() for mod in mods)
         return total_mass, total_charge
 
@@ -301,7 +324,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                     for _ in range(count):
                         mod_str_comps.append(f"[{mod_str}]")
             case _:
-                raise ValueError(f"Unsupported mod_type: {self.mod_type}")
+                raise PeptacularError(f"Unsupported mod_type: {self.mod_type}")
         return "".join(mod_str_comps)
 
     def __str__(self) -> str:
@@ -323,7 +346,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
     def copy(self) -> Self:
         return self.__class__(
             mod_type=self.mod_type,
-            _mods=self._mods.copy() if self._mods else None,
+            _mods=dict(self._mods) if self._mods else None,
         )
 
     def __hash__(self) -> int:
@@ -366,7 +389,7 @@ def convert_moddict_input(mod: Any) -> dict[str, int]:
     # string and the same downstream @lru_cache parse entry, instead of each peptide
     # that spells a mod slightly differently paying for its own string and cache miss.
     d: dict[str, int] = {}
-    if isinstance(mod, dict) or isinstance(mod, Counter):
+    if isinstance(mod, Mapping):
         # if value is not string, convert to string
         d = {sys.intern(str(k).strip()): v for k, v in mod.items()}
     elif isinstance(mod, Mods):
@@ -444,7 +467,7 @@ class Interval:
     :type mods: Any | None
     :param validate: If True, check that each modification string parses.
     :type validate: bool
-    :raises ValueError: If ``start`` is negative or ``end`` is not greater than ``start``.
+    :raises PeptacularError: If ``start`` is negative or ``end`` is not greater than ``start``.
     """
 
     __slots__ = ("_start", "_end", "_ambiguous", "_mods", "_validate")
@@ -453,6 +476,7 @@ class Interval:
         self,
         start: int,
         end: int,
+        *,
         ambiguous: bool = False,
         mods: Any | None = None,
         validate: bool = False,
@@ -465,9 +489,9 @@ class Interval:
         self.set_mods(mods, validate=validate)
 
         if self._start < 0:
-            raise ValueError(f"Start position must be non-negative, got {self.start}")
+            raise PeptacularError(f"Start position must be non-negative, got {self.start}")
         if self._end <= self.start:
-            raise ValueError(f"End position must be >= start position, got {self.end} <= {self.start}")
+            raise PeptacularError(f"End position must be greater than start position, got end={self.end}, start={self.start}")
 
     @property
     def is_valid(self) -> bool:
@@ -491,7 +515,8 @@ class Interval:
 
     def set_mods(
         self,
-        mods: dict[Any, int] | Mods[ModificationTags] | None,
+        mods: Mapping[Any, int] | Mods[ModificationTags] | None,
+        *,
         validate: bool | None = None,
     ) -> None:
         if validate is None:
@@ -525,7 +550,21 @@ class Interval:
             validate=self._validate,
         )
 
-    def append_mod(self, mod: Any, validate: bool | None = None, inplace: bool = True) -> None:
+    def append_mod(self, mod: Any, *, validate: bool | None = None, inplace: bool = True) -> Self:
+        """Add one modification to the interval.
+
+        >>> import peptacular as pt
+        >>> interval = pt.Interval(1, 3)
+        >>> new = interval.append_mod("Oxidation", inplace=False)
+        >>> new.has_mods, interval.has_mods
+        (True, False)
+
+        :param mod: The modification (string, mass, or ``(mod, count)`` pair).
+        :param validate: Check that the modification parses. None uses the interval's setting.
+        :param inplace: If True, change this interval; if False, change and return a copy.
+        :return: This interval, or the changed copy when ``inplace=False``.
+        :rtype: Interval
+        """
         if not inplace:
             return self.copy().append_mod(mod, validate=validate, inplace=True)
 
@@ -541,8 +580,9 @@ class Interval:
             ModificationTags.from_string(mod_str)
 
         self._mods[mod_str] = self._mods.get(mod_str, 0) + count
+        return self
 
-    def extend_mods(self, mods: Any, validate: bool | None = None) -> None:
+    def extend_mods(self, mods: Any, *, validate: bool | None = None) -> None:
         if validate is None:
             validate = self._validate
 

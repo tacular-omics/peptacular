@@ -43,6 +43,41 @@ if TYPE_CHECKING:
         TagName,
     )
 
+__all__ = [
+    "monosaccharide_names",
+    "PATTERN_ACCESSION",
+    "PATTERN_CUSTOM",
+    "PATTERN_MASS",
+    "PATTERN_NAMED_MOD",
+    "parse_formula_element",
+    "parse_charged_formula",
+    "parse_position_score",
+    "parse_modification_tag",
+    "parse_glycan",
+    "parse_modification_tags",
+    "parse_position_rule",
+    "LOC_PATTERN",
+    "NAME_LOC_PATTERN",
+    "parse_tag_accession",
+    "parse_tag_mass",
+    "parse_tag_name",
+    "parse_tag_info",
+    "parse_tag_custom",
+    "parse_glycan_component",
+    "parse_isotope_replacement",
+    "parse_global_charge_carrier",
+    "parse_modification_ambiguous_primary",
+    "parse_modification_ambiguous_secondary",
+    "parse_modification_cross_linker",
+    "parse_fixed_modification",
+    "parse_modification",
+    "parse_sequence_element",
+    "parse_sequence_region",
+    "parse_peptidoform",
+    "parse_peptidoform_ion",
+    "parse_compound_peptidoform_ion",
+]
+
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 _TYPED_ERRORS = (ProFormaFormatError, UnknownModificationError, UnsupportedOperationError, CompositionError, InvalidAdjustmentError)
@@ -153,13 +188,13 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
     from .comps import FormulaElement
 
     if not s:
-        raise ValueError("Empty formula element string")
+        raise ProFormaFormatError("Empty formula element string")
 
     s = s.strip()
     match = _FORMULA_ELEMENT_PATTERN.match(s)
 
     if not match:
-        raise ValueError(f"Invalid formula element: '{s}'")
+        raise ProFormaFormatError(f"Invalid formula element: '{s}'")
 
     # Extract groups: [isotope Element count] or Element count
     isotope_str, element_bracketed, count_bracketed, element_plain, count_plain = match.groups()
@@ -176,11 +211,11 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
         isotope = None
         count = int(count_plain) if count_plain else 1
     else:
-        raise ValueError(f"No element found in '{s}'")
+        raise ProFormaFormatError(f"No element found in '{s}'")
 
     # Validate count (zero not allowed)
     if count == 0 and not allow_zero:
-        raise ValueError(f"Zero cardinality not allowed in '{s}'")
+        raise ProFormaFormatError(f"Zero cardinality not allowed in '{s}'")
 
     # Validate element symbol
     try:
@@ -194,7 +229,7 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
             element_symbol, isotope = "H", 3
         element = Element(element_symbol)
     except ValueError as e:
-        raise ValueError(f"Unknown element symbol: '{element_symbol}'") from e
+        raise ProFormaFormatError(f"Unknown element symbol: '{element_symbol}'") from e
 
     return FormulaElement(element=element, occurance=count, isotope=isotope)
 
@@ -231,7 +266,7 @@ def parse_charged_formula(s: str, allow_zero: bool = False, require_formula_pref
         s = s.replace(sep, "")
 
     if not s:
-        raise ValueError("Empty charged formula string")
+        raise ProFormaFormatError("Empty charged formula string")
 
     s = s.strip()
 
@@ -247,12 +282,12 @@ def parse_charged_formula(s: str, allow_zero: bool = False, require_formula_pref
         match = _CHARGED_FORMULA_PATTERN.match(s)
 
         if not match:
-            raise ValueError(f"Invalid charged formula: '{s}'")
+            raise ProFormaFormatError(f"Invalid charged formula: '{s}'")
     else:
         # Try to parse without the Formula: prefix
         match = re.match(r"^(.+?)(?::z([+-]?\d+))?$", s, re.IGNORECASE)
         if not match:
-            raise ValueError(f"Invalid charged formula: '{s}'")
+            raise ProFormaFormatError(f"Invalid charged formula: '{s}'")
 
     formula_str, charge_str = match.groups()
 
@@ -301,7 +336,7 @@ def _parse_formula_string(formula_str: str, allow_zero: bool = False) -> tuple["
             # Find the closing bracket - everything must be inside
             close_bracket = formula_str.find("]", i)
             if close_bracket == -1:
-                raise ValueError(f"Unclosed isotope bracket in '{formula_str}'")
+                raise ProFormaFormatError(f"Unclosed isotope bracket in '{formula_str}'")
             i = close_bracket + 1
             # Extract the entire bracketed element including the brackets
             element_str = formula_str[start:i]
@@ -322,17 +357,17 @@ def _parse_formula_string(formula_str: str, allow_zero: bool = False) -> tuple["
             # Extract the element string
             element_str = formula_str[start:i]
         else:
-            raise ValueError(f"Unexpected character '{formula_str[i]}' at position {i} in '{formula_str}'")
+            raise ProFormaFormatError(f"Unexpected character '{formula_str[i]}' at position {i} in '{formula_str}'")
 
         # Parse the element string
         try:
             element = parse_formula_element(element_str, allow_zero=allow_zero)
             elements.append(element)
         except ValueError as e:
-            raise ValueError(f"Failed to parse element '{element_str}' in formula '{formula_str}'") from e
+            raise ProFormaFormatError(f"Failed to parse element '{element_str}' in formula '{formula_str}'") from e
 
     if not elements:
-        raise ValueError(f"No elements found in formula '{formula_str}'")
+        raise ProFormaFormatError(f"No elements found in formula '{formula_str}'")
 
     return tuple(elements)
 
@@ -353,10 +388,10 @@ def parse_position_score(s: str) -> "PositionScore":
         if score_str is not None:
             score = float(score_str)
     if pos is None:
-        raise ValueError(f"Invalid position id in position score string: '{s}'")
+        raise ProFormaFormatError(f"Invalid position id in position score string: '{s}'")
 
     if len(s) > 1:
-        raise ValueError(f"Invalid position score string: '{s[1:]}'")
+        raise ProFormaFormatError(f"Invalid position score string: '{s[1:]}'")
 
     return PositionScore(position_id=pos, score=score)
 
@@ -405,7 +440,7 @@ def parse_modification_tag(mod_str: str) -> "MODIFICATION_TAG_TYPE":
     mod_str = mod_str.strip()
 
     if not mod_str:
-        raise ValueError("Empty modification string")
+        raise ProFormaFormatError("Empty modification string")
 
     mod_str_lower = mod_str.lower()
 
@@ -500,13 +535,13 @@ def parse_glycan(s: str) -> tuple["GlycanComponent", ...]:
         ValueError: If the string cannot be parsed or is invalid
     """
     if not s:
-        raise ValueError("Empty glycan string")
+        raise ProFormaFormatError("Empty glycan string")
 
     s = s.strip()
     match = _GLYCAN_PATTERN.match(s)
 
     if not match:
-        raise ValueError(f"Invalid glycan string (must start with 'Glycan:'): '{s}'")
+        raise ProFormaFormatError(f"Invalid glycan string (must start with 'Glycan:'): '{s}'")
 
     glycan_str = match.group(1)
 
@@ -525,16 +560,16 @@ def _parse_glycan_curly_component(content: str) -> "ChargedFormula | float":
     :type content: str
     :return: A parsed mass (``float``) or charged formula.
     :rtype: ChargedFormula | float
-    :raises ValueError: If the content is empty or cannot be parsed.
+    :raises ProFormaFormatError: If the content is empty or cannot be parsed.
     """
     if not content:
-        raise ValueError("Empty '{}' glycan component")
+        raise ProFormaFormatError("Empty '{}' glycan component")
     if content[0] in "+-." or content[0].isdigit():
         if _GLYCAN_MASS_PATTERN.fullmatch(content) is None:
-            raise ValueError(f"Invalid glycan mass component '{{{content}}}'")
+            raise ProFormaFormatError(f"Invalid glycan mass component '{{{content}}}'")
         value = float(content)
         if not isfinite(value):
-            raise ValueError(f"Invalid glycan mass component '{{{content}}}': mass must be finite")
+            raise ProFormaFormatError(f"Invalid glycan mass component '{{{content}}}': mass must be finite")
         return value
     return parse_charged_formula(content, require_formula_prefix=False)
 
@@ -567,7 +602,7 @@ def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
         if glycan_str[i] == "{":
             close = glycan_str.find("}", i)
             if close == -1:
-                raise ValueError(f"Unclosed '{{' in glycan composition: '{glycan_str[i:]}'")
+                raise ProFormaFormatError(f"Unclosed '{{' in glycan composition: '{glycan_str[i:]}'")
             content = glycan_str[i + 1 : close].strip()
             i = close + 1
             # Optional whitespace before the count, then the count digits.
@@ -604,14 +639,14 @@ def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
                 try:
                     monosaccharide = Monosaccharide(mono_name)
                 except ValueError as e:
-                    raise ValueError(f"Unknown monosaccharide: {mono_name}") from e
+                    raise ProFormaFormatError(f"Unknown monosaccharide: {mono_name}") from e
 
                 components.append(GlycanComponent(monosaccharide=monosaccharide, occurance=count))
                 matched = True
                 break
 
         if not matched:
-            raise ValueError(f"Could not parse glycan composition at position {i}: '{glycan_str[i:]}'")
+            raise ProFormaFormatError(f"Could not parse glycan composition at position {i}: '{glycan_str[i:]}'")
 
     return tuple(components)
 
@@ -685,7 +720,7 @@ def parse_position_rule(s: str) -> "PositionRule":
     from .comps import PositionRule
 
     if not s:
-        raise ValueError("Empty position rule string")
+        raise ProFormaFormatError("Empty position rule string")
 
     s = s.strip()
 
@@ -698,13 +733,13 @@ def parse_position_rule(s: str) -> "PositionRule":
         try:
             terminal = Terminal.from_str(terminal_str)
         except ValueError as e:
-            raise ValueError(f"Unknown terminal: '{terminal_str}'") from e
+            raise ProFormaFormatError(f"Unknown terminal: '{terminal_str}'") from e
 
         if aa_str:
             try:
                 amino_acid = AminoAcid(aa_str)
             except ValueError as e:
-                raise ValueError(f"Unknown amino acid: '{aa_str}'") from e
+                raise ProFormaFormatError(f"Unknown amino acid: '{aa_str}'") from e
             return PositionRule(terminal=terminal, amino_acid=amino_acid)
         else:
             return PositionRule(terminal=terminal, amino_acid=None)
@@ -719,7 +754,7 @@ def parse_position_rule(s: str) -> "PositionRule":
                 amino_acid = AminoAcid.from_str(s)
                 return PositionRule(terminal=Terminal.ANYWHERE, amino_acid=amino_acid)
             except ValueError as e:
-                raise ValueError(f"Unknown terminal or amino acid: '{s}'") from e
+                raise ProFormaFormatError(f"Unknown terminal or amino acid: '{s}'") from e
 
 
 LOC_PATTERN = re.compile(r"^([^#(]+)(?:#([^(]+))?(?:\(([^)]+)\))?$")
@@ -781,7 +816,7 @@ def parse_tag_accession(s: str) -> "TagAccession":
         case "XLMOD":
             return TagAccession(accession=name, cv=CV.XL_MOD, position_id=pos, score=score)
         case _:
-            raise ValueError(f"Unknown CV: {cv_upper} (must be UNIMOD, MOD, RESID, GNO, or XLMOD)")
+            raise ProFormaFormatError(f"Unknown CV: {cv_upper} (must be UNIMOD, MOD, RESID, GNO, or XLMOD)")
 
     return TagAccession(accession=accession, cv=cv)
 
@@ -857,7 +892,7 @@ def parse_tag_mass(s: str) -> "TagMass":
         case "OBS":
             return TagMass(mass_str=mass_str, cv=CV.OBSERVED, position_id=pos, score=score)
         case _:
-            raise ValueError(f"Invalid CV prefix: {cv} (must be U, M, R, X, G, or C)")
+            raise ProFormaFormatError(f"Invalid CV prefix: {cv} (must be U, M, R, X, G, or C)")
 
 
 @lru_cache(maxsize=512)
@@ -920,7 +955,7 @@ def parse_tag_name(s: str) -> "TagName | TagCustom":
         case "C":
             return TagCustom(name=name, position_id=pos, score=score)
         case _:
-            raise ValueError(f"Invalid CV prefix: {cv} (must be U, M, R, X, G, or C)")
+            raise ProFormaFormatError(f"Invalid CV prefix: {cv} (must be U, M, R, X, G, or C)")
 
 
 @lru_cache(maxsize=512)
@@ -941,7 +976,7 @@ def parse_tag_info(s: str) -> "TagInfo":
     from .comps import TagInfo
 
     if not s.lower().startswith("info:"):
-        raise ValueError(f"Invalid INFO string: {s}")
+        raise ProFormaFormatError(f"Invalid INFO string: {s}")
     info = s[5:]  # Remove 'INFO:' prefix
     return TagInfo(info=info)
 
@@ -965,7 +1000,7 @@ def parse_tag_custom(s: str) -> "TagCustom":
 
     # Custom tags must be in format "C:name"
     if not s.startswith("C:"):
-        raise ValueError(f"Custom tag must start with 'C:': {s}")
+        raise ProFormaFormatError(f"Custom tag must start with 'C:': {s}")
 
     name = s[2:]  # Remove 'C:' prefix
     return TagCustom(name=name)
@@ -1018,7 +1053,7 @@ def parse_glycan_component(s: str) -> "GlycanComponent":
         count = int(count_str) if count_str else 1
         return GlycanComponent(monosaccharide=_parse_glycan_curly_component(content), occurance=count)
 
-    raise ValueError(f"Could not parse glycan component: '{s}'")
+    raise ProFormaFormatError(f"Could not parse glycan component: '{s}'")
 
 
 @lru_cache(maxsize=512)
@@ -1055,21 +1090,21 @@ def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
         i += 1
 
     if i == 0:
-        raise ValueError(f"Expected isotope number at start of string: {s}")
+        raise ProFormaFormatError(f"Expected isotope number at start of string: {s}")
 
     isotope = int(s[:i])
     element_str = s[i:]
 
     if not element_str:
-        raise ValueError(f"Missing element symbol in: {s}")
+        raise ProFormaFormatError(f"Missing element symbol in: {s}")
 
     try:
         element = Element(element_str)
     except ValueError as e:
-        raise ValueError(f"Unknown element symbol: {element_str}") from e
+        raise ProFormaFormatError(f"Unknown element symbol: {element_str}") from e
 
     if (element, isotope) not in ELEMENT_LOOKUP:
-        raise ValueError(f"Unknown isotope: {isotope}{element_str}")
+        raise ProFormaFormatError(f"Unknown isotope: {isotope}{element_str}")
 
     return IsotopeReplacement(element=element, isotope=isotope)
 
@@ -1110,7 +1145,7 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
         try:
             occurance = int(occ_str)
         except ValueError as e:
-            raise ValueError(f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer.") from e
+            raise ProFormaFormatError(f"Invalid charge carrier '{s}': occurrence specifier '^{occ_str}' must be an integer.") from e
     else:
         formula_part = s
 
@@ -1120,7 +1155,7 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
     formula_only = formula_part.split(":z", 1)[0]
     if ":" in formula_only:
         prefix = formula_only.split(":", 1)[0]
-        raise ValueError(
+        raise ProFormaFormatError(
             f"Invalid charge carrier '{s}': a charge carrier must be a bare charged formula "
             f"like 'Na:z+1' or 'C2H6:z+2' (ProForma 2.1 section 11.5), not a '{prefix}:'-prefixed value."
         )
@@ -1186,7 +1221,7 @@ def parse_modification_ambiguous_primary(s: str) -> "ModificationAmbiguousPrimar
             mod_tags_parts.append(part)
 
     if label_part is None:
-        raise ValueError(f"No label found in ambiguous primary modification: {s}")
+        raise ProFormaFormatError(f"No label found in ambiguous primary modification: {s}")
 
     # Parse the label and optional score
     if "(" in label_part:
@@ -1237,7 +1272,7 @@ def parse_modification_ambiguous_secondary(s: str) -> "ModificationAmbiguousSeco
     s = s.strip()
 
     if not s.startswith("#"):
-        raise ValueError(f"Ambiguous secondary modification must start with #: {s}")
+        raise ProFormaFormatError(f"Ambiguous secondary modification must start with #: {s}")
 
     # Parse label and optional score
     if "(" in s:
@@ -1275,14 +1310,14 @@ def parse_modification_cross_linker(s: str) -> "ModificationCrossLinker":
     s = s.strip()
 
     if "#" not in s:
-        raise ValueError(f"Cross-linker modification must contain #: {s}")
+        raise ProFormaFormatError(f"Cross-linker modification must contain #: {s}")
 
     # Split on # to get tags and label
     parts = s.split("#", 1)
 
     if len(parts) == 1:
         # Just a label (shouldn't happen based on check above)
-        raise ValueError(f"Invalid cross-linker format: {s}")
+        raise ProFormaFormatError(f"Invalid cross-linker format: {s}")
 
     tags_str = parts[0]
     label_str = parts[1]
@@ -1327,7 +1362,7 @@ def parse_fixed_modification(s: str) -> "FixedModification":
     if "@" in s:
         # Split on @ to get modification and position rules
         if not s.startswith("[") or "]@" not in s:
-            raise ValueError(f"Invalid fixed modification format: {s}")
+            raise ProFormaFormatError(f"Invalid fixed modification format: {s}")
 
         # Find the ]@ separator
         bracket_end = s.index("]@")
@@ -1343,7 +1378,7 @@ def parse_fixed_modification(s: str) -> "FixedModification":
     else:
         # No position rules
         if not s.startswith("[") or not s.endswith("]"):
-            raise ValueError(f"Invalid fixed modification format: {s}")
+            raise ProFormaFormatError(f"Invalid fixed modification format: {s}")
 
         mod_str = s[1:-1]  # Remove [ and ]
         modification_tags = parse_modification_tags(mod_str)
@@ -1372,7 +1407,7 @@ def parse_modification(s: str) -> "MODIFICATION_TYPE":
     s = s.strip()
 
     if not s:
-        raise ValueError("Empty modification string")
+        raise ProFormaFormatError("Empty modification string")
 
     # Check for ambiguous or cross-linker modifications
     if "#" in s:
@@ -1433,7 +1468,7 @@ def _extract_bracketed_modifications(s: str) -> tuple["MODIFICATION_TYPE", ...]:
                 j += 1
 
             if depth != 0:
-                raise ValueError(f"Unmatched bracket in modifications: {s}")
+                raise ProFormaFormatError(f"Unmatched bracket in modifications: {s}")
 
             # Extract modification string (without brackets)
             mod_str = s[i + 1 : j - 1]
@@ -1442,7 +1477,7 @@ def _extract_bracketed_modifications(s: str) -> tuple["MODIFICATION_TYPE", ...]:
             modifications.append(parse_modification(mod_str))
             i = j
         else:
-            raise ValueError(f"Unexpected character '{s[i]}' at position {i} in modifications")
+            raise ProFormaFormatError(f"Unexpected character '{s[i]}' at position {i} in modifications")
 
     return tuple(modifications)
 
@@ -1465,7 +1500,7 @@ def parse_sequence_element(s: str) -> "SequenceElement":
     from .comps import SequenceElement
 
     if not s:
-        raise ValueError("Empty sequence element string")
+        raise ProFormaFormatError("Empty sequence element string")
 
     # First character should be the amino acid
     aa = AminoAcid(s[0])
@@ -1508,20 +1543,20 @@ def parse_sequence_region(s: str) -> "SequenceRegion":
     from .comps import SequenceRegion
 
     if not s:
-        raise ValueError("Empty sequence region string")
+        raise ProFormaFormatError("Empty sequence region string")
 
     s = s.strip()
 
     # Check if it starts with opening parenthesis
     if not s.startswith("("):
-        raise ValueError(f"Sequence region must start with '(': {s}")
+        raise ProFormaFormatError(f"Sequence region must start with '(': {s}")
 
     ambiguous = s[1] == "?"
 
     # Find the closing parenthesis
     close_paren = s.find(")")
     if close_paren == -1:
-        raise ValueError(f"Sequence region missing closing ')': {s}")
+        raise ProFormaFormatError(f"Sequence region missing closing ')': {s}")
 
     # Extract the sequence part (between parentheses)
     seq_str: str = s[1 + ambiguous : close_paren]
@@ -1533,7 +1568,7 @@ def parse_sequence_region(s: str) -> "SequenceRegion":
     while i < len(seq_str):
         # Each element starts with an amino acid letter
         if not seq_str[i].isupper():
-            raise ValueError(f"Expected amino acid at position {i} in sequence '{seq_str}'")
+            raise ProFormaFormatError(f"Expected amino acid at position {i} in sequence '{seq_str}'")
 
         # Find the extent of this sequence element (amino acid + any modifications)
         start = i
@@ -1552,7 +1587,7 @@ def parse_sequence_region(s: str) -> "SequenceRegion":
                 j += 1
 
             if depth != 0:
-                raise ValueError(f"Unmatched bracket in sequence: {seq_str}")
+                raise ProFormaFormatError(f"Unmatched bracket in sequence: {seq_str}")
 
             i = j
 

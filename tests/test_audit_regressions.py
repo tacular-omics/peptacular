@@ -4,6 +4,7 @@ import pickle
 from collections import Counter
 
 import pytest
+import tacular
 
 import peptacular as pt
 from peptacular.annotation.cached_comps import ChargeCarrierInfo, DeltaInfo
@@ -90,7 +91,7 @@ def test_delta_cache_is_defensive_and_pickleable():
 
 
 def test_charge_cache_preserves_negative_atoms_and_returns_fresh_mapping():
-    assert ChargeCarrierInfo.from_input(-2).composition == Counter({pt.ELEMENT_LOOKUP["H"]: -2})
+    assert ChargeCarrierInfo.from_input(-2).composition == Counter({tacular.ELEMENT_LOOKUP["H"]: -2})
     sodium = ChargeCarrierInfo.from_input("Na:z+1")
     sodium.to_proforma_charge.clear()
     assert sodium.to_proforma_charge == {"Na": 1}

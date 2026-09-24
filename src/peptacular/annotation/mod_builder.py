@@ -6,8 +6,21 @@ import warnings
 from collections.abc import Generator, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+from ..diagnostics import PeptacularError
+
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
+
+__all__ = [
+    "get_mod_index_from_aa",
+    "get_mod_index_from_regex",
+    "get_mod_index",
+    "get_sites",
+    "ensure_single_static_mod",
+    "apply_mods",
+    "apply_static_mods_infront",
+    "modify",
+]
 
 
 def get_mod_index_from_aa(peptide: str, mod_aa: str) -> set[int]:
@@ -118,7 +131,7 @@ def apply_static_mods_infront(
 
     for mod_aa, mod_values in internal_static.items():
         if mod_aa is None:
-            raise ValueError("None keys are not supported for static notation mods")
+            raise PeptacularError("None keys are not supported for static notation mods")
         for mod in mod_values:
             annotation.add_static_mod_by_residue(residue=mod_aa, mod=mod)
 

@@ -2,9 +2,10 @@ import cProfile
 import pstats
 import random
 import time
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import peptacular as pt
 

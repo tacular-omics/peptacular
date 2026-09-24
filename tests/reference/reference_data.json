@@ -40716,7 +40716,7 @@
     "V": 4.2
    }
   },
-  "hphob_adoberin": {
+  "hphob_aboderin": {
    "source": "https://web.expasy.org/protscale/pscale/Hphob.mobility.html",
    "values": {
     "A": 5.1,
@@ -40766,7 +40766,7 @@
     "V": 1.73
    }
   },
-  "hphob_agros": {
+  "hphob_argos": {
    "source": "Bio.SeqUtils.ProtParamData.ag (biopython 1.88)",
    "values": {
     "A": 0.61,
@@ -41816,7 +41816,7 @@
     "V": 0.606
    }
   },
-  "surface_accessiblility_janin": {
+  "surface_accessibility_janin": {
    "source": "Bio.SeqUtils.ProtParamData.ja (biopython 1.88)",
    "values": {
     "A": 0.28,

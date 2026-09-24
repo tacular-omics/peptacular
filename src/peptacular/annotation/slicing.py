@@ -7,12 +7,23 @@ from typing import TYPE_CHECKING, Any
 
 from ..annotation.mod import Mods
 from ..constants import Terminal
-from ..diagnostics import InvalidPositionError
+from ..diagnostics import InvalidPositionError, PeptacularError
 from ..proforma_components.comps import FixedModification, ModificationTags
 from .parser import Interval, ProFormaParser
 
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
+
+__all__ = [
+    "slice_annotation",
+    "split_annotation",
+    "join_annotations",
+    "shift_annotation",
+    "shuffle_annotation",
+    "reverse_annotation",
+    "sort_annotation",
+    "generate_sliding_windows",
+]
 
 
 def slice_annotation(
@@ -151,7 +162,7 @@ def join_annotations(annotations: Sequence[ProFormaAnnotation]) -> ProFormaAnnot
         The joined ProFormaAnnotation
     """
     if not annotations:
-        raise ValueError("No annotations to join")
+        raise PeptacularError("No annotations to join")
 
     if len(annotations) == 1:
         return annotations[0].copy()
@@ -251,9 +262,9 @@ def shift_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
+        raise PeptacularError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
+        raise PeptacularError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to shift, return as is
     if keep_nterm + keep_cterm >= seq_len:
@@ -311,12 +322,12 @@ def shift_annotation(
                 new_end = (relative_end - middle_shift) % middle_len + keep_nterm
 
                 if new_start < new_end:
-                    new_intervals.append(Interval(new_start, new_end, interval.ambiguous, interval.mods))
+                    new_intervals.append(Interval(new_start, new_end, ambiguous=interval.ambiguous, mods=interval.mods))
                 else:
-                    raise ValueError("Shifting intervals that wrap around the sequence end is not supported.")
+                    raise PeptacularError("Shifting intervals that wrap around the sequence end is not supported.")
             else:
                 # Interval spans kept and shifted regions
-                raise ValueError(f"Interval [{interval.start}:{interval.end}] spans kept and shifted regions. This is not supported.")
+                raise PeptacularError(f"Interval [{interval.start}:{interval.end}] spans kept and shifted regions. This is not supported.")
 
     # Update annotation
     annotation.sequence = shifted_sequence
@@ -355,9 +366,9 @@ def shuffle_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
+        raise PeptacularError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
+        raise PeptacularError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to shuffle, return as is
     if seq_len <= 1 or keep_nterm + keep_cterm >= seq_len:
@@ -410,12 +421,12 @@ def shuffle_annotation(
             if interval.start < keep_nterm or interval.end > seq_len - keep_cterm:
                 # Interval overlaps with kept regions - check if it's entirely in kept region
                 if not (interval.end <= keep_nterm or interval.start >= seq_len - keep_cterm):
-                    raise ValueError(f"Interval [{interval.start}:{interval.end}] spans kept and shuffled regions. This is not supported.")
+                    raise PeptacularError(f"Interval [{interval.start}:{interval.end}] spans kept and shuffled regions. This is not supported.")
             # If interval is entirely in middle, its positions will be shuffled via the mapping
             # Note: This could lead to non-contiguous intervals, which might not be valid
             # Consider raising an error if intervals exist in the shuffled region
             if keep_nterm < interval.start < seq_len - keep_cterm or keep_nterm < interval.end < seq_len - keep_cterm:
-                raise ValueError(
+                raise PeptacularError(
                     f"Shuffling sequences with intervals in the shuffled region is not supported. "
                     f"Interval [{interval.start}:{interval.end}] would be disrupted."
                 )
@@ -456,9 +467,9 @@ def reverse_annotation(
 
     # Validate keep parameters
     if keep_nterm < 0 or keep_cterm < 0:
-        raise ValueError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
+        raise PeptacularError(f"keep_nterm and keep_cterm must be non-negative, got keep_nterm={keep_nterm}, keep_cterm={keep_cterm}")
     if keep_nterm + keep_cterm > seq_len:
-        raise ValueError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
+        raise PeptacularError(f"keep_nterm ({keep_nterm}) + keep_cterm ({keep_cterm}) cannot exceed sequence length ({seq_len})")
 
     # If nothing to reverse, return as is
     if seq_len <= 1 or keep_nterm + keep_cterm >= seq_len:
@@ -511,7 +522,7 @@ def reverse_annotation(
                 new_intervals.append(interval.update(start=new_start, end=new_end))
             else:
                 # Interval spans kept and reversed regions
-                raise ValueError(f"Interval [{interval.start}:{interval.end}] spans kept and reversed regions. This is not supported.")
+                raise PeptacularError(f"Interval [{interval.start}:{interval.end}] spans kept and reversed regions. This is not supported.")
 
         annotation.intervals = new_intervals
 
@@ -607,14 +618,14 @@ def generate_sliding_windows(
         ValueError: If window_size is invalid or annotation has no sequence
     """
     if not annotation.has_sequence:
-        raise ValueError("Annotation must have a sequence to create sliding windows")
+        raise PeptacularError("Annotation must have a sequence to create sliding windows")
 
     if window_size <= 0:
-        raise ValueError(f"Window size must be positive, got {window_size}")
+        raise PeptacularError(f"Window size must be positive, got {window_size}")
 
     seq_len = len(annotation.sequence)
     if window_size > seq_len:
-        raise ValueError(f"Window size {window_size} cannot be greater than sequence length {seq_len}.")
+        raise PeptacularError(f"Window size {window_size} cannot be greater than sequence length {seq_len}.")
 
     if reverse:
         # Generate windows from right to left
@@ -745,7 +756,7 @@ def _adjust_intervals(intervals: list[Interval], start: int, stop: int) -> list[
             interval_gets_cut = (interval.start < start) or (interval.end > stop)
 
             if interval_gets_cut:
-                raise ValueError(f"Interval [{interval.start}:{interval.end}] would be cut by slice [{start}:{stop}]. Slicing intervals is not supported.")
+                raise PeptacularError(f"Interval [{interval.start}:{interval.end}] would be cut by slice [{start}:{stop}]. Slicing intervals is not supported.")
 
             # Calculate new positions relative to slice
             new_interval_start = max(0, interval.start - start)

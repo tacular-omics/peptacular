@@ -95,7 +95,7 @@ def main():
     baseline_seq, _ = benchmark_method(sequences, 1, "sequential", NUM_RUNS)
     baseline_ann, _ = benchmark_method(annotations, 1, "sequential", NUM_RUNS)
 
-    print(f"Baselines (1 worker, sequential):")
+    print("Baselines (1 worker, sequential):")
     print(f"  Strings: {baseline_seq:.3f}s")
     print(f"  Annotations: {baseline_ann:.3f}s ({baseline_ann / baseline_seq:.2f}x overhead)")
     print()

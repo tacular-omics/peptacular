@@ -14,11 +14,12 @@ from tacular import (
 )
 
 from ..constants import (
-    CV_TO_ACCESSION_PREFIX,
-    CV_TO_MASS_PREFIX,
-    CV_TO_NAME_PREFIX,
+    _CV_TO_ACCESSION_PREFIX,
+    _CV_TO_MASS_PREFIX,
+    _CV_TO_NAME_PREFIX,
     Terminal,
 )
+from ..diagnostics import PeptacularError
 
 if TYPE_CHECKING:
     from .comps import (
@@ -47,6 +48,34 @@ if TYPE_CHECKING:
         TagMass,
         TagName,
     )
+
+__all__ = [
+    "get_element_key",
+    "serialize_formula_element",
+    "serialize_charged_formula",
+    "serialize_position_rule",
+    "serialize_tag_accession",
+    "serialize_tag_mass",
+    "serialize_tag_name",
+    "serialize_tag_info",
+    "serialize_tag_custom",
+    "serialize_glycan_component",
+    "serialize_glycan_tag",
+    "serialize_isotope_replacement",
+    "serialize_global_charge_carrier",
+    "serialize_modification_ambiguous_primary",
+    "serialize_modification_ambiguous_secondary",
+    "serialize_modification_cross_linker",
+    "serialize_fixed_modification",
+    "serialize_modification_tag",
+    "serialize_modification_tags",
+    "serialize_modification",
+    "serialize_sequence_element",
+    "serialize_sequence_region",
+    "serialize_peptidoform",
+    "serialize_peptidoform_ion",
+    "serialize_compound_peptidoform_ion",
+]
 
 
 @lru_cache(maxsize=1024)
@@ -158,7 +187,7 @@ def serialize_position_rule(pr: "PositionRule") -> str:
     if pr.terminal == Terminal.ANYWHERE:
         if pr.amino_acid is not None:
             return sys.intern(pr.amino_acid.value)
-        raise ValueError("Amino acid must be specified for ANYWHERE position rule")
+        raise PeptacularError("Amino acid must be specified for ANYWHERE position rule")
 
     elif pr.amino_acid is not None:
         return sys.intern(f"{pr.terminal.value}:{pr.amino_acid.value}")
@@ -177,7 +206,7 @@ def serialize_tag_accession(ta: "TagAccession") -> str:
     Returns:
         String representation like 'UNIMOD:35'
     """
-    return sys.intern(f"{CV_TO_ACCESSION_PREFIX[ta.cv]}{ta.accession}{ta.serialize_position_score()}")
+    return sys.intern(f"{_CV_TO_ACCESSION_PREFIX[ta.cv]}{ta.accession}{ta.serialize_position_score()}")
 
 
 @lru_cache(maxsize=512)
@@ -194,7 +223,7 @@ def serialize_tag_mass(tm: "TagMass") -> str:
     mass = tm.mass
     mass_str = f"{int(mass):+}" if mass == int(mass) else f"{mass:+}"
     if tm.cv is not None:
-        return sys.intern(f"{CV_TO_MASS_PREFIX[tm.cv]}{mass_str}{tm.serialize_position_score()}")
+        return sys.intern(f"{_CV_TO_MASS_PREFIX[tm.cv]}{mass_str}{tm.serialize_position_score()}")
     else:
         return sys.intern(f"{mass_str}{tm.serialize_position_score()}")
 
@@ -211,7 +240,7 @@ def serialize_tag_name(tn: "TagName") -> str:
         String representation like 'Oxidation' or 'U:Oxidation'
     """
     if tn.cv is not None:
-        return sys.intern(f"{CV_TO_NAME_PREFIX[tn.cv]}{tn.name}{tn.serialize_position_score()}")
+        return sys.intern(f"{_CV_TO_NAME_PREFIX[tn.cv]}{tn.name}{tn.serialize_position_score()}")
     else:
         return sys.intern(f"{tn.name}{tn.serialize_position_score()}")
 
@@ -456,7 +485,7 @@ def serialize_modification_tag(tag: "MODIFICATION_TAG_TYPE") -> str:
         case GlycanTag():
             return serialize_glycan_tag(tag)
         case _:
-            raise ValueError(f"Unsupported modification tag type: {type(tag)}")
+            raise PeptacularError(f"Unsupported modification tag type: {type(tag)}")
 
 
 def serialize_modification_tags(mod_tags: "ModificationTags") -> str:
@@ -483,7 +512,7 @@ def serialize_modification(mod: "MODIFICATION_TYPE") -> str:
         case ModificationTags():
             return serialize_modification_tags(mod)
         case _:
-            raise ValueError(f"Unsupported Modification type: {type(mod)}")
+            raise PeptacularError(f"Unsupported Modification type: {type(mod)}")
 
 
 @lru_cache(maxsize=1024)

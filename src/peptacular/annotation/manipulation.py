@@ -8,6 +8,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "condense_mods_to_intervals",
+    "coverage",
+    "percent_coverage",
+    "modification_coverage",
+    "condense_static_mods",
+    "condense_to_peptidoform",
+    "count_residues",
+    "percent_residues",
+    "is_subsequence",
+    "find_indices",
+]
+
 
 def condense_mods_to_intervals(annotation: ProFormaAnnotation, inplace: bool = True) -> ProFormaAnnotation:
     """
@@ -37,14 +50,14 @@ def condense_mods_to_intervals(annotation: ProFormaAnnotation, inplace: bool = T
 
 def coverage(
     annotation: ProFormaAnnotation,
-    annotations: Iterable[ProFormaAnnotation],
+    subsequences: Iterable[ProFormaAnnotation],
     accumulate: bool = False,
     ignore_mods: bool = False,
     ignore_ambiguity: bool = False,
 ) -> list[int]:
     cov_arr = [0] * len(annotation)
 
-    for sub_annots in annotations:
+    for sub_annots in subsequences:
         peptide_cov = [1] * len(sub_annots)
         if ignore_ambiguity is False:
             # Filter for ambiguous intervals only
@@ -75,14 +88,14 @@ def coverage(
 
 def percent_coverage(
     annotation: ProFormaAnnotation,
-    annotations: Iterable[ProFormaAnnotation],
+    subsequences: Iterable[ProFormaAnnotation],
     accumulate: bool = False,
     ignore_mods: bool = False,
     ignore_ambiguity: bool = False,
 ) -> float:
     cov_arr = coverage(
         annotation,
-        annotations,
+        subsequences,
         accumulate=accumulate,
         ignore_mods=ignore_mods,
         ignore_ambiguity=ignore_ambiguity,
@@ -95,13 +108,13 @@ def percent_coverage(
 
 def modification_coverage(
     annotation: ProFormaAnnotation,
-    annotations: Iterable[ProFormaAnnotation],
+    subsequences: Iterable[ProFormaAnnotation],
     ignore_ambiguity: bool = False,
     accumulate: bool = False,
 ) -> dict[int, int]:
     cov_dict = coverage(
         annotation,
-        annotations,
+        subsequences,
         accumulate=accumulate,
         ignore_mods=False,
         ignore_ambiguity=ignore_ambiguity,

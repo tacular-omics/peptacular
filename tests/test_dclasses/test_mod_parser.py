@@ -5,6 +5,7 @@ Tests the conversion of ProForma modification strings into structured tag object
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -202,9 +203,9 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:C2H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 6
         assert result.charge is None
 
@@ -213,7 +214,7 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:O").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 1
-        assert result.formula[0].element == pt.Element.O
+        assert result.formula[0].element == tacular.Element.O
         assert result.formula[0].occurance == 1
 
     def test_formula_with_negative_count(self):
@@ -221,9 +222,9 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:H-2O-1").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.H
+        assert result.formula[0].element == tacular.Element.H
         assert result.formula[0].occurance == -2
-        assert result.formula[1].element == pt.Element.O
+        assert result.formula[1].element == tacular.Element.O
         assert result.formula[1].occurance == -1
 
     def test_formula_with_charge(self):
@@ -245,7 +246,7 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 5
         # Check carbon
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 10
 
     def test_formula_with_spaces(self):
@@ -253,11 +254,11 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:C12 H20 O2").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 3
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 12
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 20
-        assert result.formula[2].element == pt.Element.O
+        assert result.formula[2].element == tacular.Element.O
         assert result.formula[2].occurance == 2
 
     def test_formula_isotope_prefix_notation(self):
@@ -265,10 +266,10 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:[13C2]H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 6
 
     def test_formula_multiple_isotopes(self):
@@ -277,18 +278,18 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 4
         # First carbon: 13C with count 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
         # Second carbon: 12C with count -2
-        assert result.formula[1].element == pt.Element.C
+        assert result.formula[1].element == tacular.Element.C
         assert result.formula[1].occurance == -2
         assert result.formula[1].isotope == 12
         # Hydrogen
-        assert result.formula[2].element == pt.Element.H
+        assert result.formula[2].element == tacular.Element.H
         assert result.formula[2].occurance == 2
         # Nitrogen
-        assert result.formula[3].element == pt.Element.N
+        assert result.formula[3].element == tacular.Element.N
         assert result.formula[3].occurance == 1
 
     def test_formula_isotope_replacement_example(self):
@@ -297,11 +298,11 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 4
         # 13C with count 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
         # Natural C with count -2
-        assert result.formula[1].element == pt.Element.C
+        assert result.formula[1].element == tacular.Element.C
         assert result.formula[1].occurance == -2
         assert result.formula[1].isotope is None
 
@@ -320,7 +321,7 @@ class TestGlycanComposition:
         assert isinstance(result, pt.GlycanTag)
         assert len(result) == 1
         res: pt.GlycanComponent = result[0]
-        assert res.monosaccharide == pt.Monosaccharide.Hex
+        assert res.monosaccharide == tacular.Monosaccharide.Hex
         assert res.occurance == 1
 
     def test_glycan_with_count(self):
@@ -329,7 +330,7 @@ class TestGlycanComposition:
         assert isinstance(result, pt.GlycanTag)
         assert len(result) == 1
         res: pt.GlycanComponent = result[0]
-        assert res.monosaccharide == pt.Monosaccharide.Hex
+        assert res.monosaccharide == tacular.Monosaccharide.Hex
         assert res.occurance == 5
 
     def test_complex_glycan_composition(self):
@@ -340,9 +341,9 @@ class TestGlycanComposition:
         res1: pt.GlycanComponent = result[0]
         res2: pt.GlycanComponent = result[1]
 
-        assert res1.monosaccharide == pt.Monosaccharide.Hex
+        assert res1.monosaccharide == tacular.Monosaccharide.Hex
         assert res1.occurance == 5
-        assert res2.monosaccharide == pt.Monosaccharide.HexNAc
+        assert res2.monosaccharide == tacular.Monosaccharide.HexNAc
         assert res2.occurance == 4
 
     def test_various_monosaccharides(self):
@@ -445,25 +446,25 @@ class TestStringConversion:
 
     def test_formula_element_simple(self):
         """Test pt.FormulaElement string conversion"""
-        elem = pt.FormulaElement(element=pt.Element.C, occurance=2)
+        elem = pt.FormulaElement(element=tacular.Element.C, occurance=2)
         assert str(elem) == "C2"
 
     def test_formula_element_single_count(self):
         """Test pt.FormulaElement with count of 1"""
-        elem = pt.FormulaElement(element=pt.Element.O, occurance=1)
+        elem = pt.FormulaElement(element=tacular.Element.O, occurance=1)
         assert str(elem) == "O"
 
     def test_formula_element_with_isotope(self):
         """Test pt.FormulaElement with isotope"""
-        elem = pt.FormulaElement(element=pt.Element.C, occurance=2, isotope=13)
+        elem = pt.FormulaElement(element=tacular.Element.C, occurance=2, isotope=13)
         assert str(elem) == "[13C2]"
 
     def test_charged_formula_simple(self):
         """Test pt.ChargedFormula string conversion"""
         formula = pt.ChargedFormula(
             formula=(
-                pt.FormulaElement(element=pt.Element.C, occurance=2),
-                pt.FormulaElement(element=pt.Element.H, occurance=6),
+                pt.FormulaElement(element=tacular.Element.C, occurance=2),
+                pt.FormulaElement(element=tacular.Element.H, occurance=6),
             )
         )
         assert str(formula) == "Formula:C2H6"
@@ -472,8 +473,8 @@ class TestStringConversion:
         """Test pt.ChargedFormula with charge"""
         formula = pt.ChargedFormula(
             formula=(
-                pt.FormulaElement(element=pt.Element.C, occurance=2),
-                pt.FormulaElement(element=pt.Element.H, occurance=6),
+                pt.FormulaElement(element=tacular.Element.C, occurance=2),
+                pt.FormulaElement(element=tacular.Element.H, occurance=6),
             ),
             charge=2,
         )
@@ -481,24 +482,24 @@ class TestStringConversion:
 
     def test_charged_formula_negative_charge(self):
         """Test pt.ChargedFormula with negative charge"""
-        formula = pt.ChargedFormula(formula=(pt.FormulaElement(element=pt.Element.O, occurance=1),), charge=-1)
+        formula = pt.ChargedFormula(formula=(pt.FormulaElement(element=tacular.Element.O, occurance=1),), charge=-1)
         assert str(formula) == "Formula:O:z-1"
 
     def test_glycan_component_simple(self):
         """Test pt.GlycanComponent string conversion"""
-        glycan = pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=1)
+        glycan = pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=1)
         assert str(glycan) == "Hex"
 
     def test_glycan_component_with_count(self):
         """Test pt.GlycanComponent with count"""
-        glycan = pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=5)
+        glycan = pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=5)
         assert str(glycan) == "Hex5"
 
     def test_glycan_tuple_to_string(self):
         """Test tuple of pt.GlycanComponents"""
         glycan_tuple = (
-            pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=5),
-            pt.GlycanComponent(monosaccharide=pt.Monosaccharide.HexNAc, occurance=4),
+            pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=5),
+            pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.HexNAc, occurance=4),
         )
         glycan_str = "Glycan:" + "".join(str(g) for g in glycan_tuple)
         assert glycan_str == "Glycan:Hex5HexNAc4"
@@ -506,7 +507,7 @@ class TestStringConversion:
     def test_position_rule_anywhere(self):
         """Test pt.PositionRule with ANYWHERE terminal"""
 
-        rule = pt.PositionRule(terminal=pt.Terminal.ANYWHERE, amino_acid=pt.AminoAcid.M)
+        rule = pt.PositionRule(terminal=pt.Terminal.ANYWHERE, amino_acid=tacular.AminoAcid.M)
         assert str(rule) == "M"
 
     def test_position_rule_n_term(self):
@@ -517,12 +518,12 @@ class TestStringConversion:
 
     def test_position_rule_n_term_with_aa(self):
         """Test pt.PositionRule with N-term and amino acid"""
-        rule = pt.PositionRule(terminal=pt.Terminal.N_TERM, amino_acid=pt.AminoAcid.K)
+        rule = pt.PositionRule(terminal=pt.Terminal.N_TERM, amino_acid=tacular.AminoAcid.K)
         assert str(rule) == "N-term:K"
 
     def test_sequence_element_simple(self):
         """Test pt.SequenceElement string conversion"""
-        elem = pt.SequenceElement(amino_acid=pt.AminoAcid.M)
+        elem = pt.SequenceElement(amino_acid=tacular.AminoAcid.M)
         assert str(elem) == "M"
 
     def test_modification_ambiguous_secondary(self):
@@ -542,12 +543,12 @@ class TestStringConversion:
 
     def test_isotope_replacement_deuterium(self):
         """Test IsotopeReplacement for deuterium"""
-        iso = pt.IsotopeReplacement(element=pt.Element.H, isotope=2)
+        iso = pt.IsotopeReplacement(element=tacular.Element.H, isotope=2)
         assert str(iso) == "D"
 
     def test_isotope_replacement_c13(self):
         """Test IsotopeReplacement for 13C"""
-        iso = pt.IsotopeReplacement(element=pt.Element.C, isotope=13)
+        iso = pt.IsotopeReplacement(element=tacular.Element.C, isotope=13)
         assert str(iso) == "13C"
 
     def test_round_trip_simple_peptide(self):

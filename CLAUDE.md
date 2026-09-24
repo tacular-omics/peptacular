@@ -7,12 +7,13 @@ serialize ProForma, edit modifications, and calculate mass, m/z, elemental compo
 fragment ions, isotopic envelopes, enzymatic digests and physicochemical properties. It
 is imported as `pt` and is under JOSS review (`paper/`).
 
-Place in the tacular-omics graph: tier 1. It depends on `tacular>=1.2,<2` (all
+Place in the tacular-omics graph: tier 1. It depends on `tacular>=2.0,<3` (all
 modification, amino-acid, element, ion-type, protease and neutral-loss data) and is used
 by `paftacular` (optional extra), `spxtacular`, `peff_digest` and `pepbit`. A breaking
-change here must be noted for those. `from tacular import *` runs in `__init__`, so every
-tacular lookup (`pt.UNIMOD_LOOKUP`, `pt.PROTEASE_LOOKUP`, `pt.IonType`, ...) is also on
-`pt`.
+change here must be noted for those. `__init__` imports every public name explicitly and
+`pt.__all__` is the public API (a test checks `dir(pt)` against it). Of tacular only the
+enums `IonType`, `NeutralDelta` and `Protease` are re-exported; import lookups such as
+`UNIMOD_LOOKUP` or `PROTEASE_LOOKUP` from `tacular` directly.
 
 Key entry points:
 - `pt.parse(seq)` returns a `ProFormaAnnotation` (OOP API).
@@ -66,7 +67,7 @@ src/peptacular/
     serializer.py        ProFormaAnnotation -> ProForma string
     mod.py               Mod (value + count) and Mods (one mod type's collection), Interval
     cached_comps.py      lru_cached isotope / delta / charge-carrier resolution
-    frag.py              Fragment dataclass (.mz, .to_mzpaf(), .composition)
+    frag.py              Fragment, frozen with __slots__ (.mz, .to_mzpaf(), .composition)
     slicing.py, manipulation.py, combinatorics.py, ambiguity.py, randomizer.py,
     mod_builder.py, positions.py, utils.py
   sequence/              the functional API: one wrapper per operation that accepts
@@ -82,12 +83,11 @@ src/peptacular/
   spans.py               Span(start, end, missed_cleavages) and span builders
   isotope.py             BRAIN isotope envelopes, averagine estimates, IsotopicData
   chem.py                chem_mass / chem_comp / chem_formula / parse_formula
-  fasta.py               parse_fasta, iter_fasta (streaming, .gz), FastaSequence
   batch.py               batch / iter_batch / diagnose with per-item error collection
   diagnostics.py         Diagnostic, UnknownModificationError, CompositionError, ...
   proforma_json.py       versioned lossless JSON; schema in schemas/proforma-json-v1.schema.json
-  constants.py           ModType, parallelMethod, PROTON/ELECTRON/NEUTRON masses
-  regex_utils.py, utils.py
+  constants.py           ModType, ParallelMethod, PROTON/ELECTRON/NEUTRON masses
+  _regex_utils.py (private), utils.py
   interop/               optional pyteomics / psm_utils / alphabase converters (lazy imports)
   mcp/                   optional MCP server (cli.py, server.py, operations.py, contracts.py)
 ```
@@ -132,8 +132,9 @@ which builds a `Fragment`.
   `annot.prop` object (`AnnotationProperties`).
 - **Converters**: `convert_ip2_sequence`, `convert_diann_sequence`,
   `convert_casanovo_sequence`, `to_ms2_pip`, `from_ms2_pip`.
-- **FASTA / batch**: `parse_fasta`, `parse_fasta_text`, `iter_fasta`, `FastaSequence`,
-  `batch`, `iter_batch`, `diagnose`, `BatchResult`, `Diagnostic`.
+- **Batch**: `batch`, `iter_batch`, `diagnose`, `BatchResult`, `Diagnostic`, and the
+  `HasSequence` input protocol (any object with a `.sequence` str, e.g. a fastatacular
+  entry; peptacular itself reads no files).
 - **JSON**: `to_proforma_json`, `from_proforma_json`, `to_proforma_dict`,
   `from_proforma_dict`, `get_proforma_json_schema`.
 - **ProForma components** (`proforma_components`): `ChargedFormula`, `FormulaElement`,
@@ -144,9 +145,11 @@ which builds a `Fragment`.
 - **Errors**: `UnknownModificationError`, `CompositionError`,
   `InvalidAdjustmentError`, `UnsupportedOperationError` (all `ValueError`s).
 - **Parallel**: `set_start_method`, `get_start_method`, `get_available_start_methods`,
-  `parallelMethod`.
-- **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS`, `C13_NEUTRON_MASS`,
+  `ParallelMethod`.
+- **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS` (re-exported from
+  `tacular.constants`), `PROTON_CARRIER_MASS` (H - e, the mass one charge adds), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
   `PEPTIDE_AVERAGINE_NEUTRON_MASS`, `AVERAGINE_RATIOS`, `PROFORMA_JSON_SCHEMA_ID`.
+  Do not hard-code physical constants; import them from `tacular.constants`.
 - **Optional** `peptacular.interop` (not star-imported): `to/from_pyteomics`,
   `to/from_psm_utils`, `to/from_alphabase_row`, `to/from_alphabase_dataframe`,
   `LossPolicy`.
@@ -197,11 +200,17 @@ which builds a `Fragment`.
   `CompositionError`, while `mass()` works. Isotope envelopes need a composition, so use
   `estimate_isotopic_distribution(mass)` for these.
 - **`fast_fragment` returns a dict** `{(IonType, charge): [mz, ...]}`, not `Fragment`
-  objects. Its values agree with `fragment()` to about 1e-8 Da, not bit for bit.
-- **Two digest styles.** The functional `pt.digest(seq, enzyme_regex=...)` returns
-  `[(sequence, Span), ...]`. `ProFormaAnnotation.digest(enzyme)` yields `Span`s; slice the
-  annotation with them (`annot[span]`). The `enzyme_regex` parameter also accepts a
-  protease name such as `"trypsin"`.
+  objects, the same ions as `fragment()` (full length included), equal to within 1e-9 Da.
+- **`Fragment` is immutable** (`__slots__`, assignment raises `FrozenInstanceError`). Build a
+  changed copy with `frag.replace(mass=...)` (constructor names). Fragments compare and
+  hash by value; the neutral losses/gains are `frag.deltas`.
+- **Two digest styles.** The functional `pt.digest(seq, enzyme=...)` (and every `pt.*digest`)
+  returns `[(sequence, Span), ...]`. `ProFormaAnnotation` methods ending in `_spans`
+  (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)
+  yield `Span`s; slice the annotation with them (`annot[span]`).
+- **`enzyme` is a protease name or a compiled pattern.** A `str` is only looked up in
+  `PROTEASE_LOOKUP` (`"trypsin"`, `Protease.TRYPSIN`); an unknown string raises
+  `UnknownEnzymeError`. For a custom rule pass `re.compile("(?<=[KR])")`.
 - **Lists under 1000 items run sequentially** unless you pass `n_workers` or `method`
   (`AUTO_PARALLEL_MIN_ITEMS`). Process pools use the platform default start method,
   which is `fork` on Linux before Python 3.14. With `fork`, a process that already runs
@@ -209,11 +218,14 @@ which builds a `Fragment`.
   avoids the warning.
 - **`pt.parse` of one string cannot hold chimeric or cross-linked input**
   (`PEPTIDE+ELVIS` raises). Use `parse_chimeric`.
-- **Star imports leak names.** `chem`, `constants`, `regex_utils`, `spans` and `utils`
-  have no `__all__`, so `pt.Counter`, `pt.Literal`, `pt.groupby` and similar exist. Do
-  not rely on them. Add an `__all__` when you touch one of those modules.
-- `ProFormaAnnotation` is mutable but hashable. Do not use one as a dict key and then
-  mutate it.
+- **Every public module has `__all__`** (a test enforces it). A new public name must be
+  added to the module's `__all__` and, if it belongs on `pt`, to `peptacular/__init__.py`.
+- **`ProFormaAnnotation` is unhashable** because it is mutable. Use `annot.serialize()`
+  as a dict key or set member.
+- **Errors**: input errors raise `PeptacularError` (a `ValueError`) or a subclass
+  (`ProFormaFormatError`, `UnknownModificationError`, `UnknownEnzymeError`,
+  `InvalidPositionError`, ...). Do not add a bare `raise ValueError`; a test fails on it.
+  `n_workers`, `chunksize` and `method` are keyword-only on every function.
 - `secondary_structure()` returns fractions (0-1) keyed by `SecondaryStructureType`, not
   percentages.
 - `just format` rewrites files in place. Run it only on your own branch.

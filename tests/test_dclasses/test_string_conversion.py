@@ -2,6 +2,8 @@
 Tests for converting dataclass objects back to ProForma strings.
 """
 
+import tacular
+
 import peptacular as pt
 
 
@@ -54,25 +56,25 @@ class TestFormulaStringConversion:
 
     def test_formula_element_simple(self):
         """Test FormulaElement string conversion"""
-        elem = pt.FormulaElement(element=pt.Element.C, occurance=2)
+        elem = pt.FormulaElement(element=tacular.Element.C, occurance=2)
         assert str(elem) == "C2"
 
     def test_formula_element_single_count(self):
         """Test FormulaElement with count of 1"""
-        elem = pt.FormulaElement(element=pt.Element.O, occurance=1)
+        elem = pt.FormulaElement(element=tacular.Element.O, occurance=1)
         assert str(elem) == "O"
 
     def test_formula_element_with_isotope(self):
         """Test FormulaElement with isotope"""
-        elem = pt.FormulaElement(element=pt.Element.C, occurance=2, isotope=13)
+        elem = pt.FormulaElement(element=tacular.Element.C, occurance=2, isotope=13)
         assert str(elem) == "[13C2]"
 
     def test_charged_formula_simple(self):
         """Test ChargedFormula string conversion"""
         formula = pt.ChargedFormula(
             formula=(
-                pt.FormulaElement(element=pt.Element.C, occurance=2),
-                pt.FormulaElement(element=pt.Element.H, occurance=6),
+                pt.FormulaElement(element=tacular.Element.C, occurance=2),
+                pt.FormulaElement(element=tacular.Element.H, occurance=6),
             )
         )
         assert str(formula) == "Formula:C2H6"
@@ -81,8 +83,8 @@ class TestFormulaStringConversion:
         """Test ChargedFormula with charge"""
         formula = pt.ChargedFormula(
             formula=(
-                pt.FormulaElement(element=pt.Element.C, occurance=2),
-                pt.FormulaElement(element=pt.Element.H, occurance=6),
+                pt.FormulaElement(element=tacular.Element.C, occurance=2),
+                pt.FormulaElement(element=tacular.Element.H, occurance=6),
             ),
             charge=2,
         )
@@ -90,7 +92,7 @@ class TestFormulaStringConversion:
 
     def test_charged_formula_negative_charge(self):
         """Test ChargedFormula with negative charge"""
-        formula = pt.ChargedFormula(formula=(pt.FormulaElement(element=pt.Element.O, occurance=1),), charge=-1)
+        formula = pt.ChargedFormula(formula=(pt.FormulaElement(element=tacular.Element.O, occurance=1),), charge=-1)
         assert str(formula) == "Formula:O:z-1"
 
 
@@ -99,19 +101,19 @@ class TestGlycanStringConversion:
 
     def test_glycan_component_simple(self):
         """Test GlycanComponent string conversion"""
-        glycan = pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=1)
+        glycan = pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=1)
         assert str(glycan) == "Hex"
 
     def test_glycan_component_with_count(self):
         """Test GlycanComponent with count"""
-        glycan = pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=5)
+        glycan = pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=5)
         assert str(glycan) == "Hex5"
 
     def test_glycan_tuple_to_string(self):
         """Test tuple of GlycanComponents"""
         glycan_tuple = (
-            pt.GlycanComponent(monosaccharide=pt.Monosaccharide.Hex, occurance=5),
-            pt.GlycanComponent(monosaccharide=pt.Monosaccharide.HexNAc, occurance=4),
+            pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.Hex, occurance=5),
+            pt.GlycanComponent(monosaccharide=tacular.Monosaccharide.HexNAc, occurance=4),
         )
         glycan_str = "Glycan:" + "".join(str(g) for g in glycan_tuple)
         assert glycan_str == "Glycan:Hex5HexNAc4"
@@ -122,7 +124,7 @@ class TestPositionRuleStringConversion:
 
     def test_position_rule_anywhere(self):
         """Test PositionRule with ANYWHERE terminal"""
-        rule = pt.PositionRule(terminal=pt.Terminal.ANYWHERE, amino_acid=pt.AminoAcid.M)
+        rule = pt.PositionRule(terminal=pt.Terminal.ANYWHERE, amino_acid=tacular.AminoAcid.M)
         assert str(rule) == "M"
 
     def test_position_rule_n_term(self):
@@ -132,7 +134,7 @@ class TestPositionRuleStringConversion:
 
     def test_position_rule_n_term_with_aa(self):
         """Test PositionRule with N-term and amino acid"""
-        rule = pt.PositionRule(terminal=pt.Terminal.N_TERM, amino_acid=pt.AminoAcid.K)
+        rule = pt.PositionRule(terminal=pt.Terminal.N_TERM, amino_acid=tacular.AminoAcid.K)
         assert str(rule) == "N-term:K"
 
 

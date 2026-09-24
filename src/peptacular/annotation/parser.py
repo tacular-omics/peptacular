@@ -5,6 +5,10 @@ from typing import NoReturn
 from ..diagnostics import ProFormaFormatError
 from .mod import VALID_AMINO_ACIDS, Interval
 
+__all__ = [
+    "ProFormaParser",
+]
+
 _VALID_AA_SET = frozenset(VALID_AMINO_ACIDS)
 _TERMINATOR_SET = frozenset(["/", "+"])
 _DIGIT_SET = frozenset("0123456789")
@@ -471,7 +475,7 @@ class ProFormaParser:
             is_ambiguous = True
             self.cursor += 1
 
-        target.intervals.append(Interval(start_pos, end_pos, is_ambiguous, interval_mods))
+        target.intervals.append(Interval(start_pos, end_pos, ambiguous=is_ambiguous, mods=interval_mods))
 
     def _parse_inline_mods(self, target: "ProFormaParser", aa_index: int):
         """Checks for [Mod] immediately following an AA"""

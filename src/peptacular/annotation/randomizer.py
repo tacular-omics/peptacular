@@ -16,11 +16,37 @@ from tacular import (
 )
 
 from ..constants import CV
+from ..diagnostics import PeptacularError
 from ..proforma_components import TagAccession, TagMass, TagName
 
 if TYPE_CHECKING:
     #     from ..mods import PsimodInfo, UnimodInfo
     from .annotation import Interval, ProFormaAnnotation
+
+__all__ = [
+    "AMINO_ACIDS",
+    "DEFAULT_MOD_PROBABILITY",
+    "DEFAULT_INTERVAL_PROBABILITY",
+    "MULTIPLE_MOD_THRESHOLD",
+    "MULTIPLE_AA_THRESHOLD",
+    "as_cv",
+    "as_tag_accession",
+    "as_tag_name",
+    "as_tag_mass",
+    "get_random_psimod",
+    "get_random_unimod",
+    "get_random_mod_component",
+    "get_random_mod_dict",
+    "generate_random_isotope_mod",
+    "generate_isotope_mod_dict",
+    "generate_static_mod",
+    "generate_static_mods_dict",
+    "generate_random_intervals",
+    "random_charge_state",
+    "CHARGE_ADDUCTS",
+    "random_charge_adduct",
+    "generate_random_proforma_annotation",
+]
 
 # Constants
 AMINO_ACIDS = "ACDEFGHIKLMNPQRSTVWY"
@@ -36,7 +62,7 @@ def as_cv(mod: OboEntity) -> CV:
     elif isinstance(mod, UnimodInfo):
         return CV.UNIMOD
     else:
-        raise ValueError(f"Unknown CV for modification: {mod}")
+        raise PeptacularError(f"Unknown CV for modification: {mod}")
 
 
 def as_tag_accession(mod: OboEntity) -> TagAccession:
@@ -54,7 +80,7 @@ def as_tag_mass(mod: OboEntity, monoisotopic: bool = True, include_cv: bool = Fa
     mass = mod.monoisotopic_mass if monoisotopic and mod.monoisotopic_mass is not None else mod.average_mass
 
     if mass is None:
-        raise ValueError(f"Mass not available for modification: {mod}")
+        raise PeptacularError(f"Mass not available for modification: {mod}")
 
     return TagMass(
         mass_str=str(mass),
@@ -93,7 +119,7 @@ def get_random_mod_component(require_composition: bool = True) -> str:
         case "mass":
             return as_tag_mass(m, monoisotopic=True, include_cv=choice([True, False])).serialize()
         case _:
-            raise ValueError(f"Invalid mod type: {mod_type}")
+            raise PeptacularError(f"Invalid mod type: {mod_type}")
 
 
 def get_random_mod_dict(mod_probability: float, require_composition: bool = True) -> dict[str, int]:

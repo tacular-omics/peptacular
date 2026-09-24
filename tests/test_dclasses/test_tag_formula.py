@@ -3,6 +3,7 @@ Tests for parsing formula modification tags.
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -15,9 +16,9 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:C2H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 6
         assert result.charge is None
 
@@ -26,7 +27,7 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:O").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 1
-        assert result.formula[0].element == pt.Element.O
+        assert result.formula[0].element == tacular.Element.O
         assert result.formula[0].occurance == 1
 
     def test_formula_with_negative_count(self):
@@ -34,9 +35,9 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:H-2O-1").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.H
+        assert result.formula[0].element == tacular.Element.H
         assert result.formula[0].occurance == -2
-        assert result.formula[1].element == pt.Element.O
+        assert result.formula[1].element == tacular.Element.O
         assert result.formula[1].occurance == -1
 
     def test_formula_with_charge(self):
@@ -56,10 +57,10 @@ class TestChargedFormula:
         """Test parsing formula with isotope specification [13C2] (count inside bracket)"""
         result = pt.ModificationTags.from_string("Formula:[13C2]H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 6
 
     def test_complex_formula(self):
@@ -68,7 +69,7 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 5
         # Check carbon
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 10
 
     def test_formula_with_spaces(self):
@@ -76,11 +77,11 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:C12 H20 O2").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 3
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 12
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 20
-        assert result.formula[2].element == pt.Element.O
+        assert result.formula[2].element == tacular.Element.O
         assert result.formula[2].occurance == 2
 
     def test_formula_isotope_prefix_notation(self):
@@ -88,10 +89,10 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:[13C2]H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
-        assert result.formula[1].element == pt.Element.H
+        assert result.formula[1].element == tacular.Element.H
         assert result.formula[1].occurance == 6
 
     def test_formula_isotope_single_count(self):
@@ -99,7 +100,7 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:[13C]H6").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 1
         assert result.formula[0].isotope == 13
 
@@ -109,18 +110,18 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 4
         # First carbon: 13C with count 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
         # Second carbon: 12C with count -2
-        assert result.formula[1].element == pt.Element.C
+        assert result.formula[1].element == tacular.Element.C
         assert result.formula[1].occurance == -2
         assert result.formula[1].isotope == 12
         # Hydrogen
-        assert result.formula[2].element == pt.Element.H
+        assert result.formula[2].element == tacular.Element.H
         assert result.formula[2].occurance == 2
         # Nitrogen
-        assert result.formula[3].element == pt.Element.N
+        assert result.formula[3].element == tacular.Element.N
         assert result.formula[3].occurance == 1
 
     def test_formula_isotope_replacement_example(self):
@@ -129,11 +130,11 @@ class TestChargedFormula:
         assert isinstance(result, pt.ChargedFormula)
         assert len(result.formula) == 4
         # 13C with count 2
-        assert result.formula[0].element == pt.Element.C
+        assert result.formula[0].element == tacular.Element.C
         assert result.formula[0].occurance == 2
         assert result.formula[0].isotope == 13
         # Natural C with count -2
-        assert result.formula[1].element == pt.Element.C
+        assert result.formula[1].element == tacular.Element.C
         assert result.formula[1].occurance == -2
         assert result.formula[1].isotope is None
 
@@ -147,7 +148,7 @@ class TestChargedFormula:
         result = pt.ModificationTags.from_string("Formula:CD3").tags[0]
         assert isinstance(result, pt.ChargedFormula)
         # C then D3 -> hydrogen with isotope 2, count 3
-        h = next(fe for fe in result.formula if fe.element == pt.Element.H)
+        h = next(fe for fe in result.formula if fe.element == tacular.Element.H)
         assert h.isotope == 2
         assert h.occurance == 3
         # Mass must equal the explicit [2H3] isotope form, not natural H3
@@ -160,7 +161,7 @@ class TestChargedFormula:
         """Tritium 'T' in a formula must carry isotope H-3."""
         result = pt.ModificationTags.from_string("Formula:CT3").tags[0]
         assert isinstance(result, pt.ChargedFormula)
-        h = next(fe for fe in result.formula if fe.element == pt.Element.H)
+        h = next(fe for fe in result.formula if fe.element == tacular.Element.H)
         assert h.isotope == 3
         assert h.occurance == 3
         assert abs(pt.mass("PEPT[Formula:CT3]IDE") - pt.mass("PEPT[Formula:C[3H3]]IDE")) < 1e-9

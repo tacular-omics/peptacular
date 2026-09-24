@@ -15,12 +15,26 @@ from tacular import (
 )
 
 from ..constants import ELECTRON_MASS
-from ..diagnostics import CompositionError, InvalidAdjustmentError
+from ..diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 from ..proforma_components.comps import ChargedFormula, GlobalChargeCarrier
 from .cached_comps import DeltaInfo, IsotopeInfo
 from .frag import Fragment
 from .mod import Mods
 from .positions import to_ion_type
+
+__all__ = [
+    "H_ELEMENT_INFO",
+    "validate_mass",
+    "adjust_mass_mz",
+    "adjust_comp",
+    "comp_frag",
+    "process_losses",
+    "cumsum",
+    "FRAGMENT_RULES",
+    "SATELLITE_TRIM_END",
+    "SATELLITE_TRIM_START",
+    "can_fragment_sequence",
+]
 
 H_ELEMENT_INFO = ELEMENT_LOOKUP["H"]
 
@@ -82,7 +96,7 @@ def adjust_mass_mz(
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
     base_mass = _adjust_mass_value(
         base_mass,
-        charge.get_mass(monoisotopic),
+        charge.get_mass(monoisotopic=monoisotopic),
         total_charge,
         ion_info.ion_type,
         monoisotopic,
@@ -266,7 +280,7 @@ def process_losses(
             except KeyError as e:
                 loss = ChargedFormula.from_string(key, require_formula_prefix=False)
                 if loss.charge:
-                    raise ValueError(f"Loss formula cannot have charge: {key}") from e
+                    raise PeptacularError(f"Loss formula cannot have charge: {key}") from e
                 total[loss] += count
         elif isinstance(key, ChargedFormula):
             total[key] += count
@@ -378,10 +392,10 @@ def can_fragment_sequence(sequence: str, ion_type: IonType | IonTypeLiteral) -> 
     aa = sequence[-1] if position == "end" else sequence[0]
 
     if excluded and aa in excluded:
-        raise ValueError(f"{ion_type.name} fragments cannot be produced from sequences {position}ing in {aa}.")
+        raise PeptacularError(f"{ion_type.name} fragments cannot be produced from sequences {position}ing in {aa}.")
 
     if required and aa not in required:
-        raise ValueError(f"{ion_type.name} fragments can only be produced from sequences {position}ing in {', or '.join(required)}.")
+        raise PeptacularError(f"{ion_type.name} fragments can only be produced from sequences {position}ing in {', or '.join(required)}.")
 
     if specific_map and aa in specific_map:
         return specific_map[aa]

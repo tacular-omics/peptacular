@@ -172,7 +172,7 @@ def fragment_one(a, request):
                 "ion_mass_da": f.mass,
                 "neutral_mass_da": f.neutral_mass,
                 "monoisotopic": request.monoisotopic,
-                "losses": [{"value": str(k), "count": v} for k, v in f.losses.items()],
+                "deltas": [{"value": str(k), "count": v} for k, v in f.deltas.items()],
                 "isotopes": {str(k): v for k, v in f.isotopes.items()},
                 "diagnostics": [],
             }
@@ -268,8 +268,8 @@ def digest_one(a, request):
     if request.specificity == "nonspecific":
         spans = pt.build_non_enzymatic_spans((0, len(a), 0), min_len=request.min_length, max_len=request.max_length)
     else:
-        spans = a.digest(
-            enzyme=enzyme.regex,
+        spans = a.digest_spans(
+            enzyme=enzyme.id,
             missed_cleavages=request.missed_cleavages,
             semi=request.specificity == "semi",
             min_len=request.min_length,

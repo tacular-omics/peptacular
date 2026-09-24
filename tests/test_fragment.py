@@ -981,7 +981,7 @@ class TestFragmentSequenceInternalCharge(unittest.TestCase):
 class TestFragmentLazyCompositionIonType(unittest.TestCase):
     """Fragment.composition (lazy path) must apply the fragment's ion-type offset.
 
-    Regression: the lazy path (calculate_composition=False) returned the sub-sequence's
+    Regression: the lazy path (calculate_with_composition=False) returned the sub-sequence's
     *precursor* composition, ignoring the ion-type offset, so a b-ion's composition was heavier
     than its own mass by H2O. y-ions coincidentally matched (y neutral == precursor).
     """
@@ -991,22 +991,22 @@ class TestFragmentLazyCompositionIonType(unittest.TestCase):
 
     def test_b_ion_lazy_composition_matches_mass(self):
         # Use charge 0 so the neutral mass and the element-sum align exactly (no electron term).
-        b4 = next(f for f in pt.parse("EVTKLE").fragment(ion_types=["b"], charges=[0], calculate_composition=False) if f.position == 4)
+        b4 = next(f for f in pt.parse("EVTKLE").fragment(ion_types=["b"], charges=[0], calculate_with_composition=False) if f.position == 4)
         self.assertAlmostEqual(self._elem_mass(b4.composition), b4.mass, places=3)
 
     def test_lazy_matches_eager_across_ion_types(self):
         annot = pt.parse("PEM[Oxidation]TIDE")
         for ion in ("b", "y", "a", "c", "x", "z"):
-            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=False)
-            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=True)
+            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_with_composition=False)
+            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_with_composition=True)
             for fl, fe in zip(lazy, eager, strict=True):
                 self.assertEqual(dict(fl.composition), dict(fe.composition), f"{ion} pos={fl.position}")
 
     def test_intact_ions_support_lazy_composition_and_sequence(self):
         annot = pt.parse("PEM[Oxidation]TIDE")
         for ion in ("p", "n"):
-            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=False)[0]
-            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_composition=True)[0]
+            lazy = annot.fragment(ion_types=[ion], charges=[1], calculate_with_composition=False)[0]
+            eager = annot.fragment(ion_types=[ion], charges=[1], calculate_with_composition=True)[0]
 
             self.assertIsNone(lazy.position)
             self.assertEqual(lazy.sequence, "PEM[Oxidation]TIDE/1")

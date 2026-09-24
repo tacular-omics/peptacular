@@ -4,6 +4,7 @@ Demonstrates round-trip conversion: string -> object -> string
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -14,7 +15,7 @@ class TestFormulaElementFromString:
     def test_simple_element(self):
         """Test parsing simple element like 'C'"""
         element = pt.FormulaElement.from_string("C")
-        assert element.element == pt.Element.C
+        assert element.element == tacular.Element.C
         assert element.occurance == 1
         assert element.isotope is None
         assert str(element) == "C"
@@ -22,7 +23,7 @@ class TestFormulaElementFromString:
     def test_element_with_count(self):
         """Test parsing element with count like 'H2'"""
         element = pt.FormulaElement.from_string("H2")
-        assert element.element == pt.Element.H
+        assert element.element == tacular.Element.H
         assert element.occurance == 2
         assert element.isotope is None
         assert str(element) == "H2"
@@ -30,14 +31,14 @@ class TestFormulaElementFromString:
     def test_element_with_isotope(self):
         """Test parsing element with isotope like '[13C2]'"""
         element = pt.FormulaElement.from_string("[13C2]")
-        assert element.element == pt.Element.C
+        assert element.element == tacular.Element.C
         assert element.occurance == 2
         assert element.isotope == 13
         assert str(element) == "[13C2]"
 
     def test_round_trip(self):
         """Test that from_string(str(obj)) == obj"""
-        original = pt.FormulaElement(element=pt.Element.N, occurance=3, isotope=15)
+        original = pt.FormulaElement(element=tacular.Element.N, occurance=3, isotope=15)
         parsed = pt.FormulaElement.from_string(str(original))
         assert parsed == original
 
@@ -168,14 +169,14 @@ class TestGlycanComponentFromString:
     def test_simple_glycan(self):
         """Test parsing simple glycan component"""
         component = pt.GlycanComponent.from_string("Hex")
-        assert component.monosaccharide == pt.Monosaccharide.Hex
+        assert component.monosaccharide == tacular.Monosaccharide.Hex
         assert component.occurance == 1
         assert str(component) == "Hex"
 
     def test_glycan_with_count(self):
         """Test parsing glycan component with count"""
         component = pt.GlycanComponent.from_string("HexNAc4")
-        assert component.monosaccharide == pt.Monosaccharide.HexNAc
+        assert component.monosaccharide == tacular.Monosaccharide.HexNAc
         assert component.occurance == 4
         assert str(component) == "HexNAc4"
 
@@ -208,7 +209,7 @@ class TestPositionRuleFromString:
         """Test parsing amino acid position (anywhere)"""
         rule = pt.PositionRule.from_string("K")
         assert rule.terminal == pt.Terminal.ANYWHERE
-        assert rule.amino_acid == pt.AminoAcid.K
+        assert rule.amino_acid == tacular.AminoAcid.K
         assert str(rule) == "K"
 
     def test_n_term(self):
@@ -222,7 +223,7 @@ class TestPositionRuleFromString:
         """Test parsing N-terminal with specific amino acid"""
         rule = pt.PositionRule.from_string("N-term:K")
         assert rule.terminal == pt.Terminal.N_TERM
-        assert rule.amino_acid == pt.AminoAcid.K
+        assert rule.amino_acid == tacular.AminoAcid.K
         assert str(rule) == "N-term:K"
 
     def test_round_trip(self):
@@ -238,21 +239,21 @@ class TestSequenceElementFromString:
     def test_simple_amino_acid(self):
         """Test parsing simple amino acid"""
         element = pt.SequenceElement.from_string("M")
-        assert element.amino_acid == pt.AminoAcid.M
+        assert element.amino_acid == tacular.AminoAcid.M
         assert len(element.modifications) == 0
         assert str(element) == "M"
 
     def test_amino_acid_with_modification(self):
         """Test parsing amino acid with modification"""
         element = pt.SequenceElement.from_string("M[Oxidation]")
-        assert element.amino_acid == pt.AminoAcid.M
+        assert element.amino_acid == tacular.AminoAcid.M
         assert len(element.modifications) == 1
         assert str(element) == "M[Oxidation]"
 
     def test_amino_acid_with_multiple_modifications(self):
         """Test parsing amino acid with multiple modifications"""
         element = pt.SequenceElement.from_string("K[UNIMOD:1][+42.010]")
-        assert element.amino_acid == pt.AminoAcid.K
+        assert element.amino_acid == tacular.AminoAcid.K
         assert len(element.modifications) == 2
         # Note: output format may differ slightly due to normalization
 
@@ -275,21 +276,21 @@ class TestIsotopeReplacementFromString:
     def test_deuterium(self):
         """Test parsing deuterium (special case)"""
         iso = pt.IsotopeReplacement.from_string("D")
-        assert iso.element == pt.Element.H
+        assert iso.element == tacular.Element.H
         assert iso.isotope == 2
         assert str(iso) == "D"
 
     def test_carbon_13(self):
         """Test parsing 13C"""
         iso = pt.IsotopeReplacement.from_string("13C")
-        assert iso.element == pt.Element.C
+        assert iso.element == tacular.Element.C
         assert iso.isotope == 13
         assert str(iso) == "13C"
 
     def test_nitrogen_15(self):
         """Test parsing 15N"""
         iso = pt.IsotopeReplacement.from_string("15N")
-        assert iso.element == pt.Element.N
+        assert iso.element == tacular.Element.N
         assert iso.isotope == 15
         assert str(iso) == "15N"
 

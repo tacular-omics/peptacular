@@ -2,13 +2,14 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import overload
 
-from tacular import ELEMENT_LOOKUP, ElementInfo
+from tacular import ElementInfo
 
+from .diagnostics import lookup_element
 from .proforma_components import ChargedFormula
 from .sequence.parallel import (
+    ParallelMethod,
+    ParallelMethodLiteral,
     parallel_apply_internal,
-    parallelMethod,
-    parallelMethodLiteral,
 )
 
 __all__ = [
@@ -28,7 +29,7 @@ def _parse_formula_single(formula: str | Mapping[ElementInfo | str, int], sep: s
         if isinstance(key, ElementInfo):
             composition[key] += value
         else:
-            composition[ELEMENT_LOOKUP[key]] += value
+            composition[lookup_element(key)] += value
 
     return composition
 
@@ -36,10 +37,11 @@ def _parse_formula_single(formula: str | Mapping[ElementInfo | str, int], sep: s
 @overload
 def parse_formula(
     formula: str | Mapping[ElementInfo | str, int],
+    *,
     sep: str = "",
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> Counter[ElementInfo]: ...
 
@@ -47,20 +49,22 @@ def parse_formula(
 @overload
 def parse_formula(
     formula: Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     sep: str = "",
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[Counter[ElementInfo]]: ...
 
 
 def parse_formula(
     formula: str | Mapping[ElementInfo | str, int] | Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     sep: str = "",
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> Counter[ElementInfo] | list[Counter[ElementInfo]]:
     """Parse a chemical formula string or list of formulas into elemental composition."""
@@ -87,9 +91,10 @@ def _chem_comp_single(
 @overload
 def chem_comp(
     formula: str | Mapping[ElementInfo | str, int],
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> Counter[ElementInfo]: ...
 
@@ -97,18 +102,20 @@ def chem_comp(
 @overload
 def chem_comp(
     formula: Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[Counter[ElementInfo]]: ...
 
 
 def chem_comp(
     formula: str | Mapping[ElementInfo | str, int] | Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> Counter[ElementInfo] | list[Counter[ElementInfo]]:
     """Get the elemental composition of a chemical formula or list of formulas."""
@@ -139,10 +146,11 @@ def _chem_mass_single(
 @overload
 def chem_mass(
     formula: str | Mapping[ElementInfo | str, int],
+    *,
     monoisotopic: bool = True,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> float: ...
 
@@ -150,20 +158,22 @@ def chem_mass(
 @overload
 def chem_mass(
     formula: Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[float]: ...
 
 
 def chem_mass(
     formula: str | Mapping[ElementInfo | str, int] | Sequence[str | Mapping[ElementInfo | str, int]],
+    *,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> float | list[float]:
     """Calculate the mass of a chemical formula or list of formulas."""
@@ -188,20 +198,20 @@ def _chem_formula_single(
     include_formula_prefix: bool = False,
 ) -> str:
     """Generate a chemical formula string from an elemental composition."""
-    if isinstance(comp, str):
-        comp: Counter[ElementInfo] = _parse_formula_single(comp, sep=sep)
-    return ChargedFormula.from_composition(comp, charge=None).serialize(hill_order=hill_order, sep=sep, include_formula_prefix=include_formula_prefix)
+    elements = _parse_formula_single(comp, sep=sep)
+    return ChargedFormula.from_composition(elements, charge=None).serialize(hill_order=hill_order, sep=sep, include_formula_prefix=include_formula_prefix)
 
 
 @overload
 def chem_formula(
     comp: str | Mapping[ElementInfo | str, int],
+    *,
     hill_order: bool = True,
     sep: str = "",
     include_formula_prefix: bool = False,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> str: ...
 
@@ -209,24 +219,26 @@ def chem_formula(
 @overload
 def chem_formula(
     comp: str | Sequence[Mapping[ElementInfo | str, int]],
+    *,
     hill_order: bool = True,
     sep: str = "",
     include_formula_prefix: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> list[str]: ...
 
 
 def chem_formula(
     comp: str | Mapping[ElementInfo | str, int] | Sequence[Mapping[ElementInfo | str, int]],
+    *,
     hill_order: bool = True,
     sep: str = "",
     include_formula_prefix: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> str | list[str]:
     """Generate a chemical formula string from an elemental composition or list of compositions."""

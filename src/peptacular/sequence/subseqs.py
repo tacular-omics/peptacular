@@ -3,14 +3,19 @@ from collections.abc import Iterable
 from ..annotation import (
     ProFormaAnnotation,
 )
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "is_subsequence",
+    "find_subsequence_indices",
+    "coverage",
+    "percent_coverage",
+    "modification_coverage",
+]
 
 
 def is_subsequence(
-    subsequence: str | ProFormaAnnotation,
-    sequence: str | ProFormaAnnotation,
-    order: bool = True,
-    ignore_mods: bool = False,
+    subsequence: str | ProFormaAnnotation | HasSequence, sequence: str | ProFormaAnnotation | HasSequence, *, order: bool = True, ignore_mods: bool = False
 ) -> bool:
     """
     Checks if the input subsequence is a subsequence of the input sequence. If order is True, the subsequence must be in
@@ -48,9 +53,7 @@ def is_subsequence(
 
 
 def find_subsequence_indices(
-    sequence: str | ProFormaAnnotation,
-    subsequence: str | ProFormaAnnotation,
-    ignore_mods: bool = False,
+    sequence: str | ProFormaAnnotation | HasSequence, subsequence: str | ProFormaAnnotation | HasSequence, *, ignore_mods: bool = False
 ) -> list[int]:
     """
     Retrieves all starting indexes of a given subsequence within a sequence.
@@ -94,8 +97,9 @@ def find_subsequence_indices(
 
 
 def coverage(
-    sequence: str | ProFormaAnnotation,
-    subsequences: Iterable[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence,
+    subsequences: Iterable[str | ProFormaAnnotation | HasSequence],
+    *,
     accumulate: bool = False,
     ignore_mods: bool = False,
     ignore_ambiguity: bool = False,
@@ -136,8 +140,9 @@ def coverage(
 
 
 def percent_coverage(
-    sequence: str | ProFormaAnnotation,
-    subsequences: Iterable[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence,
+    subsequences: Iterable[str | ProFormaAnnotation | HasSequence],
+    *,
     ignore_mods: bool = False,
     accumulate: bool = False,
     ignore_ambiguity: bool = False,
@@ -178,9 +183,7 @@ def percent_coverage(
 
 
 def modification_coverage(
-    sequence: str | ProFormaAnnotation,
-    subsequences: list[str | ProFormaAnnotation],
-    accumulate: bool = False,
+    sequence: str | ProFormaAnnotation | HasSequence, subsequences: list[str | ProFormaAnnotation | HasSequence], *, accumulate: bool = False
 ) -> dict[int, int]:
     """
     Calculate the modification coverage given a list of subsequences.
@@ -208,4 +211,4 @@ def modification_coverage(
     sequence_annot = get_annotation_input(sequence, copy=False)
     subsequence_annots = [get_annotation_input(subseq, copy=False) for subseq in subsequences]
 
-    return sequence_annot.modification_coverage(annotations=subsequence_annots, accumulate=accumulate)
+    return sequence_annot.modification_coverage(subsequences=subsequence_annots, accumulate=accumulate)

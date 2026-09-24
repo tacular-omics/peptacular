@@ -94,7 +94,7 @@ def test_internal(seq):
 def test_neutral_losses(seq):
     for key, series in REF["fragments"]["neutral_loss"][seq].items():
         ion, loss = key.split("-")
-        lossy = [f for f in pt.fragment(seq, ion_types=[ion], charges=[1], neutral_deltas=[loss]) if f.losses]
+        lossy = [f for f in pt.fragment(seq, ion_types=[ion], charges=[1], neutral_deltas=[loss]) if f.deltas]
         sites = "STED" if loss == "H2O" else "RKNQ"
         assert bool(lossy) == any(aa in sites for aa in seq), key
         for f in lossy:

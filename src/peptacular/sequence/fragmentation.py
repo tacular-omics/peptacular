@@ -12,22 +12,29 @@ from ..annotation.annotation import (
     LOSS_TYPE,
 )
 from ..annotation.utils import Fragment
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
+
+__all__ = [
+    "FRAGMENT_MASSES_RETURN",
+    "fragment",
+    "frag",
+    "fast_fragment",
+]
 
 FRAGMENT_MASSES_RETURN = dict[tuple[IonType, int], list[float]]
 
 
 def _fragment_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] | None = None,
+    charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
-    isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+    isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
 ) -> list[Fragment]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -39,58 +46,61 @@ def _fragment_single(
         isotopes=isotopes,
         deltas=deltas,
         neutral_deltas=neutral_deltas,
-        calculate_composition=calculate_composition,
+        calculate_with_composition=calculate_with_composition,
         max_ndeltas=max_ndeltas,
     )
 
 
 @overload
 def fragment(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] | None = None,
+    charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
+    *,
     monoisotopic: bool = True,
-    isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+    isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment]: ...
 
 
 @overload
 def fragment(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] | None = None,
+    charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
+    *,
     monoisotopic: bool = True,
-    isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+    isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[Fragment]]: ...
 
 
 def fragment(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[CHARGE_TYPE] | None = None,
+    charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
+    *,
     monoisotopic: bool = True,
-    isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+    isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment] | list[list[Fragment]]:
     """
     Builds fragment ions from a given input sequence or list of sequences.
@@ -109,7 +119,7 @@ def fragment(
             deltas=deltas,
             neutral_deltas=neutral_deltas,
             max_ndeltas=max_ndeltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
         )
     else:
         return _fragment_single(
@@ -121,18 +131,18 @@ def fragment(
             deltas=deltas,
             neutral_deltas=neutral_deltas,
             max_ndeltas=max_ndeltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
         )
 
 
 def _frag_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
 ) -> Fragment:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -143,55 +153,58 @@ def _frag_single(
         monoisotopic=monoisotopic,
         isotopes=isotopes,
         deltas=deltas,
-        calculate_composition=calculate_composition,
+        calculate_with_composition=calculate_with_composition,
         position=position,
     )
 
 
 @overload
 def frag(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Fragment: ...
 
 
 @overload
 def frag(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment]: ...
 
 
 def frag(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Fragment | list[Fragment]:
     """
     Calculate a single fragment from a sequence or multiple sequences.
@@ -208,7 +221,7 @@ def frag(
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             position=position,
         )
     else:
@@ -219,15 +232,15 @@ def frag(
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             position=position,
         )
 
 
 def _fast_fragment_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] | None = None,
+    charges: int | Sequence[int] | None = None,
     monoisotopic: bool = True,
 ) -> FRAGMENT_MASSES_RETURN:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -240,36 +253,39 @@ def _fast_fragment_single(
 
 @overload
 def fast_fragment(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] | None = None,
+    charges: int | Sequence[int] | None = None,
+    *,
     monoisotopic: bool = True,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> FRAGMENT_MASSES_RETURN: ...
 
 
 @overload
 def fast_fragment(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] | None = None,
+    charges: int | Sequence[int] | None = None,
+    *,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[FRAGMENT_MASSES_RETURN]: ...
 
 
 def fast_fragment(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-    charges: Sequence[int] | None = None,
+    charges: int | Sequence[int] | None = None,
+    *,
     monoisotopic: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> FRAGMENT_MASSES_RETURN | list[FRAGMENT_MASSES_RETURN]:
     """Compute fragment ion m/z values for a sequence or list of sequences.
 

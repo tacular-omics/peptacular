@@ -1,52 +1,38 @@
 Streaming, batch results, and diagnostics
 =========================================
 
-Use ``iter_fasta`` to read one protein at a time and ``iter_batch`` to process a
-bounded number of peptide inputs. Existing ``parse_fasta`` and sequence functions
-keep their list-returning interfaces. Existing batch calls such as ``mass(list)``
-continue to raise exceptions on errors.
+peptacular does not read files. Use `fastatacular <https://github.com/tacular-omics/fastatacular>`_
+(``pip install fastatacular``) or pefftacular to read FASTA or PEFF, and pass the entries
+straight in: every sequence function, ``batch``, ``iter_batch`` and ``diagnose`` accept any
+object with a ``sequence`` string attribute (the :class:`~peptacular.sequence.util.HasSequence` protocol).
+``iter_batch`` processes a bounded number of inputs at a time. Existing batch calls such as
+``mass(list)`` continue to raise exceptions on errors.
 
 **Streaming FASTA**
 
 .. testcode::
 
    import io
+
+   from fastatacular import FastaReader
+
    import peptacular as pt
 
    stream = io.StringIO(">protein_a\nPEPTIDE\n>protein_b\nMKR\n")
-   for protein in pt.iter_fasta(stream):
-       print(protein.header, protein.sequence)
-   assert not stream.closed
+   with FastaReader(stream) as proteins:
+       for protein in proteins:
+           print(protein.identifier, protein.sequence, round(pt.mass(protein), 3))
 
 .. testoutput::
 
-   protein_a PEPTIDE
-   protein_b MKR
+   protein_a PEPTIDE 799.36
+   protein_b MKR 433.247
 
-Paths ending in ``.gz`` are decompressed automatically. For example,
-``pt.iter_fasta("proteins.fasta.gz")`` yields the same records as an uncompressed
-file. File encodings are sampled at the start. Pass ``encoding="latin-1"`` or
-another explicit encoding when a file's later contents require it. Binary streams
-default to UTF-8, with an optional byte order mark. Text streams are already decoded.
-
-The iterator uses memory proportional to the largest protein record. Collecting
-all records or all downstream results into a list still requires memory for that
-list. Empty records are skipped, matching ``parse_fasta``. Invalid structure raises
-``ValueError`` with a line number where applicable. An error in a later record can
-occur after earlier records have already been processed.
-
-Files opened by the iterator close when it is exhausted, closed, or raises an error.
-Caller-owned streams remain open. Use ``contextlib.closing`` when stopping early:
-
-.. code-block:: python
-
-   from contextlib import closing
-
-   with closing(pt.iter_fasta("proteins.fasta.gz")) as proteins:
-       first = next(proteins)
-
-Binary streams can be buffered ahead of the last returned record. Their position
-after early termination is not guaranteed to point to the next FASTA header.
+``FastaReader`` reads one entry at a time and decompresses ``.gz``, ``.bz2`` and ``.xz``
+paths. ``read_fasta`` returns a list. See the fastatacular documentation for header
+fields, encodings and error reporting. Unlike the removed ``pt.iter_fasta``, fastatacular
+keeps residue case as written and raises on an entry with no sequence; peptacular 4.x
+uppercased sequences and silently skipped empty entries.
 
 **Collecting errors without losing successful results**
 
@@ -78,9 +64,9 @@ raise. It does not silently suppress every exception.
 
 Supported operations are ``parse``, ``mass``, ``mz``, ``comp``, ``fragment``,
 ``fast_fragment``, ``digest``, and ``isotopic_distribution``. Extra keyword arguments
-are passed to the corresponding annotation method. A digest result contains the
-annotation method's spans. It is not the functional ``digest`` method's sequence/span
-pairs. Parsing keeps its existing ``validate=False`` default, with ``validate=True``
+are passed to the corresponding annotation method. The ``digest`` operation calls
+``ProFormaAnnotation.digest_spans``, so a result contains spans, not the functional
+``pt.digest`` sequence/span pairs. Parsing keeps its existing ``validate=False`` default, with ``validate=True``
 available for full annotation validation.
 
 .. testcode::
@@ -89,19 +75,20 @@ available for full annotation validation.
    assert charged[0].value == pt.mz("PEPTIDE", charge=2)
    assert pt.batch("parse", ["PEP[CustomName]TIDE"])[0].ok
 
-An iterator can connect FASTA processing with calculation without accumulating the
+An iterator can connect FASTA reading with calculation without accumulating the
 whole database:
 
 .. code-block:: python
 
    from contextlib import closing
 
+   from fastatacular import FastaReader
+
    if __name__ == "__main__":
-       with closing(pt.iter_fasta("proteins.fasta.gz")) as proteins:
-           sequences = (protein.sequence for protein in proteins)
-           with closing(pt.iter_batch("mass", sequences, errors="collect", batch_size=256)) as results:
+       with FastaReader("proteins.fasta.gz") as proteins:
+           with closing(pt.iter_batch("mass", proteins, errors="collect", batch_size=256)) as results:
                for result in results:
-                   save_result(result)
+                   save_result(result.input.accession, result)
 
 ``save_result`` represents your own output function. Batch memory is bounded by
 ``batch_size`` inputs and their results, but one result can be large, such as a
@@ -112,6 +99,12 @@ Automatic execution uses a conservative 1,000-item threshold. Smaller batches ru
 sequentially. Explicit ``method="process"`` or ``method="thread"`` overrides this
 choice, as does setting ``n_workers``. Small ``batch_size`` values can therefore keep
 a large stream sequential. Benchmark your operation before selecting a backend.
+The same rule applies to the list form of every functional call (``pt.digest``,
+``pt.mass``, ``pt.fragment``, ...): a list of 1,000 or more items with neither
+``n_workers`` nor ``method`` fans out to a process pool with one worker per available
+CPU (``os.process_cpu_count()``), or a thread pool on free-threaded Python. On a
+shared machine, pass ``n_workers`` to cap it or ``method="sequential"`` to stay in
+the calling process.
 Pools are reused across batches and close on completion or failure. Closing waits
 for already running work. Process execution requires a guarded script entry point
 on spawn platforms. ``start_method="spawn"`` selects a local process context without
@@ -159,7 +152,6 @@ Code that raises instead of collecting can catch these classes, all importable f
 - ``InvalidAdjustmentError``: impossible isotope or delta counts.
 - ``InvalidPositionError`` (4.2): a slice index or fragment position is outside the
   sequence.
-- ``FastaFormatError`` (4.2): ``parse_fasta_text``/``iter_fasta`` input is not valid FASTA.
 - ``UnsupportedOperationError``: the operation does not support this input, for
   example an unknown ion type (the message lists the valid ones).
 
