@@ -251,3 +251,26 @@ class TestFastFragmentParity:
         carrier = pt.parse("H").frag(ion_type="p", charge=1).mass - pt.parse("H").frag(ion_type="p", charge=0).mass
         assert 2 * b1_z2 - b1_z1 == pytest.approx(carrier, abs=1e-9)
         assert carrier == pytest.approx(pt.PROTON_MASS, abs=1e-6)
+
+    @pytest.mark.parametrize("sequence", ["PEPTIDE", "GG", "[Acetyl]-S[Phospho]AMPLEK/2"])
+    def test_b1_agrees_with_fragment(self, sequence):
+        # Both paths add the same (H - e) carrier, so b1 and y1 agree far below 1e-9 Da.
+        annot = pt.parse(sequence)
+        fast = annot.fast_fragment(ion_types=("b", "y"), charges=(1, 2, 3))
+        for frag in annot.fragment(ion_types=("b", "y"), charges=(1, 2, 3)):
+            if frag.position == 1:
+                assert abs(fast[(frag.ion_type, frag.charge_state)][0] - frag.mz) < 1e-12
+
+
+class TestDeltaInfoAdd:
+    def test_adding_empty_returns_the_other_operand(self):
+        empty = DeltaInfo.from_input(None)
+        water = DeltaInfo.from_input({"H2O": -1})
+        assert water + empty is water
+        assert empty + water is water
+        assert empty + empty is empty
+
+    def test_adding_non_empty_combines_counts(self):
+        water = DeltaInfo.from_input({"H2O": -1})
+        combined = water + DeltaInfo.from_input({"H2O": -1, 1.5: 1})
+        assert sorted(combined.to_fragment_mapping.values()) == [-2, 1]

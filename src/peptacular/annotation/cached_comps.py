@@ -352,6 +352,11 @@ class DeltaInfo:
 
     def __add__(self, other: "DeltaInfo") -> "DeltaInfo":
         """Combine two DeltaInfo objects (add deltas together)."""
+        # Instances are immutable, so adding an empty delta can return the other operand.
+        if not other._items:
+            return self
+        if not self._items:
+            return other
         combined: dict[ChargedFormula | float, int] = dict(self.deltas)
         for key, count in other.deltas.items():
             combined[key] = combined.get(key, 0) + count

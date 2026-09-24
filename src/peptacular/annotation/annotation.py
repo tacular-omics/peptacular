@@ -3300,6 +3300,11 @@ class ProFormaAnnotation:
             if not all(m.value.is_protonated for m in charge_carriers.mods):
                 adducts = tuple(key for key, count in charge_carriers._mods.items() for _ in range(count)) if charge_carriers._mods else None
 
+        # Per-ion work that does not depend on the position is done once per series:
+        # the (isotope, delta, loss) products are cached per loss-site count, and the
+        # ion-type lookup per (possibly residue-specific) ion type.
+        combo_cache: dict[tuple[tuple[NeutralDeltaInfo, int], ...], list[tuple[IsotopeInfo, DeltaInfo, bool, float, float]]] = {}
+        ion_cache: dict[IonType, tuple[IonType, bool, float]] = {}
         loss_dict: dict[NeutralDeltaInfo, int] = {}
         for i in range(1, n + 1):
             if min_length is not None and i < min_length:
@@ -3317,53 +3322,66 @@ class ProFormaAnnotation:
                 loss_dict.clear()
                 for nd in neutral_deltas:
                     loss_dict[nd] = min(nd.calculate_loss_sites(sub_sequence), max_deltas)
-            neutral_delta_combinations: list[DeltaInfo] = get_loss_combinations(loss_dict, max_deltas)
+            loss_key = tuple(loss_dict.items())
+            products = combo_cache.get(loss_key)
+            if products is None:
+                products = []
+                for isotope in isotopes:
+                    for delta in deltas:
+                        for ndelta in get_loss_combinations(loss_dict, max_deltas):
+                            combined_delta = delta + ndelta
+                            plain = not isotope.data and not any(isinstance(k, ChargedFormula) for k in combined_delta.deltas)
+                            iso_mass = isotope.get_mass_delta(monoisotopic) if plain else 0.0
+                            delta_mass = combined_delta.get_mass_delta(monoisotopic) if plain else 0.0
+                            products.append((isotope, combined_delta, plain, iso_mass, delta_mass))
+                combo_cache[loss_key] = products
 
-            fast_type = masses is not None and frag_type not in SATELLITE_TRIM_END and frag_type not in SATELLITE_TRIM_START
-            frag_ion_type = FRAGMENT_ION_LOOKUP[frag_type].ion_type
-            ion_mass = _ion_mass(frag_ion_type, monoisotopic) if fast_type else 0.0
+            ion_entry = ion_cache.get(frag_type)
+            if ion_entry is None:
+                fast_type = masses is not None and frag_type not in SATELLITE_TRIM_END and frag_type not in SATELLITE_TRIM_START
+                frag_ion_type = FRAGMENT_ION_LOOKUP[frag_type].ion_type
+                ion_entry = (frag_ion_type, fast_type, _ion_mass(frag_ion_type, monoisotopic) if fast_type else 0.0)
+                ion_cache[frag_type] = ion_entry
+            frag_ion_type, fast_type, ion_mass = ion_entry
             sub_annot: ProFormaAnnotation | None = None
 
-            for isotope in isotopes:
-                for delta in deltas:
-                    for ndelta in neutral_delta_combinations:
-                        combined_delta = delta + ndelta
-                        if fast_type and not isotope.data and not any(isinstance(k, ChargedFormula) for k in combined_delta.deltas):
-                            # Same arithmetic order as adjust_mass_mz / _adjust_mass_value.
-                            mass = cumulative[i]
-                            mass += isotope.get_mass_delta(monoisotopic)
-                            mass += combined_delta.get_mass_delta(monoisotopic)
-                            mass += charge_mass
-                            mass += ion_mass
-                            mass -= external_charge * ELECTRON_MASS
-                            validate_mass(mass)
-                            yield Fragment(
-                                ion_type=frag_ion_type,
-                                position=i,
-                                mass=mass,
-                                monoisotopic=monoisotopic,
-                                charge_state=external_charge,
-                                charge_adducts=adducts,
-                                external_charge=external_charge,
-                                isotopes=isotope.to_fragment_mapping,
-                                deltas=combined_delta.to_fragment_mapping,
-                                composition=None,
-                                parent_sequence=parent_sequence,
-                                parent_sequence_length=parent_sequence_length,
-                            )
-                            continue
-                        if sub_annot is None:
-                            sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
-                        yield sub_annot._frag(
-                            ion_type=frag_type,
-                            monoisotopic=monoisotopic,
-                            isotope=isotope,
-                            delta=combined_delta,
-                            calculate_with_composition=calculate_with_composition,
-                            parent_sequence=parent_sequence,
-                            parent_sequence_length=parent_sequence_length,
-                            position=i,
-                        )
+            for isotope, combined_delta, plain, iso_mass, delta_mass in products:
+                if fast_type and plain:
+                    # Same arithmetic order as adjust_mass_mz / _adjust_mass_value.
+                    mass = cumulative[i]
+                    mass += iso_mass
+                    mass += delta_mass
+                    mass += charge_mass
+                    mass += ion_mass
+                    mass -= external_charge * ELECTRON_MASS
+                    validate_mass(mass)
+                    yield Fragment(
+                        ion_type=frag_ion_type,
+                        position=i,
+                        mass=mass,
+                        monoisotopic=monoisotopic,
+                        charge_state=external_charge,
+                        charge_adducts=adducts,
+                        external_charge=external_charge,
+                        isotopes=isotope.to_fragment_mapping,
+                        deltas=combined_delta.to_fragment_mapping,
+                        composition=None,
+                        parent_sequence=parent_sequence,
+                        parent_sequence_length=parent_sequence_length,
+                    )
+                    continue
+                if sub_annot is None:
+                    sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
+                yield sub_annot._frag(
+                    ion_type=frag_type,
+                    monoisotopic=monoisotopic,
+                    isotope=isotope,
+                    delta=combined_delta,
+                    calculate_with_composition=calculate_with_composition,
+                    parent_sequence=parent_sequence,
+                    parent_sequence_length=parent_sequence_length,
+                    position=i,
+                )
 
     def _fragment(
         self,
