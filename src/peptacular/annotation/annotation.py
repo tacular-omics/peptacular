@@ -235,8 +235,8 @@ def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], 
     a loss can ask for more of an element than the fragment has (no phosphorus on an
     unmodified S). An ion can also lack the atoms its own offset removes (the one-residue a1 of
     ``G-[Amidated]`` at charge -1). Such ions are skipped. The error still propagates when the
-    ion exists without the caller's own ``deltas``: then those deltas are at fault. An explicit
-    ``frag()`` does not come through here and always raises.
+    ion exists without the caller's own ``deltas`` and ``isotopes``: then those are at fault. An
+    explicit ``frag()`` does not come through here and always raises.
     """
     try:
         return make(**kwargs)
@@ -244,10 +244,11 @@ def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], 
         if ndelta._items:
             return None
         delta: DeltaInfo = kwargs["delta"]
-        if not delta.deltas:
+        isotope: IsotopeInfo = kwargs["isotope"]
+        if not delta.deltas and not isotope.data:
             return None
         try:
-            make(**{**kwargs, "delta": DeltaInfo.from_input(None)})
+            make(**{**kwargs, "delta": DeltaInfo.from_input(None), "isotope": IsotopeInfo.from_input(None)})
         except InvalidAdjustmentError:
             return None
         raise
@@ -2730,8 +2731,24 @@ class ProFormaAnnotation:
                 mapped_mods[index].append(Mod(static_mod.value.modifications, count=static_mod.count))
         return mapped_mods
 
-    def _map_isotopes(self) -> dict[ElementInfo, ElementInfo]:
-        """Map isotope modifications to element replacements."""
+    def map_isotopes(self) -> dict[ElementInfo, ElementInfo]:
+        """Map each global isotope label to the element it replaces and its replacement.
+
+        ``<13C>PEPTIDE`` gives ``{C: 13C}``: every carbon atom in the composition is counted
+        as carbon-13. The keys and values are tacular ``ElementInfo`` objects (the key is the
+        element with no mass number). An annotation without global isotope labels gives ``{}``.
+
+        :return: ``{element: isotope}`` for each global isotope label.
+        :rtype: dict[ElementInfo, ElementInfo]
+
+        .. code-block:: python
+
+            >>> import peptacular as pt
+            >>> [(str(k.symbol), str(v.symbol), v.mass_number) for k, v in pt.parse("<13C>PEP").map_isotopes().items()]
+            [('C', 'C', 13)]
+            >>> pt.parse("PEP").map_isotopes()
+            {}
+        """
         isotope_map: dict[ElementInfo, ElementInfo] = {}
         if not self.has_isotope_mods:
             return isotope_map
@@ -2741,6 +2758,9 @@ class ProFormaAnnotation:
             isotope_map[template] = replaced
 
         return isotope_map
+
+    # Private alias kept for callers written before map_isotopes was public (paftacular 2.0).
+    _map_isotopes = map_isotopes
 
     # Thin wrapper over the shared negative-safe merge helper (see
     # proforma_components.comps.add_composition) so the many call sites below read cleanly.
@@ -3172,7 +3192,7 @@ class ProFormaAnnotation:
                 isotope=isotope,
                 delta=DeltaInfo(formula_deltas),
                 inplace=True,
-                isotope_map=self._map_isotopes() if self.has_isotope_mods else None,
+                isotope_map=self.map_isotopes() if self.has_isotope_mods else None,
                 position=position,
                 parent_sequence=parent_sequence,
                 parent_sequence_length=parent_sequence_length,

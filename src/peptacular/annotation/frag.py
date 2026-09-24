@@ -96,11 +96,17 @@ def _immonium_isotope_tokens(annot: "ProFormaAnnotation", fragment: "Fragment") 
     ``+7i2H``. The labelled atoms are counted on the final ion composition, after the immonium
     offset, the formula deltas and any atoms a charge carrier removes (``<D>P`` at charge -1
     loses a deuteron: ``+6i2H^-1``; ``<15N>K`` with ``-NH3`` keeps one ``15N``: ``+i15N``).
-    Mass-only deltas, ``+i`` shifts and adduct atoms are never labelled.
+    Mass-only deltas, ``+i`` shifts and adduct atoms are never labelled: a carrier that is not
+    a plain proton (``D:z+1``, ``Na:z+1``) is written in the adduct, not in the isotope count.
     """
     labelled = annot.copy()
     labelled.set_charge(None)
-    charge = fragment.external_charge if fragment._charge_adducts is None else fragment.charge_adducts
+    charge: int | Mods[GlobalChargeCarrier] = fragment.external_charge if fragment._charge_adducts is None else fragment.charge_adducts
+    if fragment._charge_adducts is not None:
+        # Only protons change the ion's own atoms. Any other carrier (Na, [2H], [13C]) is
+        # written as an adduct, which carries its own atoms, so counting them here too would
+        # label them twice.
+        charge = sum(m.get_charge() for m in fragment.charge_adducts.mods if m.value.is_protonated)
     formula_deltas: dict[str | ChargedFormula | float, int] = {}
     if fragment._deltas is not None:
         formula_deltas = {key: count for key, count in fragment.deltas.items() if isinstance(key, ChargedFormula)}

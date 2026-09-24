@@ -357,6 +357,34 @@ class TestImmoniumLabelOnFinalIon:
         assert frag.mz == pytest.approx(unlabelled.mz + n * self._SHIFT[iso] / z, abs=1e-9)
 
 
+class TestImmoniumLabelWithCarriers:
+    """A non-proton charge carrier is written as an adduct and is not counted in the label."""
+
+    _SHIFT = TestImmoniumLabelOnFinalIon._SHIFT
+
+    @pytest.mark.parametrize(
+        ("labelled", "plain", "charge", "label", "iso", "n"),
+        [
+            ("<2H>P", "P", "D:z+1", "IP+7i2H[M+[2H]]", "2H", 7),
+            # The adduct removes a 2H here but a 1H from the unlabelled ion: 7 - 1 net shifts.
+            ("<2H>P", "P", "D-1:z-1", "IP+7i2H[M-[2H]]^-1", "2H", 6),
+            ("<13C>P", "P", "[13C]:z+1", "IP+4i13C[M+[13C]]", "13C", 4),
+            ("<2H>P", "P", "Na:z+1", "IP+7i2H[M+Na]", "2H", 7),
+            ("<15N>K", "K", "NH4:z+1", "IK+2i15N[M+NH4]", "15N", 2),
+        ],
+    )
+    def test_label_reads_back_to_mz(self, labelled, plain, charge, label, iso, n):
+        frag = pt.parse(labelled).frag(ion_type="i", charge=charge)
+        assert frag.to_mzpaf() == label
+        unlabelled = pt.parse(plain).frag(ion_type="i", charge=charge)
+        assert frag.mz == pytest.approx(unlabelled.mz + n * self._SHIFT[iso] / abs(frag.charge_state), abs=1e-9)
+        try:
+            import paftacular
+        except ImportError:
+            return
+        assert paftacular.parse(label).mz() == pytest.approx(frag.mz, abs=1e-9)
+
+
 class TestCarrierOrder:
     """Charge carriers are summed before they touch the composition, so their order does not matter."""
 
@@ -407,11 +435,25 @@ class TestSatelliteIons:
         with pytest.raises(pt.InvalidAdjustmentError):
             pt.parse("V-[Amidated]").frag(ion_type="d", position=1, charge=-1)
 
+    def test_impossible_caller_isotopes_raise(self):
+        with pytest.raises(pt.PeptacularError):
+            pt.fragment("PEPTIDE", ion_types="b", charges=1, isotopes=[{"13C": 100}])
+        assert len(pt.fragment("PEPTIDE", ion_types="b", charges=1, isotopes=[{"13C": 1}])) == 7
+
     def test_any_series_skips_impossible_ion(self):
         assert pt.fragment("G-[Amidated]", ion_types="a", charges=-1) == []
         assert [f.to_mzpaf() for f in pt.fragment("GK-[Amidated]", ion_types="a", charges=-1)] == ["a1{G}^-1", "a2{GK-[Amidated]}^-1"]
         with pytest.raises(pt.InvalidAdjustmentError):
             pt.parse("G-[Amidated]").frag(ion_type="a", position=1, charge=-1)
+
+
+class TestMapIsotopes:
+    def test_public_and_private_names(self):
+        annot = pt.parse("<13C><15N>PEP")
+        mapping = {str(k.symbol): v.mass_number for k, v in annot.map_isotopes().items()}
+        assert mapping == {"C": 13, "N": 15}
+        assert annot._map_isotopes() == annot.map_isotopes()
+        assert pt.parse("PEP").map_isotopes() == {}
 
 
 class TestUnchargedMzPAF:
