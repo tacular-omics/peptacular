@@ -2484,7 +2484,9 @@ class ProFormaAnnotation:
         # Initialize the Generator
         parser_gen = ProFormaParser(sequence).parse()
 
-        for prof_parser, _ in parser_gen:
+        for prof_parser, connection in parser_gen:
+            if connection is True:
+                raise UnsupportedOperationError(f"Cross-linked peptidoforms joined by '//' are not supported (use '+' for chimeric ions): {sequence}")
             # Split Global Mods into Static (Fixed) vs Isotope (Global)
             # The parser groups all <...> tags together; we separate them by the '@' symbol.
             static_mods: dict[str, int] | None = None  # e.g., <[Oxidation]@C>

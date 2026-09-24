@@ -68,3 +68,14 @@ def test_isotope_offset_on_global_isotope_label():
     annot = pt.parse("<13C>PEPTIDE")
     assert annot.mass(isotopes=1) - annot.mass() == pytest.approx(1.0033548378, abs=1e-6)
     assert pt.parse("K[Formula:[13C6]C-6]").mass(isotopes=2) - pt.parse("K[Formula:[13C6]C-6]").mass() == pytest.approx(2 * 1.0033548378, abs=1e-6)
+
+
+# --------------------------------------------------------------------------- cross-link separator
+
+
+def test_parse_chimeric_rejects_crosslink_separator():
+    # "//" joins cross-linked peptides into one ion; "+" joins separate (chimeric) ions.
+    # Cross-links are unsupported, so reading "//" as "+" would silently change meaning.
+    with pytest.raises(pt.UnsupportedOperationError, match="//"):
+        pt.parse_chimeric("EMEVTK[XLMOD:02001#XL1]SESPEK//EMEVTK[#XL1]SESPEK")
+    assert len(pt.parse_chimeric("PEPTIDE+PEPTIDE")) == 2

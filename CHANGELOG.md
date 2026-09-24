@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Modification names ending in `(...)` lost that suffix: it was read as a localisation score. `K[U:Label:13C(6)]` raised `UnknownModificationError`, `N[HexNAc(2)]` weighed as one HexNAc, and `C[L-cystine (cross-link)#XL1]` did not resolve. Per ProForma 2.0 a score only follows a `#group` label, so `(n)` is now part of the name unless it follows one.
 - `isotopes=n` failed with `InvalidAdjustmentError` on ions with no light atoms left to swap (y1 of `K[Formula:[13C6]C-6]`) and was silently ignored under a global `<13C>` label. The offset is now added as a mass delta when no composition is requested; asking for more heavy atoms than the ion has still raises.
 - The C-terminal pKa values of Glu and Gln were swapped (E 2.17, Q 2.19). They now match the cited table (E 2.19, Q 2.17), which shifts `charge_at_ph` and `pi` slightly for peptides ending in E or Q.
+- `parse_chimeric` read cross-linked peptidoforms (`A//B`) as separate chimeric ions, so `serialize_chimeric` wrote them back as `A+B`, a different meaning. Cross-links are not supported, so it now raises `UnsupportedOperationError`.
 
 ## [4.1.0] (2026-09-23)
 
