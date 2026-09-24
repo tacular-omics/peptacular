@@ -229,17 +229,26 @@ def _carrier_mass(monoisotopic: bool) -> float:
 
 
 def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], **kwargs: Any) -> "Fragment | None":
-    """Build one ion, or None when a neutral loss in ``ndelta`` needs atoms the ion lacks.
+    """Build one ion for ``fragment()``, or None when that ion cannot exist.
 
     ``neutral_deltas`` offers a loss wherever one of its residues occurs (H3PO4 on any S/T), so
     a loss can ask for more of an element than the fragment has (no phosphorus on an
-    unmodified S). That ion cannot exist and is skipped. The error still propagates when no
-    neutral loss is involved: then the caller's own ``deltas`` are at fault.
+    unmodified S). An ion can also lack the atoms its own offset removes (the one-residue a1 of
+    ``G-[Amidated]`` at charge -1). Such ions are skipped. The error still propagates when the
+    ion exists without the caller's own ``deltas``: then those deltas are at fault. An explicit
+    ``frag()`` does not come through here and always raises.
     """
     try:
         return make(**kwargs)
     except InvalidAdjustmentError:
         if ndelta._items:
+            return None
+        delta: DeltaInfo = kwargs["delta"]
+        if not delta.deltas:
+            return None
+        try:
+            make(**{**kwargs, "delta": DeltaInfo.from_input(None)})
+        except InvalidAdjustmentError:
             return None
         raise
 
@@ -3437,26 +3446,10 @@ class ProFormaAnnotation:
                 if sub_annot is None:
                     sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
                 if frag_type in SATELLITE_TRIM_END or frag_type in SATELLITE_TRIM_START:
-                    # A series skips the d/w/v ions that cannot exist here (a modified cleaved
-                    # residue, or a one-residue ion lacking the atoms its offset removes);
-                    # an explicit frag() of the same ion raises.
+                    # A series skips d/w ions of a modified cleaved residue; an explicit
+                    # frag() of the same ion raises.
                     if sub_annot._satellite_mod_error(frag_type) is not None:
                         break
-                    try:
-                        fragment = sub_annot._frag(
-                            ion_type=frag_type,
-                            monoisotopic=monoisotopic,
-                            isotope=isotope,
-                            delta=combined_delta,
-                            calculate_with_composition=calculate_with_composition,
-                            parent_sequence=parent_sequence,
-                            parent_sequence_length=parent_sequence_length,
-                            position=i,
-                        )
-                    except InvalidAdjustmentError:
-                        continue
-                    yield fragment
-                    continue
                 fragment = _unless_impossible_loss(
                     ndelta,
                     sub_annot._frag,

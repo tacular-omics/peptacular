@@ -407,6 +407,12 @@ class TestSatelliteIons:
         with pytest.raises(pt.InvalidAdjustmentError):
             pt.parse("V-[Amidated]").frag(ion_type="d", position=1, charge=-1)
 
+    def test_any_series_skips_impossible_ion(self):
+        assert pt.fragment("G-[Amidated]", ion_types="a", charges=-1) == []
+        assert [f.to_mzpaf() for f in pt.fragment("GK-[Amidated]", ion_types="a", charges=-1)] == ["a1{G}^-1", "a2{GK-[Amidated]}^-1"]
+        with pytest.raises(pt.InvalidAdjustmentError):
+            pt.parse("G-[Amidated]").frag(ion_type="a", position=1, charge=-1)
+
 
 class TestUnchargedMzPAF:
     """mzPAF has no uncharged ion: a label with no charge reads as +1."""
