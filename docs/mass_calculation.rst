@@ -69,11 +69,13 @@ where:
 The denominator uses :math:`|z|` so that negative charge states still produce a
 positive *m/z* value.
 
-**The proton charge carrier.** A default (protonated) charge adds one hydrogen atom
-and removes one electron per charge, so each charge adds
-``PROTON_CARRIER_MASS = HYDROGEN_MASS - ELECTRON_MASS`` (1.007276452 Da), not the
-CODATA ``PROTON_MASS`` (1.007276467 Da). The two differ by the hydrogen 1s binding
-energy, 1.4e-8 Da. peptacular takes the hydrogen-atom form so that a charged mass and the
-elemental composition of the same ion (which counts an H atom per charge) give the same
-number. ``mass()``, ``mz()``, ``fragment()`` and ``fast_fragment()`` all use it.
-Average masses use the average hydrogen mass minus one electron instead.
+**The proton charge carrier.** A default (protonated) monoisotopic charge adds the
+CODATA ``PROTON_MASS`` (1.007276467 Da), as mzPAF (section 4.4.1), pyteomics and OpenMS
+do. An ion's elemental composition counts one hydrogen atom per charge, and
+``HYDROGEN_MASS - ELECTRON_MASS`` (1.007276452 Da) is lighter than a proton by the
+hydrogen 1s binding energy, ``HYDROGEN_BINDING_MASS`` (1.43e-8 Da). A mass summed from a
+charged composition therefore adds ``HYDROGEN_BINDING_MASS`` once per net proton (a
+deprotonation subtracts it), so the composition path and the mass path give the same
+number. ``mass()``, ``mz()``, ``fragment()`` and ``fast_fragment()`` all agree. Other
+adducts (``Na:z+1``, a hydride ``H:z-1``) are their atoms minus or plus electrons, with
+no binding term. Average masses use the average hydrogen mass minus one electron.

@@ -207,8 +207,8 @@ class TestHydrideCarrier:
         assert y3.charge_state == -1
         assert not y3.is_protonated
         assert "H:z-1" in str(y3)
-        # hydride adds H + e-; deprotonation removes H - e-: they differ by two H atoms
-        assert abs(y3.mass - deprot.mass - 2 * 1.00782503223) < 1e-9
+        # hydride adds H + e-; deprotonation removes a proton (H - e- plus the H binding energy)
+        assert abs(y3.mass - deprot.mass - 2 * 1.00782503223 - pt.constants.HYDROGEN_BINDING_MASS) < 1e-9
         assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
         assert deprot.to_mzpaf() == "y3{IDE}^-1"
 
@@ -295,7 +295,10 @@ class TestLabelledDeprotonation:
         h_neutral = sum(n for e, n in neutral.items() if e.symbol == "H")
         h_ion = sum(n for e, n in comp.items() if e.symbol == "H")
         assert h_ion == h_neutral + charge
-        assert frag.mass == pytest.approx(self._mass(comp) - charge * ELECTRON_MASS, abs=1e-9)
+        from peptacular.constants import HYDROGEN_BINDING_MASS
+
+        expected = self._mass(comp) - charge * ELECTRON_MASS + charge * HYDROGEN_BINDING_MASS
+        assert frag.mass == pytest.approx(expected, abs=1e-11)
         # The mass path (isotope as mass) agrees with the composition path.
         assert pt.parse(seq).frag("y", charge=charge).mass == pytest.approx(frag.mass, abs=1e-9)
 

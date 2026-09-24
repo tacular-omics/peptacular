@@ -348,8 +348,8 @@ Behaviour changes
      - Options after ``charge_state`` are keyword-only.
    * - Fragments compared by identity
      - Compared and hashed by value.
-   * - ``fast_fragment`` m/z values
-     - Move by -1.4e-8 Da per charge (charge carrier is now H - e, as in ``fragment()``). ``fragment()`` and ``mass()`` are unchanged.
+   * - Monoisotopic ``mass()``, ``mz()``, ``fragment()`` values of charged ions
+     - A proton charge carrier is now CODATA ``PROTON_MASS`` (was H - e), as mzPAF 4.4.1, pyteomics and OpenMS use. Mass moves by +1.43e-8 Da per charge and m/z by +1.43e-8 Da (-1.43e-8 Da for deprotonated ions). ``fast_fragment`` already used ``PROTON_MASS`` and is unchanged; it now matches ``fragment()`` to 1e-9 Da. Average masses are unchanged.
    * - ``ProFormaAnnotation("PEPTIDE", None, None, ...)``, ``Interval(1, 3, True, mods)``
      - Every option after ``sequence`` (and after ``start``, ``end``) is keyword-only:
        ``Interval(1, 3, ambiguous=True, mods=mods)``.

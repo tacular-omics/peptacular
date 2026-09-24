@@ -18,7 +18,7 @@ from ..constants import ELECTRON_MASS
 from ..diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 from ..proforma_components.comps import ChargedFormula, GlobalChargeCarrier
 from .cached_comps import DeltaInfo, IsotopeInfo
-from .frag import Fragment
+from .frag import Fragment, proton_binding_offset
 from .mod import Mods
 from .positions import to_ion_type
 
@@ -96,7 +96,7 @@ def adjust_mass_mz(
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
     base_mass = _adjust_mass_value(
         base_mass,
-        charge.get_mass(monoisotopic=monoisotopic),
+        charge.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge, monoisotopic),
         total_charge,
         ion_info.ion_type,
         monoisotopic,
@@ -221,6 +221,8 @@ def adjust_comp(
         base_mass += elem.get_mass(monoisotopic=monoisotopic) * count
     if isotope_as_mass and isotope.data:
         base_mass += isotope.get_mass_delta(monoisotopic)
+    # The composition counts an H atom per proton; lift each to CODATA PROTON_MASS.
+    base_mass += proton_binding_offset(charge, monoisotopic)
 
     # Correct for electron mass based on charge
     if total_charge != 0:

@@ -2,6 +2,7 @@
 carrier constant and single-value fragment options."""
 
 import pytest
+from tacular import ELEMENT_LOOKUP
 from tacular.constants import ELECTRON_MASS, HYDROGEN_MASS, PROTON_MASS
 
 import peptacular as pt
@@ -41,15 +42,22 @@ def test_enzyme_config_semi():
     assert full < semi and "PEPTIDE" in semi
 
 
-def test_proton_carrier_constant():
-    assert pt.PROTON_CARRIER_MASS == HYDROGEN_MASS - ELECTRON_MASS
-    assert pt.PROTON_CARRIER_MASS == pytest.approx(PROTON_MASS, abs=2e-8)
+def test_proton_carrier_is_codata_proton_mass():
+    # A monoisotopic proton carrier weighs CODATA PROTON_MASS (mzPAF 4.4.1, pyteomics, OpenMS).
+    assert pt.HYDROGEN_BINDING_MASS == PROTON_MASS - (HYDROGEN_MASS - ELECTRON_MASS)
+    assert pt.HYDROGEN_BINDING_MASS == pytest.approx(1.43e-8, abs=1e-10)
     annot = pt.parse("PEPTIDE")
-    assert annot.mass(charge=2) - annot.mass() == pytest.approx(2 * pt.PROTON_CARRIER_MASS, abs=1e-9)
+    assert annot.mass(charge=2) - annot.mass() == pytest.approx(2 * PROTON_MASS, abs=1e-11)
+    assert annot.mass(charge=-1) - annot.mass() == pytest.approx(-PROTON_MASS, abs=1e-9)
     b1, b2 = (annot.frag(ion_type="b", charge=z, position=3).mass for z in (1, 2))
-    assert b2 - b1 == pytest.approx(pt.PROTON_CARRIER_MASS, abs=1e-9)
+    assert b2 - b1 == pytest.approx(PROTON_MASS, abs=1e-11)
+    comp_b2 = annot.frag(ion_type="b", charge=2, position=3, calculate_with_composition=True).mass
+    assert comp_b2 == pytest.approx(b2, abs=1e-9)
     fast = annot.fast_fragment(["b"], [2])[(pt.IonType.B, 2)][2]
-    assert fast == pytest.approx(b2 / 2, abs=1e-9)
+    assert fast == pytest.approx(b2 / 2, abs=1e-11)
+    # Average masses keep natural-abundance H minus an electron.
+    h_avg = ELEMENT_LOOKUP["H"].get_mass(monoisotopic=False)
+    assert annot.mass(charge=1, monoisotopic=False) - annot.mass(monoisotopic=False) == pytest.approx(h_avg - ELECTRON_MASS, abs=1e-11)
 
 
 def test_single_fragment_options_need_no_list():

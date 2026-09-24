@@ -274,18 +274,18 @@ class TestFastFragmentParity:
         assert fast[(IonType.B, 1)][-1] == pytest.approx(annot.frag(ion_type="b", charge=1, position=7).mz, abs=1e-9)
         assert fast[(IonType.Y, 1)][-1] == pytest.approx(annot.frag(ion_type="y", charge=1, position=7).mz, abs=1e-9)
 
-    def test_proton_is_hydrogen_minus_electron(self):
-        # b1 of G at z=1 and z=2 differ by exactly one (H - e) carrier, divided out.
+    def test_proton_is_codata_proton_mass(self):
+        # b1 of G at z=1 and z=2 differ by exactly one proton carrier (PROTON_MASS), divided out.
         fast = pt.parse("GG").fast_fragment(ion_types=("b",), charges=(1, 2))
         b1_z1 = fast[(IonType.B, 1)][0]
         b1_z2 = fast[(IonType.B, 2)][0]
         carrier = pt.parse("H").frag(ion_type="p", charge=1).mass - pt.parse("H").frag(ion_type="p", charge=0).mass
         assert 2 * b1_z2 - b1_z1 == pytest.approx(carrier, abs=1e-9)
-        assert carrier == pytest.approx(pt.PROTON_MASS, abs=1e-6)
+        assert carrier == pytest.approx(pt.PROTON_MASS, abs=1e-11)
 
     @pytest.mark.parametrize("sequence", ["PEPTIDE", "GG", "[Acetyl]-S[Phospho]AMPLEK/2"])
     def test_b1_agrees_with_fragment(self, sequence):
-        # Both paths add the same (H - e) carrier, so b1 and y1 agree far below 1e-9 Da.
+        # Both paths add the same PROTON_MASS carrier, so b1 and y1 agree far below 1e-9 Da.
         annot = pt.parse(sequence)
         fast = annot.fast_fragment(ion_types=("b", "y"), charges=(1, 2, 3))
         for frag in annot.fragment(ion_types=("b", "y"), charges=(1, 2, 3)):

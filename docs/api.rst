@@ -189,12 +189,13 @@ These are available from the top-level ``peptacular`` namespace, except the
 
    Proton mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
-.. py:data:: peptacular.constants.PROTON_CARRIER_MASS
+.. py:data:: peptacular.constants.HYDROGEN_BINDING_MASS
    :type: float
-   :value: 1.007276452320935
+   :value: 1.4300064909988919e-08
 
-   ``HYDROGEN_MASS - ELECTRON_MASS``: the monoisotopic mass one default (protonated) charge
-   adds. See :doc:`mass_calculation` for why this, not ``PROTON_MASS``.
+   ``PROTON_MASS - (HYDROGEN_MASS - ELECTRON_MASS)``, the hydrogen 1s binding energy as a
+   mass. A monoisotopic proton charge adds ``PROTON_MASS``; a mass summed from an ion's
+   composition (one H atom per proton) adds this term per proton. See :doc:`mass_calculation`.
 
 .. py:data:: peptacular.constants.ELECTRON_MASS
    :type: float

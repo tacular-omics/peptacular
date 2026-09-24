@@ -13,7 +13,7 @@ from tacular import (
     IonTypeProperty,
 )
 
-from ..constants import ELECTRON_MASS, ModType
+from ..constants import ELECTRON_MASS, HYDROGEN_BINDING_MASS, ModType
 from ..diagnostics import PeptacularError
 from ..proforma_components import (
     ChargedFormula,
@@ -385,8 +385,9 @@ class Fragment:
         # subtract adduct masses and add back the electrons removed by the charge:
         # self.mass == neutral + adduct_atoms - charge*electron, so the electron term
         # must be undone to recover the true neutral mass.
-        total_adduct_mass = 0.0
-        for adduct in self.charge_adducts:
+        adducts = self.charge_adducts
+        total_adduct_mass = proton_binding_offset(adducts, self.monoisotopic)
+        for adduct in adducts:
             total_adduct_mass += adduct.get_mass(monoisotopic=self.monoisotopic)
         return self.mass - total_adduct_mass + self.charge_state * ELECTRON_MASS
 
@@ -816,3 +817,17 @@ class Fragment:
             )
 
         raise PeptacularError("Invalid position format for fragment sequence extraction")
+
+
+def proton_binding_offset(charge: Mods[GlobalChargeCarrier], monoisotopic: bool) -> float:
+    """Mass to add so each monoisotopic proton carrier weighs CODATA ``PROTON_MASS``.
+
+    Charged masses are built from H atoms minus electrons, and ``H - e`` is lighter than a
+    proton by the hydrogen 1s binding energy (:data:`HYDROGEN_BINDING_MASS`, 1.4e-8 Da). This
+    returns that term times the net proton count (negative for deprotonation). Average masses
+    and non-proton adducts get no correction.
+    """
+    if not monoisotopic:
+        return 0.0
+    protons = sum(mod.get_charge() for mod in charge.mods if mod.value.is_protonated)
+    return protons * HYDROGEN_BINDING_MASS

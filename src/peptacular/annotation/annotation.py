@@ -25,7 +25,7 @@ from tacular import (
     NeutralDeltaLiteral,
 )
 
-from ..constants import ELECTRON_MASS, PROTON_CARRIER_MASS, ModType, ModTypeLiteral, Terminal
+from ..constants import ELECTRON_MASS, HYDROGEN_BINDING_MASS, PROTON_MASS, ModType, ModTypeLiteral, Terminal
 from ..diagnostics import (
     CompositionError,
     InvalidAdjustmentError,
@@ -83,6 +83,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
+from .frag import proton_binding_offset
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
@@ -221,9 +222,9 @@ def _as_options(value: Any) -> Any:
 
 
 def _carrier_mass(monoisotopic: bool) -> float:
-    """Mass one default (protonated) charge adds: :data:`PROTON_CARRIER_MASS`, or average H minus an electron."""
+    """Mass one default (protonated) charge adds: CODATA ``PROTON_MASS``, or average H minus an electron."""
     if monoisotopic:
-        return PROTON_CARRIER_MASS
+        return PROTON_MASS
     return H_ELEMENT_INFO.get_mass(monoisotopic=False) - ELECTRON_MASS
 
 
@@ -3017,7 +3018,8 @@ class ProFormaAnnotation:
             total_charge = external_charge + internal_charge
             mass = _adjust_mass_value(
                 base_mass,
-                H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) * external_charge,  # the electrons come off below
+                # H atoms here, the electrons come off below; the binding term lifts H - e to PROTON_MASS.
+                (H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) + (HYDROGEN_BINDING_MASS if monoisotopic else 0.0)) * external_charge,
                 total_charge,
                 ion_type,
                 monoisotopic,
@@ -3333,7 +3335,7 @@ class ProFormaAnnotation:
                 total += m
                 cumulative.append(total)
             charge_carriers = self.charge_adducts
-            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic)
+            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge_carriers, monoisotopic)
             external_charge = charge_carriers.get_charge()
             if not all(m.value.is_protonated for m in charge_carriers.mods):
                 adducts = tuple(key for key, count in charge_carriers._mods.items() for _ in range(count)) if charge_carriers._mods else None
@@ -3731,7 +3733,7 @@ class ProFormaAnnotation:
             return fallback
         result: dict[tuple[IonType, int], list[float]] = {}
 
-        # A charge carrier is a hydrogen atom minus one electron, the same arithmetic fragment() uses.
+        # A proton charge carrier weighs PROTON_MASS (monoisotopic), as in fragment().
         proton_offset = _carrier_mass(monoisotopic)
         for charge in charges:
             charge_offset = charge * proton_offset
