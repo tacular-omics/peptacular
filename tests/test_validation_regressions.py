@@ -146,3 +146,28 @@ def test_satellite_offsets_follow_mzpaf_when_tacular_has_them():
     # d3 of SAMPLER (cleaves M): S + A residues + C2H4N + H+.
     f = pt.parse("SAMPLER").frag(ion_type="d", charge=1, position=3)
     assert f.mz == pytest.approx(87.032028 + 71.037114 + 42.034374 + 1.007276, abs=1e-5)
+
+
+# --------------------------------------------------------------------------- mzPAF z / c variants
+
+
+# mzPAF 1.0.1 "z" is z-dot (sum + H2O - NH2, pyteomics "z-dot"). Biemann z, z+H and c-H
+# have no letter of their own, so they are written with a hydrogen delta.
+@pytest.mark.parametrize(
+    ("ion", "label", "delta_h"),
+    [("z.", "z3{IDE}", 0), ("z", "z3{IDE}-H", -1), ("z+H", "z3{IDE}+H", 1), ("c-H", "c3{PEP}-H", -1)],
+)
+def test_mzpaf_z_and_c_variants(ion, label, delta_h):
+    from pyteomics.mass import calculate_mass, nist_mass
+
+    f = pt.parse("PEPIDE").frag(ion_type=ion, charge=1, position=3)
+    assert f.to_mzpaf() == label
+    series = "z-dot" if label[0] == "z" else "c"
+    seq = "IDE" if label[0] == "z" else "PEP"
+    # the label's meaning (series + H delta) is the fragment's own m/z
+    assert f.mz == pytest.approx(calculate_mass(sequence=seq, ion_type=series, charge=1) + delta_h * nist_mass["H"][0][0], abs=1e-6)
+
+
+def test_mzpaf_z_variant_delta_precedes_neutral_losses():
+    f = pt.parse("PEPIDE").frag(ion_type="z", charge=2, position=3, deltas={"H2O": -1})
+    assert f.to_mzpaf() == "z3{IDE}-H-H2O^2"

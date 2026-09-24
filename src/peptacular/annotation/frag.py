@@ -50,6 +50,19 @@ _ION_TYPE_TO_MZPAF_SERIES: dict[IonType, str] = {
     IonType.DB_THREONINE: "db",
     IonType.DA_ISOLEUCINE: "da",
     IonType.DA_THREONINE: "da",
+    # mzPAF 1.0.1 "z" is the z-dot radical (sum + H2O - NH2). The other z and c variants
+    # have no letter of their own, so they are written as that series plus a hydrogen
+    # delta (_MZPAF_SERIES_DELTA): Biemann z = "z-H", z+H = "z+H", c-H = "c-H".
+    IonType.Z: "z",
+    IonType.Z_RADICAL: "z",
+    IonType.Z_PLUS_H: "z",
+    IonType.C_MINUS_H: "c",
+}
+
+_MZPAF_SERIES_DELTA: dict[IonType, str] = {
+    IonType.Z: "-H",
+    IonType.Z_PLUS_H: "+H",
+    IonType.C_MINUS_H: "-H",
 }
 
 
@@ -263,6 +276,11 @@ class Fragment:
 
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
+        mzPAF 1.0.1 ``z`` is the z-dot radical (``IonType.Z_RADICAL``). The Biemann ``z``
+        (``IonType.Z``), ``z+H`` and ``c-H`` ions have no letter of their own and are
+        written as ``z``/``c`` with a hydrogen delta: ``z3{IDE}-H``, ``z3{IDE}+H``,
+        ``c3{PEP}-H``, so the label parses back to the same m/z.
+
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
         :rtype: str
         """
@@ -274,6 +292,7 @@ class Fragment:
 
         parts: list[str] = []
         internal_loss: str | None = None
+        series_delta: str | None = None
 
         if self.ion_type is None:
             parts.append("?")
@@ -283,6 +302,7 @@ class Fragment:
             if ion_info.properties & (IonTypeProperty.FORWARD | IonTypeProperty.BACKWARD):
                 # Peptide series ions (a, b, c, x, y, z, d, w, da, db, wa, wb)
                 series_str = _ION_TYPE_TO_MZPAF_SERIES.get(ion_info.ion_type, ion_info.ion_type.value)
+                series_delta = _MZPAF_SERIES_DELTA.get(ion_info.ion_type)
                 position = self.position if isinstance(self.position, int) else -1
                 parts.append(f"{series_str}{position}")
 
@@ -345,6 +365,10 @@ class Fragment:
                     raise ValueError(f"Cannot convert intact ion type {ion_info.id} to mzPAF.")
             else:
                 raise ValueError(f"Cannot convert fragment with ion type {self.ion_type} to mzPAF.")
+
+        # Hydrogen delta of a z/c variant that mzPAF writes as its parent series
+        if series_delta is not None:
+            parts.append(series_delta)
 
         # Neutral losses from self.losses
         if self._losses is not None:
