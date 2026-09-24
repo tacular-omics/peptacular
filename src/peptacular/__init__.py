@@ -120,6 +120,7 @@ from .property import (
 from .sequence import (
     DEFAULT_MAX_ISOMERS,
     DIGEST_RECORD_KEYS,
+    FRAGMENT_ARRAY_KEYS,
     FRAGMENT_RECORD_KEYS,
     aa_property_percentage,
     alpha_helix_percent,
@@ -156,6 +157,7 @@ from .sequence import (
     flexibility,
     frag,
     fragment,
+    fragment_arrays,
     fragment_records,
     from_ms2_pip,
     generate_random,
@@ -265,6 +267,8 @@ __all__ = [
     "fragment",
     "frag",
     "fast_fragment",
+    "fragment_arrays",
+    "FRAGMENT_ARRAY_KEYS",
     # localization
     "localization_isomers",
     "DEFAULT_MAX_ISOMERS",

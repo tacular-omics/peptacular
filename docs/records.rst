@@ -5,6 +5,8 @@ peptacular does not ship pandas or polars, not even as an optional extra. What i
 is rows: :func:`peptacular.digest_records` and :func:`peptacular.fragment_records` return a
 list of plain ``dict`` objects, one per peptide or ion, holding only strings, numbers,
 booleans and ``None``. Install whichever DataFrame library you use and pass the list to it.
+For many peptides, :func:`peptacular.fragment_arrays` (the ``numpy`` extra) returns the ions
+as numpy columns instead; see `Fragment columns with numpy`_.
 
 Digest rows
 -----------
@@ -116,3 +118,66 @@ polars
 
    [148.06, 263.087, 376.171]
 
+
+Fragment columns with numpy
+---------------------------
+
+:func:`~peptacular.fragment_arrays` takes the arguments of :func:`~peptacular.fragment`
+and returns the same ions, in the same order and with the same float values, as a
+``dict`` of equal-length numpy arrays: one row per ion, with ``peptide_index`` saying which
+input peptide each row came from. It needs numpy (``pip install "peptacular[numpy]"``);
+without it, it raises :class:`~peptacular.interop.MissingOptionalDependencyError` naming
+that command. The dict goes straight into ``pl.DataFrame``, ``pa.table`` or
+``pd.DataFrame``.
+
+.. testcode::
+   :skipif: np is None
+
+   cols = pt.fragment_arrays(["PEPTIDE/2", "PEM[Oxidation]K"], ion_types=("b", "y"), charges=(1, 2))
+   print(len(cols["mz"]), pt.FRAGMENT_ARRAY_KEYS)
+   print(cols["peptide_index"][:3].tolist(), cols["ion_type"][:3].tolist(), cols["mz"][:3].round(4).tolist())
+
+   water = pt.fragment_arrays("PEPTIDE", ion_types=("y",), charges=(1,), deltas=(None, "H2O"))
+   print(water["delta_label"][:2].tolist(), water["delta_mass"][:2].round(4).tolist())
+
+.. testoutput::
+   :skipif: np is None
+
+   44 ('peptide_index', 'ion_type', 'position', 'end_position', 'charge_state', 'mz', 'mass', 'isotope', 'isotope_label', 'delta_label', 'delta_mass')
+   [0, 0, 0] ['b', 'b', 'b'] [98.06, 227.1026, 324.1554]
+   ['', 'H-2O-1'] [0.0, -18.0106]
+
+- ``peptide_index``, ``position``, ``end_position``, ``charge_state`` and ``isotope`` are
+  ``int64``. A missing ``position`` or ``end_position`` (precursor ions, non-internal ions)
+  is ``0``, so the columns need no nulls.
+- ``mz``, ``mass`` and ``delta_mass`` are ``float64``. ``mass`` is the charged mass
+  (:attr:`~peptacular.Fragment.mass`); ``delta_mass`` is the total mass the deltas add
+  (negative for a loss).
+- ``ion_type``, ``isotope_label`` and ``delta_label`` are ``object`` arrays of ``str``.
+  The labels use the ``isotopes`` and ``deltas`` format of the fragment rows above;
+  ``isotope`` is the number of 13C swapped in (the ``isotopes=`` offset).
+- Plain a/b/c/x/y/z series (no isotope swap, formula delta or neutral loss) are computed
+  with numpy prefix sums, in the same arithmetic order as :func:`~peptacular.fragment`, so
+  the floats match exactly. Every other ion (precursor, internal, immonium, isotopes,
+  formula deltas, neutral losses, adducts, negative charges) is built by
+  :func:`~peptacular.fragment` and copied in.
+- For a list, pass ``n_workers=`` or ``method=`` to run contiguous chunks in parallel;
+  ``peptide_index`` still counts from the start of the whole list.
+
+.. testcode::
+   :skipif: pl is None or np is None
+
+   ions = pl.DataFrame(pt.fragment_arrays(["PEPTIDE/2", "PEM[Oxidation]K"], ion_types=("b", "y"), charges=(1, 2)))
+   print(ions.group_by("peptide_index").len().sort("peptide_index")["len"].to_list())
+
+.. testoutput::
+   :skipif: pl is None or np is None
+
+   [28, 16]
+
+Speed, 10,000 random tryptic-length peptides (7 to 25 residues), b and y ions at charges 1
+and 2 (638,400 ions), one core: ``fragment_arrays`` about 0.7 s and ``pl.DataFrame`` of it
+about 0.1 s, against about 5 to 10 s for :func:`~peptacular.fragment` plus about 0.3 to 0.5 s to
+pull its attributes into a DataFrame, and about 100 s through
+:func:`~peptacular.fragment_records`. These were measured on a shared, busy machine; treat
+them as a rough ratio (about 10x over the object route), not a benchmark.

@@ -19,7 +19,7 @@ from peptacular.interop import (
 )
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
+parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "numpy", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
 args = parser.parse_args()
 package = Path(pt.__file__).resolve()
 assert "site-packages" in package.parts, package
@@ -45,8 +45,12 @@ elif "psm-utils" in extras:
     assert from_psm_utils(to_psm_utils(annotation)) == annotation
 elif "alphabase" in extras:
     assert from_alphabase_dataframe(to_alphabase_dataframe([annotation])) == [annotation]
+elif "numpy" in extras:
+    columns = pt.fragment_arrays(["PEPTIDE", "PEM[Oxidation]K/2"], ion_types=["b", "y"], charges=[1])
+    fragments = [f for peptide in pt.fragment(["PEPTIDE", "PEM[Oxidation]K/2"], ion_types=["b", "y"], charges=[1]) for f in peptide]
+    assert columns["mz"].tolist() == [f.mz for f in fragments]
 elif "mcp" not in extras:
-    for optional in ("alphabase", "psm_utils", "pyteomics", "pandas", "mcp", "pydantic"):
+    for optional in ("alphabase", "psm_utils", "pyteomics", "pandas", "numpy", "mcp", "pydantic"):
         assert importlib.util.find_spec(optional) is None, optional
         assert optional not in sys.modules, optional
     try:
@@ -55,6 +59,12 @@ elif "mcp" not in extras:
         pass
     else:
         raise AssertionError("A core installation must not include optional integrations")
+    try:
+        pt.fragment_arrays("PEPTIDE")
+    except MissingOptionalDependencyError as error:
+        assert "peptacular[numpy]" in str(error)
+    else:
+        raise AssertionError("fragment_arrays must ask for the numpy extra on a core installation")
 print(f"Installed wheel smoke checks passed ({args.extra or 'core'}): {package}")
 
 if "mcp" in extras:

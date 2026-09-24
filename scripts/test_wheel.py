@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--dist", type=Path, default=root / "dist", help="Directory containing exactly one Peptacular wheel")
-parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
+parser.add_argument("--extra", choices=["pyteomics", "psm-utils", "alphabase", "numpy", "mcp", "mcp,pyteomics", "mcp,psm-utils", "mcp,alphabase"])
 args = parser.parse_args()
 wheels = list(args.dist.resolve().glob("peptacular-*.whl"))
 if len(wheels) != 1:
