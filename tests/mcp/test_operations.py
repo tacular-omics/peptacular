@@ -33,9 +33,9 @@ def test_inspection_preserves_explicit_charge_carriers():
 
 
 def test_measurements_preserve_partial_success():
-    result = calculate("analyze_peptides", ["PEP[+15.5]TIDE/2", "PEPTIDE", "INVALID!"], measurements=["neutral_mass_da", "mz", "composition"])
+    result = calculate("analyze_peptides", ["PEP[+15.5]TIDE/2", "PEPTIDE", "INVALID!"], measurements=["neutral_mass", "mz", "composition"])
     good, uncharged, invalid = result["records"]
-    assert good["neutral_mass_da"] == pytest.approx(pt.parse("PEPTIDE").neutral_mass() + 15.5)
+    assert good["neutral_mass"] == pytest.approx(pt.parse("PEPTIDE").neutral_mass() + 15.5)
     assert good["mz"] > 0
     assert good["composition"] is None
     assert good["diagnostics"][0]["code"] == "unavailable_composition"
@@ -46,10 +46,10 @@ def test_measurements_preserve_partial_success():
 @pytest.mark.parametrize("charge", [-3, -1, 1, 2, 4])
 def test_precursor_matches_core(charge):
     a = pt.parse("PEPTIDE").set_charge(charge)
-    row = calculate("analyze_peptides", [a.serialize()], measurements=["mz", "ion_mass_da", "neutral_mass_da", "composition"])["records"][0]
+    row = calculate("analyze_peptides", [a.serialize()], measurements=["mz", "mass", "neutral_mass", "composition"])["records"][0]
     assert row["mz"] == a.mz()
-    assert row["ion_mass_da"] == a.mass()
-    assert row["neutral_mass_da"] == a.neutral_mass()
+    assert row["mass"] == a.mass()
+    assert row["neutral_mass"] == a.neutral_mass()
     assert row["external_charge"] + row["intrinsic_charge"] == row["charge"] == charge
 
 
@@ -63,28 +63,64 @@ def test_charge_conflicts_and_override():
 @pytest.mark.parametrize("ion", ["a", "b", "c", "x", "y", "z", "p"])
 @pytest.mark.parametrize("charge", [-1, 1, 2])
 def test_fragment_values_and_spans(ion, charge):
-    rows = calculate("fragment_peptides", ["PEPTIDE"], ion_series=[ion], charges=[charge], include=["composition", "sequence", "label"])["records"]
+    rows = calculate("fragment_peptides", ["PEPTIDE"], ion_types=[ion], charges=[charge], include=["composition", "sequence", "mzpaf"])["records"]
     expected = pt.parse("PEPTIDE").fragment(ion_types=[ion], charges=[charge])
     assert len(rows) == len(expected)
     for row, frag in zip(rows, expected, strict=True):
         assert row["status"] == "complete", row
         assert row["mz"] == frag.mz
-        assert row["ion_mass_da"] == frag.mass
-        assert row["end"] - row["start"] == (7 if ion == "p" else row["ordinal"])
-        assert row["ordinal"] is None if ion == "p" else row["ordinal"] > 0
+        assert row["mass"] == frag.mass
+        assert row["neutral_mass"] == frag.neutral_mass
+        assert row["charge_state"] == frag.charge_state
+        assert row["end"] - row["start"] == (7 if ion == "p" else row["position"])
+        assert row["position"] is None if ion == "p" else row["position"] > 0
 
 
 def test_numeric_fragment_delta_keeps_numbers():
-    rows = calculate("fragment_peptides", ["PEPTIDE/2"], deltas=[{"kind": "mass", "value": -18.0}], include=["label", "composition"])["records"]
+    rows = calculate("fragment_peptides", ["PEPTIDE/2"], deltas=[{"kind": "mass", "value": -18.0}], include=["mzpaf", "composition"])["records"]
     assert all("mz" in row for row in rows)
     assert any(row["diagnostics"] for row in rows)
 
 
-@pytest.mark.parametrize("axis", ["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"])
+@pytest.mark.parametrize("value", ["-H3PO4", "H3PO4"])
+def test_formula_loss_skips_impossible_ions(value):
+    """A loss some ions cannot lose (y1 has no phosphate) skips those ions, not the whole call."""
+    result = calculate("fragment_peptides", ["PEPS[Phospho]TIDE/2"], ion_types=["y"], deltas=[{"kind": "formula", "value": value}])
+    rows = result["records"]
+    assert all(row["status"] == "complete" for row in rows)
+    plain = [row for row in rows if not row["deltas"]]
+    lost = [row for row in rows if row["deltas"]]
+    assert [row["position"] for row in plain] == list(range(1, 9))
+    assert [row["position"] for row in lost] == [5, 6, 7, 8]
+    for row in lost:
+        base = next(p for p in plain if p["position"] == row["position"])
+        assert row["neutral_mass"] == pytest.approx(base["neutral_mass"] - 97.97689557, abs=1e-6)
+    (note,) = result["diagnostics"]
+    assert note["code"] == "impossible_ions_skipped"
+    assert "y1, y2, y3, y4" in note["message"]
+    assert len(note["message"]) < 200
+
+
+def test_formula_gain_with_plus_sign():
+    rows = calculate("fragment_peptides", ["PEPTIDE/1"], ion_types=["y"], deltas=[{"kind": "formula", "value": "+HPO3"}])["records"]
+    plain = {row["position"]: row["neutral_mass"] for row in rows if not row["deltas"]}
+    gained = [row for row in rows if row["deltas"]]
+    assert len(gained) == len(plain)
+    for row in gained:
+        assert row["neutral_mass"] == pytest.approx(plain[row["position"]] + 79.96633, abs=1e-4)
+
+
+@pytest.mark.parametrize("value", ["-Q7", "+", "H3PO4!"])
+def test_bad_formula_delta_is_short_and_actionable(value):
+    with pytest.raises(ValidationError, match="is not a chemical formula"):
+        c.Delta(kind="formula", value=value)
+
+
+@pytest.mark.parametrize("axis", ["neutral_mass", "mass", "mz", "neutron_offset"])
 def test_isotope_axis(axis):
     a = pt.parse("PEPTIDE/2")
     rows = calculate("isotope_envelopes", [a.serialize()], axis=axis)["records"]
-    effective = a.set_charge(0, inplace=False) if axis == "neutral_mass_da" else a
+    effective = a.set_charge(0, inplace=False) if axis == "neutral_mass" else a
     core = effective.isotopic_distribution()
     expected_position = core[0].neutron_count if axis == "neutron_offset" else core[0].mass / (2 if axis == "mz" else 1)
     assert rows[0]["position"] == pytest.approx(expected_position)
@@ -99,11 +135,11 @@ def test_properties():
 
 def test_comparison_delta():
     row = calculate(
-        "compare_peptides", ["M[Oxidation]PEPTIDE"], reference={"annotation": "MPEPTIDE"}, measurements=["annotation", "neutral_mass_da", "composition"]
+        "compare_peptides", ["M[Oxidation]PEPTIDE"], reference={"annotation": "MPEPTIDE"}, measurements=["annotation", "neutral_mass", "composition"]
     )["records"][0]
     assert row["same_sequence"]
     assert row["composition_delta"]["O"] == 1
-    assert row["neutral_mass_da"]["delta_input_minus_reference"] == pytest.approx(15.99491461957)
+    assert row["neutral_mass"]["delta_input_minus_reference"] == pytest.approx(15.99491461957)
 
 
 @pytest.mark.parametrize("specificity", ["full", "semi", "nonspecific"])
@@ -176,7 +212,7 @@ def test_conversion(target):
 def test_reference_and_modification_search():
     rows = find_modifications(c.FindModifications(query_type="mass", query=15.9949, tolerance=0.001))
     assert any(row["name"] == "Oxidation" for row in rows)
-    assert all(abs(row["mass_error_da"]) <= 0.001 for row in rows)
+    assert all(abs(row["mass_error"]) <= 0.001 for row in rows)
     assert reference_rows(c.GetReference(topic="enzymes"), {})
     assert reference_rows(c.GetReference(topic="scales"), {})
 

@@ -30,8 +30,8 @@ class InspectionRow(Row):
 
 class AnalysisRow(Row):
     length: int | None = None
-    neutral_mass_da: float | None = None
-    ion_mass_da: float | None = None
+    neutral_mass: float | None = None
+    mass: float | None = None
     mz: float | None = None
     charge: int | None = None
     external_charge: int | None = None
@@ -41,15 +41,23 @@ class AnalysisRow(Row):
     residue_counts: dict[str, int] | None = None
 
 
-class FragmentRow(AnalysisRow):
-    ion_series: Literal["a", "b", "c", "x", "y", "z", "p"] | None = None
-    ordinal: int | None = None
+class FragmentRow(Row):
+    # Keys follow the library's fragment records (FRAGMENT_RECORD_KEYS); start/end is the residue span.
+    ion_type: Literal["a", "b", "c", "x", "y", "z", "p"] | None = None
+    position: int | None = None
     start: int | None = None
     end: int | None = None
-    label: str | None = None
-    isotopes: dict[str, int] | None = None
-    deltas: list[dict[str, Any]] | None = None
+    charge_state: int | None = None
+    external_charge: int | None = None
+    intrinsic_charge: int | None = None
+    mz: float | None = None
+    mass: float | None = None
+    neutral_mass: float | None = None
     monoisotopic: bool | None = None
+    deltas: list[dict[str, Any]] | None = None
+    isotopes: dict[str, int] | None = None
+    composition: dict[str, float] | None = None
+    mzpaf: str | None = None
 
 
 class Difference(BaseModel):
@@ -63,13 +71,13 @@ class ComparisonRow(Row):
     reference_proforma: str | None = None
     same_sequence: bool | None = None
     changed_annotation_fields: list[str] | None = None
-    neutral_mass_da: Difference | None = None
+    neutral_mass: Difference | None = None
     mz: Difference | None = None
     composition_delta: dict[str, float] | None = None
 
 
 class IsotopeRow(Row):
-    axis: Literal["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"] | None = None
+    axis: Literal["neutral_mass", "mass", "mz", "neutron_offset"] | None = None
     peak_index: int | None = None
     position: float | None = None
     relative_abundance: float | None = None

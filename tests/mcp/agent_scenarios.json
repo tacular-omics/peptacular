@@ -8,6 +8,7 @@
     ],
     "checks": [
       "Both mass calculations succeed",
+      "Request measurements neutral_mass and mz (library names, not neutral_mass_da)",
       "The numeric modification has a composition diagnostic",
       "No helper Python script is needed"
     ]
@@ -34,7 +35,8 @@
     ],
     "checks": [
       "Use charge_policy override",
-      "Report applied charge 3"
+      "Report applied charge 3",
+      "Read the charged mass from the row key mass and the neutral mass from neutral_mass"
     ]
   },
   {
@@ -97,6 +99,19 @@
       "Explain that computation stopped at the row limit",
       "Suggest a larger max_rows or narrower ion settings",
       "Do not invent a stored result handle or continuation page"
+    ]
+  },
+  {
+    "id": "phospho_neutral_loss",
+    "prompt": "Generate y ions at charge 2 for PEPS[Phospho]TIDE/2, with and without loss of phosphoric acid (H3PO4). Which y ions cannot lose it, and why?",
+    "expected_tools": [
+      "fragment_peptides"
+    ],
+    "checks": [
+      "Pass ion_types [\"y\"] and a formula delta H3PO4 (or -H3PO4), not a positive mass",
+      "Read ion_type, position and mz from the rows",
+      "Report y1 to y4 as skipped from the impossible_ions_skipped diagnostic, because they hold no phosphate",
+      "No helper Python script is needed"
     ]
   }
 ]

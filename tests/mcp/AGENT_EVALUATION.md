@@ -13,6 +13,11 @@ retries, and whether it invented unsupported operations. Check each scenario's
 listed assertions. A successful protocol connection alone does not establish
 successful agent planning.
 
+Confirm that agents use the library's argument names (`ion_types`, `isotopes`,
+`max_variable_mods`) and read fragment rows by the library's record keys
+(`ion_type`, `position`, `charge_state`, `mass`, `neutral_mass`, `mzpaf`). Unknown
+argument names are rejected, so an agent that guesses an old name gets an error.
+
 Confirm that agents pass actual annotations between calls, preserve any needed
 source associations in their own context, and distinguish per-field diagnostics
 from truncated calculations. After a truncated result, the agent should narrow

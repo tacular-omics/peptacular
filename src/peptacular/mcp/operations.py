@@ -9,7 +9,7 @@ from dataclasses import asdict
 from typing import Any, Literal
 
 import peptacular as pt
-from peptacular.diagnostics import diagnostic_from_exception
+from peptacular.diagnostics import InvalidAdjustmentError, diagnostic_from_exception
 
 from . import contracts as c
 
@@ -27,6 +27,10 @@ LIMITS = {
 }
 
 
+NOTE = "__note__"
+"""Key of an adapter item that is a call-level diagnostic for its input, not a result row."""
+
+
 class ServiceError(ValueError):
     def __init__(self, code: str, message: str):
         super().__init__(message)
@@ -38,6 +42,10 @@ def diagnostic(exc: Exception, field: str | None = None, stage: Literal["parse",
         code = exc.code
     elif isinstance(exc, ImportError):
         code = "missing_optional_dependency"
+    elif isinstance(exc, InvalidAdjustmentError):
+        # The library message lists the whole composition. Keep the model-facing text short.
+        exc = ServiceError("invalid_adjustment", "A delta or isotope removes more atoms than the ion has. Check the sign: a formula delta is a loss.")
+        code = exc.code
     else:
         code = diagnostic_from_exception(exc, stage).code
     return c.Diagnostic(code=code, message=str(exc)[:1000], stage=stage, field=field).model_dump()
@@ -112,14 +120,14 @@ def analyze_one(a, request):
                         method="sequential",
                     )
                     row["property_settings"] = settings.model_dump()
-                elif field == "neutral_mass_da":
+                elif field == "neutral_mass":
                     value = ion.neutral_mass(monoisotopic=request.monoisotopic)
                     row.update(charge_fields(ion))
                 else:
                     if field == "mz":
                         require_charge(ion)
                     row.update(charge_fields(ion))
-                    value = getattr(ion, "mass" if field == "ion_mass_da" else "mz")(monoisotopic=request.monoisotopic)
+                    value = getattr(ion, "mass" if field == "mass" else "mz")(monoisotopic=request.monoisotopic)
                 row[field] = value
             except (ValueError, KeyError) as exc:
                 row[field] = None
@@ -127,27 +135,68 @@ def analyze_one(a, request):
         yield row
 
 
+def _fragments(ion, request, ion_types, deltas, length=None):
+    return ion.fragment(
+        ion_types=ion_types,
+        charges=[ion.charge_state],
+        monoisotopic=request.monoisotopic,
+        isotopes=request.isotopes,
+        deltas=deltas,
+        min_length=length,
+        max_length=length,
+    )
+
+
+def _possible_fragments(ion, request, delta):
+    """Ions for one delta variant, skipping each ion the delta removes atoms from (y1 cannot lose H3PO4).
+
+    The library raises for the whole call when a caller's delta is impossible for any ion, so
+    each ion type and length is tried on its own. Returns the fragments and the skipped labels.
+    """
+    kept, skipped = [], []
+    for ion_type in request.ion_types:
+        for length in [None] if ion_type == "p" else range(1, len(ion) + 1):
+            try:
+                kept.extend(_fragments(ion, request, [ion_type], [delta], length))
+            except InvalidAdjustmentError:
+                skipped.append(ion_type if length is None else f"{ion_type}{length}")
+    return kept, skipped
+
+
 def fragment_one(a, request):
     for ion in charged_annotations(a, request):
         require_charge(ion)
-        combinations = len(ion) * len(request.ion_series) * len(request.isotope_offsets) * (len(request.deltas) + 1)
+        combinations = len(ion) * len(request.ion_types) * len(request.isotopes) * (len(request.deltas) + 1)
         if combinations > 50000:
             raise ServiceError("resource_limit", "Fragment expansion exceeds 50,000 fragments per charge. Reduce sequence length or settings.")
-        fragments = ion.fragment(
-            ion_types=request.ion_series,
-            charges=[ion.charge_state],
-            monoisotopic=request.monoisotopic,
-            isotopes=request.isotope_offsets,
-            deltas=[None, *[delta.value for delta in request.deltas]],
-        )
+        variants = [None, *request.deltas]
+        values = [None, *(delta.library_value() for delta in request.deltas)]
+        try:
+            fragments = _fragments(ion, request, request.ion_types, values)
+        except InvalidAdjustmentError:
+            fragments = []
+            for delta, value in zip(variants, values, strict=True):
+                kept, skipped = _possible_fragments(ion, request, value)
+                fragments.extend(kept)
+                if skipped:
+                    what = f"delta {delta.value!r}" if delta is not None else "the isotope offsets"
+                    listed = ", ".join(skipped[:20]) + (", ..." if len(skipped) > 20 else "")
+                    yield {
+                        NOTE: {
+                            "code": "impossible_ions_skipped",
+                            "message": f"Skipped {len(skipped)} ions at charge {ion.charge_state} that lack the atoms {what} removes: {listed}.",
+                            "field": "isotopes" if delta is None else "deltas",
+                            "recovery": "Expected for small ions. A formula delta is a loss unless it starts with '+'.",
+                        }
+                    }
         for f in fragments:
             if f.charge_state == 0:
                 yield {
                     "proforma": ion.serialize(),
-                    "ion_series": str(f.ion_type),
-                    "ordinal": f.position,
-                    "charge": 0,
-                    "ion_mass_da": f.mass,
+                    "ion_type": str(f.ion_type),
+                    "position": f.position,
+                    "charge_state": 0,
+                    "mass": f.mass,
                     "mz": None,
                     "diagnostics": [diagnostic(ServiceError("missing_charge", "This fragment has zero total charge and no defined m/z."), "mz")],
                 }
@@ -156,21 +205,21 @@ def fragment_one(a, request):
                 continue
             if request.max_mz is not None and f.mz > request.max_mz:
                 continue
-            ordinal = None if f.ion_type == "p" else f.position
-            start = 0 if f.ion_type in ("a", "b", "c", "p") else len(ion) - int(ordinal or 0)
-            end = len(ion) if f.ion_type in ("x", "y", "z", "p") else ordinal
+            position = None if f.ion_type == "p" else f.position
+            start = 0 if f.ion_type in ("a", "b", "c", "p") else len(ion) - int(position or 0)
+            end = len(ion) if f.ion_type in ("x", "y", "z", "p") else position
             row: dict[str, Any] = {
                 "proforma": ion.serialize(),
-                "ion_series": str(f.ion_type),
-                "ordinal": ordinal,
+                "ion_type": str(f.ion_type),
+                "position": position,
                 "start": start,
                 "end": end,
-                "charge": f.charge_state,
+                "charge_state": f.charge_state,
                 "external_charge": f.external_charge,
                 "intrinsic_charge": f.charge_state - f.external_charge,
                 "mz": f.mz,
-                "ion_mass_da": f.mass,
-                "neutral_mass_da": f.neutral_mass,
+                "mass": f.mass,
+                "neutral_mass": f.neutral_mass,
                 "monoisotopic": request.monoisotopic,
                 "deltas": [{"value": str(k), "count": v} for k, v in f.deltas.items()],
                 "isotopes": {str(k): v for k, v in f.isotopes.items()},
@@ -178,7 +227,7 @@ def fragment_one(a, request):
             }
             for field in request.include:
                 try:
-                    if field == "label":
+                    if field == "mzpaf":
                         value = f.serialize(format="mzpaf", include_sequence=False)
                     elif field == "composition":
                         value = {str(k): v for k, v in f.composition.items()}
@@ -226,7 +275,7 @@ def isotopes_one(a, request):
     for ion in charged_annotations(a, request):
         if request.axis == "mz":
             require_charge(ion)
-        effective = ion.set_charge(0, inplace=False) if request.axis == "neutral_mass_da" else ion
+        effective = ion.set_charge(0, inplace=False) if request.axis == "neutral_mass" else ion
         charges = charge_fields(effective)
         peaks = effective.isotopic_distribution(
             max_isotopes=request.max_peaks,
@@ -328,7 +377,7 @@ def enumerate_one(a, request):
         mapping = settings.setdefault(name, {})
         for residue in rule.residues or [None]:
             mapping.setdefault(residue, []).append(rule.modification)
-    candidates = a.modify(**settings, max_variable_mods=request.max_variable_modifications, use_regex=False, inplace=False)
+    candidates = a.modify(**settings, max_variable_mods=request.max_variable_mods, use_regex=False, inplace=False)
     for index, candidate in enumerate(candidates):
         if index == request.max_candidates:
             raise ServiceError("candidate_limit", "Candidate limit reached. Enumeration is incomplete.")
@@ -435,6 +484,9 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
             stage = "calculate"
             generated = map_one(a, request, proteins or []) if name == "map_peptides" else ADAPTERS[name](a, request)
             for row in generated:
+                if NOTE in row:
+                    diagnostics.append({**c.Diagnostic(stage="calculate", **row[NOTE]).model_dump(), "source_key": source["source_key"]})
+                    continue
                 if len(rows) >= request.max_rows:
                     raise ServiceError("row_limit", "Requested result row budget reached.")
                 row = {
@@ -508,15 +560,15 @@ def find_modifications(request):
                     "vocabulary": vocabulary,
                     "accession": str(entry.id),
                     "name": entry.name,
-                    "mass_da": mass,
+                    "mass": mass,
                     "formula": getattr(entry, "formula", None),
                     "composition": getattr(entry, "dict_composition", None),
                 }
                 if request.query_type == "mass":
-                    row["mass_error_da"] = mass - request.query
+                    row["mass_error"] = mass - request.query
                     row["mass_error_ppm"] = (mass - request.query) / abs(request.query) * 1e6 if request.query else None
                 rows.append(row)
-    rows.sort(key=lambda r: (abs(r.get("mass_error_da", 0)), r["vocabulary"], r["accession"]))
+    rows.sort(key=lambda r: (abs(r.get("mass_error", 0)), r["vocabulary"], r["accession"]))
     return rows
 
 
@@ -531,9 +583,12 @@ def versions():
 
 
 CONVENTIONS = {
-    "coordinates": "start is zero-based, end is exclusive. Fragment ordinal counts residues. Precursor ordinal is null.",
+    "coordinates": "start is zero-based, end is exclusive. Fragment position is the ion number, counted in residues from its terminus. "
+    "Precursor position is null.",
     "charge": "Signed total, external carrier and intrinsic charges are separate. m/z requires nonzero charge. Conflicts require override.",
     "isotopes": "Theoretical approximate distributions. Relative maximum abundance is one. Retained probability is unavailable.",
+    "deltas": "A fragment formula delta is a loss ('H3PO4' or '-H3PO4'); '+HPO3' is a gain. A mass delta is added as signed Da. "
+    "Ions a delta cannot apply to are skipped and reported in diagnostics.",
     "ownership": "Peptacular calculates theoretical sequence properties. spxtacular owns observed spectra and spectrum matching.",
     "inputs": "Pass annotation records directly. IDs and source indexes identify records within this call. No server-side data is retained.",
     "limits": "Inspect computation.complete and stop_reason. For a truncated calculation, narrow the request or split the batch.",
@@ -542,7 +597,7 @@ CONVENTIONS = {
 
 def reference_rows(request, limits):
     if request.topic == "capabilities":
-        return [{"tools": list(c.REQUESTS), "versions": versions(), "limits": limits, "transport": "local_stdio", "contract_version": "1.0"}]
+        return [{"tools": list(c.REQUESTS), "versions": versions(), "limits": limits, "transport": "local_stdio", "contract_version": "2.0"}]
     if request.topic == "enzymes":
         from tacular import PROTEASE_LOOKUP
 
@@ -550,7 +605,7 @@ def reference_rows(request, limits):
     elif request.topic == "scales":
         rows = [{"id": str(key), "aggregation": ["avg", "sum"], "modification_treatment": "ignore"} for key in pt.PROPERTY_SCALES]
     elif request.topic == "ions":
-        rows = [{"ion_series": ion, "kind": "precursor" if ion == "p" else "backbone"} for ion in ("a", "b", "c", "x", "y", "z", "p")]
+        rows = [{"ion_type": ion, "kind": "precursor" if ion == "p" else "backbone"} for ion in ("a", "b", "c", "x", "y", "z", "p")]
     elif request.topic == "schemas":
         rows = [{"tool": name, "schema": model.model_json_schema()} for name, model in c.REQUESTS.items()]
     elif request.topic == "notation":
