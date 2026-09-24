@@ -889,6 +889,11 @@ class TestFragmentMzPAF(unittest.TestCase):
             self.assertEqual(_mzpaf_mass(value), label)
         frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[{0.1: 3}])[4]
         self.assertEqual(frag.to_mzpaf(include_sequence=False), "y5+0.3")
+        # a delta that rounds to zero is left out of the label
+        for zero in (-1e-9, {1e-8: 3}):
+            deltas = zero if isinstance(zero, dict) else {zero: 1}
+            frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[deltas])[4]
+            self.assertEqual(frag.to_mzpaf(include_sequence=False), "y5")
 
     def test_numeric_delta_labels_parse_back(self):
         # Every numeric label must be valid mzPAF: paftacular's parser when available, else the
@@ -900,7 +905,7 @@ class TestFragmentMzPAF(unittest.TestCase):
         except ImportError:
             paftacular = None
         number = re.compile(r"[+-]\d+(\.\d+)?")
-        for delta in (1e-5, {0.1: 3}, -17.02655, {-18.0: -1}, 123456.7891234, -1e-9):
+        for delta in (1e-5, {0.1: 3}, -17.02655, {-18.0: -1}, 123456.7891234):
             deltas = delta if isinstance(delta, dict) else {delta: 1}
             frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[deltas])[4]
             label = frag.to_mzpaf(include_sequence=False)

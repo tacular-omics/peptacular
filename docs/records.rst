@@ -63,9 +63,10 @@ the list of lists it returns for several peptides (the rows come out flat, and
 - ``sequence`` and ``parent_sequence`` leave out the ``/charge`` suffix; the charge is in
   ``charge_state``.
 - ``mzpaf`` is the :meth:`~peptacular.Fragment.to_mzpaf` label (``"b3{PEP}-H2O"``,
-  ``"b3{PEP}-34.0"``; masses are fixed-point, rounded to 6 decimals), or None when mzPAF
-  cannot write the ion: an ion type with no mzPAF form, or a formula delta with both positive
-  and negative element counts (``"CH-2"``).
+  ``"b3{PEP}-34.0"``), or None when mzPAF cannot write the ion: an ion type with no mzPAF
+  form, or a formula delta with both positive and negative element counts (``"CH-2"``).
+  The label rounds a mass delta to 6 decimals (fixed-point, a mass that rounds to zero is
+  left out), while the ``deltas`` column keeps the full precision.
 - A wrong top-level input (``None``, a number) raises ``TypeError``, as
   :func:`~peptacular.digest` does; a list item that is not a
   :class:`~peptacular.Fragment` raises :class:`~peptacular.PeptacularError`.

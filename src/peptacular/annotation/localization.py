@@ -198,7 +198,8 @@ def _split_ambiguity(annotation: ProFormaAnnotation) -> tuple[ProFormaAnnotation
             taken = sorted(position for position in positions if position in occupied)
             if taken:
                 raise PeptacularError(
-                    f"Group #{group} lists residue {taken[0] + 1} ({base.sequence[taken[0]]}), which already carries a "
+                    f"Group #{group.label} lists residue {taken[0] + 1}, {base.sequence[taken[0]]} at position {taken[0]} "
+                    "(0-based), which already carries a "
                     "modification; one mod per residue, so that placement is impossible. Remove the group tag from "
                     "that residue or drop its other mod."
                 )

@@ -151,7 +151,7 @@ def _mzpaf_mass(value: float) -> str:
     text = f"{value:+.6f}".rstrip("0")
     if text.endswith("."):
         text += "0"
-    return "+0.0" if text == "-0.0" else text
+    return "+0.0" if text == "-0.0" else text  # the caller drops a zero delta
 
 
 def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:
@@ -524,7 +524,7 @@ class Fragment:
         H2O are stored as negative formulas (``H-2O-1``), so ``{"H2O": 1}`` is written
         ``-H2O`` and ``{"H2O": -1}`` ``+H2O``; a plain formula such as ``C2H2O`` is a gain
         (``+C2H2O``). A numeric delta is written as a signed fixed-point mass rounded to 6
-        decimals (``b2-34.0`` for ``{-17.0: 2}``). A formula with both positive and negative
+        decimals (``b2-34.0`` for ``{-17.0: 2}``); one that rounds to zero is left out. A formula with both positive and negative
         element counts (``CH-2``) cannot be written and raises :class:`PeptacularError`.
 
         :param include_sequence: If True, include the peptide sequence in the label.
@@ -624,7 +624,9 @@ class Fragment:
                 if isinstance(loss_key, float | int):
                     # mzPAF (spec section 4.5) writes an unnamed mass delta as a signed number,
                     # ``y8-17.0265``. A number takes no repeat count, so the count is folded in.
-                    parts.append(_mzpaf_mass(loss_key * count))
+                    mass = _mzpaf_mass(loss_key * count)
+                    if mass != "+0.0":  # a delta that rounds to zero changes nothing; leave it out
+                        parts.append(mass)
                     continue
                 loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
                 paf_formula = _mzpaf_formula(loss_formula)
