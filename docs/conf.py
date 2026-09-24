@@ -31,7 +31,13 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_rtd_theme"
-html_extra_path = ["../src/peptacular/schemas/proforma-json-v1.schema.json"]
+# The ProForma JSON schema, plus the repo-root llms.txt and llms-full.txt
+# (llmstxt.org), are served at the site root.
+html_extra_path = [
+    "../src/peptacular/schemas/proforma-json-v1.schema.json",
+    "../llms.txt",
+    "../llms-full.txt",
+]
 
 # Autodoc settings
 autodoc_default_options = {
