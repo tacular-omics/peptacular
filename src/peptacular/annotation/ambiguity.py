@@ -8,6 +8,7 @@ from tacular import IonType
 
 from ..annotation.parser import Interval
 from ..constants import ModType
+from ..diagnostics import PeptacularError
 
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
@@ -84,7 +85,7 @@ def annotate_ambiguity(
         )
 
     if annotation.has_intervals:
-        raise ValueError("Annotation should not contain intervals")
+        raise PeptacularError("Annotation should not contain intervals")
 
     _validate_coverage_lengths(forward_coverage, reverse_coverage, len(annotation))
 
@@ -322,7 +323,7 @@ def _get_mass_shift_interval(forward_coverage: list[int], reverse_coverage: list
 def _validate_coverage_lengths(forward_coverage: list[int], reverse_coverage: list[int], seq_len: int) -> None:
     """Validate that coverage lengths match sequence length"""
     if len(forward_coverage) != seq_len or len(reverse_coverage) != seq_len:
-        raise ValueError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
+        raise PeptacularError(f"Coverage length does not match sequence length: {len(forward_coverage)} != {len(reverse_coverage)} != {seq_len}")
 
 
 def _apply_mass_shift(
@@ -366,7 +367,7 @@ def group_by_ambiguity(annotations: Iterable[ProFormaAnnotation], precision: int
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
+        raise PeptacularError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 
@@ -417,7 +418,7 @@ def unique_fragments(annotations: Iterable[ProFormaAnnotation], precision: int =
     annotation_masses: list[tuple[ProFormaAnnotation, set[int]]] = []
 
     if precision < 0 or precision > 10:
-        raise ValueError(f"Precision must be an integer between 0 and 10, got {precision}")
+        raise PeptacularError(f"Precision must be an integer between 0 and 10, got {precision}")
 
     mult = 10**precision
 

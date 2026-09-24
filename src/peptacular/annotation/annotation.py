@@ -29,6 +29,8 @@ from ..constants import PROTON_MASS, ModType, ModTypeLiteral, Terminal
 from ..diagnostics import (
     CompositionError,
     InvalidAdjustmentError,
+    InvalidPositionError,
+    PeptacularError,
     ProFormaFormatError,
     UnknownModificationError,
     UnsupportedOperationError,
@@ -382,7 +384,7 @@ class ProFormaAnnotation:
         """
         for aa in self.sequence:
             if aa not in AA_LOOKUP:
-                raise ValueError(f"Invalid amino acid '{aa}' in sequence '{self.sequence}'")
+                raise PeptacularError(f"Invalid amino acid '{aa}' in sequence '{self.sequence}'")
 
     def validate_isotope_mods(self) -> None:
         """Check that all isotope modifications are structurally valid.
@@ -390,7 +392,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any isotope modification is invalid.
         """
         if errors := self.isotope_mods.validate():
-            raise ValueError(f"Invalid isotope modifications: {errors}")
+            raise PeptacularError(f"Invalid isotope modifications: {errors}")
 
     def validate_static_mods(self) -> None:
         """Check that all static (fixed) modifications are structurally valid.
@@ -398,7 +400,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any static modification is invalid.
         """
         if errors := self.static_mods.validate():
-            raise ValueError(f"Invalid static modifications: {errors}")
+            raise PeptacularError(f"Invalid static modifications: {errors}")
 
     def validate_labile_mods(self) -> None:
         """Check that all labile modifications are structurally valid.
@@ -406,7 +408,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any labile modification is invalid.
         """
         if errors := self.labile_mods.validate():
-            raise ValueError(f"Invalid labile modifications: {errors}")
+            raise PeptacularError(f"Invalid labile modifications: {errors}")
 
     def validate_unknown_mods(self) -> None:
         """Check that all unknown-localisation modifications are structurally valid.
@@ -414,7 +416,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any unknown modification is invalid.
         """
         if errors := self.unknown_mods.validate():
-            raise ValueError(f"Invalid unknown modifications: {errors}")
+            raise PeptacularError(f"Invalid unknown modifications: {errors}")
 
     def validate_nterm_mods(self) -> None:
         """Check that all N-terminal modifications are structurally valid.
@@ -422,7 +424,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any N-terminal modification is invalid.
         """
         if errors := self.nterm_mods.validate():
-            raise ValueError(f"Invalid N-terminal modifications: {errors}")
+            raise PeptacularError(f"Invalid N-terminal modifications: {errors}")
 
     def validate_cterm_mods(self) -> None:
         """Check that all C-terminal modifications are structurally valid.
@@ -430,7 +432,7 @@ class ProFormaAnnotation:
         :raises ValueError: If any C-terminal modification is invalid.
         """
         if errors := self.cterm_mods.validate():
-            raise ValueError(f"Invalid C-terminal modifications: {errors}")
+            raise PeptacularError(f"Invalid C-terminal modifications: {errors}")
 
     def validate_internal_mods(self) -> None:
         """Check that all internal (per-position) modifications are structurally valid.
@@ -439,7 +441,7 @@ class ProFormaAnnotation:
         """
         for pos, mods in self.internal_mods.items():
             if errors := mods.validate():
-                raise ValueError(f"Invalid internal modifications at position {pos}: {errors}")
+                raise PeptacularError(f"Invalid internal modifications at position {pos}: {errors}")
 
     def validate_intervals(self) -> None:
         """Check that all intervals are valid, non-overlapping, and within sequence bounds.
@@ -450,19 +452,19 @@ class ProFormaAnnotation:
         intervals = self.intervals
         for interval in intervals:
             if errors := interval.validate():
-                raise ValueError(f"Invalid interval: {errors}")
+                raise PeptacularError(f"Invalid interval: {errors}")
 
         # ensure no overlapping intervals
         sorted_intervals = sorted(intervals, key=lambda x: x.start)
         for i in range(1, len(sorted_intervals)):
             if sorted_intervals[i].start < sorted_intervals[i - 1].end:
-                raise ValueError(f"Overlapping intervals detected: {sorted_intervals[i - 1]} and {sorted_intervals[i]}")
+                raise PeptacularError(f"Overlapping intervals detected: {sorted_intervals[i - 1]} and {sorted_intervals[i]}")
 
         # ensure that intervals dont start/end out of bounds
         seq_len = len(self.sequence) if self._sequence is not None else 0
         for interval in intervals:
             if interval.start < 0 or interval.end > seq_len:
-                raise ValueError(f"Interval {interval} is out of bounds for sequence length {seq_len}")
+                raise PeptacularError(f"Interval {interval} is out of bounds for sequence length {seq_len}")
 
     def validate_ambiguous_labels(self) -> None:
         """Check that each ambiguous-position label (``#label``) has at most one
@@ -490,7 +492,7 @@ class ProFormaAnnotation:
 
         duplicated = sorted(label for label, count in concrete_label_counts.items() if count > 1)
         if duplicated:
-            raise ValueError(
+            raise PeptacularError(
                 f"Ambiguous modification label(s) {duplicated} have more than one concrete modification; "
                 "exactly one occurrence of a labelled group may carry the modification text, "
                 "others must be bare references (e.g. [#label])."
@@ -509,11 +511,11 @@ class ProFormaAnnotation:
                 pass
             case ChargeType.ADDUCTS:
                 if errors := self.charge_adducts.validate():
-                    raise ValueError(f"Invalid charge adducts: {errors}")
+                    raise PeptacularError(f"Invalid charge adducts: {errors}")
             case ChargeType.NONE:
                 pass
             case _:
-                raise ValueError(f"Invalid charge type: {charge_type}")
+                raise PeptacularError(f"Invalid charge type: {charge_type}")
 
     def validate_annotation(self) -> None:
         """Run all individual validators in order; raises on the first error found.
@@ -960,7 +962,7 @@ class ProFormaAnnotation:
         elif charge is None:
             return 0
         else:
-            raise ValueError(f"Invalid charge type: {type(charge)}")
+            raise PeptacularError(f"Invalid charge type: {type(charge)}")
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
@@ -1294,7 +1296,7 @@ class ProFormaAnnotation:
 
         if validate:
             if not Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=mods).is_valid:
-                raise ValueError(f"Invalid internal modifications at position {index}")
+                raise PeptacularError(f"Invalid internal modifications at position {index}")
 
         if self._internal_mods is None:
             self._internal_mods = {}
@@ -1336,7 +1338,7 @@ class ProFormaAnnotation:
         if isinstance(charge, bool):
             # bool is an int subclass; guard it before the int branch so True/False don't
             # slip through and serialize as a garbage charge like 'PEPTIDE/True'.
-            raise ValueError(f"Unsupported charge type: {type(charge)!r}")
+            raise PeptacularError(f"Unsupported charge type: {type(charge)!r}")
         elif isinstance(charge, int):
             # A charge of 0 is a neutral peptidoform (no charge component per ProForma 2.1
             # section 11.5), so clear it to None rather than storing a literal 0.
@@ -1368,7 +1370,7 @@ class ProFormaAnnotation:
         elif isinstance(charge, GlobalChargeCarrier):
             set_value = [str(charge)]
         else:
-            raise ValueError(f"Unsupported charge type: {type(charge)!r}")
+            raise PeptacularError(f"Unsupported charge type: {type(charge)!r}")
 
         self._charge: None | int | list[str] = set_value
 
@@ -1471,7 +1473,7 @@ class ProFormaAnnotation:
         for mod_type, mod_value in mods.items():
             if isinstance(mod_type, int):
                 if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise IndexError(f"Internal modification index out of range: {mod_type}")
+                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
                 self.set_internal_mods_at_index(mod_type, mod_value, inplace=True)
                 continue
 
@@ -1506,7 +1508,7 @@ class ProFormaAnnotation:
 
         if validate:
             if not validator(mod_str).is_valid:
-                raise ValueError(f"Invalid modification: {mod_str}")
+                raise PeptacularError(f"Invalid modification: {mod_str}")
 
         mod_dict = getattr(self, attr_name)
         if mod_dict is None:
@@ -1655,7 +1657,7 @@ class ProFormaAnnotation:
 
         if validate:
             if not ModificationTags.from_string(mod_str).is_valid:
-                raise ValueError(f"Invalid modification: {mod_str}")
+                raise PeptacularError(f"Invalid modification: {mod_str}")
 
         if self._internal_mods is None:
             self._internal_mods = {}
@@ -1710,7 +1712,7 @@ class ProFormaAnnotation:
             if not isinstance(interval, Interval):
                 raise TypeError(f"Expected Interval object, got {type(interval)}")
             if not interval.is_valid:
-                raise ValueError(f"Invalid interval: {interval}")
+                raise PeptacularError(f"Invalid interval: {interval}")
 
         if self._intervals is None:
             self._intervals = []
@@ -1777,7 +1779,7 @@ class ProFormaAnnotation:
         for mod_type, value in mods.items():
             if isinstance(mod_type, int):
                 if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise IndexError(f"Internal modification index out of range: {mod_type}")
+                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
                 self.append_internal_mod_at_index(mod_type, value, inplace=True, validate=validate)
                 continue
 
@@ -2025,7 +2027,7 @@ class ProFormaAnnotation:
         for mod_type, value in mods.items():
             if isinstance(mod_type, int):
                 if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise IndexError(f"Internal modification index out of range: {mod_type}")
+                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
                 self.extend_internal_mods_at_index(mod_type, value, inplace=True, validate=validate)
                 continue
             self._extend_by_type(value, ModType(mod_type), inplace=True, validate=validate)
@@ -2044,7 +2046,7 @@ class ProFormaAnnotation:
         for mod_type, mod_value in mods.items():
             if isinstance(mod_type, int):
                 if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise IndexError(f"Internal modification index out of range: {mod_type}")
+                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
                 self.remove_internal_mod_at_index(mod_type, mod_value, inplace=True)
                 continue
 
@@ -2320,7 +2322,7 @@ class ProFormaAnnotation:
         if isinstance(key, slice):
             start, stop, step = key.start, key.stop, key.step
             if step is not None and step != 1:
-                raise ValueError("Step slicing not supported")
+                raise PeptacularError("Step slicing not supported")
             return self.slice(start, stop, inplace=False)
         elif isinstance(key, int):
             raise NotImplementedError("Single index access not supported for ProFormaAnnotation")
@@ -2605,7 +2607,7 @@ class ProFormaAnnotation:
         try:
             prof_parser, connection = next(parser_gen)
         except StopIteration as e:
-            raise ValueError(f"Invalid ProForma sequence: {sequence}") from e
+            raise PeptacularError(f"Invalid ProForma sequence: {sequence}") from e
 
         # Validate that this is a single peptide (not chimeric/crosslinked)
         if connection is not None:
@@ -2614,7 +2616,7 @@ class ProFormaAnnotation:
         # Ensure there are no subsequent segments waiting in the generator
         try:
             next(parser_gen)
-            raise ValueError(f"Multiple peptide segments found in sequence: {sequence}")
+            raise PeptacularError(f"Multiple peptide segments found in sequence: {sequence}")
         except StopIteration:
             pass  # This is expected for a single annotation
 
@@ -2642,7 +2644,7 @@ class ProFormaAnnotation:
 
             def convert_charge_count(cnt: int) -> str:
                 if cnt <= 0:
-                    raise ValueError("Charge count cannot be less than or equal to zero.")
+                    raise PeptacularError("Charge count cannot be less than or equal to zero.")
                 elif cnt == 1:
                     return ""
                 else:
@@ -2845,7 +2847,7 @@ class ProFormaAnnotation:
         )
 
         if frag.composition is None:
-            raise ValueError("Fragment composition could not be calculated.")
+            raise PeptacularError("Fragment composition could not be calculated.")
 
         return frag.composition
 
@@ -2860,7 +2862,7 @@ class ProFormaAnnotation:
         for aa in self.stripped_sequence:
             mass = aa_lookup[aa]
             if mass is None:
-                raise ValueError(f"Mass not available for amino acid: {aa}")
+                raise PeptacularError(f"Mass not available for amino acid: {aa}")
             total_mass += mass
 
         # Unknown mods
@@ -2947,7 +2949,7 @@ class ProFormaAnnotation:
         for aa in self.stripped_sequence:
             m = aa_lookup[aa]
             if m is None:
-                raise ValueError(f"Mass not available for amino acid: {aa}")
+                raise PeptacularError(f"Mass not available for amino acid: {aa}")
             masses.append(m)
 
         if self.has_nterm_mods:
@@ -3218,7 +3220,7 @@ class ProFormaAnnotation:
                 position = len(self)  # default to full length for terminal ions
             if ion_info.is_internal:
                 if ion_info.ion_type == IonType.IMMONIUM and len(frag_annot) != 1:
-                    raise ValueError("Immonium ions must be single amino acids, or the position must be specified.")
+                    raise PeptacularError("Immonium ions must be single amino acids, or the position must be specified.")
                 position = (
                     1,
                     len(self),
@@ -3238,7 +3240,7 @@ class ProFormaAnnotation:
                 pos_start, pos_end = pios_tuple
                 frag_annot = frag_annot.slice(pos_start, pos_end, inplace=inplace)
             case _:
-                raise ValueError(f"Invalid position type: {type(position)}")
+                raise PeptacularError(f"Invalid position type: {type(position)}")
 
         # Checked on the fragment itself: satellite ions depend on its terminal residue.
         ion_type = can_fragment_sequence(frag_annot.sequence, ion_type)
@@ -3286,7 +3288,7 @@ class ProFormaAnnotation:
         _expand: bool = True,
     ) -> Generator[Fragment, None, None]:
         if self.has_unknown_mods or self.has_intervals:
-            raise ValueError(f"Fragmentation not supported for sequences with unknown modifications or intervals: {str(self)}")
+            raise PeptacularError(f"Fragmentation not supported for sequences with unknown modifications or intervals: {str(self)}")
 
         # "d" and "w" cover the generic ion and the residue-specific a/b variants
         # (d-valine, da-/db-threonine, ...); each variant only forms on its own residues.
@@ -3588,7 +3590,7 @@ class ProFormaAnnotation:
             charges = self._default_fragment_charges(self.charge_state)
         for charge in charges:
             if isinstance(charge, bool) or not isinstance(charge, int) or charge == 0:
-                raise ValueError("fast_fragment charges must be nonzero integers")
+                raise PeptacularError("fast_fragment charges must be nonzero integers")
         supported = {IonType.A, IonType.B, IonType.C, IonType.X, IonType.Y, IonType.Z, IonType.PRECURSOR, IonType.NEUTRAL}
         for ion_type_input in ion_types:
             if to_ion_type(ion_type_input) not in supported:
@@ -4407,7 +4409,7 @@ class ProFormaAnnotation:
         mod_str, count = convert_single_mod_input(mod)
 
         if count != 1:
-            raise ValueError("Fixed modifications added by residue must have a count of 1.")
+            raise PeptacularError("Fixed modifications added by residue must have a count of 1.")
 
         # filter residues to only those in the sequence
         residues = [aa for aa in residues if aa in self.stripped_sequence]
@@ -4648,7 +4650,7 @@ class ProFormaAnnotation:
                 ModType.CHARGE,
             )
         ):
-            raise ValueError("MS2PIP format does not support isotope, labile, unknown, interval, charge, or charge adduct modifications.")
+            raise PeptacularError("MS2PIP format does not support isotope, labile, unknown, interval, charge, or charge adduct modifications.")
 
         if not inplace:
             # Create a copy to condense
@@ -4664,24 +4666,24 @@ class ProFormaAnnotation:
         if annot_copy._nterm_mods is not None:
             for mod_name, count in annot_copy._nterm_mods.items():
                 if count != 1:
-                    raise ValueError("MS2PIP format does not support modification multipliers.")
+                    raise PeptacularError("MS2PIP format does not support modification multipliers.")
                 mod_tuples.append((0, mod_name))
 
         # Process C-terminal modifications
         if annot_copy._cterm_mods is not None:
             for mod_name, count in annot_copy._cterm_mods.items():
                 if count != 1:
-                    raise ValueError("MS2PIP format does not support modification multipliers.")
+                    raise PeptacularError("MS2PIP format does not support modification multipliers.")
                 mod_tuples.append((-1, mod_name))
 
         # Process internal modifications
         if annot_copy._internal_mods is not None:
             for index, mods_dict in annot_copy._internal_mods.items():
                 if len(mods_dict) > 1:
-                    raise ValueError("MS2PIP format does not support multiple modifications at the same site.")
+                    raise PeptacularError("MS2PIP format does not support multiple modifications at the same site.")
                 for mod_name, count in mods_dict.items():
                     if count != 1:
-                        raise ValueError("MS2PIP format does not support modification multipliers.")
+                        raise PeptacularError("MS2PIP format does not support modification multipliers.")
                     # MS2PIP uses 1-indexed positions
                     mod_tuples.append((index + 1, mod_name))
 
@@ -4712,7 +4714,7 @@ class ProFormaAnnotation:
         mod_parts = mod_str.split("|")
 
         if len(mod_parts) % 2 != 0:
-            raise ValueError(f"Invalid MS2PIP modification string format: {mod_str}")
+            raise PeptacularError(f"Invalid MS2PIP modification string format: {mod_str}")
 
         # Process modifications in pairs (location, name)
         for i in range(0, len(mod_parts), 2):
@@ -4733,7 +4735,7 @@ class ProFormaAnnotation:
                 # Internal modification (1-indexed in MS2PIP, convert to 0-indexed)
                 internal_index = loc - 1
                 if internal_index < 0 or internal_index >= len(sequence):
-                    raise ValueError(f"Modification location {loc} is out of range for sequence of length {len(sequence)}")
+                    raise PeptacularError(f"Modification location {loc} is out of range for sequence of length {len(sequence)}")
                 annot.append_internal_mod_at_index(internal_index, mod_name, inplace=True)
 
         # Add static modifications

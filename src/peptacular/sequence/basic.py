@@ -5,6 +5,7 @@ from ..annotation import (
     ProFormaAnnotation,
 )
 from ..constants import ParallelMethod, ParallelMethodLiteral
+from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
 
@@ -86,17 +87,17 @@ def _serialize_chimeric_single(
     # ensure all annots share the same compound name and global mods
     compound_names = {annot.compound_name for annot in annots}
     if len(compound_names) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same compound name.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same compound name.")
 
     static_mods = {annot.static_mods for annot in annots}
 
     if len(static_mods) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same static modifications.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same static modifications.")
 
     isotope_mods = {annot.isotope_mods for annot in annots}
 
     if len(isotope_mods) > 1:
-        raise ValueError("All annotations in a chimeric sequence must share the same isotopic modifications.")
+        raise PeptacularError("All annotations in a chimeric sequence must share the same isotopic modifications.")
 
     for i, annot in enumerate(annots):
         if i == 0:

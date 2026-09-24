@@ -6,7 +6,7 @@ from math import isfinite
 
 from tacular import ELEMENT_LOOKUP, NEUTRAL_DELTA_LOOKUP, ElementInfo
 
-from ..diagnostics import CompositionError, InvalidAdjustmentError
+from ..diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 from ..proforma_components import ChargedFormula, GlobalChargeCarrier
 
 __all__ = [
@@ -149,7 +149,7 @@ class ChargeCarrierInfo:
                 base_comp[elem_info] += count
 
         if any(v < 0 for v in base_comp.values()):
-            raise ValueError(f"Charge carrier adjustment resulted in negative element counts: {base_comp}")
+            raise PeptacularError(f"Charge carrier adjustment resulted in negative element counts: {base_comp}")
 
     @staticmethod
     def from_input(
@@ -332,7 +332,7 @@ class DeltaInfo:
         # Check for charged formulas
         for key in normalized_dict.keys():
             if isinstance(key, ChargedFormula) and key.is_charged:
-                raise ValueError("Delta formulas must be neutral (charge=0)")
+                raise PeptacularError("Delta formulas must be neutral (charge=0)")
 
         # Convert to sorted tuple of (str_key, count) for caching
         items: list[tuple[str, int]] = []
@@ -535,7 +535,7 @@ def get_isotopes(
         if isinstance(isotopes, bool):
             raise InvalidAdjustmentError("Isotope count must be an integer, not bool")
         if isotopes < 0:
-            raise ValueError("Isotope count cannot be negative")
+            raise PeptacularError("Isotope count cannot be negative")
         return _get_isotopes(isotopes)
 
     raise TypeError(f"Invalid isotope type: {type(isotopes)}")

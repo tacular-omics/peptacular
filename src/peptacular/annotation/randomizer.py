@@ -16,6 +16,7 @@ from tacular import (
 )
 
 from ..constants import CV
+from ..diagnostics import PeptacularError
 from ..proforma_components import TagAccession, TagMass, TagName
 
 if TYPE_CHECKING:
@@ -61,7 +62,7 @@ def as_cv(mod: OboEntity) -> CV:
     elif isinstance(mod, UnimodInfo):
         return CV.UNIMOD
     else:
-        raise ValueError(f"Unknown CV for modification: {mod}")
+        raise PeptacularError(f"Unknown CV for modification: {mod}")
 
 
 def as_tag_accession(mod: OboEntity) -> TagAccession:
@@ -79,7 +80,7 @@ def as_tag_mass(mod: OboEntity, monoisotopic: bool = True, include_cv: bool = Fa
     mass = mod.monoisotopic_mass if monoisotopic and mod.monoisotopic_mass is not None else mod.average_mass
 
     if mass is None:
-        raise ValueError(f"Mass not available for modification: {mod}")
+        raise PeptacularError(f"Mass not available for modification: {mod}")
 
     return TagMass(
         mass_str=str(mass),
@@ -118,7 +119,7 @@ def get_random_mod_component(require_composition: bool = True) -> str:
         case "mass":
             return as_tag_mass(m, monoisotopic=True, include_cv=choice([True, False])).serialize()
         case _:
-            raise ValueError(f"Invalid mod type: {mod_type}")
+            raise PeptacularError(f"Invalid mod type: {mod_type}")
 
 
 def get_random_mod_dict(mod_probability: float, require_composition: bool = True) -> dict[str, int]:

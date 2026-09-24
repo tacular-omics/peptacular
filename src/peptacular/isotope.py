@@ -20,6 +20,7 @@ from typing import Final, cast
 from tacular import ELEMENT_LOOKUP, FRAGMENT_ION_LOOKUP, ElementInfo, FragmentIonInfo, IonType, IonTypeLiteral
 
 from . import constants
+from .diagnostics import PeptacularError
 
 CARBON = ELEMENT_LOOKUP["C"]
 HYDROGEN = ELEMENT_LOOKUP["H"]
@@ -66,7 +67,7 @@ def estimate_averagine_comp(neutral_mass: float, ion_type: str | IonType | IonTy
 
     mass = float(neutral_mass)
     if not isfinite(mass) or mass < 0.0:
-        raise ValueError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
+        raise PeptacularError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
 
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
     fixed_mass = sum(element.get_mass(monoisotopic=True) * count for element, count in ion_info.composition.items())
@@ -102,7 +103,7 @@ def _element_pattern(element: str) -> ElementPattern:
         if abundance > 0.0 and mass_abundance > 0.0
     ]
     if not entries:
-        raise ValueError(f"no positive natural isotope abundances are available for {element!r}")
+        raise PeptacularError(f"no positive natural isotope abundances are available for {element!r}")
 
     total = sum(abundance for _, abundance, _ in entries)
     minimum_offset = min(offset for offset, _, _ in entries)
@@ -119,10 +120,10 @@ def _canonical_composition(
     for raw_element, raw_count in chemical_formula.items():
         element = str(raw_element)
         if isinstance(raw_count, bool) or not isinstance(raw_count, (int, float)):
-            raise ValueError(f"element counts must be numeric and non-negative, got {raw_count!r} for {element}")
+            raise PeptacularError(f"element counts must be numeric and non-negative, got {raw_count!r} for {element}")
         count = float(raw_count)
         if not isfinite(count) or count < 0.0:
-            raise ValueError(f"element counts must be finite and non-negative, got {raw_count!r} for {element}")
+            raise PeptacularError(f"element counts must be finite and non-negative, got {raw_count!r} for {element}")
         integer_count = int(floor(count + 0.5))
         if integer_count:
             counts[element] += integer_count
@@ -137,7 +138,7 @@ def _element_recurrence_coefficients(element: str, length: int) -> tuple[tuple[f
     pattern = _element_pattern(element)
     base_probability = pattern[0][1]
     if pattern[0][0] != 0 or base_probability <= 0.0:
-        raise ValueError(f"the lightest isotope of {element!r} must have positive abundance")
+        raise PeptacularError(f"the lightest isotope of {element!r} must have positive abundance")
 
     abundance_ratio = [0.0] * length
     mass_ratio = [0.0] * length
@@ -220,7 +221,7 @@ def _adaptive_length(
 ) -> int:
     if max_isotopes is not None:
         if isinstance(max_isotopes, bool) or not isinstance(max_isotopes, int) or max_isotopes < 1:
-            raise ValueError(f"max_isotopes must be positive or None, got {max_isotopes!r}")
+            raise PeptacularError(f"max_isotopes must be positive or None, got {max_isotopes!r}")
         theoretical_maximum = _distribution_moments(composition)[3]
         return min(max_isotopes, theoretical_maximum + 1)
 
@@ -228,7 +229,7 @@ def _adaptive_length(
     if min_abundance_threshold == 0.0:
         length = theoretical_maximum + 1
         if length > MAX_ADAPTIVE_ISOTOPES:
-            raise ValueError("max_isotopes is required when requesting a zero abundance threshold for a large composition")
+            raise PeptacularError("max_isotopes is required when requesting a zero abundance threshold for a large composition")
         return max(1, length)
 
     length = max(8, ceil(mean + 8.0 * sqrt(variance) + 2 * maximum_offset + 4))
@@ -265,9 +266,9 @@ def brain_isotopic_distribution(
 
     threshold = float(min_abundance_threshold)
     if isinstance(min_abundance_threshold, bool) or not isfinite(threshold) or not 0.0 <= threshold <= 1.0:
-        raise ValueError(f"min_abundance_threshold must be in [0, 1], got {min_abundance_threshold!r}")
+        raise PeptacularError(f"min_abundance_threshold must be in [0, 1], got {min_abundance_threshold!r}")
     if charge_state is not None and (isinstance(charge_state, bool) or not isinstance(charge_state, int)):
-        raise ValueError(f"charge_state must be an integer or None, got {charge_state!r}")
+        raise PeptacularError(f"charge_state must be an integer or None, got {charge_state!r}")
 
     composition, mass_correction = _canonical_composition(chemical_formula)
     length = _adaptive_length(composition, threshold, max_isotopes)
@@ -302,7 +303,7 @@ def estimate_isotopic_distribution(
 
     mass = float(neutral_mass)
     if not isfinite(mass) or mass < 0.0:
-        raise ValueError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
+        raise PeptacularError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
     composition = averagine_comp(mass)
     distribution = brain_isotopic_distribution(
         cast(Mapping[str | ElementInfo, int | float], composition),

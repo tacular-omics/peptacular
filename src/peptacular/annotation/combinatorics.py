@@ -5,6 +5,7 @@ from collections.abc import Generator
 from typing import TYPE_CHECKING, Any
 
 from ..constants import ModType
+from ..diagnostics import PeptacularError
 
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
@@ -195,4 +196,4 @@ def _apply_extracted_mods(annotation: ProFormaAnnotation, mods_dict: dict[ModTyp
             case ModType.CHARGE:
                 annotation.charge = mod_value
             case _:
-                raise ValueError(f"Unknown ModType: {mod_type}")
+                raise PeptacularError(f"Unknown ModType: {mod_type}")

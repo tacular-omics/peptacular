@@ -3,6 +3,7 @@ from typing import Any, cast, overload
 
 from ..annotation import ProFormaAnnotation
 from ..constants import ModType, ModTypeLiteral, ParallelMethod, ParallelMethodLiteral
+from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
 
@@ -497,7 +498,7 @@ def from_ms2_pip(
     if isinstance(sequence, Sequence) and not isinstance(sequence, tuple):
         # Validate that all items are tuples
         if not all(isinstance(item, tuple) and len(item) == 2 for item in sequence):
-            raise ValueError("All items in sequence must be tuples of (sequence, modifications)")
+            raise PeptacularError("All items in sequence must be tuples of (sequence, modifications)")
 
         return parallel_apply_internal(
             _from_ms2_pip_single,
@@ -510,7 +511,7 @@ def from_ms2_pip(
     else:
         # Single tuple processing
         if not isinstance(sequence, tuple) or len(sequence) != 2:
-            raise ValueError("sequence must be a tuple of (sequence, modifications) for single processing")
+            raise PeptacularError("sequence must be a tuple of (sequence, modifications) for single processing")
 
         item = cast(tuple[str, str], sequence)
         return _from_ms2_pip_single(

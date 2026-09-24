@@ -34,7 +34,7 @@ from tacular import (
 )
 
 from ..constants import CV, Terminal
-from ..diagnostics import CompositionError, ProFormaFormatError, UnknownModificationError
+from ..diagnostics import CompositionError, PeptacularError, ProFormaFormatError, UnknownModificationError
 
 __all__ = [
     "HasMassComp",
@@ -377,14 +377,14 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
         neg_parts = [str(fe.abs()) for fe in self.formula if fe.occurance < 0]
 
         if pos_parts and neg_parts:
-            raise ValueError("Cannot convert to mzPAF: contains both positive and negative elements")
+            raise PeptacularError("Cannot convert to mzPAF: contains both positive and negative elements")
 
         if pos_parts:
             return "+" + "".join(pos_parts)
         if neg_parts:
             return "-" + "".join(neg_parts)
 
-        raise ValueError("Cannot convert to mzPAF: no elements present")
+        raise PeptacularError("Cannot convert to mzPAF: no elements present")
 
     @staticmethod
     def from_mz_paf(s: str) -> ChargedFormula:
@@ -398,7 +398,7 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
             # assert all are positive
             for fe in formula.formula:
                 if fe.occurance < 0:
-                    raise ValueError("Invalid mzPAF format: negative occurance in positive part")
+                    raise PeptacularError("Invalid mzPAF format: negative occurance in positive part")
             return formula
         if s.startswith("-"):
             # Parse the bare (unsigned) formula, then negate every element's count.
@@ -408,7 +408,7 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
             # assert none are already negative (would double-negate)
             for fe in formula.formula:
                 if fe.occurance < 0:
-                    raise ValueError("Invalid mzPAF format: negative occurance in negative part")
+                    raise PeptacularError("Invalid mzPAF format: negative occurance in negative part")
             negated = tuple(FormulaElement(element=fe.element, occurance=-fe.occurance, isotope=fe.isotope) for fe in formula.formula)
             return ChargedFormula(
                 formula=negated,
@@ -416,7 +416,7 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
                 position_id=formula.position_id,
                 score=formula.score,
             )
-        raise ValueError("Invalid mzPAF format: must start with + or -")
+        raise PeptacularError("Invalid mzPAF format: must start with + or -")
 
     def __add__(self, other: ChargedFormula) -> ChargedFormula:
         """Add two ChargedFormulas together."""
@@ -536,7 +536,7 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
             case CV.XL_MOD:
                 return XLMOD_LOOKUP.query_id(self.accession)
             case _:
-                raise ValueError(f"Modification lookup by accession not implemented for CV: {self.cv}")
+                raise PeptacularError(f"Modification lookup by accession not implemented for CV: {self.cv}")
 
         return None
 
@@ -546,7 +546,7 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
                 kind = "monoisotopic" if monoisotopic else "average"
-                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
+                raise PeptacularError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
         raise UnknownModificationError(f"Unknown modification accession '{self}': not found in the '{self.cv}' controlled vocabulary. {_MOD_SPEC_HINT}")
 
@@ -714,7 +714,7 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
                 if psimod is not None:
                     return psimod
             case _:
-                raise ValueError(f"Modification lookup by name not implemented for CV: {self.cv}")
+                raise PeptacularError(f"Modification lookup by name not implemented for CV: {self.cv}")
 
         return None
 
@@ -724,7 +724,7 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
             mass = mod_info.monoisotopic_mass if monoisotopic else mod_info.average_mass
             if mass is None:
                 kind = "monoisotopic" if monoisotopic else "average"
-                raise ValueError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
+                raise PeptacularError(f"Modification '{self}' was found but has no {kind} mass in its controlled vocabulary.")
             return mass
         raise UnknownModificationError(f"Unknown modification name '{self}': not found in any controlled vocabulary. {_MOD_SPEC_HINT}")
 
@@ -852,7 +852,7 @@ class GlycanComponent(MassPropertyMixin):
             value = float(value)
             object.__setattr__(self, "monosaccharide", value)
         if isinstance(value, float) and not isfinite(value):
-            raise ValueError(f"Glycan mass component must be finite, got {value}")
+            raise PeptacularError(f"Glycan mass component must be finite, got {value}")
 
     @property
     def is_mass(self) -> bool:
@@ -880,7 +880,7 @@ class GlycanComponent(MassPropertyMixin):
             monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
             mass = monosaccharide.mass(monoisotopic=monoisotopic)
             if mass is None:
-                raise ValueError(f"Unknown mass for monosaccharide: {value}")
+                raise PeptacularError(f"Unknown mass for monosaccharide: {value}")
             return mass * self.occurance
 
     def get_composition(self) -> Counter[ElementInfo]:
@@ -896,7 +896,7 @@ class GlycanComponent(MassPropertyMixin):
             monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
             comp = monosaccharide.composition
             if comp is None:
-                raise ValueError(f"Unknown composition for monosaccharide: {value}")
+                raise PeptacularError(f"Unknown composition for monosaccharide: {value}")
             composition = Counter(comp)
         if self.occurance != 1:
             composition = Counter({element: count * self.occurance for element, count in composition.items()})
@@ -999,7 +999,7 @@ class PlacementTagMixin(MassPropertyMixin):
     """Mixin to add mass properties to classes that implement get_mass()"""
 
     def get_mass(self, monoisotopic: bool = True) -> float:
-        raise ValueError("PlacementTag has no mass")
+        raise PeptacularError("PlacementTag has no mass")
 
     def get_composition(self) -> Counter[ElementInfo]:
         return Counter()
@@ -1021,7 +1021,7 @@ class PositionTag(PlacementTagMixin):
         if s.startswith("position:"):
             s = s[len("position:") :]
         else:
-            raise ValueError("PositionTag string must start with 'Position:'")
+            raise PeptacularError("PositionTag string must start with 'Position:'")
         return PositionTag(tuple(PositionRule.from_string(part.strip()) for part in s.split(",")))
 
     def serialize(self) -> str:
@@ -1041,7 +1041,7 @@ class LimitTag(PlacementTagMixin):
         if s.startswith("limit:"):
             s = s[len("limit:") :]
         else:
-            raise ValueError("LimitTag string must start with 'Limit:'")
+            raise PeptacularError("LimitTag string must start with 'Limit:'")
         return LimitTag(limit=int(s.strip()))
 
     def serialize(self) -> str:
@@ -1056,7 +1056,7 @@ class ComkpTag(PlacementTagMixin):
     @staticmethod
     def from_string(s: str) -> ComkpTag:
         if not s.strip().lower() == "comkp":
-            raise ValueError("ComkpTag string must be 'Comkp'")
+            raise PeptacularError("ComkpTag string must be 'Comkp'")
         return ComkpTag()
 
     def serialize(self) -> str:
@@ -1071,7 +1071,7 @@ class ComupTag(PlacementTagMixin):
     @staticmethod
     def from_string(s: str) -> ComupTag:
         if not s.strip().lower() == "comup":
-            raise ValueError("ComupTag string must be 'Comup'")
+            raise PeptacularError("ComupTag string must be 'Comup'")
         return ComupTag()
 
     def serialize(self) -> str:
@@ -1349,13 +1349,13 @@ class ModificationAmbiguousPrimary(MassPropertyMixin):
     def __post_init__(self):
         """Validate constraints."""
         if self.score is not None and not (0 <= self.score <= 1):
-            raise ValueError(f"Score must be between 0 and 1, got {self.score}")
+            raise PeptacularError(f"Score must be between 0 and 1, got {self.score}")
 
         if self.limit is not None and self.limit < 1:
-            raise ValueError(f"Limit must be positive, got {self.limit}")
+            raise PeptacularError(f"Limit must be positive, got {self.limit}")
 
         if not self.tags:
-            raise ValueError("tags cannot be empty")
+            raise PeptacularError("tags cannot be empty")
 
     def get_mass(self, monoisotopic: bool = True) -> float:
         raise NotImplementedError()
@@ -1394,7 +1394,7 @@ class ModificationAmbiguousSecondary(MassPropertyMixin):
     def __post_init__(self):
         """Validate constraints."""
         if self.score is not None and not (0 <= self.score <= 1):
-            raise ValueError(f"Score must be between 0 and 1, got {self.score}")
+            raise PeptacularError(f"Score must be between 0 and 1, got {self.score}")
 
     def get_mass(self, monoisotopic: bool = True) -> float:
         raise NotImplementedError()
@@ -1533,7 +1533,7 @@ class SequenceElement(MassPropertyMixin):
         aa = AA_LOOKUP.one_letter(self.amino_acid)
         aa_mass = aa.monoisotopic_mass if monoisotopic else aa.average_mass
         if aa_mass is None:
-            raise ValueError(f"Unknown mass for amino acid: {self.amino_acid}")
+            raise PeptacularError(f"Unknown mass for amino acid: {self.amino_acid}")
         mod_mass = sum_masses(self.modifications, monoisotopic=monoisotopic)
         return aa_mass + mod_mass
 
@@ -1541,7 +1541,7 @@ class SequenceElement(MassPropertyMixin):
         aa = AA_LOOKUP.one_letter(self.amino_acid)
         composition = aa.composition
         if composition is None:
-            raise ValueError(f"Unknown composition for amino acid: {self.amino_acid}")
+            raise PeptacularError(f"Unknown composition for amino acid: {self.amino_acid}")
 
         total_composition = Counter(composition)
         if self.modifications:

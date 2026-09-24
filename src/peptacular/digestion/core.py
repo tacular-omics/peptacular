@@ -6,7 +6,7 @@ from collections.abc import Generator, Sequence
 from tacular import PROTEASE_LOOKUP, Proteases
 
 from .._regex_utils import get_regex_match_indices
-from ..diagnostics import UnknownEnzymeError
+from ..diagnostics import PeptacularError, UnknownEnzymeError
 from ..spans import (
     Span,
     build_left_semi_spans,
@@ -132,7 +132,7 @@ def _convert_to_aa_set(aa_keys: str | None) -> set[str]:
 
     if "-" in aa_keys:
         if aa_keys.count("-") != 1:
-            raise ValueError("Amino acid keys with '-' must contain exactly one '-' character.")
+            raise PeptacularError("Amino acid keys with '-' must contain exactly one '-' character.")
         first_part, second_part = aa_keys.split("-")
         return make_aa_set(first_part) - make_aa_set(second_part)
 

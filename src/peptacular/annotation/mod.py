@@ -8,7 +8,7 @@ from typing import Any, Protocol, Self, cast
 from tacular import AA_LOOKUP, ElementInfo
 
 from ..constants import ModType
-from ..diagnostics import CompositionError, UnknownModificationError
+from ..diagnostics import CompositionError, PeptacularError, UnknownModificationError
 from ..proforma_components import (
     FixedModification,
     GlobalChargeCarrier,
@@ -64,7 +64,7 @@ class Mod[T: ModificationProtocol]:
 
     def __post_init__(self):
         if self.count < 0:
-            raise ValueError(f"Count must be non-negative, got {self.count}")
+            raise PeptacularError(f"Count must be non-negative, got {self.count}")
 
     @property
     def is_valid(self) -> bool:
@@ -136,7 +136,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
     def __post_init__(self):
         """Validate mod_type is supported."""
         if self.mod_type not in _MOD_PARSERS:
-            raise ValueError(f"Unsupported mod_type: {self.mod_type}")
+            raise PeptacularError(f"Unsupported mod_type: {self.mod_type}")
 
     @property
     def is_valid(self) -> bool:
@@ -316,7 +316,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                     for _ in range(count):
                         mod_str_comps.append(f"[{mod_str}]")
             case _:
-                raise ValueError(f"Unsupported mod_type: {self.mod_type}")
+                raise PeptacularError(f"Unsupported mod_type: {self.mod_type}")
         return "".join(mod_str_comps)
 
     def __str__(self) -> str:
@@ -480,9 +480,9 @@ class Interval:
         self.set_mods(mods, validate=validate)
 
         if self._start < 0:
-            raise ValueError(f"Start position must be non-negative, got {self.start}")
+            raise PeptacularError(f"Start position must be non-negative, got {self.start}")
         if self._end <= self.start:
-            raise ValueError(f"End position must be >= start position, got {self.end} <= {self.start}")
+            raise PeptacularError(f"End position must be >= start position, got {self.end} <= {self.start}")
 
     @property
     def is_valid(self) -> bool:

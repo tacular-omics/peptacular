@@ -4,6 +4,7 @@ import math
 import statistics
 from collections.abc import Generator, Iterable, Mapping, Sequence
 
+from ..diagnostics import PeptacularError
 from .data import (
     NEGATIVE_AMINO_ACIDS,
     POSITIVE_AMINO_ACIDS,
@@ -60,12 +61,12 @@ def _get_default_value(handling: MissingAAHandling, aa_data: Mapping[str, float]
         case MissingAAHandling.MEDIAN:
             return _calculate_median(list(aa_data.values()))
         case MissingAAHandling.ERROR:
-            raise ValueError(f"Invalid amino acid: {aa}")
+            raise PeptacularError(f"Invalid amino acid: {aa}")
         case MissingAAHandling.SKIP:
             return None
         case _:
             valid_options = ", ".join([f"'{opt.value}'" for opt in MissingAAHandling])
-            raise ValueError(f"Invalid missing_aa_handling: {handling}. Choose from {valid_options}")
+            raise PeptacularError(f"Invalid missing_aa_handling: {handling}. Choose from {valid_options}")
 
 
 def _normalize_value(value: float, aa_data: Mapping[str, float]) -> float:
@@ -100,7 +101,7 @@ def _get_ambiguous_aa_value(
             values.append(val)
 
     if not values:
-        raise ValueError(f"No valid values found for ambiguous amino acid {aa}")
+        raise PeptacularError(f"No valid values found for ambiguous amino acid {aa}")
 
     avg_value = sum(values) / len(values)
     return _apply_weighting_and_normalization(avg_value, aa_data, weighting_scheme, normalize)
@@ -180,14 +181,14 @@ def _generate_string_sliding_windows(
         ValueError: If window_size is invalid or sequence is empty
     """
     if not sequence:
-        raise ValueError("Sequence cannot be empty")
+        raise PeptacularError("Sequence cannot be empty")
 
     if window_size <= 0:
-        raise ValueError("Window size must be positive")
+        raise PeptacularError("Window size must be positive")
 
     seq_len = len(sequence)
     if window_size > seq_len:
-        raise ValueError(f"Window size {window_size} cannot be greater than sequence length {seq_len}.")
+        raise PeptacularError(f"Window size {window_size} cannot be greater than sequence length {seq_len}.")
 
     if reverse:
         # Generate windows from right to left
@@ -223,7 +224,7 @@ def calc_property(
 
     if isinstance(scale, str):
         if scale not in PROPERTY_SCALES:
-            raise ValueError(f"Scale '{scale}' not found in available property scales: {list(PROPERTY_SCALES.keys())}")
+            raise PeptacularError(f"Scale '{scale}' not found in available property scales: {list(PROPERTY_SCALES.keys())}")
         aa_data = PROPERTY_SCALES[scale]
     else:
         aa_data = scale
@@ -245,7 +246,7 @@ def calc_property(
     elif aggregation_method == AggregationMethod.AVG:
         result = sum(values) / len(values) if values else 0.0
     else:
-        raise ValueError(f"Invalid aggregation method: {aggregation_method}. Choose '{AggregationMethod.SUM}' or '{AggregationMethod.AVG}'.")
+        raise PeptacularError(f"Invalid aggregation method: {aggregation_method}. Choose '{AggregationMethod.SUM}' or '{AggregationMethod.AVG}'.")
 
     return result
 
@@ -272,7 +273,7 @@ def calc_window_property(
     results: list[float] = []
     for window_sequence in _generate_string_sliding_windows(sequence, window_size):
         if len(window_sequence) != window_size:
-            raise ValueError(f"Window size {window_size} does not match sequence length {len(window_sequence)}.")
+            raise PeptacularError(f"Window size {window_size} does not match sequence length {len(window_sequence)}.")
 
         # Calculate the property average for the current window
         window_value = calc_property(
@@ -340,7 +341,7 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
     )
 
     if not isinstance(nterm_pK, (int, float)):
-        raise ValueError(f"Invalid pK value for N-terminal amino acid '{nterm}': {nterm_pK}")
+        raise PeptacularError(f"Invalid pK value for N-terminal amino acid '{nterm}': {nterm_pK}")
 
     partial_charge: float = 1.0 / (10 ** (pH - nterm_pK) + 1.0)
     positive_charge += partial_charge
@@ -356,7 +357,7 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
             )
 
             if not isinstance(pK, (int, float)) or pK <= 0:
-                raise ValueError(f"Invalid pK value for side chain amino acid '{aa}': {pK}")
+                raise PeptacularError(f"Invalid pK value for side chain amino acid '{aa}': {pK}")
 
             partial_charge = 1.0 / (10 ** (pH - pK) + 1.0)
             positive_charge += count * partial_charge
@@ -372,7 +373,7 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
     )
 
     if not isinstance(cterm_pK, (int, float)):
-        raise ValueError(f"Invalid pK value for C-terminal amino acid '{cterm}': {cterm_pK}")
+        raise PeptacularError(f"Invalid pK value for C-terminal amino acid '{cterm}': {cterm_pK}")
 
     partial_charge = 1.0 / (10 ** (cterm_pK - pH) + 1.0)
     negative_charge += partial_charge
@@ -388,7 +389,7 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
             )
 
             if not isinstance(pK, (int, float)) or pK <= 0:
-                raise ValueError(f"Invalid pK value for side chain amino acid '{aa}': {pK}")
+                raise PeptacularError(f"Invalid pK value for side chain amino acid '{aa}': {pK}")
 
             if pK > 0:  # Only calculate if pK exists (non-zero)
                 partial_charge = 1.0 / (10 ** (pK - pH) + 1.0)
@@ -466,16 +467,16 @@ def generate_partitions(
     seq_len = len(sequence)
 
     if num_windows <= 0:
-        raise ValueError("num_windows must be positive")
+        raise PeptacularError("num_windows must be positive")
 
     if aa_overlap < 0:
-        raise ValueError("aa_overlap cannot be negative")
+        raise PeptacularError("aa_overlap cannot be negative")
 
     if seq_len == 0:
-        raise ValueError("Sequence cannot be empty")
+        raise PeptacularError("Sequence cannot be empty")
 
     if num_windows > seq_len and aa_overlap == 0:
-        raise ValueError(f"Cannot create {num_windows} non-overlapping windows from sequence of length {seq_len}")
+        raise PeptacularError(f"Cannot create {num_windows} non-overlapping windows from sequence of length {seq_len}")
 
     if num_windows == 1:
         # Single window covers entire sequence

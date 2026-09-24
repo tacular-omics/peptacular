@@ -1,6 +1,8 @@
 from enum import StrEnum
 from typing import Final, Literal
 
+from .diagnostics import PeptacularError
+
 __all__ = [
     "PROTON_MASS",
     "ELECTRON_MASS",
@@ -78,7 +80,7 @@ class Terminal(StrEnum):
             return cls.N_TERM
         elif term_upper == "C-TERM":
             return cls.C_TERM
-        raise ValueError(f"Unknown terminal type: {term}")
+        raise PeptacularError(f"Unknown terminal type: {term}")
 
 
 class ModType(StrEnum):

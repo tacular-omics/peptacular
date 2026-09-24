@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from .annotation import ProFormaAnnotation
 from .constants import ParallelMethod, ParallelMethodLiteral
-from .diagnostics import Diagnostic, diagnostic_from_exception
+from .diagnostics import Diagnostic, PeptacularError, diagnostic_from_exception
 from .sequence.parallel import AUTO_PARALLEL_MIN_ITEMS, _get_optimal_method, _validate_positive_int
 
 __all__ = ["BatchResult", "BatchOperation", "iter_batch", "batch", "diagnose"]
@@ -49,7 +49,7 @@ class BatchResult:
 
 def _validate_operation(operation: BatchOperation, kwargs: dict[str, Any]) -> None:
     if operation not in _OPERATIONS:
-        raise ValueError(f"Unknown batch operation {operation!r}. Choose from {', '.join(sorted(_OPERATIONS))}.")
+        raise PeptacularError(f"Unknown batch operation {operation!r}. Choose from {', '.join(sorted(_OPERATIONS))}.")
     # Bad keywords and missing required arguments are configuration errors,
     # not failures to repeat for every sequence in a database.
     inspect.signature(getattr(ProFormaAnnotation, _method_name(operation))).bind(None, **kwargs)
@@ -146,18 +146,18 @@ def iter_batch(
     """
     _validate_operation(operation, kwargs)
     if errors not in ("raise", "collect"):
-        raise ValueError("errors must be 'raise' or 'collect'")
+        raise PeptacularError("errors must be 'raise' or 'collect'")
     if isinstance(sequences, (str, ProFormaAnnotation)):
         raise TypeError("sequences must be an iterable of inputs, not a single sequence")
     _validate_positive_int(batch_size, "batch_size")
     if batch_size is None:
-        raise ValueError("batch_size must be a positive integer")
+        raise PeptacularError("batch_size must be a positive integer")
     _validate_positive_int(n_workers, "n_workers")
     _validate_positive_int(chunksize, "chunksize")
     selected = ParallelMethod(method) if method is not None else ParallelMethod(_get_optimal_method())
     context = mp.get_context(start_method) if start_method is not None else None
     if context is not None and selected != ParallelMethod.PROCESS:
-        raise ValueError("start_method requires process execution")
+        raise PeptacularError("start_method requires process execution")
     source = enumerate(sequences)
     execute = partial(_run_item, operation=operation, kwargs=kwargs, errors=errors)
     executor: ProcessPoolExecutor | ThreadPoolExecutor | None = None

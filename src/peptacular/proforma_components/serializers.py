@@ -19,6 +19,7 @@ from ..constants import (
     _CV_TO_NAME_PREFIX,
     Terminal,
 )
+from ..diagnostics import PeptacularError
 
 if TYPE_CHECKING:
     from .comps import (
@@ -186,7 +187,7 @@ def serialize_position_rule(pr: "PositionRule") -> str:
     if pr.terminal == Terminal.ANYWHERE:
         if pr.amino_acid is not None:
             return sys.intern(pr.amino_acid.value)
-        raise ValueError("Amino acid must be specified for ANYWHERE position rule")
+        raise PeptacularError("Amino acid must be specified for ANYWHERE position rule")
 
     elif pr.amino_acid is not None:
         return sys.intern(f"{pr.terminal.value}:{pr.amino_acid.value}")
@@ -484,7 +485,7 @@ def serialize_modification_tag(tag: "MODIFICATION_TAG_TYPE") -> str:
         case GlycanTag():
             return serialize_glycan_tag(tag)
         case _:
-            raise ValueError(f"Unsupported modification tag type: {type(tag)}")
+            raise PeptacularError(f"Unsupported modification tag type: {type(tag)}")
 
 
 def serialize_modification_tags(mod_tags: "ModificationTags") -> str:
@@ -511,7 +512,7 @@ def serialize_modification(mod: "MODIFICATION_TYPE") -> str:
         case ModificationTags():
             return serialize_modification_tags(mod)
         case _:
-            raise ValueError(f"Unsupported Modification type: {type(mod)}")
+            raise PeptacularError(f"Unsupported Modification type: {type(mod)}")
 
 
 @lru_cache(maxsize=1024)

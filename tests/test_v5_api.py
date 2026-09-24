@@ -74,3 +74,40 @@ def test_isotopic_distribution_takes_sequence_keyword():
     assert pt.isotopic_distribution(sequence="PEPTIDE", max_isotopes=3) == pt.isotopic_distribution("PEPTIDE", max_isotopes=3)
     with pytest.raises(TypeError):
         pt.isotopic_distribution(annotations="PEPTIDE")  # ty: ignore[unknown-argument]
+
+
+class TestPeptacularErrors:
+    def test_no_bare_value_or_index_errors_in_library_code(self):
+        # 5.0: input errors raise PeptacularError (a ValueError) or a subclass.
+        # The MCP layer is excluded: pydantic validators raise ValueError by contract.
+        import ast
+        import pathlib
+
+        root = pathlib.Path(pt.__file__).parent
+        offenders = []
+        for path in root.rglob("*.py"):
+            if "mcp" in path.relative_to(root).parts:
+                continue
+            for node in ast.walk(ast.parse(path.read_text())):
+                if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call) and isinstance(node.exc.func, ast.Name):
+                    if node.exc.func.id in {"ValueError", "IndexError", "KeyError"}:
+                        offenders.append(f"{path.relative_to(root)}:{node.lineno}")
+        assert offenders == []
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda: pt.Terminal.from_str("middle"),
+            lambda: pt.calc_property("PEPTIDE", scale="no_such_scale"),
+            lambda: pt.estimate_isotopic_distribution(-1.0),
+            lambda: pt.batch("no_such_operation", ["PEPTIDE"]),
+            lambda: pt.parse("PEP[").serialize(),
+        ],
+    )
+    def test_main_paths_raise_peptacular_error(self, call):
+        with pytest.raises(pt.PeptacularError):
+            call()
+
+    def test_internal_index_errors_are_invalid_position_errors(self):
+        assert issubclass(pt.InvalidPositionError, IndexError)
+        assert issubclass(pt.InvalidPositionError, pt.PeptacularError)

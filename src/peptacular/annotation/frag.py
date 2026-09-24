@@ -11,6 +11,7 @@ from tacular import (
 )
 
 from ..constants import ELECTRON_MASS, ModType
+from ..diagnostics import PeptacularError
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
@@ -157,10 +158,10 @@ class Fragment:
             return self._composition
 
         if self.parent_sequence is None:
-            raise ValueError("Cannot calculate composition without parent sequence or explicit composition")
+            raise PeptacularError("Cannot calculate composition without parent sequence or explicit composition")
 
         if self.parent_sequence_length is None:
-            raise ValueError("Cannot calculate composition without parent sequence length")
+            raise PeptacularError("Cannot calculate composition without parent sequence length")
 
         from .annotation import ProFormaAnnotation
 
@@ -273,7 +274,7 @@ class Fragment:
         elif format == "mzpaf":
             return self._serialize_mzpaf(include_sequence=include_sequence)
         else:
-            raise ValueError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
+            raise PeptacularError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
 
     def to_mzpaf(self, include_sequence: bool = True) -> str:
         """Serialize the fragment to an mzPAF (Peak Annotation Format) label string.
@@ -328,17 +329,17 @@ class Fragment:
                             if annot.has_internal_mods_at_index(0):
                                 internal_mods = annot.get_internal_mods_at_index(0)
                                 if len(internal_mods) > 1:
-                                    raise ValueError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
+                                    raise PeptacularError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
                                 if len(internal_mods) == 1 and internal_mods.mods[0].count > 1:
-                                    raise ValueError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
+                                    raise PeptacularError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
                                 mods_str = internal_mods.serialize()[1:-1]  # remove surrounding brackets
                                 if mods_str == "":
-                                    raise ValueError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
+                                    raise PeptacularError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
                                 parts.append(f"[{mods_str}]")
                         else:
-                            raise ValueError("Immonium ion must have a sequence annotation.")
+                            raise PeptacularError("Immonium ion must have a sequence annotation.")
                     else:
-                        raise ValueError("Immonium ion must have a parent sequence.")
+                        raise PeptacularError("Immonium ion must have a parent sequence.")
                 else:
                     # Internal fragment: m{start}:{end}[{sequence}]
                     if isinstance(self.position, tuple) and len(self.position) == 2:
@@ -360,15 +361,15 @@ class Fragment:
                     if internal_ion_key is not None and internal_ion_key in _INTERNAL_MASS_DIFFS:
                         internal_loss = _INTERNAL_MASS_DIFFS[internal_ion_key]
                     else:
-                        raise ValueError(f"Internal ion type {ion_info.ion_type} not supported in mzPAF.")
+                        raise PeptacularError(f"Internal ion type {ion_info.ion_type} not supported in mzPAF.")
 
             elif ion_info.properties & IonTypeProperty.INTACT:
                 if ion_info.ion_type == IonType.PRECURSOR:
                     parts.append("p")
                 else:
-                    raise ValueError(f"Cannot convert intact ion type {ion_info.id} to mzPAF.")
+                    raise PeptacularError(f"Cannot convert intact ion type {ion_info.id} to mzPAF.")
             else:
-                raise ValueError(f"Cannot convert fragment with ion type {self.ion_type} to mzPAF.")
+                raise PeptacularError(f"Cannot convert fragment with ion type {self.ion_type} to mzPAF.")
 
         # Hydrogen delta of a z/c variant that mzPAF writes as its parent series
         if series_delta is not None:
@@ -381,7 +382,7 @@ class Fragment:
                     # mzPAF's neutral_loss grammar only accepts a chemical formula or a
                     # bracketed reference-group name after the sign (spec section 4.5);
                     # there is no representation for an arbitrary unnamed mass delta.
-                    raise ValueError(
+                    raise PeptacularError(
                         f"Cannot convert numeric neutral loss/gain delta ({loss_key!r}) to mzPAF: "
                         "mzPAF neutral losses must be a chemical formula or a named reference group, "
                         "not a bare mass delta."
@@ -391,7 +392,7 @@ class Fragment:
                     paf_formula = loss_formula.to_mz_paf()
                     sign = paf_formula[0]
                     if sign not in ("+", "-"):
-                        raise ValueError(f"Invalid formula sign in loss: {paf_formula}")
+                        raise PeptacularError(f"Invalid formula sign in loss: {paf_formula}")
                     mult = 1 if sign == "+" else -1
                     abs_count = abs(count * mult)
                     count_str = str(abs_count) if abs_count > 1 else ""
@@ -481,10 +482,10 @@ class Fragment:
     @property
     def sequence(self) -> str | None:
         if self.parent_sequence is None:
-            raise ValueError("Cannot determine fragment sequence without parent sequence")
+            raise PeptacularError("Cannot determine fragment sequence without parent sequence")
 
         if self.parent_sequence_length is None:
-            raise ValueError("Cannot determine fragment sequence without parent sequence length")
+            raise PeptacularError("Cannot determine fragment sequence without parent sequence length")
 
         pos = validate_position(self.ion_type, self.position, self.parent_sequence_length)
         if pos is None:
@@ -499,4 +500,4 @@ class Fragment:
                 .serialize()
             )
 
-        raise ValueError("Invalid position format for fragment sequence extraction")
+        raise PeptacularError("Invalid position format for fragment sequence extraction")
