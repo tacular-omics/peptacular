@@ -690,6 +690,11 @@ def parse_position_rule(s: str) -> "PositionRule":
 
 LOC_PATTERN = re.compile(r"^([^#(]+)(?:#([^(]+))?(?:\(([^)]+)\))?$")
 
+# Names may themselves end in "(...)" (Unimod "Label:13C(6)", "HexNAc(2)", PSI-MOD
+# "L-cystine (cross-link)"). ProForma 2.0 only allows a localisation score after a
+# "#group" label, so for names the score is only read when a group label is present.
+NAME_LOC_PATTERN = re.compile(r"^([^#]+?)(?:#([^#()]+)(?:\(([^()]+)\))?)?$")
+
 
 @lru_cache(maxsize=512)
 def parse_tag_accession(s: str) -> "TagAccession":
@@ -851,7 +856,7 @@ def parse_tag_name(s: str) -> "TagName | TagCustom":
 
     s = s.strip()
 
-    match = LOC_PATTERN.match(s)
+    match = NAME_LOC_PATTERN.match(s)
     if match:
         s, pos, score = match.groups()
         if score is not None:

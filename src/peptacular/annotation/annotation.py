@@ -3065,6 +3065,7 @@ class ProFormaAnnotation:
                 parent_sequence=parent_sequence,
                 parent_sequence_length=parent_sequence_length,
                 internal_charge=base_charge,
+                isotope_as_mass=not calculate_composition,
             )
             if not calculate_composition:
                 result.mass += delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))

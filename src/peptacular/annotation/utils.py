@@ -124,8 +124,15 @@ def adjust_comp(
     inplace: bool = True,
     isotope_map: dict[ElementInfo, ElementInfo] | None = None,
     internal_charge: int = 0,
+    isotope_as_mass: bool = False,
 ) -> Fragment:
-    """Adjust base composition by charge carriers and ion type, returning a Fragment object."""
+    """Adjust base composition by charge carriers and ion type, returning a Fragment object.
+
+    With ``isotope_as_mass`` the isotope offset is added as a mass delta instead of
+    swapping atoms in the composition. An isotope peak (M+n) exists even when the ion
+    has no light atoms left to swap, e.g. a fully 13C-labelled residue or a ``<13C>``
+    global label, where the atom swap would go negative or be undone by the label.
+    """
 
     if not inplace:
         base_comp = base_comp.copy()
@@ -141,7 +148,7 @@ def adjust_comp(
 
     # User adjustments apply to the complete neutral ion composition, including
     # terminal atoms introduced by its ion offset.
-    if isotope.data:
+    if isotope.data and not isotope_as_mass:
         isotope.adjust_composition(base_comp)
     if delta.deltas:
         delta.adjust_composition(base_comp)
@@ -161,12 +168,23 @@ def adjust_comp(
     if any(count < 0 for count in base_comp.values()):
         raise InvalidAdjustmentError(f"Negative element counts after adjustments: {base_comp}")
 
+    if isotope_as_mass:
+        # An ion cannot carry more heavy atoms of an element than it has atoms of it.
+        for iso_elem, count in isotope.data:
+            available = sum(n for elem, n in base_comp.items() if elem.symbol == iso_elem.symbol)
+            if count > available:
+                raise InvalidAdjustmentError(
+                    f"Isotopic adjustment resulted in negative element counts: needs {count} {iso_elem}, ion has {available} {iso_elem.symbol}"
+                )
+
     total_charge = charge.get_charge() + internal_charge
 
     # Calculate mass from final composition
     base_mass = 0.0
     for elem, count in base_comp.items():
         base_mass += elem.get_mass(monoisotopic=monoisotopic) * count
+    if isotope_as_mass and isotope.data:
+        base_mass += isotope.get_mass_delta(monoisotopic)
 
     # Correct for electron mass based on charge
     if total_charge != 0:
