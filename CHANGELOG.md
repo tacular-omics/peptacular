@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [4.2.0] (2026-09-23)
+
 ### Fixed
 - `fast_fragment` put static N-terminal mods (`<[Carbamidomethyl]@N-term>`) on the last residue and C-terminal ones on the second-to-last. It now matches `frag()`.
 - Immonium and internal fragments counted neutral-loss sites on the whole parent sequence instead of the fragment, so they got losses the fragment cannot have (or raised `InvalidAdjustmentError`).
@@ -35,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Docstrings for the property functions (`pi`, `charge_at_ph`, `hydrophobicity`, ...), `set_mods`/`append_mods`/`extend_mods`/`remove_mods`, `isotopic_distribution`, `left_semi_digest`/`right_semi_digest` and `ModType`; `set_start_method` has a `-> None` return annotation. The error classes are documented in the streaming guide, README, `llms.txt` and `llms-full.txt`.
 
 ### Changed
+- Requires `tacular>=1.2,<2` (was `>=1.1.0`): tacular 1.2 bundles PSI-MOD 1.039.0 and the corrected d/v/w satellite-ion offsets.
 - An unknown isotope label (`<113C>PEPTIDE`) now raises `ProFormaFormatError` instead of `KeyError`. Code that caught `KeyError` for this case must catch `ProFormaFormatError` (or `ValueError`).
 - `Diagnostic.code` from `pt.diagnose`/`pt.batch(errors="collect")` follows the new types: an empty sequence reports `unavailable_composition` and an unknown ion type `unsupported_operation` (both were `calculation_error`).
 - Reference-value tests (`tests/reference/`) against pyteomics, Biopython, ExPASy ProtScale and the ProForma 2.0 spec examples, and Hypothesis property tests (`hypothesis` added to the dev group).

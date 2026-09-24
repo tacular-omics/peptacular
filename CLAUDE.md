@@ -7,7 +7,7 @@ serialize ProForma, edit modifications, and calculate mass, m/z, elemental compo
 fragment ions, isotopic envelopes, enzymatic digests and physicochemical properties. It
 is imported as `pt` and is under JOSS review (`paper/`).
 
-Place in the tacular-omics graph: tier 1. It depends on `tacular>=1.1.0,<2` (all
+Place in the tacular-omics graph: tier 1. It depends on `tacular>=1.2,<2` (all
 modification, amino-acid, element, ion-type, protease and neutral-loss data) and is used
 by `paftacular` (optional extra), `spxtacular`, `peff_digest` and `pepbit`. A breaking
 change here must be noted for those. `from tacular import *` runs in `__init__`, so every
