@@ -2,7 +2,7 @@
 
 import unittest
 
-from src.peptacular.annotation import ProFormaAnnotation
+from peptacular.annotation import ProFormaAnnotation
 
 
 class TestFromMS2PIP(unittest.TestCase):

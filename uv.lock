@@ -1201,7 +1201,7 @@ requires-dist = [
     { name = "pydantic", marker = "extra == 'mcp'", specifier = ">=2.13,<3" },
     { name = "pyteomics", marker = "extra == 'interop'", specifier = ">=5.0" },
     { name = "pyteomics", marker = "extra == 'pyteomics'", specifier = ">=5.0" },
-    { name = "tacular", specifier = ">=1.1.0,<2" },
+    { name = "tacular", specifier = ">=1.2,<2" },
 ]
 provides-extras = ["alphabase", "interop", "mcp", "psm-utils", "pyteomics"]
 
@@ -2100,11 +2100,11 @@ wheels = [
 
 [[package]]
 name = "tacular"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/03/af/39e3e331e003c347fa57c1914417e877cf76338d4ea216a959634cac598d/tacular-1.1.0.tar.gz", hash = "sha256:5cda570eb5e450e54d32c736519df0c5e041ee722bd0fa2898f708c5f60d15f7", size = 868437, upload-time = "2026-07-08T22:08:34.158Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/4c/d0b75dc7b7c386b86e69c6a970dc13f06596bdc60cdca37edde19fbccccc/tacular-1.2.0.tar.gz", hash = "sha256:cd397d6102bd7ee1f51ce7e2cce4626464b2014aba0848ba969a0a39457b3203", size = 1037615, upload-time = "2026-09-24T04:21:36.638Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/22/522428dcbb9b06ee2de76a34021137fe3bd38c360f4d3419dcdd76846816/tacular-1.1.0-py3-none-any.whl", hash = "sha256:d72ad98c301dc19a19a5fcc692b680c689de59067566ff99320c1899aa273aa9", size = 422964, upload-time = "2026-07-08T22:08:32.521Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/39/a05f9e76b39e930873d3c05cefcbb96fc07aa52e2ba77361235728f65848/tacular-1.2.0-py3-none-any.whl", hash = "sha256:dd6c2a6d152f2ff3e8efee5bc50d26cdcb843c8bf4e51d1efcd5474f0c8e8879", size = 428204, upload-time = "2026-09-24T04:21:34.961Z" },
 ]
 
 [[package]]

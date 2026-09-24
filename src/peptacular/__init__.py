@@ -22,7 +22,7 @@ from .sequence import *
 from .spans import *
 from .utils import *
 
-__version__ = "4.1.0"
+__version__ = "4.2.0"
 
 
 def __getattr__(name: str) -> Any:
