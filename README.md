@@ -109,6 +109,11 @@ print(results[0].value)                # 799.3599640328299
 print(results[1].error.code)           # unresolved_modification
 ```
 
+Raised errors are typed and all subclass `pt.PeptacularError` (a `ValueError`):
+invalid ProForma raises `pt.ProFormaFormatError`, an unresolved modification
+`pt.UnknownModificationError`, and so on. See the
+[streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html) for the full list.
+
 | Area | Entry points |
 |---|---|
 | Digestion | `pt.digest`, `pt.semi_digest`, `pt.nonspecific_digest` |

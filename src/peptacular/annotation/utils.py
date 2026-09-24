@@ -15,11 +15,12 @@ from tacular import (
 )
 
 from ..constants import ELECTRON_MASS
-from ..diagnostics import InvalidAdjustmentError
+from ..diagnostics import CompositionError, InvalidAdjustmentError
 from ..proforma_components.comps import ChargedFormula, GlobalChargeCarrier
 from .cached_comps import DeltaInfo, IsotopeInfo
 from .frag import Fragment
 from .mod import Mods
+from .positions import to_ion_type
 
 H_ELEMENT_INFO = ELEMENT_LOOKUP["H"]
 
@@ -365,11 +366,10 @@ SATELLITE_TRIM_START: frozenset[IonType] = frozenset({IonType.V, *(t for t, rule
 def can_fragment_sequence(sequence: str, ion_type: IonType | IonTypeLiteral) -> IonType:
     """Check if a sequence can produce a fragment of the given ion type."""
 
-    if not isinstance(ion_type, IonType):
-        ion_type = IonType(ion_type)
+    ion_type = to_ion_type(ion_type)
 
     if not sequence:
-        raise ValueError("Cannot calculate a mass or fragment for an empty sequence")
+        raise CompositionError("Cannot calculate a mass or fragment for an empty sequence")
 
     if ion_type not in FRAGMENT_RULES:
         return ion_type

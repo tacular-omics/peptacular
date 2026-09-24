@@ -539,14 +539,18 @@ print(pt.diagnose("PEPTIDE"))                        # None
 
 ## Errors
 
-All of these subclass `ValueError`:
+All of these subclass `PeptacularError` (4.2), which subclasses `ValueError`, so
+`except ValueError` still catches them:
 
+- `ProFormaFormatError`: the string is not valid ProForma (`parse`, `parse_chimeric`, and lazily parsed mods, glycans, isotope labels and adducts inside `mass()` etc.). The message includes the position and a caret.
 - `UnknownModificationError`: a modification name or accession does not resolve.
-- `CompositionError`: a composition was requested for delta-mass mods.
+- `CompositionError`: a composition was requested for delta-mass mods, or the sequence is empty (`pt.mass("")`).
 - `InvalidAdjustmentError`: bad isotope or delta counts.
-- `UnsupportedOperationError`: the operation does not support this input.
+- `InvalidPositionError` (4.2): a slice index or `frag(position=...)` is outside the sequence.
+- `FastaFormatError` (4.2): invalid FASTA text (`parse_fasta_text`, `iter_fasta`).
+- `UnsupportedOperationError`: the operation does not support this input, e.g. an unknown ion type (`fragment(ion_types=["q"])`; the message lists valid types).
 
-Syntax errors are plain `ValueError`s. Their message includes the position and a caret.
+Other gotchas: `pt.digest(seq, "name")` looks the name up in `PROTEASE_LOOKUP` and otherwise uses it as a regex. A string that is neither a known protease nor contains regex metacharacters (a typo such as `"trypsn"`) now emits a `UserWarning` (4.2). `pt.shift(seq, n)` raises `TypeError` for a non-integer `n`.
 
 ```python
 import peptacular as pt
@@ -557,7 +561,7 @@ except pt.UnknownModificationError as e:
     print(str(e).split(":")[0])                      # Unknown modification name 'Foo'
 try:
     pt.parse("PEP[TIDE")
-except ValueError as e:
+except pt.ProFormaFormatError as e:
     print(str(e).splitlines()[0])                    # Unclosed '[': reached end of sequence before finding a matching ']'
 ```
 

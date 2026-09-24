@@ -54,6 +54,16 @@ def left_semi_digest(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
+    """Semi-enzymatic sequences that keep the N-terminus of ``sequence`` (every prefix shorter than the full sequence, within the length limits).
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param min_len: Minimum length.
+    :param max_len: Maximum length.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: ``(sequence, Span)`` tuples, or a list of such lists for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _left_semi_digest,
@@ -117,6 +127,16 @@ def right_semi_digest(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
+    """Semi-enzymatic sequences that keep the C-terminus of ``sequence`` (every suffix shorter than the full sequence, within the length limits).
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param min_len: Minimum length.
+    :param max_len: Maximum length.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: ``(sequence, Span)`` tuples, or a list of such lists for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _right_semi_digest,

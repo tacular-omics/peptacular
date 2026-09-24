@@ -102,7 +102,7 @@ from .mod import (
 )
 from .mod_builder import modify
 from .parser import ProFormaParser
-from .positions import validate_position
+from .positions import to_ion_type, validate_position
 from .randomizer import generate_random_proforma_annotation
 from .serializer import serialize_annotation, serialize_charge
 from .slicing import (
@@ -3009,7 +3009,7 @@ class ProFormaAnnotation:
             and not self.has_isotope_mods
             and (effective_charge is None or type(effective_charge) is int and effective_charge >= 0)
         ):
-            ion_type = IonType(ion_type)
+            ion_type = to_ion_type(ion_type)
             can_fragment_sequence(self.sequence, ion_type)
             base_mass, internal_charge = self._base_mass(monoisotopic=monoisotopic)
             external_charge = effective_charge or 0
@@ -3172,7 +3172,7 @@ class ProFormaAnnotation:
         _include_sequence: bool = True,
     ) -> Fragment:
         """Calculate mass, preferring user charge over annotation charge."""
-        ion_type = IonType(ion_type)
+        ion_type = to_ion_type(ion_type)
         delta_info = DeltaInfo.from_input(deltas)
 
         inplace = False
@@ -3517,7 +3517,7 @@ class ProFormaAnnotation:
                 fragments.extend(
                     list(
                         charged_annot._fragment(
-                            ion_type=IonType(ion),
+                            ion_type=to_ion_type(ion),
                             monoisotopic=monoisotopic,
                             isotopes=isotope_infos,
                             deltas=delta_infos,
@@ -3567,7 +3567,7 @@ class ProFormaAnnotation:
                 raise ValueError("fast_fragment charges must be nonzero integers")
         supported = {IonType.A, IonType.B, IonType.C, IonType.X, IonType.Y, IonType.Z, IonType.PRECURSOR, IonType.NEUTRAL}
         for ion_type_input in ion_types:
-            if IonType(ion_type_input) not in supported:
+            if to_ion_type(ion_type_input) not in supported:
                 raise UnsupportedOperationError(f"Ion type {ion_type_input!r} is not supported in fast_fragment(). Use fragment() instead.")
 
         n = len(self)
@@ -3580,7 +3580,7 @@ class ProFormaAnnotation:
             fallback: dict[tuple[IonType, int], list[float]] = {}
             for charge in charges:
                 for ion_type_input in ion_types:
-                    ion_type = IonType(ion_type_input)
+                    ion_type = to_ion_type(ion_type_input)
                     ion_info = FRAGMENT_ION_LOOKUP[ion_type]
                     if ion_info.is_intact:
                         value = self.frag(ion_type=ion_type, charge=charge, monoisotopic=monoisotopic).mz
@@ -3595,7 +3595,7 @@ class ProFormaAnnotation:
         for charge in charges:
             charge_offset = charge * PROTON_MASS
             for ion_type_input in ion_types:
-                ion_type = IonType(ion_type_input)
+                ion_type = to_ion_type(ion_type_input)
                 ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
                 ion_offset = _ion_mass(ion_type, monoisotopic)
 

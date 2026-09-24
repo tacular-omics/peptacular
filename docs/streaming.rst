@@ -141,9 +141,38 @@ Codes are ``invalid_input``, ``invalid_notation``, ``invalid_annotation``,
 ``invalid_adjustment``, ``unsupported_operation``, and ``calculation_error``.
 The last code preserves errors without a more specific category. ``invalid_input``
 applies to the wrong input type. Human-readable messages can evolve independently
-of these codes. Existing exception-based code can catch the new
-``CompositionError``, ``UnknownModificationError``, ``InvalidAdjustmentError``, and
-``UnsupportedOperationError`` classes, all of which inherit from ``ValueError``.
+of these codes.
+
+**Exceptions**
+
+Code that raises instead of collecting can catch these classes, all importable from
+``peptacular`` (``pt.ProFormaFormatError`` and so on):
+
+- ``PeptacularError``: the base class of all of them (4.2). It subclasses ``ValueError``,
+  so existing ``except ValueError`` handlers keep working.
+- ``ProFormaFormatError``: the string is not valid ProForma. Raised by ``parse`` and
+  ``parse_chimeric``, and by calculations that parse a modification, glycan, isotope
+  label or adduct lazily (``pt.mass("<113C>PEPTIDE")``).
+- ``UnknownModificationError``: a modification name or accession does not resolve.
+- ``CompositionError``: a composition or mass is not available (delta-mass
+  modifications with a composition request, or an empty sequence).
+- ``InvalidAdjustmentError``: impossible isotope or delta counts.
+- ``InvalidPositionError`` (4.2): a slice index or fragment position is outside the
+  sequence.
+- ``FastaFormatError`` (4.2): ``parse_fasta_text``/``iter_fasta`` input is not valid FASTA.
+- ``UnsupportedOperationError``: the operation does not support this input, for
+  example an unknown ion type (the message lists the valid ones).
+
+.. testcode::
+
+   try:
+       pt.parse("PEP[TIDE")
+   except pt.PeptacularError as e:
+       print(type(e).__name__, isinstance(e, ValueError))
+
+.. testoutput::
+
+   ProFormaFormatError True
 
 **Calculation behavior tightened in 3.3.0**
 

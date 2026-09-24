@@ -7,6 +7,8 @@ import pathlib
 from collections.abc import Iterable, Iterator
 from typing import BinaryIO, NamedTuple, Protocol, cast, runtime_checkable
 
+from .diagnostics import FastaFormatError
+
 FASTA_INPUT_TYPE = str | pathlib.Path | io.IOBase
 
 __all__ = ["FASTA_INPUT_TYPE", "FastaSequence", "ReadableProtocol", "iter_fasta", "parse_fasta", "parse_fasta_text"]
@@ -54,19 +56,19 @@ def _iter_fasta_lines(lines: Iterable[str]) -> Iterator[FastaSequence]:
                 yield FastaSequence(header, "".join(seq_lines).upper())
             header = line[1:].strip()
             if not header:
-                raise ValueError(f"Empty header found at line {line_number}")
+                raise FastaFormatError(f"Empty header found at line {line_number}")
             seq_lines = []
         else:
             if header is None:
-                raise ValueError(f"Sequence data before header at line {line_number}")
+                raise FastaFormatError(f"Sequence data before header at line {line_number}")
             seq_lines.append(line)
     if header is not None and seq_lines:
         emitted = True
         yield FastaSequence(header, "".join(seq_lines).upper())
     if not found_text:
-        raise ValueError("Empty input text")
+        raise FastaFormatError("Empty input text")
     if not emitted:
-        raise ValueError("No valid FASTA sequences found")
+        raise FastaFormatError("No valid FASTA sequences found")
 
 
 def iter_fasta(input_data: FASTA_INPUT_TYPE, *, encoding: str | None = None) -> Iterator[FastaSequence]:
