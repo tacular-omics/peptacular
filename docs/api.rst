@@ -226,7 +226,7 @@ All of these are also available from the top-level ``peptacular`` namespace.
 
    ``Literal['nterm', 'cterm', 'isotope', 'static', 'labile', 'unknown', 'interval', 'internal', 'charge']``
 
-.. py:data:: peptacular.constants.parallelMethodLiteral
+.. py:data:: peptacular.constants.ParallelMethodLiteral
 
    ``Literal['process', 'thread', 'sequential']``
 

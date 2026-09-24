@@ -9,6 +9,17 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "get_mod_index_from_aa",
+    "get_mod_index_from_regex",
+    "get_mod_index",
+    "get_sites",
+    "ensure_single_static_mod",
+    "apply_mods",
+    "apply_static_mods_infront",
+    "modify",
+]
+
 
 def get_mod_index_from_aa(peptide: str, mod_aa: str) -> set[int]:
     # Given a peptide sequence and a modification, return the indices of the modification

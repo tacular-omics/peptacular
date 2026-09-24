@@ -13,14 +13,16 @@ __all__ = [
     "FastaFormatError",
     "UnsupportedOperationError",
     "UnknownModificationError",
+    "UnknownEnzymeError",
 ]
 
 
 class PeptacularError(ValueError):
-    """Base class for peptacular's typed errors.
+    """Base class for every error peptacular raises for bad input.
 
     It subclasses ``ValueError``, so code that catches ``ValueError`` keeps working.
-    Catch ``PeptacularError`` to handle any peptacular input error at once.
+    Catch ``PeptacularError`` to handle any peptacular input error at once. A
+    ``TypeError`` (an argument of the wrong Python type) is not wrapped.
     """
 
 
@@ -44,8 +46,23 @@ class InvalidAdjustmentError(PeptacularError):
     """An adjustment has invalid counts or produces an impossible composition."""
 
 
-class InvalidPositionError(PeptacularError):
-    """A slice index or fragment position is outside the sequence."""
+class InvalidPositionError(PeptacularError, IndexError):
+    """A slice index, residue index or fragment position is outside the sequence.
+
+    Also an ``IndexError``, so ``except IndexError`` keeps working.
+    """
+
+
+class UnknownEnzymeError(PeptacularError, KeyError):
+    """An ``enzyme`` string names no protease in tacular's ``PROTEASE_LOOKUP``.
+
+    Also a ``KeyError``. To digest with a custom cleavage rule, pass a compiled
+    pattern (``re.compile(...)``) instead of a string.
+    """
+
+    def __str__(self) -> str:
+        # KeyError.__str__ would repr() the message; keep it readable.
+        return Exception.__str__(self)
 
 
 class FastaFormatError(PeptacularError):
@@ -79,6 +96,8 @@ def diagnostic_from_exception(exc: Exception, stage: Literal["parse", "validate"
         code = "unavailable_composition"
     elif isinstance(exc, InvalidAdjustmentError):
         code = "invalid_adjustment"
+    elif isinstance(exc, UnknownEnzymeError):
+        code = "unknown_enzyme"
     elif isinstance(exc, UnsupportedOperationError):
         code = "unsupported_operation"
     elif isinstance(exc, ProFormaFormatError):

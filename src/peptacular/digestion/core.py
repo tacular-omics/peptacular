@@ -6,7 +6,7 @@ from collections.abc import Generator, Sequence
 
 from tacular import PROTEASE_LOOKUP
 
-from ..regex_utils import get_regex_match_indices
+from .._regex_utils import get_regex_match_indices
 from ..spans import (
     Span,
     build_left_semi_spans,
@@ -18,6 +18,18 @@ from .types import (
     DigestProtocol,
     EnzymeConfig,
 )
+
+__all__ = [
+    "left_semi_spans",
+    "right_semi_spans",
+    "semi_spans",
+    "nonspecific_spans",
+    "get_cleavage_sites",
+    "generate_regex",
+    "digest_annotation_by_aa",
+    "digest_annotation_by_regex",
+    "sequential_digest_annotation",
+]
 
 
 def left_semi_spans(

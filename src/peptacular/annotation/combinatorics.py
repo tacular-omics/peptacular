@@ -10,6 +10,13 @@ if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
     from .mod import Mods
 
+__all__ = [
+    "generate_permutations",
+    "generate_product",
+    "generate_combinations",
+    "generate_combinations_with_replacement",
+]
+
 
 def generate_permutations(annotation: ProFormaAnnotation, size: int | None = None) -> Generator[ProFormaAnnotation]:
     """

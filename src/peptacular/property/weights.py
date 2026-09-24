@@ -4,6 +4,10 @@ from typing import Any
 
 from .types import WeightingMethods
 
+__all__ = [
+    "get_weights",
+]
+
 
 def _get_uniform_weights(length: int, min_weight: float = 0.1, max_weight: float = 1.0) -> list[float]:
     """

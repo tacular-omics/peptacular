@@ -4,10 +4,20 @@ from typing import Any, overload
 from ..annotation import (
     ProFormaAnnotation,
 )
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..spans import Span
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
+
+__all__ = [
+    "reverse",
+    "shuffle",
+    "shift",
+    "span_to_sequence",
+    "split",
+    "sort",
+    "join",
+]
 
 
 def _reverse_single(
@@ -23,9 +33,10 @@ def reverse(
     sequence: str | ProFormaAnnotation,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
@@ -34,9 +45,10 @@ def reverse(
     sequence: Sequence[str | ProFormaAnnotation],
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
@@ -44,9 +56,10 @@ def reverse(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Reverses the sequence, while preserving the position of any modifications.
@@ -96,9 +109,10 @@ def shuffle(
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
@@ -108,9 +122,10 @@ def shuffle(
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
@@ -119,9 +134,10 @@ def shuffle(
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Shuffles the sequence, while preserving the position of any modifications.
@@ -171,9 +187,10 @@ def shift(
     n: int,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
@@ -183,9 +200,10 @@ def shift(
     n: int,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
@@ -194,9 +212,10 @@ def shift(
     n: int,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Shifts the sequence to the left by a given number of positions, while preserving the position of any modifications.
@@ -241,9 +260,10 @@ def _span_to_sequence_single(
 def span_to_sequence(
     sequence: str | ProFormaAnnotation,
     span: tuple[int, int, int],
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
@@ -251,18 +271,20 @@ def span_to_sequence(
 def span_to_sequence(
     sequence: Sequence[str | ProFormaAnnotation],
     span: tuple[int, int, int],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 def span_to_sequence(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     span: tuple[int, int, int] | Span,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Extracts a subsequence from the input sequence based on the provided span.
@@ -298,26 +320,29 @@ def _split_single(
 @overload
 def split(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 @overload
 def split(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[str]]: ...
 
 
 def split(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str] | list[list[str]]:
     """
     Splits sequence into a list of amino acids, preserving modifications.
@@ -354,9 +379,10 @@ def sort(
     sequence: str | ProFormaAnnotation,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
@@ -365,9 +391,10 @@ def sort(
     sequence: Sequence[str | ProFormaAnnotation],
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
@@ -375,9 +402,10 @@ def sort(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Sorts the input sequence using the provided sort function. Terminal sequences are kept in place.
@@ -416,26 +444,29 @@ def _join_single(
 @overload
 def join(
     annotations: Sequence[ProFormaAnnotation | str],
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str: ...
 
 
 @overload
 def join(
     annotations: Sequence[Sequence[ProFormaAnnotation | str]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[str]: ...
 
 
 def join(
     annotations: Sequence[ProFormaAnnotation | str] | Sequence[Sequence[ProFormaAnnotation | str]],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
     Joins a list of annotations into a single annotation.

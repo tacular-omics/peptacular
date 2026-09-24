@@ -43,6 +43,41 @@ if TYPE_CHECKING:
         TagName,
     )
 
+__all__ = [
+    "monosaccharide_names",
+    "PATTERN_ACCESSION",
+    "PATTERN_CUSTOM",
+    "PATTERN_MASS",
+    "PATTERN_NAMED_MOD",
+    "parse_formula_element",
+    "parse_charged_formula",
+    "parse_position_score",
+    "parse_modification_tag",
+    "parse_glycan",
+    "parse_modification_tags",
+    "parse_position_rule",
+    "LOC_PATTERN",
+    "NAME_LOC_PATTERN",
+    "parse_tag_accession",
+    "parse_tag_mass",
+    "parse_tag_name",
+    "parse_tag_info",
+    "parse_tag_custom",
+    "parse_glycan_component",
+    "parse_isotope_replacement",
+    "parse_global_charge_carrier",
+    "parse_modification_ambiguous_primary",
+    "parse_modification_ambiguous_secondary",
+    "parse_modification_cross_linker",
+    "parse_fixed_modification",
+    "parse_modification",
+    "parse_sequence_element",
+    "parse_sequence_region",
+    "parse_peptidoform",
+    "parse_peptidoform_ion",
+    "parse_compound_peptidoform_ion",
+]
+
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 _TYPED_ERRORS = (ProFormaFormatError, UnknownModificationError, UnsupportedOperationError, CompositionError, InvalidAdjustmentError)

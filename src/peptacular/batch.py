@@ -10,7 +10,7 @@ from itertools import islice
 from typing import Any, Literal
 
 from .annotation import ProFormaAnnotation
-from .constants import parallelMethod, parallelMethodLiteral
+from .constants import ParallelMethod, ParallelMethodLiteral
 from .diagnostics import Diagnostic, diagnostic_from_exception
 from .sequence.parallel import AUTO_PARALLEL_MIN_ITEMS, _get_optimal_method, _validate_positive_int
 
@@ -106,7 +106,7 @@ def iter_batch(
     batch_size: int = 1000,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     start_method: Literal["spawn", "fork", "forkserver"] | None = None,
     **kwargs: Any,
 ) -> Iterator[BatchResult]:
@@ -148,9 +148,9 @@ def iter_batch(
         raise ValueError("batch_size must be a positive integer")
     _validate_positive_int(n_workers, "n_workers")
     _validate_positive_int(chunksize, "chunksize")
-    selected = parallelMethod(method) if method is not None else parallelMethod(_get_optimal_method())
+    selected = ParallelMethod(method) if method is not None else ParallelMethod(_get_optimal_method())
     context = mp.get_context(start_method) if start_method is not None else None
-    if context is not None and selected != parallelMethod.PROCESS:
+    if context is not None and selected != ParallelMethod.PROCESS:
         raise ValueError("start_method requires process execution")
     source = enumerate(sequences)
     execute = partial(_run_item, operation=operation, kwargs=kwargs, errors=errors)
@@ -158,12 +158,12 @@ def iter_batch(
     try:
         while items := list(islice(source, batch_size)):
             small_auto = method is None and n_workers is None and start_method is None and len(items) < AUTO_PARALLEL_MIN_ITEMS
-            if selected == parallelMethod.SEQUENTIAL or (small_auto and executor is None):
+            if selected == ParallelMethod.SEQUENTIAL or (small_auto and executor is None):
                 yield from map(execute, items)
                 continue
             if executor is None:
                 workers = min(n_workers or _available_cpus(), len(items))
-                if selected == parallelMethod.THREAD:
+                if selected == ParallelMethod.THREAD:
                     executor = ThreadPoolExecutor(max_workers=workers)
                 else:
                     executor = ProcessPoolExecutor(max_workers=workers, mp_context=context)
@@ -187,7 +187,7 @@ def batch(
     batch_size: int = 1000,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     start_method: Literal["spawn", "fork", "forkserver"] | None = None,
     **kwargs: Any,
 ) -> list[BatchResult]:

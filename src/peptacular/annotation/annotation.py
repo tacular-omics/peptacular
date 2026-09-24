@@ -67,7 +67,7 @@ from ..proforma_components import (
 )
 from ..property.prop import AnnotationProperties
 from ..spans import Span
-from ..utils import get_mods
+from ..utils import _resolve_mod_types
 from .ambiguity import (
     annotate_ambiguity,
     condense_ambiguity_to_xnotation,
@@ -129,6 +129,28 @@ from .utils import (
     can_fragment_sequence,
     validate_mass,
 )
+
+__all__ = [
+    "H_CHARGE_FORMULA",
+    "H_DECHARGE_FORMULA",
+    "ION_TYPE",
+    "CHARGE_TYPE",
+    "ISOTOPE_TYPE",
+    "LOSS_TYPE",
+    "CUSTOM_LOSS_TYPE",
+    "POSITION_TYPE",
+    "EMPTY_ISOTOPE_MODS",
+    "EMPTY_STATIC_MODS",
+    "EMPTY_UNKNOWN_MODS",
+    "EMPTY_LABILE_MODS",
+    "EMPTY_NTERM_MODS",
+    "EMPTY_CTERM_MODS",
+    "EMPTY_CHARGE_MODS",
+    "EMPTY_INTERNAL_MODS",
+    "ChargeType",
+    "get_loss_combinations",
+    "ProFormaAnnotation",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -2438,7 +2460,7 @@ class ProFormaAnnotation:
         :return: ``True`` if at least one matching modification exists.
         :rtype: bool
         """
-        mod_enums = get_mods(mod_types)
+        mod_enums = _resolve_mod_types(mod_types)
         return any(self._has_mods_by_type(mod_enum) for mod_enum in mod_enums)
 
     @property
@@ -2497,7 +2519,7 @@ class ProFormaAnnotation:
         :return: Mapping of mod type to modification value.
         :rtype: dict[ModType | ModTypeLiteral, Any]
         """
-        mod_enums = get_mods(mod_types)
+        mod_enums = _resolve_mod_types(mod_types)
         return {mod_enum: self._get_mods_by_type(mod_enum) for mod_enum in mod_enums if self._has_mods_by_type(mod_enum)}
 
     @classmethod
@@ -3879,7 +3901,7 @@ class ProFormaAnnotation:
         if inplace is False:
             return self.copy().pop_mods(mod_types=mod_types, inplace=True)
 
-        mod_enums: list[ModType] = get_mods(mod_types)
+        mod_enums: list[ModType] = _resolve_mod_types(mod_types)
 
         d: dict[ModType, Any] = {}
         for mod_enum in mod_enums:
@@ -3909,13 +3931,13 @@ class ProFormaAnnotation:
 
         if keep:
             # Keep only specified mods
-            mod_types_to_keep = set(get_mods(mods))
+            mod_types_to_keep = set(_resolve_mod_types(mods))
 
             all_mod_types = {mod_type for mod_type in ModType}
             mod_types_to_remove = all_mod_types - mod_types_to_keep
         else:
             # Remove only specified mods
-            mod_types_to_remove = get_mods(mods)
+            mod_types_to_remove = _resolve_mod_types(mods)
 
         if len(mod_types_to_remove) == 0:
             # If no mods to remove, return the annotation as is
@@ -4081,7 +4103,7 @@ class ProFormaAnnotation:
         """
         if inplace is False:
             return self.copy().clear_mods(mods=mods, inplace=True)
-        mod_enums = get_mods(mods)
+        mod_enums = _resolve_mod_types(mods)
         for mod_enum in mod_enums:
             self._clear_mod_by_type(mod_enum)
         return self

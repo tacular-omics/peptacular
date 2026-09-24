@@ -30,6 +30,10 @@ from .types import (
     WeightingMethodsLiteral,
 )
 
+__all__ = [
+    "AnnotationProperties",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class AnnotationProperties:

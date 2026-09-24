@@ -3,6 +3,15 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
+__all__ = [
+    "MissingAAHandling",
+    "MissingAAHandlingLiteral",
+    "AggregationMethod",
+    "AggregationMethodLiteral",
+    "WeightingMethods",
+    "WeightingMethodsLiteral",
+]
+
 
 class MissingAAHandling(StrEnum):
     """Strategy for handling missing amino acid values"""

@@ -3,6 +3,7 @@ Tests for parsing glycan composition modification tags.
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -16,7 +17,7 @@ class TestGlycanComposition:
         # assert that component is GlycanTag
         assert isinstance(result, pt.GlycanTag)
         res: pt.GlycanComponent = result.components[0]
-        assert res.monosaccharide == pt.Monosaccharide.Hex
+        assert res.monosaccharide == tacular.Monosaccharide.Hex
         assert res.occurance == 1
 
     def test_glycan_with_count(self):
@@ -24,7 +25,7 @@ class TestGlycanComposition:
         result = pt.ModificationTags.from_string("Glycan:Hex5").tags[0]
         assert isinstance(result, pt.GlycanTag)
         res: pt.GlycanComponent = result.components[0]
-        assert res.monosaccharide == pt.Monosaccharide.Hex
+        assert res.monosaccharide == tacular.Monosaccharide.Hex
         assert res.occurance == 5
 
     def test_complex_glycan_composition(self):
@@ -35,9 +36,9 @@ class TestGlycanComposition:
         res1: pt.GlycanComponent = result.components[0]
         res2: pt.GlycanComponent = result.components[1]
 
-        assert res1.monosaccharide == pt.Monosaccharide.Hex
+        assert res1.monosaccharide == tacular.Monosaccharide.Hex
         assert res1.occurance == 5
-        assert res2.monosaccharide == pt.Monosaccharide.HexNAc
+        assert res2.monosaccharide == tacular.Monosaccharide.HexNAc
         assert res2.occurance == 4
 
     def test_various_monosaccharides(self):
@@ -58,7 +59,7 @@ class TestParseGlycan:
 
         result = parse_glycan("Glycan:Hex5")
         assert len(result) == 1
-        assert result[0].monosaccharide == pt.Monosaccharide.Hex
+        assert result[0].monosaccharide == tacular.Monosaccharide.Hex
         assert result[0].occurance == 5
 
     def test_complex_glycan(self):
@@ -68,11 +69,11 @@ class TestParseGlycan:
         result = parse_glycan("Glycan:Hex5HexNAc4NeuAc2")
         assert isinstance(result, tuple)
         assert len(result) == 3
-        assert result[0].monosaccharide == pt.Monosaccharide.Hex
+        assert result[0].monosaccharide == tacular.Monosaccharide.Hex
         assert result[0].occurance == 5
-        assert result[1].monosaccharide == pt.Monosaccharide.HexNAc
+        assert result[1].monosaccharide == tacular.Monosaccharide.HexNAc
         assert result[1].occurance == 4
-        assert result[2].monosaccharide == pt.Monosaccharide.NeuAc
+        assert result[2].monosaccharide == tacular.Monosaccharide.NeuAc
         assert result[2].occurance == 2
 
     def test_case_insensitive_prefix(self):
@@ -131,9 +132,9 @@ class TestGlycanWhitespace:
 
         result = parse_glycan("Glycan: Hex5  HexNAc4  NeuAc2 ")
         assert [(c.monosaccharide, c.occurance) for c in result] == [
-            (pt.Monosaccharide.Hex, 5),
-            (pt.Monosaccharide.HexNAc, 4),
-            (pt.Monosaccharide.NeuAc, 2),
+            (tacular.Monosaccharide.Hex, 5),
+            (tacular.Monosaccharide.HexNAc, 4),
+            (tacular.Monosaccharide.NeuAc, 2),
         ]
 
     def test_whitespace_between_name_and_count(self):

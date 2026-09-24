@@ -8,14 +8,11 @@ __all__ = [
     "C13_NEUTRON_MASS",
     "PEPTIDE_AVERAGINE_NEUTRON_MASS",
     "CV",
-    "CV_TO_NAME_PREFIX",
-    "CV_TO_ACCESSION_PREFIX",
-    "CV_TO_MASS_PREFIX",
     "Terminal",
     "ModType",
     "ModTypeLiteral",
-    "parallelMethod",
-    "parallelMethodLiteral",
+    "ParallelMethod",
+    "ParallelMethodLiteral",
 ]
 
 
@@ -38,7 +35,7 @@ class CV(StrEnum):
     OBSERVED = "OBSERVED"
 
 
-CV_TO_NAME_PREFIX: Final[dict[CV, str]] = {
+_CV_TO_NAME_PREFIX: Final[dict[CV, str]] = {
     CV.UNIMOD: "",
     CV.PSI_MOD: "",
     CV.RESID: "R:",
@@ -47,7 +44,7 @@ CV_TO_NAME_PREFIX: Final[dict[CV, str]] = {
     CV.CUSTOM: "C:",
 }
 
-CV_TO_ACCESSION_PREFIX: Final[dict[CV, str]] = {
+_CV_TO_ACCESSION_PREFIX: Final[dict[CV, str]] = {
     CV.UNIMOD: "UNIMOD:",
     CV.PSI_MOD: "MOD:",
     CV.RESID: "RESID:",
@@ -55,7 +52,7 @@ CV_TO_ACCESSION_PREFIX: Final[dict[CV, str]] = {
     CV.XL_MOD: "XLMOD:",
 }
 
-CV_TO_MASS_PREFIX: Final[dict[CV, str]] = {
+_CV_TO_MASS_PREFIX: Final[dict[CV, str]] = {
     CV.UNIMOD: "U:",
     CV.PSI_MOD: "M:",
     CV.RESID: "R:",
@@ -125,10 +122,17 @@ ModTypeLiteral = Literal[
 ]
 
 
-class parallelMethod(StrEnum):
+class ParallelMethod(StrEnum):
+    """Backend used by the functional API for list input (the ``method=`` keyword).
+
+    - ``PROCESS``: a ``multiprocessing`` process pool
+    - ``THREAD``: a thread pool (the default on free-threaded Python)
+    - ``SEQUENTIAL``: no pool, items run one after another
+    """
+
     PROCESS = "process"
     THREAD = "thread"
     SEQUENTIAL = "sequential"
 
 
-parallelMethodLiteral = Literal["process", "thread", "sequential"]
+ParallelMethodLiteral = Literal["process", "thread", "sequential"]

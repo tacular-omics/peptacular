@@ -12,6 +12,13 @@ from ..constants import ModType
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "condense_ambiguity_to_xnotation",
+    "annotate_ambiguity",
+    "group_by_ambiguity",
+    "unique_fragments",
+]
+
 
 def condense_ambiguity_to_xnotation(annotation: ProFormaAnnotation, inplace: bool = False) -> ProFormaAnnotation:
     """

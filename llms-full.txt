@@ -679,7 +679,7 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
 - `AVERAGINE_RATIOS`: elemental ratios per dalton
 - `ModType` and its string values: `nterm`, `cterm`, `isotope`, `static`, `labile`,
   `unknown`, `interval`, `internal`, `charge`
-- `parallelMethod`: `process`, `thread`, `sequential`
+- `ParallelMethod`: `process`, `thread`, `sequential`
 
 ## Gotchas
 

@@ -18,6 +18,10 @@ from ..proforma_components import (
 from .mod import Mods
 from .positions import validate_position
 
+__all__ = [
+    "Fragment",
+]
+
 # Maps internal ion type value tuples to their neutral loss diff relative to "by" (the default internal fragment).
 # None means no difference from "by". Derived from tacular's internal(F,B) = deltaF + deltaB
 # offsets (tacular>=1.1.0, itself derived from mzPAF's own primary-ion formulas: a=b-CO,

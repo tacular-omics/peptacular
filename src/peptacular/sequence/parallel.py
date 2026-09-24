@@ -9,7 +9,15 @@ from functools import partial
 from multiprocessing.pool import Pool, ThreadPool
 from typing import Any, Literal, TypeVar
 
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
+
+__all__ = [
+    "AUTO_PARALLEL_MIN_ITEMS",
+    "set_start_method",
+    "get_start_method",
+    "get_available_start_methods",
+    "parallel_apply_internal",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +106,7 @@ def _apply_wrapper[T](item: Any, func: Callable[..., T], func_kwargs: dict[str, 
     return func(item, **func_kwargs)
 
 
-def _create_pool(method: parallelMethod, n_workers: int) -> Pool | ThreadPool:
+def _create_pool(method: ParallelMethod, n_workers: int) -> Pool | ThreadPool:
     """
     Create a new pool.
 
@@ -106,7 +114,7 @@ def _create_pool(method: parallelMethod, n_workers: int) -> Pool | ThreadPool:
     :param n_workers: Number of workers
     :return: Pool instance
     """
-    if method == parallelMethod.THREAD:
+    if method == ParallelMethod.THREAD:
         return ThreadPool(processes=n_workers)
     else:
         return Pool(processes=n_workers)
@@ -115,9 +123,10 @@ def _create_pool(method: parallelMethod, n_workers: int) -> Pool | ThreadPool:
 def parallel_apply_internal[T](
     func: Callable[..., T],
     items: Sequence[Any],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = False,
     verbose: bool = False,
     **func_kwargs: Any,
@@ -141,7 +150,7 @@ def parallel_apply_internal[T](
     """
     _validate_positive_int(n_workers, "n_workers")
     _validate_positive_int(chunksize, "chunksize")
-    method_enum = parallelMethod(method) if method is not None else parallelMethod(_get_optimal_method())
+    method_enum = ParallelMethod(method) if method is not None else ParallelMethod(_get_optimal_method())
 
     # Convert to list if needed
     items_list = list(items)
@@ -153,10 +162,10 @@ def parallel_apply_internal[T](
     # When no method is given, auto-detect: use threads on free-threaded (no-GIL)
     # Python, otherwise fall back to processes.
     if method is None and n_workers is None and len(items_list) < AUTO_PARALLEL_MIN_ITEMS:
-        method_enum = parallelMethod.SEQUENTIAL
+        method_enum = ParallelMethod.SEQUENTIAL
 
     # Handle sequential execution
-    if method_enum == parallelMethod.SEQUENTIAL:
+    if method_enum == ParallelMethod.SEQUENTIAL:
         return [func(item, **func_kwargs) for item in items_list]
 
     # Handle parallel execution

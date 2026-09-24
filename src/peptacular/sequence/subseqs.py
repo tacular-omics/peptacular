@@ -5,6 +5,14 @@ from ..annotation import (
 )
 from .util import get_annotation_input
 
+__all__ = [
+    "is_subsequence",
+    "find_subsequence_indices",
+    "coverage",
+    "percent_coverage",
+    "modification_coverage",
+]
+
 
 def is_subsequence(
     subsequence: str | ProFormaAnnotation,

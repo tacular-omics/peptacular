@@ -3,6 +3,7 @@ Tests for parsing modification strings with multiple tags (pipe-separated).
 """
 
 import pytest
+import tacular
 
 import peptacular as pt
 
@@ -71,7 +72,7 @@ class TestMultipleTags:
         assert isinstance(result[1], pt.TagAccession)
         assert isinstance(result[2], pt.TagMass)
         assert isinstance(result[3], pt.ChargedFormula)
-        assert result[3].formula[0].element == pt.Element.O
+        assert result[3].formula[0].element == tacular.Element.O
 
     def test_name_and_info(self):
         """Test parsing name with INFO tag"""

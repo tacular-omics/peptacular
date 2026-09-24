@@ -22,6 +22,16 @@ from .types import (
 )
 from .weights import get_weights
 
+__all__ = [
+    "AMIGUOUS_AMINO_ACID_MAP",
+    "calc_property",
+    "calc_window_property",
+    "aa_property_percentage",
+    "charge_at_ph",
+    "secondary_structure",
+    "generate_partitions",
+]
+
 # Handle ambiguous amino acids
 AMIGUOUS_AMINO_ACID_MAP: dict[str, tuple[str, ...]] = {
     "B": ("D", "N"),  # Aspartic acid or Asparagine

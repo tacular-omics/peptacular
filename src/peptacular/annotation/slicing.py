@@ -14,6 +14,17 @@ from .parser import Interval, ProFormaParser
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "slice_annotation",
+    "split_annotation",
+    "join_annotations",
+    "shift_annotation",
+    "shuffle_annotation",
+    "reverse_annotation",
+    "sort_annotation",
+    "generate_sliding_windows",
+]
+
 
 def slice_annotation(
     annotation: ProFormaAnnotation,

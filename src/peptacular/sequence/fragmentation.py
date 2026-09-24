@@ -12,9 +12,16 @@ from ..annotation.annotation import (
     LOSS_TYPE,
 )
 from ..annotation.utils import Fragment
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
+
+__all__ = [
+    "FRAGMENT_MASSES_RETURN",
+    "fragment",
+    "frag",
+    "fast_fragment",
+]
 
 FRAGMENT_MASSES_RETURN = dict[tuple[IonType, int], list[float]]
 
@@ -55,9 +62,10 @@ def fragment(
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
     calculate_composition: bool = False,
     max_ndeltas: int = 1,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment]: ...
 
 
@@ -72,9 +80,10 @@ def fragment(
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
     calculate_composition: bool = False,
     max_ndeltas: int = 1,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[Fragment]]: ...
 
 
@@ -88,9 +97,10 @@ def fragment(
     neutral_deltas: Sequence[LOSS_TYPE | None] = (),
     calculate_composition: bool = False,
     max_ndeltas: int = 1,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment] | list[list[Fragment]]:
     """
     Builds fragment ions from a given input sequence or list of sequences.
@@ -158,9 +168,10 @@ def frag(
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_composition: bool = False,
     position: int | tuple[int, int] | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Fragment: ...
 
 
@@ -174,9 +185,10 @@ def frag(
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_composition: bool = False,
     position: int | tuple[int, int] | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Fragment]: ...
 
 
@@ -189,9 +201,10 @@ def frag(
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_composition: bool = False,
     position: int | tuple[int, int] | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Fragment | list[Fragment]:
     """
     Calculate a single fragment from a sequence or multiple sequences.
@@ -244,9 +257,10 @@ def fast_fragment(
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> FRAGMENT_MASSES_RETURN: ...
 
 
@@ -256,9 +270,10 @@ def fast_fragment(
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[FRAGMENT_MASSES_RETURN]: ...
 
 
@@ -267,9 +282,10 @@ def fast_fragment(
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> FRAGMENT_MASSES_RETURN | list[FRAGMENT_MASSES_RETURN]:
     """Compute fragment ion m/z values for a sequence or list of sequences.
 

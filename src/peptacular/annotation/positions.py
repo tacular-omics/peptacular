@@ -2,6 +2,11 @@ from tacular import FRAGMENT_ION_LOOKUP, FragmentIonInfo, IonType, IonTypeLitera
 
 from ..diagnostics import InvalidPositionError, UnsupportedOperationError
 
+__all__ = [
+    "to_ion_type",
+    "validate_position",
+]
+
 
 def to_ion_type(ion_type: IonType | IonTypeLiteral | str) -> IonType:
     """Return ``ion_type`` as an :class:`IonType`, raising a clear error for unknown values.

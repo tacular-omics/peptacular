@@ -5,9 +5,112 @@
 # package.
 """Indices to be used with ProtParam."""
 
-import warnings
 from enum import StrEnum
-from typing import Any, Final
+from typing import Final
+
+__all__ = [
+    "NEGATIVE_AMINO_ACIDS",
+    "POSITIVE_AMINO_ACIDS",
+    "CHARGED_AMINO_ACIDS",
+    "AROMATIC_AMINO_ACIDS",
+    "hphob_kyte_doolittle",
+    "hphob_adoberin",
+    "hphob_abraham_leo",
+    "hphob_agros",
+    "hphob_rao_argos",
+    "hphob_black_mould",
+    "hphob_bull_breese",
+    "hphob_casari_sippl",
+    "hphob_cid",
+    "hphob_cowan_3_4",
+    "hphob_cowan_7_5",
+    "hphob_eisenberg",
+    "hphob_engelman",
+    "hphob_fasman",
+    "hphob_fauchere",
+    "hphob_goldsack",
+    "hphob_guy",
+    "hphob_jones",
+    "hphob_juretic",
+    "hphob_kidera",
+    "hphob_miyazawa",
+    "hphob_parker",
+    "hphob_ponnuswamy",
+    "hphob_manavalan",
+    "hphob_rose",
+    "hphob_roseman",
+    "hphob_sweet",
+    "hphob_tanford",
+    "hphob_wilson",
+    "hphob_zimmerman",
+    "hphob_chothia",
+    "hphob_janin",
+    "hphob_wolfenden",
+    "hphob_welling",
+    "flexibility_vihinen",
+    "hydrophilicity_hopp_wood",
+    "surface_accessibility_vergoten",
+    "surface_accessiblility_janin",
+    "DIWV",
+    "pk_nterminal",
+    "pk_cterminal",
+    "pk_sidechain",
+    "deleage_roux_alpha_helix",
+    "deleage_roux_beta_sheet",
+    "deleage_roux_beta_turn",
+    "deleage_roux_coil",
+    "levitt_alpha_helix",
+    "levitt_beta_sheet",
+    "levitt_beta_turn",
+    "chou_fasman_alpha_helix",
+    "chou_fasman_beta_sheet",
+    "chou_fasman_beta_turn",
+    "beta_strand_parallel",
+    "beta_strand_antiparallel",
+    "beta_strand_total",
+    "ratioside",
+    "polarity_grantham",
+    "polarity_zimmerman",
+    "mutability",
+    "codons",
+    "refractivity",
+    "bulkiness",
+    "recognition_factors",
+    "aa_composition_mccaldron",
+    "aa_composition_swissprot",
+    "aa_composition_scales",
+    "transmembrane_tendency",
+    "accessible_residues",
+    "average_buried_area",
+    "molecular_weights",
+    "hplc_meek_2_1",
+    "hplc_browne",
+    "hplc_meek_7_4",
+    "hplc_browne_tfa",
+    "SecondaryStructureMethod",
+    "SecondaryStructureType",
+    "PropertyScale",
+    "HydrophobicityScale",
+    "SecondaryStructureScale",
+    "SurfaceAccessibilityScale",
+    "ChargeScale",
+    "PolarityScale",
+    "HPLCScale",
+    "BetaStrandScale",
+    "PhysicalPropertyScale",
+    "CompositionScale",
+    "secondary_structure_scales",
+    "secondary_structure_scales_by_name",
+    "PROPERTY_SCALES",
+    "HYDROPHOBICITY_SCALES",
+    "SURFACE_ACCESSIBILITY_SCALES",
+    "HPLC_SCALES",
+    "HYDROPHILICITY_SCALES",
+    "FLEXIBILITY_SCALES",
+    "POLARITY_SCALES",
+    "COMPOSITION_SCALES",
+    "PHYSICAL_PROPERTY_SCALES",
+]
 
 
 class _AA(StrEnum):
@@ -1345,30 +1448,3 @@ PHYSICAL_PROPERTY_SCALES: Final[dict[str, dict[str, float]]] = {
     PhysicalPropertyScale.RECOGNITION_FACTORS: recognition_factors,
     PhysicalPropertyScale.TRANSMEMBRANE_TENDENCY: transmembrane_tendency,
 }
-
-
-_DEPRECATED_ALIASES: Final[dict[str, str]] = {"FLIXIBILITY_SCALES": "FLEXIBILITY_SCALES"}
-
-
-def _resolve_deprecated_alias(name: str) -> Any:
-    """Return the object behind a deprecated alias, warning with :class:`DeprecationWarning`.
-
-    The warning is attributed to the code that accessed the alias, whether it went through this module, :mod:`peptacular.property` or
-    :mod:`peptacular`.
-
-    :param name: Attribute name that was accessed.
-    :type name: str
-    :return: The object the deprecated name now refers to.
-    :rtype: Any
-    :raises AttributeError: If ``name`` is not a deprecated alias.
-    """
-    if name not in _DEPRECATED_ALIASES:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    new_name = _DEPRECATED_ALIASES[name]
-    warnings.warn(f"{name} is deprecated; use {new_name} instead.", DeprecationWarning, stacklevel=3)
-    return globals()[new_name]
-
-
-def __getattr__(name: str) -> Any:
-    """Resolve deprecated module attributes such as ``FLIXIBILITY_SCALES``."""
-    return _resolve_deprecated_alias(name)

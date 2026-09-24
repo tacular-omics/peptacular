@@ -8,6 +8,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
+__all__ = [
+    "condense_mods_to_intervals",
+    "coverage",
+    "percent_coverage",
+    "modification_coverage",
+    "condense_static_mods",
+    "condense_to_peptidoform",
+    "count_residues",
+    "percent_residues",
+    "is_subsequence",
+    "find_indices",
+]
+
 
 def condense_mods_to_intervals(annotation: ProFormaAnnotation, inplace: bool = True) -> ProFormaAnnotation:
     """

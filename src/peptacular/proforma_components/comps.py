@@ -36,6 +36,50 @@ from tacular import (
 from ..constants import CV, Terminal
 from ..diagnostics import CompositionError, ProFormaFormatError, UnknownModificationError
 
+__all__ = [
+    "HasMassComp",
+    "MassPropertyMixin",
+    "sum_masses",
+    "add_composition",
+    "merge_compositions",
+    "HasPositionScore",
+    "PositionScoreMixin",
+    "FormulaElement",
+    "ChargedFormula",
+    "PositionRule",
+    "TagAccession",
+    "TagMass",
+    "PositionScore",
+    "TagName",
+    "TagInfo",
+    "TagCustom",
+    "GlycanComponent",
+    "GlycanTag",
+    "PlacementTagMixin",
+    "PositionTag",
+    "LimitTag",
+    "ComkpTag",
+    "ComupTag",
+    "IsotopeReplacement",
+    "GlobalChargeCarrier",
+    "MODIFICATION_TAG_TYPE",
+    "ModificationTags",
+    "ModificationAmbiguousPrimary",
+    "ModificationAmbiguousSecondary",
+    "ModificationCrossLinker",
+    "FixedModification",
+    "MODIFICATION_AMBIGUOUS_TYPE",
+    "MODIFICATION_TYPE",
+    "SequenceElement",
+    "SequenceRegion",
+    "SEQUENCE_TYPE",
+    "GLOBAL_CHARGE_TYPE",
+    "Peptidoform",
+    "PeptidoformIon",
+    "CompoundPeptidoformIon",
+    "PROTON_FORMULA",
+]
+
 # Reusable hint appended to "unknown modification" errors so callers (including AI
 # agents) can immediately see how to specify a resolvable modification.
 _MOD_SPEC_HINT = (

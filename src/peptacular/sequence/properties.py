@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import overload
 
 from ..annotation import ProFormaAnnotation
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..property.data import (
     HPLCScale,
     HydrophobicityScale,
@@ -22,6 +22,35 @@ from ..property.types import (
 )
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
+
+__all__ = [
+    "calc_property",
+    "hydrophobicity",
+    "flexibility",
+    "hydrophilicity",
+    "surface_accessibility",
+    "polarity",
+    "mutability",
+    "codons",
+    "bulkiness",
+    "recognition_factors",
+    "transmembrane_tendency",
+    "average_buried_area",
+    "hplc",
+    "refractivity",
+    "calc_window_property",
+    "charge_at_ph",
+    "pi",
+    "aa_property_percentage",
+    "DEFAULT_AROMATIC_RESIDUES",
+    "aromaticity",
+    "secondary_structure",
+    "alpha_helix_percent",
+    "beta_sheet_percent",
+    "beta_turn_percent",
+    "coil_percent",
+    "property_partitions",
+]
 
 
 def _calc_property_single(
@@ -56,9 +85,10 @@ def calc_property(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -72,9 +102,10 @@ def calc_property(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
@@ -87,9 +118,10 @@ def calc_property(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """
     Calculate a physicochemical property for a sequence or list of sequences.
@@ -139,26 +171,29 @@ def _simple_property_single(
 @overload
 def hydrophobicity(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def hydrophobicity(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def hydrophobicity(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average hydrophobicity (Kyte-Doolittle).
 
@@ -190,26 +225,29 @@ def hydrophobicity(
 @overload
 def flexibility(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def flexibility(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def flexibility(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average backbone flexibility (Vihinen).
 
@@ -241,26 +279,29 @@ def flexibility(
 @overload
 def hydrophilicity(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def hydrophilicity(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def hydrophilicity(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average hydrophilicity (Hopp-Woods).
 
@@ -292,26 +333,29 @@ def hydrophilicity(
 @overload
 def surface_accessibility(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def surface_accessibility(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def surface_accessibility(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average surface accessibility (Vergoten).
 
@@ -343,26 +387,29 @@ def surface_accessibility(
 @overload
 def polarity(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def polarity(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def polarity(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average polarity (Grantham).
 
@@ -394,26 +441,29 @@ def polarity(
 @overload
 def mutability(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def mutability(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def mutability(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average relative mutability.
 
@@ -445,26 +495,29 @@ def mutability(
 @overload
 def codons(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def codons(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def codons(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average number of codons per residue.
 
@@ -496,26 +549,29 @@ def codons(
 @overload
 def bulkiness(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def bulkiness(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def bulkiness(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average side-chain bulkiness.
 
@@ -547,26 +603,29 @@ def bulkiness(
 @overload
 def recognition_factors(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def recognition_factors(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def recognition_factors(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average recognition factor.
 
@@ -598,26 +657,29 @@ def recognition_factors(
 @overload
 def transmembrane_tendency(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def transmembrane_tendency(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def transmembrane_tendency(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average transmembrane tendency.
 
@@ -649,26 +711,29 @@ def transmembrane_tendency(
 @overload
 def average_buried_area(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def average_buried_area(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def average_buried_area(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average buried surface area.
 
@@ -700,26 +765,29 @@ def average_buried_area(
 @overload
 def hplc(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def hplc(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def hplc(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average HPLC retention coefficient (Meek, pH 2.1).
 
@@ -751,26 +819,29 @@ def hplc(
 @overload
 def refractivity(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def refractivity(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def refractivity(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Average refractivity.
 
@@ -848,9 +919,10 @@ def _charge_at_ph_single(
 def charge_at_ph(
     sequence: str | ProFormaAnnotation,
     pH: float = 7.0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -858,18 +930,20 @@ def charge_at_ph(
 def charge_at_ph(
     sequence: Sequence[str | ProFormaAnnotation],
     pH: float = 7.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def charge_at_ph(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     pH: float = 7.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Net charge at a given pH, from Henderson-Hasselbalch pKa values.
 
@@ -908,26 +982,29 @@ def _pi_single(
 @overload
 def pi(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def pi(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def pi(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Isoelectric point: the pH at which :func:`charge_at_ph` is zero, found by bisection.
 
@@ -964,9 +1041,10 @@ def _aa_property_percentage_single(
 def aa_property_percentage(
     sequence: str | ProFormaAnnotation,
     residues: list[str],
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -974,18 +1052,20 @@ def aa_property_percentage(
 def aa_property_percentage(
     sequence: Sequence[str | ProFormaAnnotation],
     residues: list[str],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def aa_property_percentage(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     residues: list[str],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Fraction (0-1) of residues that are in ``residues``.
 
@@ -1019,9 +1099,10 @@ DEFAULT_AROMATIC_RESIDUES = ["Y", "W", "F"]
 def aromaticity(
     sequence: str | ProFormaAnnotation,
     aromatic_residues: list[str] | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -1029,18 +1110,20 @@ def aromaticity(
 def aromaticity(
     sequence: Sequence[str | ProFormaAnnotation],
     aromatic_residues: list[str] | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def aromaticity(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     aromatic_residues: list[str] | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Fraction (0-1) of aromatic residues (Y, W, F by default).
 
@@ -1082,9 +1165,10 @@ def _secondary_structure_single(
 def secondary_structure(
     sequence: str | ProFormaAnnotation,
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, float]: ...
 
 
@@ -1092,18 +1176,20 @@ def secondary_structure(
 def secondary_structure(
     sequence: Sequence[str | ProFormaAnnotation],
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[dict[str, float]]: ...
 
 
 def secondary_structure(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> dict[str, float] | list[dict[str, float]]:
     """Predicted secondary-structure fractions.
 
@@ -1140,26 +1226,29 @@ def _alpha_helix_percent_single(
 @overload
 def alpha_helix_percent(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def alpha_helix_percent(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def alpha_helix_percent(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Predicted alpha helix fraction (0-1) by the Deleage-Roux method.
 
@@ -1195,26 +1284,29 @@ def _beta_sheet_percent_single(
 @overload
 def beta_sheet_percent(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def beta_sheet_percent(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def beta_sheet_percent(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Predicted beta sheet fraction (0-1) by the Deleage-Roux method.
 
@@ -1250,26 +1342,29 @@ def _beta_turn_percent_single(
 @overload
 def beta_turn_percent(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def beta_turn_percent(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def beta_turn_percent(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Predicted beta turn fraction (0-1) by the Deleage-Roux method.
 
@@ -1305,26 +1400,29 @@ def _coil_percent_single(
 @overload
 def coil_percent(
     sequence: str | ProFormaAnnotation,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
 @overload
 def coil_percent(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
 def coil_percent(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """Predicted coil fraction (0-1) by the Deleage-Roux method.
 
@@ -1387,9 +1485,10 @@ def property_partitions(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
@@ -1405,9 +1504,10 @@ def property_partitions(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[float]]: ...
 
 
@@ -1422,9 +1522,10 @@ def property_partitions(
     weighting_scheme: (WeightingMethodsLiteral | WeightingMethods) = WeightingMethods.UNIFORM,
     min_weight: float = 0.1,
     max_weight: float = 1.0,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float] | list[list[float]]:
     """Generate property values for N number of sliding windows across the sequence.
 

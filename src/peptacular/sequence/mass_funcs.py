@@ -12,11 +12,17 @@ from ..annotation.annotation import (
     ISOTOPE_TYPE,
 )
 from ..constants import (
-    parallelMethod,
-    parallelMethodLiteral,
+    ParallelMethod,
+    ParallelMethodLiteral,
 )
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
+
+__all__ = [
+    "mass",
+    "mz",
+    "comp",
+]
 
 
 def _mass_single(
@@ -48,9 +54,10 @@ def mass(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -63,9 +70,10 @@ def mass(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
@@ -77,9 +85,10 @@ def mass(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """
     Calculate the mass of an amino acid 'sequence'.
@@ -139,9 +148,10 @@ def mz(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float: ...
 
 
@@ -154,9 +164,10 @@ def mz(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[float]: ...
 
 
@@ -168,9 +179,10 @@ def mz(
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> float | list[float]:
     """
     Calculate the m/z (mass-to-charge ratio) of an amino acid 'sequence'.
@@ -225,9 +237,10 @@ def comp(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Counter[ElementInfo]: ...
 
 
@@ -238,9 +251,10 @@ def comp(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[Counter[ElementInfo]]: ...
 
 
@@ -250,9 +264,10 @@ def comp(
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> Counter[ElementInfo] | list[Counter[ElementInfo]]:
     """
     Calculates the elemental composition of a peptide sequence, including modifications.

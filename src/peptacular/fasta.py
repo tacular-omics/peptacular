@@ -11,11 +11,11 @@ from .diagnostics import FastaFormatError
 
 FASTA_INPUT_TYPE = str | pathlib.Path | io.IOBase
 
-__all__ = ["FASTA_INPUT_TYPE", "FastaSequence", "ReadableProtocol", "iter_fasta", "parse_fasta", "parse_fasta_text"]
+__all__ = ["FASTA_INPUT_TYPE", "FastaSequence", "iter_fasta", "parse_fasta", "parse_fasta_text"]
 
 
 @runtime_checkable
-class ReadableProtocol(Protocol):
+class _Readable(Protocol):
     def read(self, size: int = -1) -> str | bytes: ...
 
 
@@ -116,7 +116,7 @@ def parse_fasta(input_data: FASTA_INPUT_TYPE, *, encoding: str | None = None) ->
     """Collect :func:`iter_fasta` into a list, preserving the existing return type."""
     # Preserve support for legacy read-only adapters. Streaming adapters should
     # expose a standard text or binary IOBase instead of only read().
-    if not isinstance(input_data, (str, pathlib.Path, io.IOBase)) and isinstance(input_data, ReadableProtocol):
+    if not isinstance(input_data, (str, pathlib.Path, io.IOBase)) and isinstance(input_data, _Readable):
         content = input_data.read()
         text = content.decode(encoding or "utf-8-sig") if isinstance(content, bytes) else content
         return parse_fasta_text(text)

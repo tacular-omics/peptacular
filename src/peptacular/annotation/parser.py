@@ -5,6 +5,10 @@ from typing import NoReturn
 from ..diagnostics import ProFormaFormatError
 from .mod import VALID_AMINO_ACIDS, Interval
 
+__all__ = [
+    "ProFormaParser",
+]
+
 _VALID_AA_SET = frozenset(VALID_AMINO_ACIDS)
 _TERMINATOR_SET = frozenset(["/", "+"])
 _DIGIT_SET = frozenset("0123456789")

@@ -1,8 +1,10 @@
 import unittest
 import warnings
 
+import tacular
+
 import peptacular as pt
-from peptacular.regex_utils import get_regex_match_indices
+from peptacular._regex_utils import get_regex_match_indices
 
 PROTEIN = "MVIMSEFSADPAGQGQGQQKPLRVGFYDIERTLGKGNFAVVKLARHRVTKTQVAIKIIDKTRLDSSNLEKIYREVQLMKLLNHPHIIKLYQVMETKDMLYIVTE"
 
@@ -49,7 +51,7 @@ class TestDigest(unittest.TestCase):
     def test_trypsin_cleavage_sites(self):
         """Test getting cleavage sites for trypsin."""
         annotation = pt.ProFormaAnnotation.parse(PROTEIN)
-        cleavage_sites = list(annotation.cleavage_sites(pt.PROTEASE_LOOKUP["trypsin"].pattern))
+        cleavage_sites = list(annotation.cleavage_sites(tacular.PROTEASE_LOOKUP["trypsin"].pattern))
         expected_sites = [23, 31, 35, 42, 45, 47, 50, 56, 60, 62, 70, 73, 79, 88, 96]
         self.assertEqual(cleavage_sites, expected_sites)
 

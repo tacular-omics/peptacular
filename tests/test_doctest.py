@@ -35,7 +35,7 @@ def get_all_modules(package, prefix=""):
 
 
 # Build module list
-modules = [pt.isotope, pt.regex_utils, importlib.import_module("peptacular.utils")]
+modules = [pt.isotope, importlib.import_module("peptacular._regex_utils"), importlib.import_module("peptacular.utils")]
 
 # Add all sequence submodules
 modules.extend(get_all_modules(pt.sequence))

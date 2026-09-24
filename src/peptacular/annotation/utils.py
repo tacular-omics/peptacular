@@ -22,6 +22,20 @@ from .frag import Fragment
 from .mod import Mods
 from .positions import to_ion_type
 
+__all__ = [
+    "H_ELEMENT_INFO",
+    "validate_mass",
+    "adjust_mass_mz",
+    "adjust_comp",
+    "comp_frag",
+    "process_losses",
+    "cumsum",
+    "FRAGMENT_RULES",
+    "SATELLITE_TRIM_END",
+    "SATELLITE_TRIM_START",
+    "can_fragment_sequence",
+]
+
 H_ELEMENT_INFO = ELEMENT_LOOKUP["H"]
 
 

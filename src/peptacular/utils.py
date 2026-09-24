@@ -1,83 +1,55 @@
-import sys
+"""Helpers for :class:`~peptacular.constants.ModType` arguments."""
+
 from collections.abc import Iterable
-from typing import Protocol, runtime_checkable
 
 from .constants import ModType, ModTypeLiteral
+from .diagnostics import PeptacularError
 
 __all__ = [
-    "SupportsStr",
-    "handle_number_and_intern_mod",
     "get_mod_type",
 ]
 
 
-@runtime_checkable
-class SupportsStr(Protocol):
-    """Protocol for any object that can be converted to string"""
-
-    def __str__(self) -> str: ...
-
-
-def handle_number_and_intern_mod(mod: SupportsStr | float | int) -> str:
-    """Validate and intern a modification string"""
-    if isinstance(mod, (float, int)):
-        mod_str = f"{mod:+}"
-    else:
-        mod_str = str(mod).strip()
-        if not mod_str:
-            raise ValueError("Empty modification string is not allowed")
-    return sys.intern(mod_str)
-
-
 def get_mod_type(mod: ModTypeLiteral | ModType | str) -> ModType:
-    """
-    Convert a modification type name to its :class:`ModType` member.
+    """Convert a modification type name to its :class:`ModType` member.
 
-    >>> from peptacular.utils import get_mod_type
+    ``ModType`` members pass through unchanged; strings are matched against the member
+    values (``"nterm"``, ``"cterm"``, ``"internal"``, ``"interval"``, ``"isotope"``,
+    ``"static"``, ``"labile"``, ``"unknown"``, ``"charge"``). Matching is exact and
+    case-sensitive.
+
+    >>> from peptacular import get_mod_type
     >>> get_mod_type("internal")
     <ModType.INTERNAL: 'internal'>
     >>> get_mod_type("nterm")
     <ModType.NTERM: 'nterm'>
 
-    :param mod: A ModType, or its string value (e.g. ``"nterm"``, ``"internal"``).
+    :param mod: A ModType, or its string value.
     :type mod: ModTypeLiteral | ModType | str
     :return: The matching ModType member.
     :rtype: ModType
-    :raises ValueError: If ``mod`` is not a string or ModType, or names no ModType.
+    :raises TypeError: If ``mod`` is not a string or ModType.
+    :raises PeptacularError: If ``mod`` is a string that names no ModType.
     """
     if isinstance(mod, ModType):
         return mod
-
-    if isinstance(mod, str):
-        for mod_type in ModType:
-            if mod_type.value == mod:
-                return mod_type
-    else:
-        raise ValueError(f"mod must be a string or ModType, got {type(mod)}")
-
-    raise ValueError(f"Unknown mod type: {mod}")
+    if not isinstance(mod, str):
+        raise TypeError(f"mod must be a string or ModType, got {type(mod).__name__}")
+    try:
+        return ModType(mod)
+    except ValueError:
+        valid = ", ".join(repr(m.value) for m in ModType)
+        raise PeptacularError(f"Unknown mod type: {mod!r} (expected one of {valid})") from None
 
 
-def get_mods(
+def _resolve_mod_types(
     mods: Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None,
 ) -> list[ModType]:
-    """
-    Get the list of modification types from the input.
-
-    :param mods: Modification types as a ModType, iterable of ModTypes, or None.
-    :type mods: None | ModType | Iterable[ModType]
-    :return: List of ModType Enum values.
-    :rtype: list[ModType]
-    :raises ValueError: If mods is not None, ModType, or iterable of ModTypes.
-    """
-
+    """Normalise a ``mods``/``mod_types`` argument to a list of ModType members (``None`` means all)."""
     if mods is None:
-        return [mod_type for mod_type in ModType]
-    elif isinstance(mods, (str, ModType)):
-        # Single modification type
+        return list(ModType)
+    if isinstance(mods, (str, ModType)):
         return [get_mod_type(mods)]
-    elif isinstance(mods, Iterable):
-        # List of modification types
+    if isinstance(mods, Iterable):
         return [get_mod_type(mod) for mod in mods]
-
-    raise ValueError(f"mods parameter must be str, list of str, or None, got {type(mods)}")
+    raise TypeError(f"mods must be a ModType, a string, an iterable of them, or None, got {type(mods).__name__}")

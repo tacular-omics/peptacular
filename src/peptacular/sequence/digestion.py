@@ -2,11 +2,22 @@ from collections.abc import Sequence
 from typing import overload
 
 from ..annotation import ProFormaAnnotation
-from ..constants import parallelMethod, parallelMethodLiteral
+from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..digestion.core import generate_regex
 from ..spans import Span
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
+
+__all__ = [
+    "left_semi_digest",
+    "right_semi_digest",
+    "semi_digest",
+    "nonspecific_digest",
+    "cleavage_sites",
+    "simple_cleavage_sites",
+    "digest",
+    "simple_digest",
+]
 
 
 def _left_semi_digest(
@@ -29,9 +40,10 @@ def left_semi_digest(
     sequence: str | ProFormaAnnotation,
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -40,9 +52,10 @@ def left_semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -50,9 +63,10 @@ def left_semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """Semi-enzymatic sequences that keep the N-terminus of ``sequence`` (every prefix shorter than the full sequence, within the length limits).
 
@@ -102,9 +116,10 @@ def right_semi_digest(
     sequence: str | ProFormaAnnotation,
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -113,9 +128,10 @@ def right_semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -123,9 +139,10 @@ def right_semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """Semi-enzymatic sequences that keep the C-terminus of ``sequence`` (every suffix shorter than the full sequence, within the length limits).
 
@@ -175,9 +192,10 @@ def semi_digest(
     sequence: str | ProFormaAnnotation,
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -186,9 +204,10 @@ def semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -196,9 +215,10 @@ def semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """
     Builds all semi-enzymatic sequences from the given input `sequence`.
@@ -242,9 +262,10 @@ def nonspecific_digest(
     sequence: str | ProFormaAnnotation,
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -253,9 +274,10 @@ def nonspecific_digest(
     sequence: Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -263,9 +285,10 @@ def nonspecific_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     min_len: int | None = None,
     max_len: int | None = None,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """
     Builds all non-enzymatic sequences from the given input `sequence`.
@@ -296,9 +319,10 @@ def _cleavage_sites(sequence: str | ProFormaAnnotation, enzyme_regex: str) -> li
 def cleavage_sites(
     sequence: str | ProFormaAnnotation,
     enzyme_regex: str,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int]: ...
 
 
@@ -306,18 +330,20 @@ def cleavage_sites(
 def cleavage_sites(
     sequence: Sequence[str | ProFormaAnnotation],
     enzyme_regex: str,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[int]]: ...
 
 
 def cleavage_sites(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     enzyme_regex: str,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int] | list[list[int]]:
     """
     Return positions where cleavage occurs in input `sequence` based on the provided enzyme regex.
@@ -361,9 +387,10 @@ def simple_cleavage_sites(
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
+    *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int]: ...
 
 
@@ -374,9 +401,10 @@ def simple_cleavage_sites(
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[int]]: ...
 
 
@@ -386,9 +414,10 @@ def simple_cleavage_sites(
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
+    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int] | list[list[int]]:
     """
     Get cleavage sites using simple amino acid rules.
@@ -447,7 +476,7 @@ def digest(
     *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -462,7 +491,7 @@ def digest(
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -476,7 +505,7 @@ def digest(
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """
     Returns digested sequences using a regular expression to define cleavage sites.
@@ -546,7 +575,7 @@ def simple_digest(
     *,
     n_workers: None = None,
     chunksize: None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]]: ...
 
 
@@ -564,7 +593,7 @@ def simple_digest(
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[list[tuple[str, Span]]]: ...
 
 
@@ -581,7 +610,7 @@ def simple_digest(
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
-    method: parallelMethod | parallelMethodLiteral | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
     """
     Returns digested sequences using amino acid specifications with optional restrictions.

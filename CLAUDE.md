@@ -86,7 +86,7 @@ src/peptacular/
   batch.py               batch / iter_batch / diagnose with per-item error collection
   diagnostics.py         Diagnostic, UnknownModificationError, CompositionError, ...
   proforma_json.py       versioned lossless JSON; schema in schemas/proforma-json-v1.schema.json
-  constants.py           ModType, parallelMethod, PROTON/ELECTRON/NEUTRON masses
+  constants.py           ModType, ParallelMethod, PROTON/ELECTRON/NEUTRON masses
   regex_utils.py, utils.py
   interop/               optional pyteomics / psm_utils / alphabase converters (lazy imports)
   mcp/                   optional MCP server (cli.py, server.py, operations.py, contracts.py)
@@ -144,7 +144,7 @@ which builds a `Fragment`.
 - **Errors**: `UnknownModificationError`, `CompositionError`,
   `InvalidAdjustmentError`, `UnsupportedOperationError` (all `ValueError`s).
 - **Parallel**: `set_start_method`, `get_start_method`, `get_available_start_methods`,
-  `parallelMethod`.
+  `ParallelMethod`.
 - **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS`, `C13_NEUTRON_MASS`,
   `PEPTIDE_AVERAGINE_NEUTRON_MASS`, `AVERAGINE_RATIOS`, `PROFORMA_JSON_SCHEMA_ID`.
 - **Optional** `peptacular.interop` (not star-imported): `to/from_pyteomics`,

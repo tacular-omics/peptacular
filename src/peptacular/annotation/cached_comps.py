@@ -9,6 +9,17 @@ from tacular import ELEMENT_LOOKUP, NEUTRAL_DELTA_LOOKUP, ElementInfo
 from ..diagnostics import CompositionError, InvalidAdjustmentError
 from ..proforma_components import ChargedFormula, GlobalChargeCarrier
 
+__all__ = [
+    "IsotopeInfo",
+    "ChargeCarrierInfo",
+    "DeltaInfo",
+    "handle_charge_input",
+    "get_charge_adducts",
+    "C13",
+    "get_isotopes",
+    "get_losses",
+]
+
 # ============================================================================
 # IsotopeInfo
 # ============================================================================
