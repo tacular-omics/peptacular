@@ -287,6 +287,35 @@ fast = pt.fast_fragment("PEPTIDE", ion_types=("b",), charges=[1])
 print([round(x, 3) for x in fast[(pt.IonType.B, 1)]][:3])  # [98.06, 227.103, 324.155]
 ```
 
+## Localisation isomers
+
+```
+localization_isomers(peptide: str | ProFormaAnnotation | HasSequence, *, max_isomers: int | None = None) -> list[ProFormaAnnotation]
+candidate_sites(peptide, mod: str, *, residues: str) -> list[tuple[int, ProFormaAnnotation]]
+site_determining_ions(isomers: Sequence[str | ProFormaAnnotation], *, ion_types=("b", "y"), charges=(1,),
+                      tolerance: float | None = None, unit: Literal["da", "ppm"] = "da") -> list[list[Fragment]]
+annotation.localization_isomers(*, max_isomers=None); annotation.candidate_sites(mod, *, residues)
+```
+
+`localization_isomers` places every ambiguous mod: unknown-position mods (`[Phospho]?`,
+`[Phospho]^2?`; with no range they may go on ANY residue), ranges (`(ST)[Phospho]`) and
+`#label` groups (`S[Phospho#g1(0.8)]T[#g1(0.2)]`). Candidate sites come from the ProForma
+string only; there is no built-in residue list. A group's label and the score of the chosen
+residue stay on the placed mod (`S[Phospho#g1(0.8)]`). Order is fixed (groups, ranges,
+unknown mods; N- to C-terminal), duplicates are dropped, and `max_isomers` raises
+`PeptacularError` when exceeded. `#XL`/`#BRANCH` labels are left alone.
+`candidate_sites` needs `residues` (no default) and adds one copy of the mod on each
+unmodified matching residue. `site_determining_ions` returns, per isomer, the Fragments
+whose m/z matches no ion of any other isomer within `tolerance` (None: 1e-6 Da).
+
+```python
+import peptacular as pt
+
+isomers = pt.localization_isomers("PEPS[Phospho#g1(0.8)]T[#g1(0.2)]IDE")
+print([a.serialize() for a in isomers])  # ['PEPS[Phospho#g1(0.8)]TIDE', 'PEPST[Phospho#g1(0.2)]IDE']
+print([p for p, _ in pt.candidate_sites("PEPSTYK", "Phospho", residues="STY")])  # [3, 4, 5]
+```
+
 ## Digestion
 
 ```

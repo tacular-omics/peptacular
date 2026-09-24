@@ -70,11 +70,14 @@ src/peptacular/
     frag.py              Fragment, frozen with __slots__ (.mz, .to_mzpaf(), .composition)
     slicing.py, manipulation.py, combinatorics.py, ambiguity.py, randomizer.py,
     mod_builder.py, positions.py, utils.py
+    localization.py      localisation isomers, candidate_sites, site_determining_ions
+                         (sites come from the ProForma string only; no residue tables)
   sequence/              the functional API: one wrapper per operation that accepts
                          str | annotation | list and dispatches through parallel.py
     parallel.py          AUTO_PARALLEL_MIN_ITEMS = 1000; below that lists run sequentially
     basic.py, mass_funcs.py, fragmentation.py, digestion.py, isotope.py, properties.py,
-    mod_builder.py, combinatoric.py, subseqs.py, transformations.py, converters.py
+    mod_builder.py, combinatoric.py, subseqs.py, transformations.py, converters.py,
+    localization.py
   proforma_components/   ProForma 2.1 data model (comps.py), string parsers (lru_cached)
                          and serializers for mod tags, formulas, glycans, charge carriers
   digestion/             EnzymeConfig, DigestProtocol, cleavage-site logic

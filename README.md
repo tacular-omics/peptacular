@@ -115,10 +115,24 @@ invalid ProForma raises `pt.ProFormaFormatError`, an unresolved modification
 `pt.UnknownModificationError`, and so on. See the
 [streaming guide](https://peptacular.readthedocs.io/en/latest/streaming.html) for the full list.
 
+Expand an ambiguous modification into its localisation isomers and find the fragment
+ions that tell them apart. Candidate sites come from the ProForma string alone; peptacular
+has no built-in list of which residues a mod can sit on:
+
+```python
+import peptacular as pt
+
+isomers = pt.localization_isomers("PEP(ST)[Phospho]IDE")
+print([a.serialize() for a in isomers])  # ['PEPS[Phospho]TIDE', 'PEPST[Phospho]IDE']
+ions = pt.site_determining_ions(isomers, ion_types=("b", "y"), charges=(1,))
+print([[f"{f.ion_type}{f.position}" for f in frags] for frags in ions])  # [['b4', 'y4'], ['b4', 'y4']]
+```
+
 | Area | Entry points |
 |---|---|
 | Digestion | `pt.digest`, `pt.semi_digest`, `pt.nonspecific_digest` |
 | Fragmentation | `pt.fragment`, `pt.fast_fragment` |
+| Localisation | `pt.localization_isomers`, `pt.candidate_sites`, `pt.site_determining_ions` ([guide](https://peptacular.readthedocs.io/en/latest/localization.html)) |
 | Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
 | Batch / streaming | `pt.batch`, `pt.iter_batch`, `pt.diagnose` (read FASTA with fastatacular) |
 | JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |

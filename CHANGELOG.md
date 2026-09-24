@@ -55,6 +55,7 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 ### Added
 - `PROTON_CARRIER_MASS` (`HYDROGEN_MASS - ELECTRON_MASS`), the monoisotopic mass one default charge adds; `fast_fragment` uses it. It is 1.4e-8 Da below CODATA `PROTON_MASS` so that charged masses agree with the ion's composition (see `docs/mass_calculation.rst`).
 - `Fragment.replace(**changes)`, `Fragment.__eq__` and `__hash__` (by value). `replace` and the `Fragment` constructor accept the values `deltas`, `isotopes` and `charge_adducts` return.
+- Localisation isomers: `localization_isomers` (also an annotation method) expands unknown-position mods (including `^n`), ranges and `#label` groups into concrete placements, keeping each group's label and score on the placed mod; `max_isomers=` caps the expansion. `candidate_sites(peptide, mod, *, residues)` places a mod on residues you name, and `site_determining_ions` returns the fragments unique to each isomer. Candidate sites come only from the ProForma string. See `docs/localization.rst`.
 - `PeptacularKeyError` (a `PeptacularError` and a `KeyError`) and its subclass `UnknownElementError`; `UnknownEnzymeError` now subclasses `PeptacularKeyError`.
 - `HasSequence`: a protocol for any object with a `.sequence` string. Sequence functions, `batch`, `iter_batch` and `diagnose` accept such objects (fastatacular and PEFF entries) directly, with no dependency on those packages.
 
