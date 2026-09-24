@@ -78,8 +78,7 @@ Digest a protein and generate fragment ions that round-trip through
 ```python
 import peptacular as pt
 
-trypsin = pt.PROTEASE_LOOKUP["trypsin"]
-peptides = pt.digest("MKVLATSAGERTIDEK", enzyme_regex=trypsin.regex, missed_cleavages=1)
+peptides = pt.digest("MKVLATSAGERTIDEK", enzyme="trypsin", missed_cleavages=1)
 print([seq for seq, _ in peptides])
 # ['MK', 'MKVLATSAGER', 'VLATSAGER', 'VLATSAGERTIDEK', 'TIDEK']
 

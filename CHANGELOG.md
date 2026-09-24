@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
+
+### Removed
+- 74 names from the top-level `peptacular` namespace that belong to tacular or were internal. The tacular lookups, `*Info`/`*Lookup` classes and literal types (`AA_LOOKUP`, `ELEMENT_LOOKUP`, `UNIMOD_LOOKUP`, `PSIMOD_LOOKUP`, `PROTEASE_LOOKUP`, `FRAGMENT_ION_LOOKUP`, `ElementInfo`, `FragmentIonInfo`, `IonTypeProperty`, `parse_composition`, ...) must be imported from tacular. `IonType`, `NeutralDelta` and `Proteases` are still re-exported. Also removed: `Any`, `SEQUENCE_TYPE`, `MODIFICATION_*_TYPE`, `GLOBAL_CHARGE_TYPE`, `ModLocation`, `MassPropertyMixin`, `OboEntity`, `OntologyLookup`.
+- `peptacular.regex_utils`, `get_regex_match_indices` and `get_regex_match_range` (now private `peptacular._regex_utils`).
+- `CV_TO_NAME_PREFIX`, `CV_TO_ACCESSION_PREFIX`, `CV_TO_MASS_PREFIX` (now private).
+- `ReadableProtocol`, `SupportsStr`, `handle_number_and_intern_mod` and `utils.get_mods`.
+- The deprecated `FLIXIBILITY_SCALES` alias; use `FLEXIBILITY_SCALES`.
+- The `peptacular.isotope.isotopic_distribution` alias; use `brain_isotopic_distribution`. `pt.isotopic_distribution` is unchanged.
+- The `enzyme_regex=` keyword of `digest`, `cleavage_sites` and `EnzymeConfig` (used by `sequential_digest`).
+
+### Changed
+- Every public module declares `__all__`; `peptacular.__all__` is explicit and tested.
+- `parallelMethod`/`parallelMethodLiteral` are renamed `ParallelMethod`/`ParallelMethodLiteral`.
+- `n_workers`, `chunksize` and `method` are keyword-only on every parallel function.
+- `isotopic_distribution` and `estimate_isotopic_distribution` take `sequence=` instead of `annotations=`.
+- Digestion takes `enzyme=`, a protease name or a compiled `re.Pattern`. A string is only looked up as a protease name; an unknown name raises the new `UnknownEnzymeError` (a `PeptacularError`) instead of being used as a regex. `digestion.core.resolve_enzyme` does the lookup. `EnzymeConfig` has `enzyme` instead of `enzyme_regex` and is frozen.
+- `ProFormaAnnotation.digest`/`simple_digest`/`sequential_digest` are renamed `digest_spans`/`simple_digest_spans`/`sequential_digest_spans`, since they return spans while the functional `pt.digest` returns sequence/span pairs. The batch `"digest"` operation calls `digest_spans`.
+- `ProFormaAnnotation` is unhashable (`__hash__ = None`): it is mutable, so a hash could change while it sits in a set or dict. Key on `annot.serialize()`.
+- The library raises `PeptacularError` subclasses instead of bare `ValueError`, and `InvalidPositionError` instead of `IndexError`. The ProForma component parsers raise `ProFormaFormatError`. The MCP layer still raises `ValueError` for pydantic.
+
 ## [4.2.0] (2026-09-23)
 
 ### Fixed

@@ -78,9 +78,9 @@ raise. It does not silently suppress every exception.
 
 Supported operations are ``parse``, ``mass``, ``mz``, ``comp``, ``fragment``,
 ``fast_fragment``, ``digest``, and ``isotopic_distribution``. Extra keyword arguments
-are passed to the corresponding annotation method. A digest result contains the
-annotation method's spans. It is not the functional ``digest`` method's sequence/span
-pairs. Parsing keeps its existing ``validate=False`` default, with ``validate=True``
+are passed to the corresponding annotation method. The ``digest`` operation calls
+``ProFormaAnnotation.digest_spans``, so a result contains spans, not the functional
+``pt.digest`` sequence/span pairs. Parsing keeps its existing ``validate=False`` default, with ``validate=True``
 available for full annotation validation.
 
 .. testcode::

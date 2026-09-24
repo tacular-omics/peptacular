@@ -92,16 +92,19 @@ If no charge states are provided, it will default to the charge state of the pep
 Protein Digestion
 ~~~~~~~~~~~~~~~~~
 
-The digest method will return spans representing the (start, end, missed_cleavages) of each peptide generated from the digestion.
+``ProFormaAnnotation.digest_spans`` yields spans representing the (start, end, missed_cleavages) of each peptide generated from the digestion.
 You can readily create peptide annotations by slicing the protein annotation with the spans.
+The functional ``pt.digest`` returns ``(peptide, span)`` pairs instead.
 
-A number of proteases are available in pt.Proteases, but you can also provide your own cleavage rules via a regex pattern.
+``enzyme`` is a protease name (``"trypsin"``) or a ``pt.Proteases`` member. For your own
+cleavage rule pass a compiled regex, ``re.compile("(?<=[KR])")``. A plain string that is
+not a known protease raises ``pt.UnknownEnzymeError``; it is never treated as a regex.
 
 .. testcode::
 
    # Digest a protein
    protein = pt.parse("PEM[Oxidation]TRPEPTIDEKPEPTIDEIDE/2")
-   for span in protein.digest(pt.Proteases.TRYPSIN, missed_cleavages=1):
+   for span in protein.digest_spans(pt.Proteases.TRYPSIN, missed_cleavages=1):
        print(f"  {protein[span].serialize()}")
 
 .. testoutput::
@@ -115,7 +118,7 @@ There is an additional digest option which is based on amino acids rather than r
 
    # Digest a protein
    protein = pt.parse("PEM[Oxidation]TRPEPTIDEKPEPTIDEIDE/2")
-   for span in protein.simple_digest(cleave_on="KR", restrict_after="P", missed_cleavages=1):
+   for span in protein.simple_digest_spans(cleave_on="KR", restrict_after="P", missed_cleavages=1):
        print(f"  {protein[span].serialize()}")
 
 .. testoutput::
@@ -195,15 +198,15 @@ Properties are accessible via the `prop` property. See the API documentation for
    pi = peptide.prop.pi
    arom = peptide.prop.aromaticity
 
-   # Secondary structure prediction
+   # Secondary structure prediction: fractions (0-1) that sum to 1, not percentages
    ss = peptide.prop.secondary_structure()
-   print(f"Alpha helix: {ss['alpha_helix']:.0%}")
-   print(f"Beta sheet: {ss['beta_sheet']:.0%}")
+   print(f"Alpha helix: {ss['alpha_helix']:.2f}")
+   print(f"Beta sheet: {ss['beta_sheet']:.2f}")
 
 .. testoutput::
-   :hide:
 
-   ...
+   Alpha helix: 0.35
+   Beta sheet: 0.20
 
 .. testcode::
 

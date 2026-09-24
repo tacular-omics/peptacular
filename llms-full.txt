@@ -13,7 +13,7 @@ peptacular itself, read CLAUDE.md in the repository instead.
 - Repository: https://github.com/tacular-omics/peptacular
 - Docs: https://peptacular.readthedocs.io/en/latest/
 - PyPI: https://pypi.org/project/peptacular/
-- Version described: 4.0.x
+- Version described: 5.0.x
 - ProForma spec: https://github.com/HUPO-PSI/ProForma
 
 ## Install
@@ -24,12 +24,13 @@ pip install "peptacular[mcp]"       # local MCP server (peptacular-mcp)
 pip install "peptacular[pyteomics]" # also: psm-utils, alphabase; "interop" installs all three
 ```
 
-Requires Python >= 3.12. The one runtime dependency is `tacular` (`>=1.1.0,<2`).
+Requires Python >= 3.12. The one runtime dependency is `tacular` (`>=1.2,<2`).
 Ships `py.typed`.
 
-Import it as `pt`. Everything public is on the top-level namespace, including every
-tacular lookup (`pt.UNIMOD_LOOKUP`, `pt.PROTEASE_LOOKUP`, `pt.AA_LOOKUP`, `pt.IonType`,
-...), because `peptacular/__init__.py` runs `from tacular import *`.
+Import it as `pt`. Everything public is on the top-level namespace and listed in
+`pt.__all__`. Of tacular, only the enums `pt.IonType`, `pt.NeutralDelta` and
+`pt.Proteases` are re-exported; import lookups (`UNIMOD_LOOKUP`, `PROTEASE_LOOKUP`,
+`AA_LOOKUP`, ...) from `tacular` directly.
 
 ## Core idea
 
@@ -94,7 +95,7 @@ split(sequence: SEQS, *PAR) -> list[str] | list[list[str]]    # one string per r
 Signature shorthand used in this file:
 
 - `SEQS` = `str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation]`.
-- `*PAR` = the keyword arguments `n_workers: int | None = None`,
+- `*PAR` = the keyword-only arguments `n_workers: int | None = None`,
   `chunksize: int | None = None`, and
   `method: "process" | "thread" | "sequential" | None = None`.
 - `ION` = an `IonType` or its string: `"p"` (precursor), `"n"` (neutral), `"a"`, `"b"`,
@@ -118,8 +119,8 @@ print(a.serialize())                         # [Acetyl]-PEM[Oxidation]TIDE/2
 print(pt.validate("PEP[Foo]TIDE"))           # False
 try:
     pt.parse("PEP[Foo]TIDE", validate=True)
-except ValueError as e:
-    print(type(e).__name__)                  # ValueError
+except pt.PeptacularError as e:
+    print(type(e).__name__)                  # ProFormaFormatError
 
 print(pt.parse_chimeric("PEPTIDE/2+ELVIS/3"))  # [ProFormaAnnot(sequence=PEPTIDE, charge=2), ProFormaAnnot(sequence=ELVIS, charge=3)]
 ```
@@ -156,9 +157,10 @@ pattern:
   `fast_fragment`, `isotopic_distribution`, `estimate_isotopic_distribution`, `prop`.
 - **Slicing**: `annot[i:j]`, `annot[span]`, `slice`, `slice_by_span`,
   `sliding_windows`. Mods travel with their residues.
-- **Digestion**: `digest(enzyme, missed_cleavages=0, semi=False, min_len=None,
-  max_len=None)` yields `Span`s. Also `simple_digest`, `semi_spans`,
-  `nonspecific_spans`, `cleavage_sites`, `sequential_digest`.
+- **Digestion**: `digest_spans(enzyme, missed_cleavages=0, semi=False, min_len=None,
+  max_len=None)` yields `Span`s. Also `simple_digest_spans`, `semi_spans`,
+  `nonspecific_spans`, `cleavage_sites`, `sequential_digest_spans`. Every method that
+  yields spans ends in `_spans`.
 - **Conversion**: `to_dict` / `from_dict`, `to_json` / `from_json`, `to_ms2_pip` /
   `from_ms2_pip`, `to_diann` / `from_diann`, `to_casanovo` / `from_casanovo`,
   `to_ip2` / `from_ip2_sequence`.
@@ -286,42 +288,43 @@ print([round(x, 3) for x in fast[(pt.IonType.B, 1)]][:3])  # [98.06, 227.103, 32
 ## Digestion
 
 ```
-digest(sequence: SEQS, enzyme_regex: str, missed_cleavages: int = 0, semi: bool = False,
+digest(sequence: SEQS, enzyme: str | re.Pattern, missed_cleavages: int = 0, semi: bool = False,
        min_len: int | None = None, max_len: int | None = None, *, *PAR) -> list[tuple[str, Span]] | list[list[...]]
 simple_digest(sequence: SEQS, cleave_on: str, restrict_before: str = "", restrict_after: str = "",
               cterminal: bool = True, missed_cleavages: int = 0, semi: bool = False,
               min_len=None, max_len=None, *, *PAR) -> list[tuple[str, Span]] | ...
 semi_digest / left_semi_digest / right_semi_digest / nonspecific_digest
              (sequence: SEQS, min_len=None, max_len=None, *PAR) -> list[tuple[str, Span]] | ...
-cleavage_sites(sequence: SEQS, enzyme_regex: str, *PAR) -> list[int] | list[list[int]]
+cleavage_sites(sequence: SEQS, enzyme: str | re.Pattern, *PAR) -> list[int] | list[list[int]]
 simple_cleavage_sites(sequence: SEQS, cleave_on: str, restrict_before="", restrict_after="", cterminal=True, *PAR)
 span_to_sequence(sequence: SEQS, span: Span | tuple[int, int, int], *PAR) -> str | list[str]
 Span(start: int, end: int, missed_cleavages: int)                         # NamedTuple, end exclusive
-EnzymeConfig(enzyme_regex: str, missed_cleavages: int = 0, semi_enzymatic: bool = False, complete_digestion=..., ...)
+EnzymeConfig(enzyme: str | re.Pattern, missed_cleavages: int = 0, semi_enzymatic: bool = False, complete_digestion: bool = True)  # frozen
 build_spans / build_enzymatic_spans(max_index, enzyme_sites, missed_cleavages, min_len=None, max_len=None, semi=False)
 build_semi_spans / build_left_semi_spans / build_right_semi_spans / build_non_enzymatic_spans(span, min_len=None, max_len=None)
 calculate_span_coverage(spans, max_index: int, accumulate: bool = False) -> list[int]
 ```
 
-`enzyme_regex` takes a regex or a tacular protease name (`"trypsin"`). You can also pass
-`pt.PROTEASE_LOOKUP["trypsin"].regex` or a `pt.Proteases` member. Modified residues keep
-their mods in the returned strings.
+`enzyme` takes a tacular protease name (`"trypsin"`), a `pt.Proteases` member, or a
+compiled pattern (`re.compile("(?<=[KR])")`). A string is never used as a regex: an
+unknown name raises `pt.UnknownEnzymeError` (a `PeptacularError` and a `KeyError`).
+`"unspecific"` cuts at every position. Modified residues keep their mods in the
+returned strings.
 
 ```python
 import peptacular as pt
 
-print(pt.digest("MKVLATSAGERTIDEK", enzyme_regex="trypsin"))
+print(pt.digest("MKVLATSAGERTIDEK", enzyme="trypsin"))
 # [('MK', Span(start=0, end=2, missed_cleavages=0)), ('VLATSAGER', Span(start=2, end=11, missed_cleavages=0)), ('TIDEK', Span(start=11, end=16, missed_cleavages=0))]
 
-trypsin = pt.PROTEASE_LOOKUP["trypsin"]
-peps = pt.digest("MKVLATSAGERTIDEK", enzyme_regex=trypsin.regex, missed_cleavages=1)
+peps = pt.digest("MKVLATSAGERTIDEK", enzyme="trypsin", missed_cleavages=1)
 print([s for s, _ in peps])          # ['MK', 'MKVLATSAGER', 'VLATSAGER', 'VLATSAGERTIDEK', 'TIDEK']
 
 print([s for s, _ in pt.simple_digest("MKVLATSAGERTIDEK", cleave_on="KR")])  # ['MK', 'VLATSAGER', 'TIDEK']
-print(pt.cleavage_sites("MKVLATSAGERTIDEK", enzyme_regex="trypsin"))           # [2, 11]
+print(pt.cleavage_sites("MKVLATSAGERTIDEK", enzyme="trypsin"))           # [2, 11]
 
 protein = pt.parse("PEM[Oxidation]TREPTIDEK")
-for span in protein.digest(pt.Proteases.TRYPSIN):
+for span in protein.digest_spans(pt.Proteases.TRYPSIN):
     print(span, protein[span].serialize())
 # Span(start=0, end=5, missed_cleavages=0) PEM[Oxidation]TR
 # Span(start=5, end=12, missed_cleavages=0) EPTIDEK
@@ -330,7 +333,7 @@ for span in protein.digest(pt.Proteases.TRYPSIN):
 ## Isotopic envelopes
 
 ```
-isotopic_distribution(annotations: SEQS, ion_type: ION = "p", charge=None, isotopes=None, deltas=None,
+isotopic_distribution(sequence: SEQS, ion_type: ION = "p", charge=None, isotopes=None, deltas=None,
                       max_isotopes: int | None = None, min_abundance_threshold: float = 0.001, *PAR)
                       -> list[IsotopicData] | list[list[IsotopicData]]
 brain_isotopic_distribution(chemical_formula: Mapping[str | ElementInfo, int | float], max_isotopes=None,
@@ -549,8 +552,9 @@ All of these subclass `PeptacularError` (4.2), which subclasses `ValueError`, so
 - `InvalidPositionError` (4.2): a slice index or `frag(position=...)` is outside the sequence.
 - `FastaFormatError` (4.2): invalid FASTA text (`parse_fasta_text`, `iter_fasta`).
 - `UnsupportedOperationError`: the operation does not support this input, e.g. an unknown ion type (`fragment(ion_types=["q"])`; the message lists valid types).
+- `UnknownEnzymeError` (5.0): an `enzyme` string names no protease in `PROTEASE_LOOKUP` (a typo such as `"trypsn"`, or a regex passed as a string; pass `re.compile(...)` for a custom rule). Also a `KeyError`.
 
-Other gotchas: `pt.digest(seq, "name")` looks the name up in `PROTEASE_LOOKUP` and otherwise uses it as a regex. A string that is neither a known protease nor contains regex metacharacters (a typo such as `"trypsn"`) now emits a `UserWarning` (4.2). `pt.shift(seq, n)` raises `TypeError` for a non-integer `n`.
+Other gotchas: `pt.shift(seq, n)` raises `TypeError` for a non-integer `n`.
 
 ```python
 import peptacular as pt
@@ -597,8 +601,7 @@ These are frozen dataclasses from `peptacular.proforma_components`. Most have
 - Modification tags: `ModificationTags(tags)` and the tag types `TagName(name, cv=None)`,
   `TagAccession(accession, cv)`, `TagMass(mass_str, cv=None)`, `TagCustom(name)` and
   `TagInfo(info)`. `CV` is one of `UNIMOD`, `MOD` (PSI-MOD), `RESID`, `GNO`, `XLMOD`,
-  `CUSTOM` or `OBSERVED`. `CV_TO_ACCESSION_PREFIX`, `CV_TO_MASS_PREFIX` and
-  `CV_TO_NAME_PREFIX` hold the prefixes.
+  `CUSTOM` or `OBSERVED`.
 - Formulas: `ChargedFormula(formula, charge=None)` and
   `FormulaElement(element, occurance, isotope=None)`.
 - Glycans: `GlycanTag(components)` and `GlycanComponent(monosaccharide, occurance)`.
@@ -623,8 +626,8 @@ print(round(cf.get_mass(), 4), cf.serialize())       # 79.9663 Formula:HO3P
 
 ## Parallelism
 
-- Every functional-API call accepts `n_workers`, `chunksize` and `method`
-  (`"process"`, `"thread"` or `"sequential"`).
+- Every functional-API call accepts the keyword-only arguments `n_workers`, `chunksize`
+  and `method` (`"process"`, `"thread"` or `"sequential"`).
 - With no arguments, a list shorter than 1000 items runs sequentially, and a longer list
   uses a process pool.
 - `set_start_method("spawn" | "fork" | "forkserver")`, `get_start_method()` and
@@ -690,8 +693,8 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
 3. **Delta-mass mods (`[+15.995]`) have mass but no composition.** `comp`, composition
    isotopes and `calculate_with_composition=True` raise `CompositionError`.
 4. **Mutators work in place by default.** Pass `inplace=False` or call `.copy()` to keep
-   the original. An annotation is hashable but mutable, so do not mutate one that is used
-   as a dict key.
+   the original. Because it is mutable, an annotation is not hashable: use
+   `annot.serialize()` as a dict key or set member.
 5. **Indexes are 0-based and spans are end-exclusive.** `Span(0, 2, 0)` is residues 0
    and 1. MS2PIP output is 1-based, because that is its format.
 6. **`fast_fragment` returns a dict of m/z lists**, not `Fragment` objects.

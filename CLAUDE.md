@@ -10,9 +10,10 @@ is imported as `pt` and is under JOSS review (`paper/`).
 Place in the tacular-omics graph: tier 1. It depends on `tacular>=1.2,<2` (all
 modification, amino-acid, element, ion-type, protease and neutral-loss data) and is used
 by `paftacular` (optional extra), `spxtacular`, `peff_digest` and `pepbit`. A breaking
-change here must be noted for those. `from tacular import *` runs in `__init__`, so every
-tacular lookup (`pt.UNIMOD_LOOKUP`, `pt.PROTEASE_LOOKUP`, `pt.IonType`, ...) is also on
-`pt`.
+change here must be noted for those. `__init__` imports every public name explicitly and
+`pt.__all__` is the public API (a test checks `dir(pt)` against it). Of tacular only the
+enums `IonType`, `NeutralDelta` and `Proteases` are re-exported; import lookups such as
+`UNIMOD_LOOKUP` or `PROTEASE_LOOKUP` from `tacular` directly.
 
 Key entry points:
 - `pt.parse(seq)` returns a `ProFormaAnnotation` (OOP API).
@@ -87,7 +88,7 @@ src/peptacular/
   diagnostics.py         Diagnostic, UnknownModificationError, CompositionError, ...
   proforma_json.py       versioned lossless JSON; schema in schemas/proforma-json-v1.schema.json
   constants.py           ModType, ParallelMethod, PROTON/ELECTRON/NEUTRON masses
-  regex_utils.py, utils.py
+  _regex_utils.py (private), utils.py
   interop/               optional pyteomics / psm_utils / alphabase converters (lazy imports)
   mcp/                   optional MCP server (cli.py, server.py, operations.py, contracts.py)
 ```
@@ -198,10 +199,13 @@ which builds a `Fragment`.
   `estimate_isotopic_distribution(mass)` for these.
 - **`fast_fragment` returns a dict** `{(IonType, charge): [mz, ...]}`, not `Fragment`
   objects. Its values agree with `fragment()` to about 1e-8 Da, not bit for bit.
-- **Two digest styles.** The functional `pt.digest(seq, enzyme_regex=...)` returns
-  `[(sequence, Span), ...]`. `ProFormaAnnotation.digest(enzyme)` yields `Span`s; slice the
-  annotation with them (`annot[span]`). The `enzyme_regex` parameter also accepts a
-  protease name such as `"trypsin"`.
+- **Two digest styles.** The functional `pt.digest(seq, enzyme=...)` (and every `pt.*digest`)
+  returns `[(sequence, Span), ...]`. `ProFormaAnnotation` methods ending in `_spans`
+  (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)
+  yield `Span`s; slice the annotation with them (`annot[span]`).
+- **`enzyme` is a protease name or a compiled pattern.** A `str` is only looked up in
+  `PROTEASE_LOOKUP` (`"trypsin"`, `Proteases.TRYPSIN`); an unknown string raises
+  `UnknownEnzymeError`. For a custom rule pass `re.compile("(?<=[KR])")`.
 - **Lists under 1000 items run sequentially** unless you pass `n_workers` or `method`
   (`AUTO_PARALLEL_MIN_ITEMS`). Process pools use the platform default start method,
   which is `fork` on Linux before Python 3.14. With `fork`, a process that already runs
@@ -209,11 +213,14 @@ which builds a `Fragment`.
   avoids the warning.
 - **`pt.parse` of one string cannot hold chimeric or cross-linked input**
   (`PEPTIDE+ELVIS` raises). Use `parse_chimeric`.
-- **Star imports leak names.** `chem`, `constants`, `regex_utils`, `spans` and `utils`
-  have no `__all__`, so `pt.Counter`, `pt.Literal`, `pt.groupby` and similar exist. Do
-  not rely on them. Add an `__all__` when you touch one of those modules.
-- `ProFormaAnnotation` is mutable but hashable. Do not use one as a dict key and then
-  mutate it.
+- **Every public module has `__all__`** (a test enforces it). A new public name must be
+  added to the module's `__all__` and, if it belongs on `pt`, to `peptacular/__init__.py`.
+- **`ProFormaAnnotation` is unhashable** because it is mutable. Use `annot.serialize()`
+  as a dict key or set member.
+- **Errors**: input errors raise `PeptacularError` (a `ValueError`) or a subclass
+  (`ProFormaFormatError`, `UnknownModificationError`, `UnknownEnzymeError`,
+  `InvalidPositionError`, ...). Do not add a bare `raise ValueError`; a test fails on it.
+  `n_workers`, `chunksize` and `method` are keyword-only on every function.
 - `secondary_structure()` returns fractions (0-1) keyed by `SecondaryStructureType`, not
   percentages.
 - `just format` rewrites files in place. Run it only on your own branch.

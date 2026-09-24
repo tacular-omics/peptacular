@@ -58,6 +58,7 @@ Project
 .. toctree::
    :maxdepth: 1
 
+   migration
    changelog
    citation
 

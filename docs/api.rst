@@ -5,6 +5,7 @@ API Reference
    :members:
    :undoc-members:
    :show-inheritance:
+   :ignore-module-all:
 
 Core
 ----
@@ -155,16 +156,14 @@ Constants and utilities
    :members:
    :undoc-members:
 
-.. automodule:: peptacular.regex_utils
-   :members:
-
 .. automodule:: peptacular.sequence.parallel
    :members:
 
 Constants, type aliases and data tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All of these are also available from the top-level ``peptacular`` namespace.
+These are available from the top-level ``peptacular`` namespace, except the
+``proforma_components`` type aliases, which are importable from that module.
 
 **Physical constants** (Da)
 
@@ -202,23 +201,6 @@ All of these are also available from the top-level ``peptacular`` namespace.
    :type: dict[ElementInfo, float]
 
    Elemental ratios (C, H, N, O, S per Da) of the peptide averagine model.
-
-**Controlled vocabulary prefixes**
-
-.. py:data:: peptacular.constants.CV_TO_NAME_PREFIX
-   :type: dict[CV, str]
-
-   ProForma name prefix for each :class:`~peptacular.constants.CV` (for example ``'R:'`` for RESID).
-
-.. py:data:: peptacular.constants.CV_TO_ACCESSION_PREFIX
-   :type: dict[CV, str]
-
-   ProForma accession prefix for each :class:`~peptacular.constants.CV`.
-
-.. py:data:: peptacular.constants.CV_TO_MASS_PREFIX
-   :type: dict[CV, str]
-
-   ProForma delta-mass prefix for each :class:`~peptacular.constants.CV`.
 
 **Literal and union type aliases**
 
@@ -304,11 +286,6 @@ Each maps a scale enum member to its per-residue value table. See :class:`~pepta
 
    Flexibility scales.
 
-.. py:data:: peptacular.property.FLIXIBILITY_SCALES
-   :type: dict[str, dict[str, float]]
-
-   Deprecated misspelled alias of :data:`FLEXIBILITY_SCALES`. Accessing it emits a ``DeprecationWarning``.
-
 .. py:data:: peptacular.property.POLARITY_SCALES
    :type: dict[str, dict[str, float]]
 
@@ -371,9 +348,10 @@ Reference data from tacular
 
 Amino acid, element, modification (UNIMOD, PSI-MOD, RESID, XLMOD, GNOme,
 UniProt-PTM), ion type, neutral delta, protease and reference molecule lookups
-come from `tacular <https://tacular.readthedocs.io/>`_ and are re-exported in
-the peptacular namespace (for example ``pt.UNIMOD_LOOKUP``, ``pt.IonType`` and
-``pt.Proteases``). They are documented in the
+come from `tacular <https://tacular.readthedocs.io/>`_. Import them from
+``tacular`` (for example ``from tacular import UNIMOD_LOOKUP``). Only the enums
+``pt.IonType``, ``pt.NeutralDelta`` and ``pt.Proteases`` are re-exported by
+peptacular, because its own signatures take them. They are documented in the
 `tacular API reference <https://tacular.readthedocs.io/en/latest/api/index.html>`_.
 
 ProForma JSON

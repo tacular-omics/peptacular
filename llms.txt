@@ -9,7 +9,7 @@ Install with `pip install peptacular` (Python >= 3.12). Import as `pt`. There ar
 equivalent APIs:
 
 - the object API: `pt.parse("PEM[Oxidation]TIDE/2")` returns a `ProFormaAnnotation`
-  with methods such as `.mass()`, `.mz()`, `.fragment()` and `.digest()`;
+  with methods such as `.mass()`, `.mz()`, `.fragment()` and `.digest_spans()`;
 - the functional API: `pt.mass(seq)`, `pt.fragment(seq)`, `pt.digest(seq, "trypsin")`
   and friends accept a string, an annotation or a list, and parallelize large lists.
 
