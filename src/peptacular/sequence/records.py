@@ -236,7 +236,7 @@ def fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]
                 "mass": fragment.mass,
                 "neutral_mass": fragment.neutral_mass,
                 "monoisotopic": fragment.monoisotopic,
-                "deltas": _format_counts((fragment._losses or {}).items()),
+                "deltas": _format_counts((fragment._deltas or {}).items()),
                 "isotopes": isotopes,
                 "sequence": sequence,
                 "parent_sequence": parent,

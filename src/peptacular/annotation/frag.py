@@ -146,6 +146,8 @@ def _freeze(value: Mapping[Any, int] | int | None) -> Any:
     if isinstance(value, Mapping):
         return frozenset(value.items())
     return value
+
+
 def _mzpaf_mass(value: float) -> str:
     """A signed mass for mzPAF: fixed-point, 6 decimals, trailing zeros stripped (``-34.0``, ``+1e-05`` -> ``+0.00001``)."""
     text = f"{value:+.6f}".rstrip("0")

@@ -64,3 +64,19 @@ def test_possible_loss_still_produced_next_to_impossible_ones():
 def test_user_delta_that_is_impossible_still_raises():
     with pytest.raises(pt.InvalidAdjustmentError):
         pt.fragment("PEPTIDE", ["b"], [1], deltas=[{"H3PO4": 1}], calculate_with_composition=True)
+
+
+@pytest.mark.parametrize(
+    ("deltas", "label"),
+    [({"NH3": -1}, "b3+NH3"), ({"HCOOH": -2}, "b3+2HCOOH"), ({"H2O": 2}, "b3-2H2O"), ({"C2H2O": -1}, "b3-C2H2O")],
+)
+def test_negative_count_flips_the_canonical_label(deltas, label):
+    # a negative count turns a named loss into a gain (and a plain-formula gain into a loss)
+    frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas=deltas)
+    assert frag.to_mzpaf(include_sequence=False) == label
+
+
+def test_replace_keeps_the_canonical_gain_label():
+    frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"NH3": 1})
+    gained = frag.replace(deltas={key: -count for key, count in frag.deltas.items()})
+    assert gained.to_mzpaf(include_sequence=False) == "b3+NH3"
