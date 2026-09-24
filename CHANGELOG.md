@@ -54,7 +54,7 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 
 ### Added
 - `PROTON_CARRIER_MASS` (`HYDROGEN_MASS - ELECTRON_MASS`), the monoisotopic mass one default charge adds; `fast_fragment` uses it. It is 1.4e-8 Da below CODATA `PROTON_MASS` so that charged masses agree with the ion's composition (see `docs/mass_calculation.rst`).
-- `Fragment.replace(**changes)`, `Fragment.__eq__` and `__hash__` (by value).
+- `Fragment.replace(**changes)`, `Fragment.__eq__` and `__hash__` (by value). `replace` and the `Fragment` constructor accept the values `deltas`, `isotopes` and `charge_adducts` return.
 - `PeptacularKeyError` (a `PeptacularError` and a `KeyError`) and its subclass `UnknownElementError`; `UnknownEnzymeError` now subclasses `PeptacularKeyError`.
 - `HasSequence`: a protocol for any object with a `.sequence` string. Sequence functions, `batch`, `iter_batch` and `diagnose` accept such objects (fastatacular and PEFF entries) directly, with no dependency on those packages.
 

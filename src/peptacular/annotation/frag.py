@@ -148,6 +148,36 @@ def _freeze(value: Mapping[Any, int] | int | None) -> Any:
     return value
 
 
+def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:
+    """Store delta keys as strings or masses, so ``Fragment(deltas=frag.deltas)`` round-trips."""
+    if not deltas:
+        return None  # ``frag.deltas`` reports "no deltas" as {}
+    if all(isinstance(key, str | float | int) for key in deltas):
+        return deltas
+    out: dict[str | float, int] = {}
+    for key, count in deltas.items():
+        if isinstance(key, ChargedFormula):
+            key = key.serialize().removeprefix("Formula:")
+        out[key] = out.get(key, 0) + count
+    return out
+
+
+def _isotope_keys(isotopes: Mapping[Any, int] | int | None) -> Mapping[str, int] | int | None:
+    """Store isotope keys as strings (``"15N"``), so ``Fragment(isotopes=frag.isotopes)`` round-trips."""
+    if isinstance(isotopes, int) or isotopes is None:
+        return isotopes
+    if not isotopes:
+        return None  # ``frag.isotopes`` reports "no isotopes" as {}
+    return {str(key): count for key, count in isotopes.items()}
+
+
+def _adduct_strings(adducts: Any) -> tuple[str, ...] | None:
+    """Store charge adducts as a tuple of strings; a :class:`Mods` (``frag.charge_adducts``) is expanded."""
+    if isinstance(adducts, Mods):
+        return tuple(key for key, count in (adducts._mods or {}).items() for _ in range(count))
+    return adducts
+
+
 class Fragment:
     """One theoretical ion: a fragment or precursor with its ion type, position, charge and mass.
 
@@ -245,7 +275,7 @@ class Fragment:
         _set(self, "monoisotopic", monoisotopic)
         _set(self, "charge_state", charge_state)
         # If None and charge_state != 0: means protonated
-        _set(self, "_charge_adducts", charge_adducts)
+        _set(self, "_charge_adducts", _adduct_strings(charge_adducts))
         # The portion of charge_state that comes from real external adducts/charge carriers,
         # as opposed to charge intrinsic to an internal formula modification (e.g. [Formula:...:z+N]).
         # Used to reconstruct the default proton adduct when charge_adducts is None, so that
@@ -253,8 +283,8 @@ class Fragment:
         # (i.e. "assume it's all external protonation") when not given explicitly.
         _set(self, "external_charge", external_charge if external_charge is not None else charge_state)
         # int means 13C count
-        _set(self, "_isotopes", isotopes)
-        _set(self, "_deltas", deltas)
+        _set(self, "_isotopes", _isotope_keys(isotopes))
+        _set(self, "_deltas", _delta_keys(deltas))
         # Optional composition cache
         _set(self, "_composition", composition)
         _set(self, "parent_sequence", parent_sequence)
@@ -409,7 +439,8 @@ class Fragment:
         Takes the :class:`Fragment` constructor names (``mass``, ``charge_state``, ``deltas``,
         ...). The cached composition is dropped when a field it depends on changes, unless
         ``composition`` is passed too. Changing ``charge_state`` of a fragment whose charge is
-        all external also moves ``external_charge``.
+        all external also moves ``external_charge``. The values the properties return
+        (``frag.deltas``, ``frag.isotopes``, ``frag.charge_adducts``) are accepted as is.
 
         >>> import peptacular as pt
         >>> frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
@@ -425,6 +456,17 @@ class Fragment:
         unknown = set(changes) - _FRAGMENT_FIELDS.keys()
         if unknown:
             raise TypeError(f"Fragment.replace() got unexpected field(s) {sorted(unknown)}; expected any of {sorted(_FRAGMENT_FIELDS)}")
+        if "isotopes" in changes:
+            isotopes = changes["isotopes"]
+            # `isotopes` reports a 13C count as {13C: n}; passing that back keeps the count
+            changes["isotopes"] = self._isotopes if isotopes == self.isotopes else _isotope_keys(isotopes)
+        if "deltas" in changes:
+            changes["deltas"] = _delta_keys(changes["deltas"])
+        if "charge_adducts" in changes:
+            adducts = changes["charge_adducts"]
+            # the default protons that `charge_adducts` reports for a protonated ion stay implicit
+            keep_default = self._charge_adducts is None and isinstance(adducts, Mods) and adducts == self.charge_adducts
+            changes["charge_adducts"] = None if keep_default else _adduct_strings(adducts)
         slot_changes = {_FRAGMENT_FIELDS[name]: value for name, value in changes.items()}
         if "external_charge" in changes and changes["external_charge"] is None:
             slot_changes["external_charge"] = changes.get("charge_state", self.charge_state)

@@ -59,3 +59,40 @@ def test_single_fragment_options_need_no_list():
     assert {f.ion_type for f in pt.fragment("PEPTIDE", "by", 1)} == {pt.IonType("by")}
     assert pt.fragment("PEPTIDE", "b", 1, neutral_deltas="H2O") == pt.fragment("PEPTIDE", ["b"], [1], neutral_deltas=["H2O"])
     assert pt.fragment("PEPTIDE", "b", 1, isotopes=1) == pt.fragment("PEPTIDE", ["b"], [1], isotopes=[1])
+
+
+def _roundtrip_fragments():
+    yield pt.parse("PEPTIDE").frag(ion_type="b", charge=2, position=3, deltas={"NH3": 1}, isotopes={"15N": 1})
+    yield pt.fragment("PEPTIDE", ["b"], ["Na:z+1"])[3]
+    yield pt.fragment("PEPTIDE", ["y"], [1])[2]
+
+
+@pytest.mark.parametrize("field", ["isotopes", "deltas", "charge_adducts"])
+def test_fragment_replace_accepts_its_own_property_values(field):
+    # the properties return parsed objects (ChargedFormula keys, Mods); replace and the
+    # constructor must take them back without breaking str/mzPAF or equality
+    for frag in _roundtrip_fragments():
+        copy = frag.replace(**{field: getattr(frag, field)})
+        assert copy == frag
+        assert copy.to_mzpaf() == frag.to_mzpaf() and str(copy) == str(frag)
+
+
+def test_fragment_constructor_accepts_formula_delta_keys():
+    frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"NH3": 1})
+    rebuilt = pt.Fragment(frag.ion_type, frag.position, frag.mass, frag.monoisotopic, frag.charge_state, deltas=frag.deltas)
+    assert rebuilt.to_mzpaf(include_sequence=False) == "b3-NH3"
+    assert rebuilt.deltas == frag.deltas
+
+
+def test_fragment_constructor_expands_a_mods_of_adducts():
+    frag = pt.fragment("PEPTIDE", ["b"], ["Na:z+1"])[3]
+    rebuilt = pt.Fragment(frag.ion_type, frag.position, frag.mass, frag.monoisotopic, frag.charge_state, charge_adducts=frag.charge_adducts)
+    assert rebuilt._charge_adducts == ("Na:z+1",)
+
+
+def test_fragment_replace_keeps_a_13c_count():
+    frag = pt.fragment("PEPTIDE", ["b"], [1], isotopes=[1])[3]
+    assert frag.is_c13
+    copy = frag.replace(isotopes=frag.isotopes)
+    assert copy.is_c13 and copy == frag
+    assert pt.Fragment(frag.ion_type, frag.position, frag.mass, True, 1, isotopes={"15N": 1}).replace(isotopes={}).isotopes == {}
