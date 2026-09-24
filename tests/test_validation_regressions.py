@@ -79,3 +79,70 @@ def test_parse_chimeric_rejects_crosslink_separator():
     with pytest.raises(pt.UnsupportedOperationError, match="//"):
         pt.parse_chimeric("EMEVTK[XLMOD:02001#XL1]SESPEK//EMEVTK[#XL1]SESPEK")
     assert len(pt.parse_chimeric("PEPTIDE+PEPTIDE")) == 2
+
+
+# --------------------------------------------------------------------------- satellite ions (mzPAF 1.0.1)
+
+# mzPAF 1.0.1 section 4.4.3: d = Σn-1(AA) + offset, v/w = Σc-1(AA) + offset. The residue
+# whose side chain is cleaved is not in the residue sum; the offset is its remnant.
+_SAT_RESIDUE_TYPES = {
+    "d": {"V": ["d-valine"], "I": ["da-isoleucine", "db-isoleucine"], "T": ["da-threonine", "db-threonine"], "G": [], "A": [], "P": []},
+    "w": {"V": ["w-valine"], "I": ["wa-isoleucine", "wb-isoleucine"], "T": ["wa-threonine", "wb-threonine"], "G": [], "A": [], "P": []},
+    "v": {},
+}
+
+
+def _residue_sum(seq: str) -> float:
+    # Residue masses from pyteomics (independent of peptacular/tacular).
+    from pyteomics.mass import std_aa_mass
+
+    return sum(std_aa_mass[aa] for aa in seq)
+
+
+def _expected_satellites(seq: str, family: str) -> dict[tuple[str, int], float]:
+    from tacular import FRAGMENT_ION_LOOKUP
+
+    proton = 1.007276466621
+    n = len(seq)
+    out = {}
+    for i in range(1, n + 1):
+        if family == "d":
+            cleaved, kept = seq[i - 1], seq[: i - 1]
+        else:
+            cleaved, kept = seq[n - i], seq[n - i + 1 :]
+        for ion in _SAT_RESIDUE_TYPES[family].get(cleaved, [family]):
+            mz = _residue_sum(kept) + FRAGMENT_ION_LOOKUP[ion].monoisotopic_mass + proton
+            out[(ion, i)] = mz
+    return out
+
+
+@pytest.mark.parametrize("seq", ["SAMPLER", "VTIVTI", "EDVKITLS"])
+@pytest.mark.parametrize("family", ["d", "v", "w"])
+def test_satellite_ions_use_residue_sum_without_cleaved_residue(seq, family):
+    got = {(f.ion_type.value, f.position): f.mz for f in pt.fragment(seq, ion_types=[family], charges=[1])}
+    expected = _expected_satellites(seq, family)
+    assert got.keys() == expected.keys()
+    for key, mz in expected.items():
+        assert got[key] == pytest.approx(mz, abs=1e-6), key
+
+
+# SAMPLVER: d5 cleaves L, d1 cleaves S, w3 (VER) cleaves V, v3 cleaves V, d6 cleaves V.
+@pytest.mark.parametrize(
+    ("ion", "position", "expected_type"),
+    [("d", 5, "d"), ("d", 1, "d"), ("d", 6, "d-valine"), ("w", 3, "w-valine"), ("v", 3, "v")],
+)
+def test_frag_satellite_single_position(ion, position, expected_type):
+    seq = "SAMPLVER"
+    f = pt.parse(seq).frag(ion_type=ion, charge=1, position=position)
+    assert f.ion_type.value == expected_type
+    assert f.mz == pytest.approx(_expected_satellites(seq, ion[0])[(expected_type, position)], abs=1e-6)
+
+
+def test_satellite_offsets_follow_mzpaf_when_tacular_has_them():
+    from tacular import FRAGMENT_ION_LOOKUP
+
+    if dict(FRAGMENT_ION_LOOKUP["d"].dict_composition or {}) != {"C": 2, "H": 4, "N": 1}:
+        pytest.skip("installed tacular predates the mzPAF 1.0.1 d/v/w offsets")
+    # d3 of SAMPLER (cleaves M): S + A residues + C2H4N + H+.
+    f = pt.parse("SAMPLER").frag(ion_type="d", charge=1, position=3)
+    assert f.mz == pytest.approx(87.032028 + 71.037114 + 42.034374 + 1.007276, abs=1e-5)

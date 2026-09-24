@@ -475,11 +475,12 @@ class TestCanFragmentSequence:
         with pytest.raises(ValueError, match="DB fragments can only be produced"):
             can_fragment_sequence("EPEPTIDE", IonType.DB)
 
-    def test_db_ion_threonine_start_maps_to_db_threonine(self) -> None:
-        assert can_fragment_sequence("TPEPTIDE", IonType.DB) == IonType.DB_THREONINE
+    # db, like da, forms on the last residue of the N-terminal fragment (mzPAF 1.0.1).
+    def test_db_ion_threonine_end_maps_to_db_threonine(self) -> None:
+        assert can_fragment_sequence("PEPTIDET", IonType.DB) == IonType.DB_THREONINE
 
-    def test_db_ion_isoleucine_start_maps_to_db_isoleucine(self) -> None:
-        assert can_fragment_sequence("IPEPTIDE", IonType.DB) == IonType.DB_ISOLEUCINE
+    def test_db_ion_isoleucine_end_maps_to_db_isoleucine(self) -> None:
+        assert can_fragment_sequence("PEPTIDEI", IonType.DB) == IonType.DB_ISOLEUCINE
 
     # -- Leaf ion type with a required set but no specific_map (return path at end) --
 
@@ -520,8 +521,9 @@ class TestCanFragmentSequence:
         with pytest.raises(ValueError, match="WB fragments can only be produced"):
             can_fragment_sequence("PEPTIDE", IonType.WB)
 
+    # wb, like wa, forms on the first residue of the C-terminal fragment (mzPAF 1.0.1).
     def test_wb_ion_threonine_terminus_maps_to_wb_threonine(self) -> None:
-        assert can_fragment_sequence("PEPTIDT", IonType.WB) == IonType.WB_THREONINE
+        assert can_fragment_sequence("TPEPTID", IonType.WB) == IonType.WB_THREONINE
 
     def test_wb_ion_isoleucine_terminus_maps_to_wb_isoleucine(self) -> None:
-        assert can_fragment_sequence("PEPTIDI", IonType.WB) == IonType.WB_ISOLEUCINE
+        assert can_fragment_sequence("IPEPTID", IonType.WB) == IonType.WB_ISOLEUCINE

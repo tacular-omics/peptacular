@@ -314,6 +314,8 @@ def cumsum(numbers: Sequence[float] | Sequence[Counter[Any]], reverse: bool = Fa
 
 
 # Define rules: ion_type -> (position, required_aas, excluded_aas, specific_ion_map)
+# Satellite ions form by side-chain cleavage of one residue: the last residue of a d
+# fragment and the first residue of a v/w fragment (mzPAF 1.0.1, section 4.4.3).
 FRAGMENT_RULES: Any = {
     IonType.D: ("end", None, {"G", "A", "P", "I", "T"}, {"V": IonType.D_VALINE}),
     IonType.DA: (
@@ -323,7 +325,7 @@ FRAGMENT_RULES: Any = {
         {"I": IonType.DA_ISOLEUCINE, "T": IonType.DA_THREONINE},
     ),
     IonType.DB: (
-        "start",
+        "end",
         {"I", "T"},
         None,
         {"I": IonType.DB_ISOLEUCINE, "T": IonType.DB_THREONINE},
@@ -331,8 +333,8 @@ FRAGMENT_RULES: Any = {
     IonType.D_VALINE: ("end", {"V"}, None, None),
     IonType.DA_THREONINE: ("end", {"T"}, None, None),
     IonType.DA_ISOLEUCINE: ("end", {"I"}, None, None),
-    IonType.DB_THREONINE: ("start", {"T"}, None, None),
-    IonType.DB_ISOLEUCINE: ("start", {"I"}, None, None),
+    IonType.DB_THREONINE: ("end", {"T"}, None, None),
+    IonType.DB_ISOLEUCINE: ("end", {"I"}, None, None),
     IonType.W: ("start", None, {"G", "A", "P", "I", "T"}, {"V": IonType.W_VALINE}),
     IonType.WA: (
         "start",
@@ -341,7 +343,7 @@ FRAGMENT_RULES: Any = {
         {"I": IonType.WA_ISOLEUCINE, "T": IonType.WA_THREONINE},
     ),
     IonType.WB: (
-        "end",
+        "start",
         {"I", "T"},
         None,
         {"I": IonType.WB_ISOLEUCINE, "T": IonType.WB_THREONINE},
@@ -349,9 +351,15 @@ FRAGMENT_RULES: Any = {
     IonType.W_VALINE: ("start", {"V"}, None, None),
     IonType.WA_THREONINE: ("start", {"T"}, None, None),
     IonType.WA_ISOLEUCINE: ("start", {"I"}, None, None),
-    IonType.WB_THREONINE: ("end", {"T"}, None, None),
-    IonType.WB_ISOLEUCINE: ("end", {"I"}, None, None),
+    IonType.WB_THREONINE: ("start", {"T"}, None, None),
+    IonType.WB_ISOLEUCINE: ("start", {"I"}, None, None),
 }
+
+
+# Satellite ions whose residue sum excludes the residue whose side chain is cleaved:
+# d = sum(n-1 residues) + offset, v/w = sum(c-1 residues) + offset (mzPAF 1.0.1).
+SATELLITE_TRIM_END: frozenset[IonType] = frozenset(t for t, rule in FRAGMENT_RULES.items() if t.value.startswith("d") and rule[0] == "end")
+SATELLITE_TRIM_START: frozenset[IonType] = frozenset({IonType.V, *(t for t, rule in FRAGMENT_RULES.items() if t.value.startswith("w") and rule[0] == "start")})
 
 
 def can_fragment_sequence(sequence: str, ion_type: IonType | IonTypeLiteral) -> IonType:
