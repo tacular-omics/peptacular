@@ -111,7 +111,8 @@ which builds a `Fragment`.
   `validate`, `ProFormaAnnotation`, `join`, `split`.
 - **Mass**: `mass`, `mz`, `comp`, `chem_mass`, `chem_comp`, `chem_formula`,
   `parse_formula`, `add_composition`, `merge_compositions`.
-- **Fragments**: `fragment`, `frag`, `fast_fragment`, `Fragment`.
+- **Fragments**: `fragment`, `frag`, `fast_fragment`, `Fragment`, `fragment_arrays` and
+  `FRAGMENT_ARRAY_KEYS` (numpy columns; needs the `numpy` extra).
 - **Digestion**: `digest`, `simple_digest`, `semi_digest`, `left_semi_digest`,
   `right_semi_digest`, `nonspecific_digest`, `cleavage_sites`, `simple_cleavage_sites`,
   `EnzymeConfig`, `DigestProtocol`. Spans: `Span`, `build_spans`,

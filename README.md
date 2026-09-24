@@ -50,6 +50,7 @@ pip install "peptacular[pyteomics]"
 pip install "peptacular[psm-utils]"
 pip install "peptacular[alphabase]"
 pip install "peptacular[mcp]"
+pip install "peptacular[numpy]"   # fragment_arrays(): ions as numpy columns
 ```
 
 See the [interoperability guide](https://peptacular.readthedocs.io/en/latest/interoperability.html)
@@ -134,7 +135,7 @@ print([[f"{f.ion_type}{f.position}" for f in frags] for frags in ions])  # [['b4
 | Fragmentation | `pt.fragment`, `pt.fast_fragment` |
 | Localization | `pt.localization_isomers`, `pt.candidate_sites`, `pt.site_determining_ions`, `pt.pairwise_site_determining_ions` ([guide](https://peptacular.readthedocs.io/en/latest/localization.html)) |
 | Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
-| Tables | `pt.digest_records`, `pt.fragment_records` (plain dicts for pandas or polars) |
+| Tables | `pt.digest_records`, `pt.fragment_records` (plain dicts for pandas or polars), `pt.fragment_arrays` (numpy columns) |
 | Batch / streaming | `pt.batch`, `pt.iter_batch`, `pt.diagnose` (read FASTA with fastatacular) |
 | JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |
 
@@ -155,8 +156,19 @@ print(ions[1]["ion_type"], ions[1]["position"], ions[1]["charge_state"], ions[1]
 # pandas.DataFrame(rows) or polars.DataFrame(ions) gives a table
 ```
 
-A FASTA entry's `accession` (or a PEFF entry's `db_unique_id`) is copied into each digest row. See the
-[tables guide](https://peptacular.readthedocs.io/en/latest/records.html).
+A FASTA entry's `accession` (or a PEFF entry's `db_unique_id`) is copied into each digest row.
+
+For many peptides, `pt.fragment_arrays` (needs `pip install "peptacular[numpy]"`) returns the
+same ions as `pt.fragment` as a dict of numpy columns, one row per ion, with a `peptide_index`
+column. It is about 10x faster than building a table from `Fragment` objects:
+
+```python
+cols = pt.fragment_arrays(["PEPTIDE/2", "PEM[Oxidation]K"], ion_types=("b", "y"), charges=(1, 2))
+print(cols["peptide_index"][:3].tolist(), cols["mz"][:3].round(4).tolist())  # [0, 0, 0] [98.06, 227.1026, 324.1554]
+# polars.DataFrame(cols) or pyarrow.table(cols) takes the dict as is
+```
+
+See the [tables guide](https://peptacular.readthedocs.io/en/latest/records.html).
 
 ## Local MCP integration
 

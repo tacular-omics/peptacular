@@ -375,9 +375,14 @@ for span in protein.digest_spans(pt.Protease.TRYPSIN):
 digest_records(sequence: SEQ | Iterable[SEQ], enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False,
                min_len: int | None = None, max_len: int | None = None) -> list[dict]
 fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]]) -> list[dict]
+fragment_arrays(sequence: SEQS, ion_types=("b", "y"), charges=None, *, monoisotopic=True, isotopes=(0,),
+                deltas=(None,), neutral_deltas=(), calculate_with_composition=False, max_ndeltas=1,
+                min_length=None, max_length=None, *PAR) -> dict[str, numpy.ndarray]   # extra: peptacular[numpy]
 DIGEST_RECORD_KEYS = ("peptide", "stripped_sequence", "start", "end", "missed_cleavages", "semi", "accession")
 FRAGMENT_RECORD_KEYS = ("ion_type", "position", "end_position", "charge_state", "mz", "mass", "neutral_mass",
                         "monoisotopic", "deltas", "isotopes", "sequence", "parent_sequence", "mzpaf")
+FRAGMENT_ARRAY_KEYS = ("peptide_index", "ion_type", "position", "end_position", "charge_state", "mz", "mass",
+                       "isotope", "isotope_label", "delta_label", "delta_mass")
 ```
 
 peptacular does NOT depend on pandas or polars (not even optionally); pass the rows to
@@ -401,6 +406,22 @@ rows = pt.digest_records("MKVLATSAGERTIDEK", "trypsin", missed_cleavages=1)
 print(rows[1]["peptide"], rows[1]["start"], rows[1]["end"], rows[1]["missed_cleavages"])  # MKVLATSAGER 0 11 1
 ions = pt.fragment_records(pt.fragment("PEPTIDE", ion_types=("y",), charges=(1,)))
 print([round(r["mz"], 3) for r in ions][:3])  # [148.06, 263.087, 376.171]
+```
+
+`fragment_arrays` needs numpy (`pip install "peptacular[numpy]"`; without it raises
+`MissingOptionalDependencyError` naming that command). Same arguments as `fragment`, same ions in
+the same order with identical floats, returned as a dict of equal-length numpy arrays (keys
+`FRAGMENT_ARRAY_KEYS`), one row per ion; `peptide_index` is the input peptide's index (0 for one
+sequence). int64: `peptide_index`, `position`, `end_position`, `charge_state`, `isotope` (13C count);
+a missing position is 0, not None. float64: `mz`, `mass` (charged), `delta_mass` (total delta mass,
+negative for a loss). object str: `ion_type`, `isotope_label`, `delta_label` (the `isotopes`/`deltas`
+format of `fragment_records`). `pl.DataFrame(cols)` / `pa.table(cols)` accept it as is. About 10x
+faster than `fragment()` + building a table; plain a/b/c/x/y/z series use numpy prefix sums, other
+ions go through `fragment()`. A list runs in one process unless `n_workers=`/`method=` is given.
+
+```python
+cols = pt.fragment_arrays(["PEPTIDE/2", "PEM[Oxidation]K"], ion_types=("b", "y"), charges=(1, 2))
+print(cols["peptide_index"][:3].tolist(), cols["mz"][:3].round(4).tolist())  # [0, 0, 0] [98.06, 227.1026, 324.1554]
 ```
 
 ## Isotopic envelopes

@@ -40,6 +40,7 @@ mcp = ["mcp>=2.1.1,<2.3", "pydantic>=2.13,<3"]
 pyteomics = ["pyteomics>=5.0"]
 psm-utils = ["psm-utils>=1.0"]
 alphabase = ["alphabase>=1.9"]
+numpy = ["numpy>=1.26"]
 interop = [
     "pyteomics>=5.0",
     "psm-utils>=1.0",
@@ -78,6 +79,9 @@ dev = [
     "sphinx-autodoc-typehints>=1.25",
     "myst-parser",
     "pandas>=3.0.0",
+    "numpy>=1.26",
+    "polars>=1.0",
+    "pyarrow>=15",
     "pytest-xdist>=3.8.0",
     "lxml>=6.0.2",
     "hypothesis>=6.100",
