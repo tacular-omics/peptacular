@@ -1,0 +1,23 @@
+# Fast checks at commit time (no ty, no pytest: run `just check` for those).
+# Install once per clone:  uvx pre-commit install
+# Run on every file:      uvx pre-commit run --all-files
+# Keep the ruff rev in step with the ruff version in uv.lock.
+# Papers (JOSS sources and their workflow) are never touched by any hook.
+exclude: ^(papers?/|(.*/)?paper\.(md|bib)$|\.github/(workflows/)?draft-pdf\.yml$)
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 2eeb5678de71a00c0902cbda7105d328432f72cb  # frozen: v0.16.8
+    hooks:
+      - id: ruff-check
+        files: ^(src/|tests/)
+      - id: ruff-format
+        args: [--check]
+        files: ^(src/|tests/)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=2048]

@@ -1,0 +1,33 @@
+# Weekly canary: install this package the way a pip user would today (uv.lock
+# ignored, newest PyPI release of every dependency the pyproject allows, all
+# extras, plus the test dependencies) and run the test suite. A failure means a
+# new upstream release broke us, or a sibling floor is not on PyPI yet.
+name: Latest dependencies
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install from PyPI into a fresh venv at the newest allowed versions
+        run: |
+          uv venv --python ${{ matrix.python }} "$RUNNER_TEMP/latest"
+          extras=$(python3 -c "import tomllib;print(','.join(tomllib.load(open('pyproject.toml','rb'))['project'].get('optional-dependencies',{})))")
+          target="."
+          if [ -n "$extras" ]; then target=".[$extras]"; fi
+          uv pip install --python "$RUNNER_TEMP/latest/bin/python" --no-sources --no-cache "$target" --group dev
+          uv pip list --python "$RUNNER_TEMP/latest/bin/python"
+      - run: '"$RUNNER_TEMP/latest/bin/python" -m pytest tests'

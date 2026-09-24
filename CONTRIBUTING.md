@@ -34,7 +34,10 @@ just install
 just check   # runs lint, tests, and type checking
 ```
 
-There are no pre-commit hooks configured; please run `just check` before pushing.
+Install the commit hooks once per clone with `uvx pre-commit install`. On every
+commit they run `ruff check`, `ruff format --check` and a few file checks
+(`uvx pre-commit run --all-files` runs them on everything). Type checks and
+tests are not in the hooks; run `just check` for those.
 
 ## Making Changes
 
