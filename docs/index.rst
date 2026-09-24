@@ -41,6 +41,7 @@ User Guide
    interoperability
    masses
    mass_calculation
+   localization
    json_serialization
    mcp
 

@@ -83,6 +83,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
+from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
     condense_static_mods,
@@ -4527,6 +4528,34 @@ class ProFormaAnnotation:
         :rtype: Self
         """
         return cast(Self, condense_ambiguity_to_xnotation(self, inplace=inplace))
+
+    def localization_isomers(self, *, max_isomers: int | None = DEFAULT_MAX_ISOMERS) -> list[Self]:
+        """Expand every ambiguous modification position into its concrete placements.
+
+        Expands ``#label`` groups, ranges (``PEP(ST)[Phospho]IDE``) and unknown-position mods
+        (``[Phospho]?PEPTIDE``; these can go on any residue), one mod per residue. A group's label and the chosen
+        residue's score stay on the placed mod (``S[Phospho#g1(0.8)]``). See
+        :func:`peptacular.localization_isomers` for the full rules and ordering.
+
+        :param max_isomers: Raise :class:`PeptacularError` if there would be more isomers than
+            this. Defaults to 10,000; pass ``None`` for no limit.
+        :type max_isomers: int | None
+        :return: Deduplicated isomers in a fixed order. This annotation is not modified.
+        :rtype: list[Self]
+        """
+        return cast(list[Self], localization_isomers(self, max_isomers=max_isomers))
+
+    def candidate_sites(self, mod: Any, *, residues: str) -> list[tuple[int, Self]]:
+        """Place ``mod`` on each unmodified residue whose letter is in ``residues``.
+
+        :param mod: The modification to place (``"Phospho"``, a mass, ...).
+        :type mod: Any
+        :param residues: One-letter codes that can carry ``mod`` (required; there is no default site table).
+        :type residues: str
+        :return: ``(position, isomer)`` pairs in sequence order, position 0-based.
+        :rtype: list[tuple[int, Self]]
+        """
+        return cast(list[tuple[int, Self]], candidate_sites(self, mod, residues=residues))
 
     @staticmethod
     def group_by_ambiguity(annotations: Iterable["ProFormaAnnotation"], *, precision: int = 5) -> list[tuple["ProFormaAnnotation", ...]]:
