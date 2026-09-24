@@ -41,6 +41,8 @@ modules = [pt.isotope, importlib.import_module("peptacular._regex_utils"), impor
 modules.extend(get_all_modules(pt.sequence))
 modules.extend(get_all_modules(pt.annotation))
 modules.extend(get_all_modules(pt.digestion))
+modules.extend(get_all_modules(pt.property))
+modules.append(importlib.import_module("peptacular.spans"))
 
 
 @pytest.mark.parametrize("module", modules)

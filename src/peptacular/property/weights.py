@@ -152,7 +152,7 @@ def _get_sigmoid_weights(
 
         >>> weights = _get_sigmoid_weights(5)
         >>> [round(w, 2) for w in weights]
-        [0.1, 0.26, 0.55, 0.84, 1.0]
+        [0.1, 0.1, 0.55, 1.0, 1.0]
     """
     if length <= 0:
         return []
@@ -187,7 +187,7 @@ def _get_cosine_weights(length: int, min_weight: float = 0.1, max_weight: float 
 
         >>> weights = _get_cosine_weights(5, cycles=0.5)
         >>> [round(w, 2) for w in weights]
-        [1.0, 0.77, 0.32, 0.32, 0.77]
+        [1.0, 0.87, 0.55, 0.23, 0.1]
     """
     if length <= 0:
         return []

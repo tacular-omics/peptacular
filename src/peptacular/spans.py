@@ -55,20 +55,23 @@ def build_non_enzymatic_spans(span: Span | tuple[int, int, int], *, min_len: int
 
         # By default all spans are returned with lengths >= 1 and <= span length
         # (including the full-length span itself)
-        >>> list(build_non_enzymatic_spans((0, 3, 0)))
-        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        >>> list(build_non_enzymatic_spans((0, 3, 0)))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=1, missed_cleavages=0), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=3, missed_cleavages=0),
+        Span(start=1, end=2, missed_cleavages=0), Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
         # The span value for non-enymatic spans will always be 0
-        >>> list(build_non_enzymatic_spans((0, 3, 2)))
-        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        >>> list(build_non_enzymatic_spans((0, 3, 2)))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=1, missed_cleavages=0), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=3, missed_cleavages=0),
+        Span(start=1, end=2, missed_cleavages=0), Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
         # Can also explicitly specify min_len and max_len
         >>> list(build_non_enzymatic_spans((0, 3, 0), min_len=1, max_len=1))
-        [(0, 1, 0), (1, 2, 0), (2, 3, 0)]
+        [Span(start=0, end=1, missed_cleavages=0), Span(start=1, end=2, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
         # max_len is capped at the span length
-        >>> list(build_non_enzymatic_spans((0, 3, 0), max_len=10))
-        [(0, 1, 0), (0, 2, 0), (0, 3, 0), (1, 2, 0), (1, 3, 0), (2, 3, 0)]
+        >>> list(build_non_enzymatic_spans((0, 3, 0), max_len=10))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=1, missed_cleavages=0), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=3, missed_cleavages=0),
+        Span(start=1, end=2, missed_cleavages=0), Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
     """
 
@@ -109,19 +112,19 @@ def build_left_semi_spans(span: Span | tuple[int, int, int], *, min_len: int | N
 
         # By default all spans are returned with lengths >= 1 and <= span length - 1
         >>> list(build_left_semi_spans((0, 3, 0)))
-        [(0, 2, 0), (0, 1, 0)]
+        [Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0)]
 
         # Keeps the value of the original span
         >>> list(build_left_semi_spans((0, 3, 2)))
-        [(0, 2, 2), (0, 1, 2)]
+        [Span(start=0, end=2, missed_cleavages=2), Span(start=0, end=1, missed_cleavages=2)]
 
         # Can also explicitly specify min_len and max_len
         >>> list(build_left_semi_spans((0, 3, 0), min_len=1, max_len=1))
-        [(0, 1, 0)]
+        [Span(start=0, end=1, missed_cleavages=0)]
 
         # But it is not possible to generate spans >= span length - 1
         >>> list(build_left_semi_spans((0, 3, 0), max_len=10))
-        [(0, 2, 0), (0, 1, 0)]
+        [Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0)]
 
     """
 
@@ -161,19 +164,19 @@ def build_right_semi_spans(span: Span | tuple[int, int, int], *, min_len: int | 
 
         # By default all spans are returned with lengths >= 1 and <= span length - 1
         >>> list(build_right_semi_spans((0, 3, 0)))
-        [(1, 3, 0), (2, 3, 0)]
+        [Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
         # Keeps the value of the original span
         >>> list(build_right_semi_spans((0, 3, 2)))
-        [(1, 3, 2), (2, 3, 2)]
+        [Span(start=1, end=3, missed_cleavages=2), Span(start=2, end=3, missed_cleavages=2)]
 
         # Can also explicitly specify min_len and max_len
         >>> list(build_right_semi_spans((0, 3, 0), min_len=1, max_len=1))
-        [(2, 3, 0)]
+        [Span(start=2, end=3, missed_cleavages=0)]
 
         # But it is not possible to generate spans >= span length - 1
         >>> list(build_right_semi_spans((0, 3, 0), min_len=1, max_len=10))
-        [(1, 3, 0), (2, 3, 0)]
+        [Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0)]
 
     """
 
@@ -216,15 +219,15 @@ def build_enzymatic_spans(
     .. code-block:: python
 
         >>> list(build_enzymatic_spans(5, [3], 1))
-        [(0, 3, 0), (0, 5, 1), (3, 5, 0)]
+        [Span(start=0, end=3, missed_cleavages=0), Span(start=0, end=5, missed_cleavages=1), Span(start=3, end=5, missed_cleavages=0)]
 
         # Set min length
         >>> list(build_enzymatic_spans(5, [3], 1, min_len=5))
-        [(0, 5, 1)]
+        [Span(start=0, end=5, missed_cleavages=1)]
 
         # Set max length
         >>> list(build_enzymatic_spans(5, [3], 1, max_len=3))
-        [(0, 3, 0), (3, 5, 0)]
+        [Span(start=0, end=3, missed_cleavages=0), Span(start=3, end=5, missed_cleavages=0)]
 
     """
 
@@ -266,11 +269,13 @@ def _grouped_left_semi_span_builder(
 
     .. code-block:: python
 
-        >>> list(_grouped_left_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))
-        [(0, 4, 1), (0, 2, 0), (0, 1, 0), (3, 4, 0)]
+        >>> list(_grouped_left_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=4, missed_cleavages=1), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0),
+        Span(start=3, end=4, missed_cleavages=0)]
 
-        >>> list(_grouped_left_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))
-        [(0, 4, 1), (0, 2, 0), (0, 1, 0), (3, 4, 0)]
+        >>> list(_grouped_left_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=4, missed_cleavages=1), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0),
+        Span(start=3, end=4, missed_cleavages=0)]
 
     """
 
@@ -324,11 +329,13 @@ def _grouped_right_semi_span_builder(
 
     .. code-block:: python
 
-        >>> list(_grouped_right_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))
-        [(1, 3, 0), (2, 3, 0), (1, 5, 1), (2, 5, 1), (4, 5, 0)]
+        >>> list(_grouped_right_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0), Span(start=1, end=5, missed_cleavages=1),
+        Span(start=2, end=5, missed_cleavages=1), Span(start=4, end=5, missed_cleavages=0)]
 
-        >>> list(_grouped_right_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))
-        [(1, 3, 0), (2, 3, 0), (1, 5, 1), (2, 5, 1), (4, 5, 0)]
+        >>> list(_grouped_right_semi_span_builder([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0), Span(start=1, end=5, missed_cleavages=1),
+        Span(start=2, end=5, missed_cleavages=1), Span(start=4, end=5, missed_cleavages=0)]
 
     """
 
@@ -379,11 +386,15 @@ def build_semi_spans(spans: Iterable[Span | tuple[int, int, int]], *, min_len: i
 
     .. code-block:: python
 
-        >>> list(build_semi_spans([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))
-        [(0, 4, 1), (0, 2, 0), (0, 1, 0), (3, 4, 0), (1, 3, 0), (2, 3, 0), (1, 5, 1), (2, 5, 1), (4, 5, 0)]
+        >>> list(build_semi_spans([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=1, max_len=5))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=4, missed_cleavages=1), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0),
+        Span(start=3, end=4, missed_cleavages=0), Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0),
+        Span(start=1, end=5, missed_cleavages=1), Span(start=2, end=5, missed_cleavages=1), Span(start=4, end=5, missed_cleavages=0)]
 
-        >>> list(build_semi_spans([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))
-        [(0, 4, 1), (0, 2, 0), (0, 1, 0), (3, 4, 0), (1, 3, 0), (2, 3, 0), (1, 5, 1), (2, 5, 1), (4, 5, 0)]
+        >>> list(build_semi_spans([(0, 3, 0), (0, 5, 1), (3, 5, 0)], min_len=None, max_len=None))  # doctest: +NORMALIZE_WHITESPACE
+        [Span(start=0, end=4, missed_cleavages=1), Span(start=0, end=2, missed_cleavages=0), Span(start=0, end=1, missed_cleavages=0),
+        Span(start=3, end=4, missed_cleavages=0), Span(start=1, end=3, missed_cleavages=0), Span(start=2, end=3, missed_cleavages=0),
+        Span(start=1, end=5, missed_cleavages=1), Span(start=2, end=5, missed_cleavages=1), Span(start=4, end=5, missed_cleavages=0)]
 
     """
 
