@@ -476,11 +476,11 @@ class TestSatelliteIons:
 
 
 class TestMapIsotopes:
-    def test_public_and_private_names(self):
+    def test_map_isotopes(self):
         annot = pt.parse("<13C><15N>PEP")
         mapping = {str(k.symbol): v.mass_number for k, v in annot.map_isotopes().items()}
         assert mapping == {"C": 13, "N": 15}
-        assert annot._map_isotopes() == annot.map_isotopes()
+        assert not hasattr(annot, "_map_isotopes")
         assert pt.parse("PEP").map_isotopes() == {}
 
 

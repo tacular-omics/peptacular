@@ -2766,9 +2766,6 @@ class ProFormaAnnotation:
 
         return isotope_map
 
-    # Private alias kept for callers written before map_isotopes was public (paftacular 2.0).
-    _map_isotopes = map_isotopes
-
     # Thin wrapper over the shared negative-safe merge helper (see
     # proforma_components.comps.add_composition) so the many call sites below read cleanly.
     _merge_comp = staticmethod(add_composition)
