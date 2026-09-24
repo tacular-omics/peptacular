@@ -5,6 +5,7 @@ from ..annotation import (
     ProFormaAnnotation,
 )
 from ..constants import ParallelMethod, ParallelMethodLiteral
+from ..diagnostics import PeptacularError
 from ..spans import Span
 from .parallel import parallel_apply_internal
 from .util import get_annotation_input
@@ -478,6 +479,8 @@ def join(
         'PEPTIDEMODIFIED'
 
     """
+    if not annotations:
+        raise PeptacularError("join() needs at least one sequence")
     if isinstance(annotations, Sequence) and isinstance(annotations[0], Sequence) and not isinstance(annotations[0], (str, ProFormaAnnotation)):
         return parallel_apply_internal(
             _join_single,

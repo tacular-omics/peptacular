@@ -20,7 +20,7 @@ from typing import Final, cast
 from tacular import ELEMENT_LOOKUP, FRAGMENT_ION_LOOKUP, ElementInfo, FragmentIonInfo, IonType, IonTypeLiteral
 
 from . import constants
-from .diagnostics import PeptacularError
+from .diagnostics import PeptacularError, UnsupportedOperationError, lookup_element
 
 CARBON = ELEMENT_LOOKUP["C"]
 HYDROGEN = ELEMENT_LOOKUP["H"]
@@ -69,7 +69,10 @@ def estimate_averagine_comp(neutral_mass: float, *, ion_type: str | IonType | Io
     if not isfinite(mass) or mass < 0.0:
         raise PeptacularError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
 
-    ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
+    try:
+        ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
+    except KeyError:
+        raise UnsupportedOperationError(f"Unknown ion type {ion_type!r}") from None
     fixed_mass = sum(element.get_mass(monoisotopic=True) * count for element, count in ion_info.composition.items())
     scalable_mass = max(0.0, mass - fixed_mass)
     composition: dict[ElementInfo, float] = {element: ratio * scalable_mass for element, ratio in AVERAGINE_RATIOS.items()}
@@ -127,7 +130,7 @@ def _canonical_composition(
         integer_count = int(floor(count + 0.5))
         if integer_count:
             counts[element] += integer_count
-        mass_correction += (count - integer_count) * ELEMENT_LOOKUP[element].get_mass(monoisotopic=True)
+        mass_correction += (count - integer_count) * lookup_element(element).get_mass(monoisotopic=True)
     return tuple(sorted(counts.items())), mass_correction
 
 
@@ -251,11 +254,11 @@ def _adaptive_length(
 
 
 def brain_isotopic_distribution(
-    chemical_formula: Mapping[str | ElementInfo, int | float],
+    formula: Mapping[str | ElementInfo, int | float],
     *,
     max_isotopes: int | None = None,
     min_abundance_threshold: float = DEFAULT_MIN_RELATIVE_ABUNDANCE,
-    charge_state: int | None = None,
+    charge: int | None = None,
 ) -> list[IsotopicData]:
     """Calculate an aggregated nominal isotope distribution with BRAIN.
 
@@ -268,10 +271,10 @@ def brain_isotopic_distribution(
     threshold = float(min_abundance_threshold)
     if isinstance(min_abundance_threshold, bool) or not isfinite(threshold) or not 0.0 <= threshold <= 1.0:
         raise PeptacularError(f"min_abundance_threshold must be in [0, 1], got {min_abundance_threshold!r}")
-    if charge_state is not None and (isinstance(charge_state, bool) or not isinstance(charge_state, int)):
-        raise PeptacularError(f"charge_state must be an integer or None, got {charge_state!r}")
+    if charge is not None and (isinstance(charge, bool) or not isinstance(charge, int)):
+        raise PeptacularError(f"charge must be an integer or None, got {charge!r}")
 
-    composition, mass_correction = _canonical_composition(chemical_formula)
+    composition, mass_correction = _canonical_composition(formula)
     length = _adaptive_length(composition, threshold, max_isotopes)
     probabilities, center_masses = _brain_coefficients(composition, length)
     maximum = max(probabilities)
@@ -283,7 +286,7 @@ def brain_isotopic_distribution(
         significant = [index for index, abundance in enumerate(relative) if abundance >= threshold]
         end = significant[-1] + 1 if significant else relative.index(max(relative)) + 1
 
-    particle_mass_offset = 0.0 if charge_state in (None, 0) else -charge_state * constants.ELECTRON_MASS
+    particle_mass_offset = 0.0 if charge in (None, 0) else -charge * constants.ELECTRON_MASS
     return [
         IsotopicData(
             mass=center_masses[index] + mass_correction + particle_mass_offset,

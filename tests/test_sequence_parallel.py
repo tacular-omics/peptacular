@@ -29,7 +29,7 @@ class TestSetStartMethod:
         def _raise(*args, **kwargs):
             raise RuntimeError("context already set")
 
-        monkeypatch.setattr(parallel_mod.mp, "set_start_method", _raise)
+        monkeypatch.setattr(mp, "set_start_method", _raise)
         with caplog.at_level("WARNING"):
             set_start_method("fork")
         assert "Could not set start method" in caplog.text

@@ -24,7 +24,7 @@ from .types import (
 from .weights import get_weights
 
 __all__ = [
-    "AMIGUOUS_AMINO_ACID_MAP",
+    "AMBIGUOUS_AMINO_ACID_MAP",
     "calc_property",
     "calc_window_property",
     "aa_property_percentage",
@@ -34,7 +34,7 @@ __all__ = [
 ]
 
 # Handle ambiguous amino acids
-AMIGUOUS_AMINO_ACID_MAP: dict[str, tuple[str, ...]] = {
+AMBIGUOUS_AMINO_ACID_MAP: dict[str, tuple[str, ...]] = {
     "B": ("D", "N"),  # Aspartic acid or Asparagine
     "J": ("L", "I"),  # Leucine or Isoleucine
     "Z": ("E", "Q"),  # Glutamic acid or Glutamine
@@ -138,10 +138,10 @@ def _get_aa_value(
         value = aa_data[aa]
         return _apply_weighting_and_normalization(value, aa_data, weighting_scheme, normalize)
 
-    if aa in AMIGUOUS_AMINO_ACID_MAP:
+    if aa in AMBIGUOUS_AMINO_ACID_MAP:
         return _get_ambiguous_aa_value(
             aa,
-            AMIGUOUS_AMINO_ACID_MAP[aa],
+            AMBIGUOUS_AMINO_ACID_MAP[aa],
             aa_data,
             missing_aa_handling,
             weighting_scheme,
@@ -405,7 +405,11 @@ def secondary_structure(
 ) -> dict[str, float]:
     """Calculate secondary structure propensities"""
 
-    scale = SecondaryStructureMethod(scale)
+    try:
+        scale = SecondaryStructureMethod(scale)
+    except ValueError:
+        choices = ", ".join(repr(m.value) for m in SecondaryStructureMethod)
+        raise PeptacularError(f"unknown secondary structure scale {scale!r}; choose one of {choices}") from None
 
     d: dict[str, float] = {}
     for structure_scale_name, structure_scale in secondary_structure_scales_by_name[scale].items():

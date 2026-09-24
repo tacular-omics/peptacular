@@ -330,7 +330,10 @@ def to_proforma_json(value: Any, *, indent: int | None = None) -> str:
 
 def from_proforma_json(data: str | bytes | bytearray, *, expected_type: type[Any] | None = None) -> Any:
     """Decode JSON text produced by :func:`to_proforma_json`."""
-    parsed = json.loads(data, object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
+    try:
+        parsed = json.loads(data, object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
+    except json.JSONDecodeError as exc:
+        raise PeptacularError(f"Invalid ProForma JSON: {exc}") from exc
     if not isinstance(parsed, Mapping):
         raise PeptacularError("The root ProForma JSON value must be an object")
     return from_proforma_dict(parsed, expected_type=expected_type)

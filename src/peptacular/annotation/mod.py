@@ -1,8 +1,9 @@
 import sys
 from collections import Counter
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import cached_property
+from types import MappingProxyType
 from typing import Any, Protocol, Self, cast
 
 from tacular import AA_LOOKUP, ElementInfo
@@ -131,12 +132,19 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
     """Collection of modifications of a specific type."""
 
     mod_type: ModType
-    _mods: dict[str, int] | None
+    _mods: Mapping[str, int] | None
 
     def __post_init__(self):
-        """Validate mod_type is supported."""
+        """Validate mod_type and snapshot the modification counts.
+
+        The counts are copied into a read-only mapping, so a ``Mods`` taken from an
+        annotation (``a.nterm_mods``) does not change when the annotation is edited later:
+        its cached ``mods``, mass and hash stay consistent with what it shows.
+        """
         if self.mod_type not in _MOD_PARSERS:
             raise PeptacularError(f"Unsupported mod_type: {self.mod_type}")
+        if self._mods is not None and not isinstance(self._mods, MappingProxyType):
+            object.__setattr__(self, "_mods", MappingProxyType(dict(self._mods)))
 
     @property
     def is_valid(self) -> bool:
@@ -338,7 +346,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
     def copy(self) -> Self:
         return self.__class__(
             mod_type=self.mod_type,
-            _mods=self._mods.copy() if self._mods else None,
+            _mods=dict(self._mods) if self._mods else None,
         )
 
     def __hash__(self) -> int:
@@ -381,7 +389,7 @@ def convert_moddict_input(mod: Any) -> dict[str, int]:
     # string and the same downstream @lru_cache parse entry, instead of each peptide
     # that spells a mod slightly differently paying for its own string and cache miss.
     d: dict[str, int] = {}
-    if isinstance(mod, dict) or isinstance(mod, Counter):
+    if isinstance(mod, Mapping):
         # if value is not string, convert to string
         d = {sys.intern(str(k).strip()): v for k, v in mod.items()}
     elif isinstance(mod, Mods):
@@ -506,7 +514,7 @@ class Interval:
 
     def set_mods(
         self,
-        mods: dict[Any, int] | Mods[ModificationTags] | None,
+        mods: Mapping[Any, int] | Mods[ModificationTags] | None,
         validate: bool | None = None,
     ) -> None:
         if validate is None:

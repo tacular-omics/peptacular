@@ -205,4 +205,4 @@ def modification_coverage(sequence: str | ProFormaAnnotation, subsequences: list
     sequence_annot = get_annotation_input(sequence, copy=False)
     subsequence_annots = [get_annotation_input(subseq, copy=False) for subseq in subsequences]
 
-    return sequence_annot.modification_coverage(annotations=subsequence_annots, accumulate=accumulate)
+    return sequence_annot.modification_coverage(subsequences=subsequence_annots, accumulate=accumulate)

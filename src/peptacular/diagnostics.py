@@ -14,6 +14,8 @@ __all__ = [
     "UnsupportedOperationError",
     "UnknownModificationError",
     "UnknownEnzymeError",
+    "UnknownElementError",
+    "PeptacularKeyError",
 ]
 
 
@@ -53,16 +55,27 @@ class InvalidPositionError(PeptacularError, IndexError):
     """
 
 
-class UnknownEnzymeError(PeptacularError, KeyError):
+class PeptacularKeyError(PeptacularError, KeyError):
+    """A name was not found in a lookup table (a protease, an element symbol, ...).
+
+    Also a ``KeyError``, so ``except KeyError`` keeps working.
+    """
+
+    def __str__(self) -> str:
+        # KeyError.__str__ would repr() the message; keep it readable.
+        return Exception.__str__(self)
+
+
+class UnknownEnzymeError(PeptacularKeyError):
     """An ``enzyme`` string names no protease in tacular's ``PROTEASE_LOOKUP``.
 
     Also a ``KeyError``. To digest with a custom cleavage rule, pass a compiled
     pattern (``re.compile(...)``) instead of a string.
     """
 
-    def __str__(self) -> str:
-        # KeyError.__str__ would repr() the message; keep it readable.
-        return Exception.__str__(self)
+
+class UnknownElementError(PeptacularKeyError):
+    """An element or isotope symbol is not in tacular's ``ELEMENT_LOOKUP``. Also a ``KeyError``."""
 
 
 class FastaFormatError(PeptacularError):
@@ -111,3 +124,13 @@ def diagnostic_from_exception(exc: Exception, stage: Literal["parse", "validate"
     else:
         code = "calculation_error"
     return Diagnostic(code, stage, str(exc), type(exc).__name__)
+
+
+def lookup_element(symbol: str):
+    """Return tacular's ``ElementInfo`` for ``symbol``, raising :class:`UnknownElementError` if unknown."""
+    from tacular import ELEMENT_LOOKUP
+
+    try:
+        return ELEMENT_LOOKUP[symbol]
+    except KeyError:
+        raise UnknownElementError(f"{symbol!r} is not a known element or isotope symbol") from None

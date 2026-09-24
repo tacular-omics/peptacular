@@ -19,6 +19,11 @@ __all__ = [
 ]
 
 
+def _check_count(value: int | None, name: str) -> None:
+    if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+        raise PeptacularError(f"{name} must be a non-negative integer, got {value!r}")
+
+
 def generate_permutations(annotation: ProFormaAnnotation, size: int | None = None) -> Generator[ProFormaAnnotation]:
     """
     Generate all permutations of the annotation sequence.
@@ -45,6 +50,7 @@ def generate_permutations(annotation: ProFormaAnnotation, size: int | None = Non
     split_aas = annotation_copy.split()
     from .annotation import ProFormaAnnotation
 
+    _check_count(size, "size")
     for permutation in itertools.permutations(split_aas, size):
         # Create new annotation from permuted sequence
         combined_sequence = "".join(aa.serialize() for aa in permutation)
@@ -77,6 +83,7 @@ def generate_product(annotation: ProFormaAnnotation, repeat: int | None = None) 
 
     from .annotation import ProFormaAnnotation
 
+    _check_count(repeat, "repeat")
     for product in itertools.product(split_aas, repeat=repeat):
         combined_sequence = "".join(aa.serialize() for aa in product)
         result = ProFormaAnnotation.parse(combined_sequence)
@@ -107,6 +114,7 @@ def generate_combinations(annotation: ProFormaAnnotation, r: int | None = None) 
     split_aas = annotation_copy.split()
     from .annotation import ProFormaAnnotation
 
+    _check_count(r, "r")
     for combination in itertools.combinations(split_aas, r=r):
         combined_sequence = "".join(aa.serialize() for aa in combination)
         result = ProFormaAnnotation.parse(combined_sequence)
@@ -137,6 +145,7 @@ def generate_combinations_with_replacement(annotation: ProFormaAnnotation, r: in
     split_aas = annotation_copy.split()
     from .annotation import ProFormaAnnotation
 
+    _check_count(r, "r")
     for combination in itertools.combinations_with_replacement(split_aas, r=r):
         combined_sequence = "".join(aa.serialize() for aa in combination)
         result = ProFormaAnnotation.parse(combined_sequence)

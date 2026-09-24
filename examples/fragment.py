@@ -197,9 +197,9 @@ def run():
 
     """
     Unless otherwise specified, fragments do not include sequence or composition data.
-    This can be enabled with the `include_sequence` and `calculate_composition` flags.
+    This can be enabled with the `include_sequence` and `calculate_with_composition` flags.
     """
-    b_ions: list[pt.Fragment] = peptide.fragment(ion_types=["b"], charges=[2], calculate_composition=True)
+    b_ions: list[pt.Fragment] = peptide.fragment(ion_types=["b"], charges=[2], calculate_with_composition=True)
     if len(b_ions) > 0:
         frag = b_ions[0]
         print(f"\nExample fragment: {frag}")

@@ -1,18 +1,19 @@
 """Bounded sequence batches with optional collection of input diagnostics."""
 
 import inspect
-import multiprocessing as mp
 from collections.abc import Iterable, Iterator
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
 from itertools import islice
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from .annotation import ProFormaAnnotation
 from .constants import ParallelMethod, ParallelMethodLiteral
 from .diagnostics import Diagnostic, PeptacularError, diagnostic_from_exception
-from .sequence.parallel import AUTO_PARALLEL_MIN_ITEMS, _get_optimal_method, _validate_positive_int
+from .sequence.parallel import AUTO_PARALLEL_MIN_ITEMS, _get_optimal_method, _validate_positive_int, coerce_parallel_method
+
+if TYPE_CHECKING:
+    from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 __all__ = ["BatchResult", "BatchOperation", "iter_batch", "batch", "diagnose"]
 
@@ -29,6 +30,9 @@ def _method_name(operation: str) -> str:
 @dataclass(frozen=True)
 class BatchResult:
     """One ordered batch result. A successful value may itself be ``None``.
+
+    Compared by value. Not hashable in general: ``hash()`` raises ``TypeError`` when
+    ``input`` is a :class:`ProFormaAnnotation` or ``value`` is a list or dict.
 
     :param index: Zero-based position in the original iterable.
     :param input: Original sequence string or annotation.
@@ -154,8 +158,15 @@ def iter_batch(
         raise PeptacularError("batch_size must be a positive integer")
     _validate_positive_int(n_workers, "n_workers")
     _validate_positive_int(chunksize, "chunksize")
-    selected = ParallelMethod(method) if method is not None else ParallelMethod(_get_optimal_method())
-    context = mp.get_context(start_method) if start_method is not None else None
+    selected = coerce_parallel_method(method) if method is not None else ParallelMethod(_get_optimal_method())
+    context = None
+    if start_method is not None:
+        import multiprocessing as mp
+
+        try:
+            context = mp.get_context(start_method)
+        except ValueError:
+            raise PeptacularError(f"unknown start_method {start_method!r}; choose one of {mp.get_all_start_methods()}") from None
     if context is not None and selected != ParallelMethod.PROCESS:
         raise PeptacularError("start_method requires process execution")
     source = enumerate(sequences)
@@ -168,11 +179,13 @@ def iter_batch(
                 yield from map(execute, items)
                 continue
             if executor is None:
+                import concurrent.futures
+
                 workers = min(n_workers or _available_cpus(), len(items))
                 if selected == ParallelMethod.THREAD:
-                    executor = ThreadPoolExecutor(max_workers=workers)
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
                 else:
-                    executor = ProcessPoolExecutor(max_workers=workers, mp_context=context)
+                    executor = concurrent.futures.ProcessPoolExecutor(max_workers=workers, mp_context=context)
             yield from executor.map(execute, items, chunksize=chunksize or 1)
     finally:
         if executor is not None:

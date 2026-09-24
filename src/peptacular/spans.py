@@ -12,6 +12,8 @@ from collections.abc import Generator, Iterable
 from itertools import groupby
 from typing import NamedTuple
 
+from .diagnostics import PeptacularError
+
 __all__ = [
     "Span",
     "build_non_enzymatic_spans",
@@ -392,6 +394,11 @@ def build_semi_spans(spans: Iterable[Span | tuple[int, int, int]], *, min_len: i
     yield from _grouped_right_semi_span_builder(converted_spans, min_len, max_len)
 
 
+def _check_missed_cleavages(missed_cleavages: int) -> None:
+    if isinstance(missed_cleavages, bool) or not isinstance(missed_cleavages, int) or missed_cleavages < 0:
+        raise PeptacularError(f"missed_cleavages must be a non-negative integer, got {missed_cleavages!r}")
+
+
 def build_spans(
     max_index: int, enzyme_sites: Iterable[int], missed_cleavages: int, *, min_len: int | None = None, max_len: int | None = None, semi: bool = False
 ) -> Generator[Span]:
@@ -415,6 +422,7 @@ def build_spans(
     :rtype: List[Tuple[int, int, int]]
     """
 
+    _check_missed_cleavages(missed_cleavages)
     if min_len is None:
         min_len = 1
 

@@ -248,7 +248,7 @@ print(pt.chem_formula(pt.chem_comp("H2O")))       # H2O
 fragment(sequence: SEQS, ion_types: Sequence[ION] = ("b", "y"), charges: Sequence[CHARGE] | None = None,
          monoisotopic: bool = True, isotopes: Sequence[int | dict | None] = (0,),
          deltas: Sequence[... | None] = (None,), neutral_deltas: Sequence[NeutralDelta | str | None] = (),
-         calculate_composition: bool = False, max_ndeltas: int = 1, *PAR) -> list[Fragment] | list[list[Fragment]]
+         calculate_with_composition: bool = False, max_ndeltas: int = 1, *PAR) -> list[Fragment] | list[list[Fragment]]
 frag(...)            # annotation method: one Fragment for the whole sequence as ion_type
 fast_fragment(sequence: SEQS, ion_types=("b", "y"), charges: Sequence[int] | None = None,
               monoisotopic: bool = True, *PAR) -> dict[tuple[IonType, int], list[float]] | list[dict]

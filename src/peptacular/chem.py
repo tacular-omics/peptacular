@@ -2,8 +2,9 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from typing import overload
 
-from tacular import ELEMENT_LOOKUP, ElementInfo
+from tacular import ElementInfo
 
+from .diagnostics import lookup_element
 from .proforma_components import ChargedFormula
 from .sequence.parallel import (
     ParallelMethod,
@@ -28,7 +29,7 @@ def _parse_formula_single(formula: str | Mapping[ElementInfo | str, int], sep: s
         if isinstance(key, ElementInfo):
             composition[key] += value
         else:
-            composition[ELEMENT_LOOKUP[key]] += value
+            composition[lookup_element(key)] += value
 
     return composition
 
@@ -197,9 +198,8 @@ def _chem_formula_single(
     include_formula_prefix: bool = False,
 ) -> str:
     """Generate a chemical formula string from an elemental composition."""
-    if isinstance(comp, str):
-        comp: Counter[ElementInfo] = _parse_formula_single(comp, sep=sep)
-    return ChargedFormula.from_composition(comp, charge=None).serialize(hill_order=hill_order, sep=sep, include_formula_prefix=include_formula_prefix)
+    elements = _parse_formula_single(comp, sep=sep)
+    return ChargedFormula.from_composition(elements, charge=None).serialize(hill_order=hill_order, sep=sep, include_formula_prefix=include_formula_prefix)
 
 
 @overload

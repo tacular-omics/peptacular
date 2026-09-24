@@ -34,7 +34,7 @@ def _fragment_single(
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
 ) -> list[Fragment]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -46,7 +46,7 @@ def _fragment_single(
         isotopes=isotopes,
         deltas=deltas,
         neutral_deltas=neutral_deltas,
-        calculate_composition=calculate_composition,
+        calculate_with_composition=calculate_with_composition,
         max_ndeltas=max_ndeltas,
     )
 
@@ -61,7 +61,7 @@ def fragment(
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: None = None,
     chunksize: None = None,
@@ -79,7 +79,7 @@ def fragment(
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (None,),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -96,7 +96,7 @@ def fragment(
     isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
     deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
     neutral_deltas: Sequence[LOSS_TYPE | None] = (),
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     max_ndeltas: int = 1,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -119,7 +119,7 @@ def fragment(
             deltas=deltas,
             neutral_deltas=neutral_deltas,
             max_ndeltas=max_ndeltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
         )
     else:
         return _fragment_single(
@@ -131,7 +131,7 @@ def fragment(
             deltas=deltas,
             neutral_deltas=neutral_deltas,
             max_ndeltas=max_ndeltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
         )
 
 
@@ -142,7 +142,7 @@ def _frag_single(
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
 ) -> Fragment:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -153,7 +153,7 @@ def _frag_single(
         monoisotopic=monoisotopic,
         isotopes=isotopes,
         deltas=deltas,
-        calculate_composition=calculate_composition,
+        calculate_with_composition=calculate_with_composition,
         position=position,
     )
 
@@ -167,7 +167,7 @@ def frag(
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: None = None,
     chunksize: None = None,
@@ -184,7 +184,7 @@ def frag(
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -200,7 +200,7 @@ def frag(
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    calculate_composition: bool = False,
+    calculate_with_composition: bool = False,
     position: int | tuple[int, int] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -221,7 +221,7 @@ def frag(
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             position=position,
         )
     else:
@@ -232,7 +232,7 @@ def frag(
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             position=position,
         )
 

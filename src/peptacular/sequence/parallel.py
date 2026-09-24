@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing as mp
 import os
 import sys
 from collections.abc import Callable, Sequence
 from functools import partial
-from multiprocessing.pool import Pool, ThreadPool
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..diagnostics import PeptacularError
 
+if TYPE_CHECKING:
+    from multiprocessing.pool import Pool, ThreadPool
+
+# multiprocessing is imported lazily: most calls run sequentially, and importing it costs
+# several milliseconds at `import peptacular` time.
+
 __all__ = [
     "AUTO_PARALLEL_MIN_ITEMS",
+    "ParallelMethod",
     "set_start_method",
     "get_start_method",
     "get_available_start_methods",
@@ -47,11 +52,16 @@ def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = Non
 
     Must be called before creating any pools.
     """
-    if method is not None:
-        try:
-            mp.set_start_method(method, force=True)
-        except RuntimeError as e:
-            logger.warning(f"Warning: Could not set start method to '{method}': {e}")
+    if method is None:
+        return
+    import multiprocessing as mp
+
+    if method not in mp.get_all_start_methods():
+        raise PeptacularError(f"unknown start method {method!r}; choose one of {mp.get_all_start_methods()}")
+    try:
+        mp.set_start_method(method, force=True)
+    except RuntimeError as e:
+        logger.warning(f"Warning: Could not set start method to '{method}': {e}")
 
 
 def get_start_method() -> str:
@@ -60,6 +70,8 @@ def get_start_method() -> str:
 
     :return: Current start method ('fork', 'spawn', or 'forkserver')
     """
+    import multiprocessing as mp
+
     return mp.get_start_method()
 
 
@@ -69,6 +81,8 @@ def get_available_start_methods() -> list[str]:
 
     :return: List of available methods
     """
+    import multiprocessing as mp
+
     return mp.get_all_start_methods()
 
 
@@ -115,10 +129,20 @@ def _create_pool(method: ParallelMethod, n_workers: int) -> Pool | ThreadPool:
     :param n_workers: Number of workers
     :return: Pool instance
     """
+    from multiprocessing.pool import Pool, ThreadPool
+
     if method == ParallelMethod.THREAD:
         return ThreadPool(processes=n_workers)
-    else:
-        return Pool(processes=n_workers)
+    return Pool(processes=n_workers)
+
+
+def coerce_parallel_method(method: ParallelMethod | ParallelMethodLiteral | str) -> ParallelMethod:
+    """Return ``method`` as a :class:`ParallelMethod`, raising :class:`PeptacularError` for unknown names."""
+    try:
+        return ParallelMethod(method)
+    except ValueError:
+        choices = ", ".join(repr(m.value) for m in ParallelMethod)
+        raise PeptacularError(f"unknown parallel method {method!r}; choose one of {choices}") from None
 
 
 def parallel_apply_internal[T](
@@ -151,7 +175,7 @@ def parallel_apply_internal[T](
     """
     _validate_positive_int(n_workers, "n_workers")
     _validate_positive_int(chunksize, "chunksize")
-    method_enum = ParallelMethod(method) if method is not None else ParallelMethod(_get_optimal_method())
+    method_enum = coerce_parallel_method(method) if method is not None else ParallelMethod(_get_optimal_method())
 
     # Convert to list if needed
     items_list = list(items)

@@ -122,9 +122,9 @@ ISOTOPE_PEAKS = 6
 # Bio.SeqUtils.ProtParamData. The pKa scales are checked against PKA_TABLE instead.
 SCALES = {
     "hphob_kyte_doolittle": ("protscale", "Hydropath.Doolittle"),
-    "hphob_adoberin": ("protscale", "Hphob.mobility"),
+    "hphob_aboderin": ("protscale", "Hphob.mobility"),
     "hphob_abraham_leo": ("protscale", "Hphob.Leo"),
-    "hphob_agros": ("biopython", "ag"),
+    "hphob_argos": ("biopython", "ag"),
     "hphob_rao_argos": ("protscale", "Hphob.Argos"),
     "hphob_black_mould": ("protscale", "Hphob.Black"),
     "hphob_bull_breese": ("protscale", "Hphob.Breese"),
@@ -166,7 +166,7 @@ SCALES = {
     "chou_fasman_beta_sheet": ("protscale", "beta-sheetFasman"),
     "chou_fasman_beta_turn": ("protscale", "beta-turnFasman"),
     "surface_accessibility_vergoten": ("biopython", "em"),
-    "surface_accessiblility_janin": ("biopython", "ja"),
+    "surface_accessibility_janin": ("biopython", "ja"),
     "accessible_residues": ("protscale", "accessibleresidues"),
     "average_buried_area": ("protscale", "Averageburied"),
     "polarity_grantham": ("protscale", "PolarityGrantham"),

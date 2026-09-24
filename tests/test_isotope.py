@@ -126,8 +126,8 @@ class TestIsotopeChargeState:
     def test_charge_state_shifts_mass_by_electron(self):
         formula = {"C": 12, "H": 6, "N": 3}
         neutral = brain_isotopic_distribution(formula)
-        charged1 = brain_isotopic_distribution(formula, charge_state=1)
-        charged2 = brain_isotopic_distribution(formula, charge_state=2)
+        charged1 = brain_isotopic_distribution(formula, charge=1)
+        charged2 = brain_isotopic_distribution(formula, charge=2)
         assert neutral[0].mass - charged1[0].mass == pytest.approx(ELECTRON_MASS)
         assert neutral[0].mass - charged2[0].mass == pytest.approx(2 * ELECTRON_MASS)
 
@@ -141,9 +141,9 @@ class TestIsotopeChargeState:
 
 def test_annotation_isotopes_use_total_intrinsic_and_external_charge():
     annotation = pt.parse("PEP[Formula:CH2:z+1]TIDE/2")
-    fragment = annotation.frag(calculate_composition=True)
+    fragment = annotation.frag(calculate_with_composition=True)
     assert fragment.charge_state == 3
-    expected = brain_isotopic_distribution(fragment.composition, charge_state=3)
+    expected = brain_isotopic_distribution(fragment.composition, charge=3)
     assert annotation.isotopic_distribution() == expected
 
 
@@ -174,8 +174,8 @@ def test_relative_abundance_threshold_is_validated(threshold):
 
 @pytest.mark.parametrize("charge", [True, 1.5, "2"])
 def test_isotope_charge_requires_an_integer(charge):
-    with pytest.raises(ValueError, match="charge_state"):
-        brain_isotopic_distribution({"C": 6}, charge_state=charge)
+    with pytest.raises(ValueError, match="charge must"):
+        brain_isotopic_distribution({"C": 6}, charge=charge)
 
 
 def test_zero_threshold_returns_complete_small_envelope_with_isotope_gaps():

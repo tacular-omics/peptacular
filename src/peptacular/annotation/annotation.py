@@ -1746,7 +1746,7 @@ class ProFormaAnnotation:
             return self.copy()._extend_generic(mods, append_method, inplace=True, validate=validate)
         if mods is not None:
             for mod in as_mod_iterable(mods):
-                append_method(mod, inplace=True, validate=validate)  # type: ignore
+                append_method(mod, inplace=True, validate=validate)
         return self
 
     def extend_isotope_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
@@ -2241,7 +2241,13 @@ class ProFormaAnnotation:
         self._intervals = [iv.copy() for iv in other._intervals] if other._intervals is not None else None
         self._charge = other._charge
 
-    def __getitem__(self, key: int | slice | Span | tuple[int, int, int]) -> Self:
+    def __getitem__(self, key: slice | Span | tuple[int, int, int]) -> Self:
+        """Slice by ``annot[start:stop]`` or by a :class:`Span`; returns a new annotation.
+
+        An integer index is not supported, because a residue carries modifications that a
+        plain letter cannot. Use ``annot[i:i + 1]`` for a one-residue annotation or
+        ``annot.stripped_sequence[i]`` for the letter.
+        """
         if isinstance(key, (tuple, Span)):
             return self.slice_by_span(key, inplace=False)
         if isinstance(key, slice):
@@ -2249,8 +2255,12 @@ class ProFormaAnnotation:
             if step is not None and step != 1:
                 raise PeptacularError("Step slicing not supported")
             return self.slice(start, stop, inplace=False)
-        elif isinstance(key, int):
-            raise NotImplementedError("Single index access not supported for ProFormaAnnotation")
+        if isinstance(key, int):
+            raise UnsupportedOperationError(
+                f"ProFormaAnnotation does not support integer indexing (annot[{key}]); "
+                f"use annot[{key}:{key + 1}] for a one-residue annotation or annot.stripped_sequence[{key}] for the letter"
+            )
+        raise TypeError(f"ProFormaAnnotation indices must be slices or Spans, not {type(key).__name__}")
 
     def sort_mods(self, *, inplace: bool = True) -> Self:
         """Sort all modification dictionaries and the intervals list deterministically.
@@ -2767,7 +2777,7 @@ class ProFormaAnnotation:
             monoisotopic=True,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=True,
+            calculate_with_composition=True,
             _include_sequence=False,
         )
 
@@ -2980,7 +2990,7 @@ class ProFormaAnnotation:
             monoisotopic=monoisotopic,
             isotopes=isotopes,
             deltas=deltas,
-            calculate_composition=calculate_with_composition,
+            calculate_with_composition=calculate_with_composition,
             _include_sequence=False,
         )
         return f.mass, f.charge_state
@@ -3025,7 +3035,7 @@ class ProFormaAnnotation:
         monoisotopic: bool,
         isotope: IsotopeInfo,
         delta: DeltaInfo,
-        calculate_composition: bool,
+        calculate_with_composition: bool,
         parent_sequence: str,
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
@@ -3042,7 +3052,7 @@ class ProFormaAnnotation:
             monoisotopic=monoisotopic,
             isotope=isotope,
             delta=delta,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             parent_sequence=parent_sequence,
             parent_sequence_length=parent_sequence_length,
             position=position,
@@ -3054,7 +3064,7 @@ class ProFormaAnnotation:
         monoisotopic: bool,
         isotope: IsotopeInfo,
         delta: DeltaInfo,
-        calculate_composition: bool,
+        calculate_with_composition: bool,
         parent_sequence: str,
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
@@ -3069,9 +3079,9 @@ class ProFormaAnnotation:
         formula_deltas: dict[ChargedFormula | float, int] = {key: count for key, count in delta.deltas.items() if isinstance(key, ChargedFormula)}
         charge_carriers = self.charge_adducts
         removes_atoms = any(count < 0 for mod in charge_carriers for count in mod.get_composition().values())
-        if self.has_isotope_mods or calculate_composition or isotope.data or formula_deltas or removes_atoms:
+        if self.has_isotope_mods or calculate_with_composition or isotope.data or formula_deltas or removes_atoms:
             base_comp, base_charge, delta_mass = self._base_comp(skip_labile=skip_labile, monoisotopic=monoisotopic)
-            if calculate_composition and (delta_mass != 0.0 or delta.has_floats):
+            if calculate_with_composition and (delta_mass != 0.0 or delta.has_floats):
                 raise CompositionError("Cannot calculate composition with delta mass changes. Use mass() or mz() instead.")
             result = adjust_comp(
                 base_comp=base_comp,
@@ -3086,9 +3096,9 @@ class ProFormaAnnotation:
                 parent_sequence=parent_sequence,
                 parent_sequence_length=parent_sequence_length,
                 internal_charge=base_charge,
-                isotope_as_mass=not calculate_composition,
+                isotope_as_mass=not calculate_with_composition,
             )
-            if not calculate_composition:
+            if not calculate_with_composition:
                 result.mass += delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
                 result._composition = None
             result._losses = delta.to_fragment_mapping
@@ -3118,7 +3128,7 @@ class ProFormaAnnotation:
         monoisotopic: bool = True,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
-        calculate_composition: bool = False,
+        calculate_with_composition: bool = False,
         position: int | tuple[int, int] | None = None,
         _include_sequence: bool = True,
     ) -> Fragment:
@@ -3175,7 +3185,7 @@ class ProFormaAnnotation:
             monoisotopic=monoisotopic,
             isotope=iso_info,
             delta=delta_info,
-            calculate_composition=calculate_composition,
+            calculate_with_composition=calculate_with_composition,
             parent_sequence=parent_sequence,
             parent_sequence_length=len(self),
             position=position,
@@ -3204,7 +3214,7 @@ class ProFormaAnnotation:
         isotopes: list[IsotopeInfo],
         deltas: list[DeltaInfo],
         neutral_deltas: list[NeutralDeltaInfo],
-        calculate_composition: bool,
+        calculate_with_composition: bool,
         parent_sequence: str,
         parent_sequence_length: int,
         max_deltas: int,
@@ -3226,7 +3236,7 @@ class ProFormaAnnotation:
                     isotopes=isotopes,
                     deltas=deltas,
                     neutral_deltas=neutral_deltas,
-                    calculate_composition=calculate_composition,
+                    calculate_with_composition=calculate_with_composition,
                     parent_sequence=parent_sequence,
                     parent_sequence_length=parent_sequence_length,
                     max_deltas=max_deltas,
@@ -3271,7 +3281,7 @@ class ProFormaAnnotation:
                                 monoisotopic=monoisotopic,
                                 isotope=isotope,
                                 delta=combined_delta,
-                                calculate_composition=calculate_composition,
+                                calculate_with_composition=calculate_with_composition,
                                 parent_sequence=parent_sequence,
                                 parent_sequence_length=parent_sequence_length,
                                 position=i,  # Changed: position is the cleavage site
@@ -3310,7 +3320,7 @@ class ProFormaAnnotation:
                                 monoisotopic=monoisotopic,
                                 isotope=isotope,
                                 delta=combined_delta,
-                                calculate_composition=calculate_composition,
+                                calculate_with_composition=calculate_with_composition,
                                 parent_sequence=parent_sequence,
                                 parent_sequence_length=parent_sequence_length,
                                 position=i,
@@ -3339,7 +3349,7 @@ class ProFormaAnnotation:
                             monoisotopic=monoisotopic,
                             isotope=isotope,
                             delta=combined_delta,
-                            calculate_composition=calculate_composition,
+                            calculate_with_composition=calculate_with_composition,
                             parent_sequence=parent_sequence,
                             parent_sequence_length=parent_sequence_length,
                             # Intact precursor/neutral ions represent the whole sequence.
@@ -3369,7 +3379,7 @@ class ProFormaAnnotation:
                                     monoisotopic=monoisotopic,
                                     isotope=isotope,
                                     delta=combined_delta,
-                                    calculate_composition=calculate_composition,
+                                    calculate_with_composition=calculate_with_composition,
                                     parent_sequence=parent_sequence,
                                     parent_sequence_length=parent_sequence_length,
                                     position=i,  # Position is the residue index
@@ -3401,7 +3411,7 @@ class ProFormaAnnotation:
                                         monoisotopic=monoisotopic,
                                         isotope=isotope,
                                         delta=combined_delta,
-                                        calculate_composition=calculate_composition,
+                                        calculate_with_composition=calculate_with_composition,
                                         parent_sequence=parent_sequence,
                                         parent_sequence_length=parent_sequence_length,
                                         position=(
@@ -3433,7 +3443,7 @@ class ProFormaAnnotation:
         isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
         deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
         neutral_deltas: Sequence[LOSS_TYPE | None] = (),
-        calculate_composition: bool = False,
+        calculate_with_composition: bool = False,
         max_ndeltas: int = 1,
         min_length: int | None = None,
         max_length: int | None = None,
@@ -3473,7 +3483,7 @@ class ProFormaAnnotation:
                             isotopes=isotope_infos,
                             deltas=delta_infos,
                             neutral_deltas=neutral_deltas_infos,
-                            calculate_composition=calculate_composition,
+                            calculate_with_composition=calculate_with_composition,
                             parent_sequence=sequence,
                             parent_sequence_length=len(charged_annot),
                             max_deltas=max_ndeltas,
@@ -4162,28 +4172,28 @@ class ProFormaAnnotation:
     def condense_mods_to_intervals(self, *, inplace: bool = True) -> Self:
         return cast(Self, condense_mods_to_intervals(self, inplace=inplace))
 
-    def coverage(self, annotations: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> list[int]:
+    def coverage(self, subsequences: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> list[int]:
         return coverage(
             annotation=self,
-            annotations=annotations,
+            subsequences=subsequences,
             accumulate=accumulate,
             ignore_mods=ignore_mods,
             ignore_ambiguity=ignore_ambiguity,
         )
 
-    def percent_coverage(self, annotations: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> float:
+    def percent_coverage(self, subsequences: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> float:
         return percent_coverage(
             annotation=self,
-            annotations=annotations,
+            subsequences=subsequences,
             accumulate=accumulate,
             ignore_mods=ignore_mods,
             ignore_ambiguity=ignore_ambiguity,
         )
 
-    def modification_coverage(self, annotations: Iterable[Self], *, ignore_ambiguity: bool = False, accumulate: bool = False) -> dict[int, int]:
+    def modification_coverage(self, subsequences: Iterable[Self], *, ignore_ambiguity: bool = False, accumulate: bool = False) -> dict[int, int]:
         return modification_coverage(
             annotation=self,
-            annotations=annotations,
+            subsequences=subsequences,
             ignore_ambiguity=ignore_ambiguity,
             accumulate=accumulate,
         )
@@ -4562,7 +4572,10 @@ class ProFormaAnnotation:
             mod_name = mod_parts[i + 1]
 
             # Parse location
-            loc = int(loc_str)
+            try:
+                loc = int(loc_str)
+            except ValueError:
+                raise PeptacularError(f"Invalid MS2PIP modification location {loc_str!r} in {mod_str!r}") from None
 
             # Add to appropriate location
             if loc == 0:
@@ -4615,15 +4628,15 @@ class ProFormaAnnotation:
         if charge is not None:  # update charge
             frag_annot = frag_annot.set_charge(charge, inplace=False)
 
-        fragment = frag_annot.frag(ion_type=ion_type, isotopes=isotopes, deltas=deltas, calculate_composition=True)
+        fragment = frag_annot.frag(ion_type=ion_type, isotopes=isotopes, deltas=deltas, calculate_with_composition=True)
         composition = fragment.composition
         assert composition is not None
 
         return brain_isotopic_distribution(
-            chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
+            formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
-            charge_state=fragment.charge_state,
+            charge=fragment.charge_state,
         )
 
     def estimate_isotopic_distribution(
