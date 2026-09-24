@@ -78,7 +78,7 @@ src/peptacular/
     parallel.py          AUTO_PARALLEL_MIN_ITEMS = 1000; below that lists run sequentially
     basic.py, mass_funcs.py, fragmentation.py, digestion.py, isotope.py, properties.py,
     mod_builder.py, combinatoric.py, subseqs.py, transformations.py, converters.py,
-    localization.py
+    localization.py, records.py (plain-dict rows; never import pandas/polars)
   proforma_components/   ProForma 2.1 data model (comps.py), string parsers (lru_cached)
                          and serializers for mod tags, formulas, glycans, charge carriers
   digestion/             EnzymeConfig, DigestProtocol, cleavage-site logic

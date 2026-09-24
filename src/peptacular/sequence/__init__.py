@@ -98,6 +98,7 @@ from .properties import (
     surface_accessibility,
     transmembrane_tendency,
 )
+from .records import DIGEST_RECORD_FIELDS, FRAGMENT_RECORD_FIELDS, digest_records, fragment_records
 from .subseqs import (
     coverage,
     find_subsequence_indices,
@@ -157,6 +158,11 @@ __all__ = [
     "candidate_sites",
     "site_determining_ions",
     "pairwise_site_determining_ions",
+    # records
+    "digest_records",
+    "fragment_records",
+    "DIGEST_RECORD_FIELDS",
+    "FRAGMENT_RECORD_FIELDS",
     # mass_funcs
     "mass",
     "mz",

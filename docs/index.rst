@@ -42,6 +42,7 @@ User Guide
    masses
    mass_calculation
    localization
+   records
    json_serialization
    mcp
 

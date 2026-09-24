@@ -368,6 +368,34 @@ for span in protein.digest_spans(pt.Protease.TRYPSIN):
 # Span(start=5, end=12, missed_cleavages=0) EPTIDEK
 ```
 
+## Tables (records for pandas or polars)
+
+```
+digest_records(sequence: SEQ | Sequence[SEQ], enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False,
+               min_len: int | None = None, max_len: int | None = None) -> list[dict]
+fragment_records(fragments: Iterable[Fragment]) -> list[dict]
+DIGEST_RECORD_FIELDS = ("peptide", "stripped_sequence", "start", "end", "missed_cleavages", "semi", "accession")
+FRAGMENT_RECORD_FIELDS = ("ion_type", "position", "charge_state", "mz", "mass", "neutral_mass", "monoisotopic",
+                          "losses", "isotopes", "sequence", "parent_sequence", "mzpaf")
+```
+
+peptacular does NOT depend on pandas or polars (not even optionally); pass the rows to
+`pandas.DataFrame(rows)` / `polars.DataFrame(rows)` yourself. Digest rows: `start`/`end` are
+half-open, `semi` is True when an end is not a cleavage site or terminus (only with
+`semi=True`), `accession` comes from the input's `.accession` (FASTA/PEFF entries) or is None;
+a list of proteins gives one flat list. Fragment rows use the `Fragment` attribute names;
+`losses`/`isotopes` are strings (`"H-2O-1"`, `"13C^2"`, `""`), `position` is a tuple for
+internal ions (polars cannot mix that with ints), `mzpaf` is None for a bare mass delta.
+
+```python
+import peptacular as pt
+
+rows = pt.digest_records("MKVLATSAGERTIDEK", "trypsin", missed_cleavages=1)
+print(rows[1]["peptide"], rows[1]["start"], rows[1]["end"], rows[1]["missed_cleavages"])  # MKVLATSAGER 0 11 1
+ions = pt.fragment_records(pt.fragment("PEPTIDE", ion_types=("y",), charges=(1,)))
+print([round(r["mz"], 3) for r in ions][:3])  # [148.06, 263.087, 376.171]
+```
+
 ## Isotopic envelopes
 
 ```

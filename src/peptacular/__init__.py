@@ -118,6 +118,8 @@ from .property import (
     WeightingMethodsLiteral,
 )
 from .sequence import (
+    DIGEST_RECORD_FIELDS,
+    FRAGMENT_RECORD_FIELDS,
     aa_property_percentage,
     alpha_helix_percent,
     annotate_ambiguity,
@@ -145,6 +147,7 @@ from .sequence import (
     count_residues,
     coverage,
     digest,
+    digest_records,
     extend_mods,
     fast_fragment,
     filter_mods,
@@ -152,6 +155,7 @@ from .sequence import (
     flexibility,
     frag,
     fragment,
+    fragment_records,
     from_ms2_pip,
     generate_random,
     get_available_start_methods,
@@ -265,6 +269,11 @@ __all__ = [
     "candidate_sites",
     "site_determining_ions",
     "pairwise_site_determining_ions",
+    # records (plain dicts for pandas/polars)
+    "digest_records",
+    "fragment_records",
+    "DIGEST_RECORD_FIELDS",
+    "FRAGMENT_RECORD_FIELDS",
     # digestion
     "digest",
     "simple_digest",

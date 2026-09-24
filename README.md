@@ -134,8 +134,29 @@ print([[f"{f.ion_type}{f.position}" for f in frags] for frags in ions])  # [['b4
 | Fragmentation | `pt.fragment`, `pt.fast_fragment` |
 | Localization | `pt.localization_isomers`, `pt.candidate_sites`, `pt.site_determining_ions`, `pt.pairwise_site_determining_ions` ([guide](https://peptacular.readthedocs.io/en/latest/localization.html)) |
 | Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
+| Tables | `pt.digest_records`, `pt.fragment_records` (plain dicts for pandas or polars) |
 | Batch / streaming | `pt.batch`, `pt.iter_batch`, `pt.diagnose` (read FASTA with fastatacular) |
 | JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |
+
+## Tables with pandas or polars
+
+peptacular does not ship pandas or polars. `pt.digest_records` and `pt.fragment_records`
+return a list of plain dicts (strings, numbers, booleans, `None`), one per peptide or ion,
+which either library turns into a table. Column names are listed in
+`pt.DIGEST_RECORD_FIELDS` and `pt.FRAGMENT_RECORD_FIELDS`:
+
+```python
+import peptacular as pt
+
+rows = pt.digest_records("MKVLATSAGERTIDEK", "trypsin", missed_cleavages=1)
+print(rows[0])  # {'peptide': 'MK', 'stripped_sequence': 'MK', 'start': 0, 'end': 2, 'missed_cleavages': 0, 'semi': False, 'accession': None}
+ions = pt.fragment_records(pt.fragment("PEPTIDE/2", ion_types=("b", "y"), charges=(1, 2)))
+print(ions[1]["ion_type"], ions[1]["position"], ions[1]["charge_state"], ions[1]["mzpaf"])  # b 2 1 b2{PE}
+# pandas.DataFrame(rows) or polars.DataFrame(ions) gives a table
+```
+
+A FASTA entry's `accession` is copied into each digest row. See the
+[tables guide](https://peptacular.readthedocs.io/en/latest/records.html).
 
 ## Local MCP integration
 
