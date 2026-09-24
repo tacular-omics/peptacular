@@ -109,3 +109,16 @@ def test_labile_mods_leave_fragments_and_stay_on_precursor():
     precursor = labile.fragment(ion_types=["p"], charges=[1])[0]
     assert precursor.mass == pytest.approx(bare.fragment(ion_types=["p"], charges=[1])[0].mass + hex_mass, abs=1e-9, rel=0)
     assert labile.mass(deltas="H2O") == pytest.approx(labile.mass() - H2O, abs=1e-9, rel=0)
+
+
+def test_negative_charge_uses_listed_masses():
+    # A deprotonating charge takes the composition branch; named mods must still use their
+    # listed masses, so negative mode mirrors positive mode.
+    from peptacular.constants import PROTON_MASS
+
+    annotation = pt.parse("PEM[Oxidation]TIDEK")
+    assert annotation.mass(charge=-2) == pytest.approx(975.4230103537, abs=1e-9, rel=0)
+    assert annotation.mass(charge=-2) == pytest.approx(annotation.mass() - 2 * PROTON_MASS, abs=1e-9, rel=0)
+    assert pt.parse("PEM[Oxidation]TIDEK/-2").mass() == pytest.approx(annotation.mass(charge=-2), abs=1e-9, rel=0)
+    precursor = annotation.fragment(ion_types=["p"], charges=[-2])[0]
+    assert precursor.mass == pytest.approx(annotation.mass(charge=-2), abs=1e-9, rel=0)

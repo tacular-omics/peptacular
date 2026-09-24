@@ -120,6 +120,30 @@ def test_empty_inputs():
     assert all(len(column) == 0 for column in columns.values())
 
 
+def test_empty_result_has_string_columns():
+    # Empty string columns get a str dtype, not object, so polars/arrow type them as strings
+    # and an empty batch concatenates with a non-empty one.
+    for columns in (pt.fragment_arrays([], ion_types=["b", "y"], charges=[1]), pt.fragment_arrays("PEPTIDE", min_length=100)):
+        assert all(len(column) == 0 for column in columns.values())
+        for key in ("ion_type", "isotope_label", "delta_label"):
+            assert columns[key].dtype.kind == "U", key
+    empty = pt.fragment_arrays([], ion_types=["b", "y"], charges=[1])
+    full = pt.fragment_arrays("PEPTIDE", ion_types=["b", "y"], charges=[1])
+    try:
+        import polars as pl
+    except ImportError:
+        pass
+    else:
+        assert pl.DataFrame(empty)["ion_type"].dtype == pl.String
+        assert pl.concat([pl.DataFrame(empty), pl.DataFrame(full)]).height == len(full["mz"])
+    try:
+        import pyarrow as pa
+    except ImportError:
+        pass
+    else:
+        assert pa.table(empty).schema == pa.table(full).schema
+
+
 def test_parallel_matches_sequential():
     sequences = SEQUENCES * 5
     kwargs = {"ion_types": ["b", "y"], "charges": [1, 2]}
