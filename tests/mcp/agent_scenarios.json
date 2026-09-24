@@ -8,6 +8,7 @@
     ],
     "checks": [
       "Both mass calculations succeed",
+      "Request measurements neutral_mass and mz (library names, not neutral_mass_da)",
       "The numeric modification has a composition diagnostic",
       "No helper Python script is needed"
     ]
@@ -34,7 +35,8 @@
     ],
     "checks": [
       "Use charge_policy override",
-      "Report applied charge 3"
+      "Report applied charge 3",
+      "Read the charged mass from the row key mass and the neutral mass from neutral_mass"
     ]
   },
   {

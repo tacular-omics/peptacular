@@ -70,7 +70,7 @@ For example, pass this request to ``analyze_peptides``:
           {"id": "sample-a", "annotation": "M[Oxidation]PEPTIDE/2"},
           {"id": "sample-b", "annotation": "PEP[+15.5]TIDE/2"}
         ],
-        "measurements": ["neutral_mass_da", "mz", "composition"]
+        "measurements": ["neutral_mass", "mz", "composition"]
       }
     }
 
@@ -106,7 +106,8 @@ It must keep any association with earlier rows itself.
 Scientific conventions
 ----------------------
 
-``neutral_mass_da``, ``ion_mass_da``, and ``mz`` are separate quantities. m/z
+``neutral_mass``, ``mass`` (charged), and ``mz`` are separate quantities, named
+as the ``ProFormaAnnotation`` methods ``neutral_mass()``, ``mass()`` and ``mz()``. m/z
 requires a nonzero encoded or requested charge. Requested charges that conflict
 with encoded charge require ``charge_policy: "override"``. Charge output names
 total, external, and intrinsic charge separately where chemistry is available.

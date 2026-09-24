@@ -331,6 +331,14 @@ unknown arguments are errors.
      - ``ion_type``, ``position``, ``charge_state``
    * - fragment rows ``ion_mass_da``, ``neutral_mass_da``
      - ``mass``, ``neutral_mass``
+   * - ``analyze_peptides`` ``measurements`` and row keys ``neutral_mass_da``, ``ion_mass_da``
+     - ``neutral_mass``, ``mass``
+   * - ``compare_peptides`` ``measurements`` and row key ``neutral_mass_da``
+     - ``neutral_mass``
+   * - ``isotope_envelopes`` ``axis`` ``"neutral_mass_da"``, ``"ion_mass_da"``
+     - ``"neutral_mass"``, ``"mass"``
+   * - ``find_modifications`` rows ``mass_da``, ``mass_error_da``
+     - ``mass``, ``mass_error`` (``mass_error_ppm`` is unchanged)
    * - ``get_reference(topic="ions")`` rows ``ion_series``
      - ``ion_type``
    * - fragment formula delta ``"-H3PO4"`` (failed the call)

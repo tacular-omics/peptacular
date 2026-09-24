@@ -30,8 +30,8 @@ class InspectionRow(Row):
 
 class AnalysisRow(Row):
     length: int | None = None
-    neutral_mass_da: float | None = None
-    ion_mass_da: float | None = None
+    neutral_mass: float | None = None
+    mass: float | None = None
     mz: float | None = None
     charge: int | None = None
     external_charge: int | None = None
@@ -71,13 +71,13 @@ class ComparisonRow(Row):
     reference_proforma: str | None = None
     same_sequence: bool | None = None
     changed_annotation_fields: list[str] | None = None
-    neutral_mass_da: Difference | None = None
+    neutral_mass: Difference | None = None
     mz: Difference | None = None
     composition_delta: dict[str, float] | None = None
 
 
 class IsotopeRow(Row):
-    axis: Literal["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"] | None = None
+    axis: Literal["neutral_mass", "mass", "mz", "neutron_offset"] | None = None
     peak_index: int | None = None
     position: float | None = None
     relative_abundance: float | None = None

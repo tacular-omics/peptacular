@@ -20,7 +20,8 @@ from peptacular.mcp.server import create_server  # noqa: E402
 BANNED = re.compile(
     r"^(unit|tolerance_type|.*_tolerance_type|retention_time.*|inverse_reduced.*|ion_mobility_.*|target_mz|scan_start_time|ce|tic|TIC|time"
     r"|one_over_k0.*|mz_begin|mz_end|window_group|monoisotopic_mz"
-    r"|ion_series|isotope_offsets|max_variable_modifications|ordinal|label|losses)$"
+    r"|ion_series|isotope_offsets|max_variable_modifications|ordinal|label|losses"
+    r"|neutral_mass_da|ion_mass_da|mass_da|mass_error_da|.*_da)$"
 )
 ALLOWED_UNIT_NAMES: set[str] = set()
 
@@ -97,6 +98,38 @@ def call(server, name, arguments):
 
 def test_no_banned_names(properties):
     assert sorted(path for path, name, _ in properties if BANNED.match(name)) == []
+
+
+def test_no_banned_enum_values(properties):
+    """Measurement and axis choices name the quantity the same way the row keys do."""
+    bad = []
+    for path, _, schema in properties:
+        values = _enum_values(schema) | _enum_values(schema.get("items", {}))
+        bad += [(path, value) for value in values if isinstance(value, str) and BANNED.match(value)]
+    assert sorted(bad) == []
+
+
+def test_analyze_compare_isotope_rows_use_library_names(server):
+    inputs = [{"annotation": "PEPTIDE/2"}]
+    analyze = call(server, "analyze_peptides", {"request": {"inputs": inputs, "measurements": ["neutral_mass", "mass", "mz"]}})
+    row = analyze.structured_content["records"][0]
+    peptide = pt.ProFormaAnnotation.parse("PEPTIDE/2")
+    assert row["neutral_mass"] == pytest.approx(peptide.neutral_mass())
+    assert row["mass"] == pytest.approx(peptide.mass())
+    assert row["mz"] == pytest.approx(peptide.mz())
+    compare = call(server, "compare_peptides", {"request": {"inputs": inputs, "reference": {"annotation": "PEPTIDE"}}})
+    assert "neutral_mass" in compare.structured_content["records"][0]
+    for axis in ("neutral_mass", "mass"):
+        isotopes = call(server, "isotope_envelopes", {"request": {"inputs": inputs, "axis": axis}})
+        assert isotopes.structured_content["records"][0]["axis"] == axis
+
+
+def test_find_modifications_mass_keys(server):
+    result = call(server, "find_modifications", {"request": {"query_type": "mass", "query": 79.966, "tolerance": 0.01}})
+    rows = result.structured_content["records"]
+    assert rows
+    assert {"mass", "mass_error", "mass_error_ppm"} <= set(rows[0])
+    assert not [key for row in rows for key in row if BANNED.match(key)]
 
 
 def test_tolerance_switches(properties):

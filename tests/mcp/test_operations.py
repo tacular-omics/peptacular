@@ -33,9 +33,9 @@ def test_inspection_preserves_explicit_charge_carriers():
 
 
 def test_measurements_preserve_partial_success():
-    result = calculate("analyze_peptides", ["PEP[+15.5]TIDE/2", "PEPTIDE", "INVALID!"], measurements=["neutral_mass_da", "mz", "composition"])
+    result = calculate("analyze_peptides", ["PEP[+15.5]TIDE/2", "PEPTIDE", "INVALID!"], measurements=["neutral_mass", "mz", "composition"])
     good, uncharged, invalid = result["records"]
-    assert good["neutral_mass_da"] == pytest.approx(pt.parse("PEPTIDE").neutral_mass() + 15.5)
+    assert good["neutral_mass"] == pytest.approx(pt.parse("PEPTIDE").neutral_mass() + 15.5)
     assert good["mz"] > 0
     assert good["composition"] is None
     assert good["diagnostics"][0]["code"] == "unavailable_composition"
@@ -46,10 +46,10 @@ def test_measurements_preserve_partial_success():
 @pytest.mark.parametrize("charge", [-3, -1, 1, 2, 4])
 def test_precursor_matches_core(charge):
     a = pt.parse("PEPTIDE").set_charge(charge)
-    row = calculate("analyze_peptides", [a.serialize()], measurements=["mz", "ion_mass_da", "neutral_mass_da", "composition"])["records"][0]
+    row = calculate("analyze_peptides", [a.serialize()], measurements=["mz", "mass", "neutral_mass", "composition"])["records"][0]
     assert row["mz"] == a.mz()
-    assert row["ion_mass_da"] == a.mass()
-    assert row["neutral_mass_da"] == a.neutral_mass()
+    assert row["mass"] == a.mass()
+    assert row["neutral_mass"] == a.neutral_mass()
     assert row["external_charge"] + row["intrinsic_charge"] == row["charge"] == charge
 
 
@@ -116,11 +116,11 @@ def test_bad_formula_delta_is_short_and_actionable(value):
         c.Delta(kind="formula", value=value)
 
 
-@pytest.mark.parametrize("axis", ["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"])
+@pytest.mark.parametrize("axis", ["neutral_mass", "mass", "mz", "neutron_offset"])
 def test_isotope_axis(axis):
     a = pt.parse("PEPTIDE/2")
     rows = calculate("isotope_envelopes", [a.serialize()], axis=axis)["records"]
-    effective = a.set_charge(0, inplace=False) if axis == "neutral_mass_da" else a
+    effective = a.set_charge(0, inplace=False) if axis == "neutral_mass" else a
     core = effective.isotopic_distribution()
     expected_position = core[0].neutron_count if axis == "neutron_offset" else core[0].mass / (2 if axis == "mz" else 1)
     assert rows[0]["position"] == pytest.approx(expected_position)
@@ -135,11 +135,11 @@ def test_properties():
 
 def test_comparison_delta():
     row = calculate(
-        "compare_peptides", ["M[Oxidation]PEPTIDE"], reference={"annotation": "MPEPTIDE"}, measurements=["annotation", "neutral_mass_da", "composition"]
+        "compare_peptides", ["M[Oxidation]PEPTIDE"], reference={"annotation": "MPEPTIDE"}, measurements=["annotation", "neutral_mass", "composition"]
     )["records"][0]
     assert row["same_sequence"]
     assert row["composition_delta"]["O"] == 1
-    assert row["neutral_mass_da"]["delta_input_minus_reference"] == pytest.approx(15.99491461957)
+    assert row["neutral_mass"]["delta_input_minus_reference"] == pytest.approx(15.99491461957)
 
 
 @pytest.mark.parametrize("specificity", ["full", "semi", "nonspecific"])
@@ -212,7 +212,7 @@ def test_conversion(target):
 def test_reference_and_modification_search():
     rows = find_modifications(c.FindModifications(query_type="mass", query=15.9949, tolerance=0.001))
     assert any(row["name"] == "Oxidation" for row in rows)
-    assert all(abs(row["mass_error_da"]) <= 0.001 for row in rows)
+    assert all(abs(row["mass_error"]) <= 0.001 for row in rows)
     assert reference_rows(c.GetReference(topic="enzymes"), {})
     assert reference_rows(c.GetReference(topic="scales"), {})
 

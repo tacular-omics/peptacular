@@ -120,14 +120,14 @@ def analyze_one(a, request):
                         method="sequential",
                     )
                     row["property_settings"] = settings.model_dump()
-                elif field == "neutral_mass_da":
+                elif field == "neutral_mass":
                     value = ion.neutral_mass(monoisotopic=request.monoisotopic)
                     row.update(charge_fields(ion))
                 else:
                     if field == "mz":
                         require_charge(ion)
                     row.update(charge_fields(ion))
-                    value = getattr(ion, "mass" if field == "ion_mass_da" else "mz")(monoisotopic=request.monoisotopic)
+                    value = getattr(ion, "mass" if field == "mass" else "mz")(monoisotopic=request.monoisotopic)
                 row[field] = value
             except (ValueError, KeyError) as exc:
                 row[field] = None
@@ -275,7 +275,7 @@ def isotopes_one(a, request):
     for ion in charged_annotations(a, request):
         if request.axis == "mz":
             require_charge(ion)
-        effective = ion.set_charge(0, inplace=False) if request.axis == "neutral_mass_da" else ion
+        effective = ion.set_charge(0, inplace=False) if request.axis == "neutral_mass" else ion
         charges = charge_fields(effective)
         peaks = effective.isotopic_distribution(
             max_isotopes=request.max_peaks,
@@ -560,15 +560,15 @@ def find_modifications(request):
                     "vocabulary": vocabulary,
                     "accession": str(entry.id),
                     "name": entry.name,
-                    "mass_da": mass,
+                    "mass": mass,
                     "formula": getattr(entry, "formula", None),
                     "composition": getattr(entry, "dict_composition", None),
                 }
                 if request.query_type == "mass":
-                    row["mass_error_da"] = mass - request.query
+                    row["mass_error"] = mass - request.query
                     row["mass_error_ppm"] = (mass - request.query) / abs(request.query) * 1e6 if request.query else None
                 rows.append(row)
-    rows.sort(key=lambda r: (abs(r.get("mass_error_da", 0)), r["vocabulary"], r["accession"]))
+    rows.sort(key=lambda r: (abs(r.get("mass_error", 0)), r["vocabulary"], r["accession"]))
     return rows
 
 

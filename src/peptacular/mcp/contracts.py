@@ -54,9 +54,9 @@ class PropertySettings(Contract):
 
 class Analyze(Scientific, ChargeSettings):
     measurements: Annotated[
-        list[Literal["length", "neutral_mass_da", "ion_mass_da", "mz", "composition", "property", "residue_counts"]],
+        list[Literal["length", "neutral_mass", "mass", "mz", "composition", "property", "residue_counts"]],
         Field(min_length=1, max_length=7),
-    ] = ["length", "neutral_mass_da"]
+    ] = ["length", "neutral_mass"]
     property_settings: PropertySettings = Field(default_factory=PropertySettings)
 
 
@@ -115,11 +115,11 @@ class Fragment(Scientific, ChargeSettings):
 
 class Compare(Scientific, ChargeSettings):
     reference: Record
-    measurements: list[Literal["annotation", "composition", "neutral_mass_da", "mz"]] = ["annotation", "neutral_mass_da"]
+    measurements: list[Literal["annotation", "composition", "neutral_mass", "mz"]] = ["annotation", "neutral_mass"]
 
 
 class Isotopes(Scientific, ChargeSelection):
-    axis: Literal["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"] = "neutral_mass_da"
+    axis: Literal["neutral_mass", "mass", "mz", "neutron_offset"] = "neutral_mass"
     max_peaks: Annotated[int, Field(strict=True, ge=1, le=100)] | None = None
     min_relative_abundance: Annotated[float, Field(strict=True, gt=0, le=1)] = 0.001
 
