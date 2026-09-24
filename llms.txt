@@ -33,6 +33,7 @@ strings that `paftacular` parses.
 - [Quick start](https://peptacular.readthedocs.io/en/latest/quickstart.html): tested examples of parsing, editing, mass, fragments, digestion, isotopes, properties
 - [Mass calculation](https://peptacular.readthedocs.io/en/latest/mass_calculation.html): ion types, charge, isotopes and deltas
 - [Localization isomers](https://peptacular.readthedocs.io/en/latest/localization.html): expand ambiguous mods (`?`, ranges, `#g` groups), `candidate_sites`, site-determining ions (unique or pairwise)
+- [Tables with pandas or polars](https://peptacular.readthedocs.io/en/latest/records.html): `digest_records`/`fragment_records` plain-dict rows; peptacular ships neither library
 - [Streaming and batch](https://peptacular.readthedocs.io/en/latest/streaming.html): reading FASTA with fastatacular, `batch`, `iter_batch`, diagnostics
 - [JSON serialization](https://peptacular.readthedocs.io/en/latest/json_serialization.html): versioned lossless JSON and its schema
 - [CHANGELOG](https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md): release notes and migration from 3.x

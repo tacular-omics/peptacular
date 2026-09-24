@@ -194,6 +194,15 @@ def _split_ambiguity(annotation: ProFormaAnnotation) -> tuple[ProFormaAnnotation
     occupied = set(internal)
     placements: list[_Placement] = []
     for positions, count, mod, group in raw:
+        if group is not None:
+            taken = sorted(position for position in positions if position in occupied)
+            if taken:
+                raise PeptacularError(
+                    f"Group #{group.label} lists residue {taken[0] + 1}, {base.sequence[taken[0]]} at position {taken[0]} "
+                    "(0-based), which already carries a "
+                    "modification; one mod per residue, so that placement is impossible. Remove the group tag from "
+                    "that residue or drop its other mod."
+                )
         free = tuple(position for position in positions if position not in occupied)
         if count > len(free):
             raise PeptacularError(f"Cannot place {_copies(count)} of a modification on {len(free)} unmodified candidate residue{'' if len(free) == 1 else 's'}")
@@ -241,7 +250,9 @@ def localization_isomers(annotation: ProFormaAnnotation, *, max_isomers: int | N
     **One mod per residue.** A placed mod never goes on a residue that already carries a
     modification, or on a residue another ambiguity placed a mod on in the same isomer, so
     ``[Phospho]?PES[Phospho]T`` never gives ``PES[Phospho][Phospho]T``. This is the same rule
-    as :func:`candidate_sites`.
+    as :func:`candidate_sites`. A ``#label`` group that lists a residue which already carries
+    another modification (``PS[Oxidation][Phospho#g1]T[#g1]``) raises
+    :class:`~peptacular.PeptacularError` rather than dropping the placement the string names.
 
     Every combination of placements is returned. Isomers that come out identical (two copies
     of the same mod swapped between ranges, say) are returned once.

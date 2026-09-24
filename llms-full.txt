@@ -303,10 +303,11 @@ annotation.localization_isomers(*, max_isomers=10_000); annotation.candidate_sit
 `#label` groups (`S[Phospho#g1(0.8)]T[#g1(0.2)]`). Candidate sites come from the ProForma
 string only; there is no built-in residue list. A group's label and the score of the chosen
 residue stay on the placed mod (`S[Phospho#g1(0.8)]`). Order is fixed (groups, ranges,
-unknown mods; N- to C-terminal), duplicates are dropped, and `max_isomers` (default 10,000;
+unknown mods; N- to C-terminal), duplicates are dropped, and `max_isomers` (default `pt.DEFAULT_MAX_ISOMERS` = 10,000;
 None = no limit) raises `PeptacularError` when exceeded. One mod per residue: a placed mod
 never goes on a residue that already has one or that another ambiguity used, so
-`[Phospho]?PES[Phospho]T` never gives `S[Phospho][Phospho]`. A `#` inside `INFO:` text is not
+`[Phospho]?PES[Phospho]T` never gives `S[Phospho][Phospho]`; a `#label` group listing a residue
+that already carries another mod raises `PeptacularError`. A `#` inside `INFO:` text is not
 a group label. `#XL`/`#BRANCH` labels are left alone.
 `candidate_sites` needs `residues` (no default) and adds one copy of the mod on each
 unmodified matching residue. `site_determining_ions` returns, per isomer, the Fragments
@@ -366,6 +367,40 @@ for span in protein.digest_spans(pt.Protease.TRYPSIN):
     print(span, protein[span].serialize())
 # Span(start=0, end=5, missed_cleavages=0) PEM[Oxidation]TR
 # Span(start=5, end=12, missed_cleavages=0) EPTIDEK
+```
+
+## Tables (records for pandas or polars)
+
+```
+digest_records(sequence: SEQ | Iterable[SEQ], enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False,
+               min_len: int | None = None, max_len: int | None = None) -> list[dict]
+fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]]) -> list[dict]
+DIGEST_RECORD_KEYS = ("peptide", "stripped_sequence", "start", "end", "missed_cleavages", "semi", "accession")
+FRAGMENT_RECORD_KEYS = ("ion_type", "position", "end_position", "charge_state", "mz", "mass", "neutral_mass",
+                        "monoisotopic", "deltas", "isotopes", "sequence", "parent_sequence", "mzpaf")
+```
+
+peptacular does NOT depend on pandas or polars (not even optionally); pass the rows to
+`pandas.DataFrame(rows)` / `polars.DataFrame(rows)` yourself. Digest rows: `start`/`end` are
+half-open, `semi` is True when an end is not a cleavage site or terminus (only with
+`semi=True`), `accession` comes from the input's `.accession` (FASTA entry), else `.db_unique_id` (PEFF
+entry), else None; a list or generator of proteins gives one flat list. Fragment rows use the
+`Fragment` constructor names and take one peptide's list or the nested batch list (flattened);
+`position` is the ion number or an internal ion's start, `end_position` the internal ion's end
+(both int or None); `deltas`/`isotopes` are strings. Each delta is a signed formula or mass
+added `count` times; named losses such as H2O are stored as negative formulas (water loss
+`"H-2O-1"`, water gain `"H-2O-1^-1"`), a plain formula like `"C2H2O"` is a gain, a mass keeps
+its sign (`"-17.0^2"`). `sequence`/`parent_sequence` have no `/charge`; `mzpaf` is None for an
+ion type mzPAF cannot write or a mixed-sign formula delta (`"CH-2"`). A non-Fragment item raises
+PeptacularError; a wrong top-level type (None, a number) raises TypeError, as `pt.digest` does.
+
+```python
+import peptacular as pt
+
+rows = pt.digest_records("MKVLATSAGERTIDEK", "trypsin", missed_cleavages=1)
+print(rows[1]["peptide"], rows[1]["start"], rows[1]["end"], rows[1]["missed_cleavages"])  # MKVLATSAGER 0 11 1
+ions = pt.fragment_records(pt.fragment("PEPTIDE", ion_types=("y",), charges=(1,)))
+print([round(r["mz"], 3) for r in ions][:3])  # [148.06, 263.087, 376.171]
 ```
 
 ## Isotopic envelopes

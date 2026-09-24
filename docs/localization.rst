@@ -60,7 +60,9 @@ One mod per residue
 A placed mod never goes on a residue that already carries a modification, or on a residue
 another ambiguity used in the same isomer. This is the same rule as
 :func:`~peptacular.candidate_sites`. If the mods cannot all be put on different residues,
-:class:`~peptacular.PeptacularError` is raised.
+:class:`~peptacular.PeptacularError` is raised. A ``#label`` group that lists a residue which
+already carries another modification (``PS[Oxidation][Phospho#g1]T[#g1]``) also raises, since
+the placement the string names could never be made.
 
 .. testcode::
 

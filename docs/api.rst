@@ -75,6 +75,13 @@ Localization
    :members:
    :show-inheritance:
 
+Records
+^^^^^^^
+
+.. automodule:: peptacular.sequence.records
+   :members:
+   :show-inheritance:
+
 .. automodule:: peptacular.sequence.fragmentation
    :members:
    :undoc-members:

@@ -148,6 +148,14 @@ def _freeze(value: Mapping[Any, int] | int | None) -> Any:
     return value
 
 
+def _mzpaf_mass(value: float) -> str:
+    """A signed mass for mzPAF: fixed-point, 6 decimals, trailing zeros stripped (``-34.0``, ``+1e-05`` -> ``+0.00001``)."""
+    text = f"{value:+.6f}".rstrip("0")
+    if text.endswith("."):
+        text += "0"
+    return "+0.0" if text == "-0.0" else text  # the caller drops a zero delta
+
+
 def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:
     """Store delta keys as strings or masses, so ``Fragment(deltas=frag.deltas)`` round-trips."""
     if not deltas:
@@ -514,6 +522,13 @@ class Fragment:
         written as ``z``/``c`` with a hydrogen delta: ``z3{IDE}-H``, ``z3{IDE}+H``,
         ``c3{PEP}-H``, so the label parses back to the same m/z.
 
+        Each delta is a signed formula or mass, added ``count`` times. Named losses such as
+        H2O are stored as negative formulas (``H-2O-1``), so ``{"H2O": 1}`` is written
+        ``-H2O`` and ``{"H2O": -1}`` ``+H2O``; a plain formula such as ``C2H2O`` is a gain
+        (``+C2H2O``). A numeric delta is written as a signed fixed-point mass rounded to 6
+        decimals (``b2-34.0`` for ``{-17.0: 2}``); one that rounds to zero is left out. A formula with both positive and negative
+        element counts (``CH-2``) cannot be written and raises :class:`PeptacularError`.
+
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
@@ -609,24 +624,21 @@ class Fragment:
         if self._deltas is not None:
             for loss_key, count in self._deltas.items():
                 if isinstance(loss_key, float | int):
-                    # mzPAF's neutral_loss grammar only accepts a chemical formula or a
-                    # bracketed reference-group name after the sign (spec section 4.5);
-                    # there is no representation for an arbitrary unnamed mass delta.
-                    raise PeptacularError(
-                        f"Cannot convert numeric neutral loss/gain delta ({loss_key!r}) to mzPAF: "
-                        "mzPAF neutral losses must be a chemical formula or a named reference group, "
-                        "not a bare mass delta."
-                    )
-                else:
-                    loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
-                    paf_formula = _mzpaf_formula(loss_formula)
-                    sign = paf_formula[0]
-                    if sign not in ("+", "-"):
-                        raise PeptacularError(f"Invalid formula sign in loss: {paf_formula}")
-                    mult = 1 if sign == "+" else -1
-                    abs_count = abs(count * mult)
-                    count_str = str(abs_count) if abs_count > 1 else ""
-                    parts.append(f"{sign}{count_str}{paf_formula[1:]}")
+                    # mzPAF (spec section 4.5) writes an unnamed mass delta as a signed number,
+                    # ``y8-17.0265``. A number takes no repeat count, so the count is folded in.
+                    mass = _mzpaf_mass(loss_key * count)
+                    if mass != "+0.0":  # a delta that rounds to zero changes nothing; leave it out
+                        parts.append(mass)
+                    continue
+                loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
+                paf_formula = _mzpaf_formula(loss_formula)
+                sign = paf_formula[0]
+                if sign not in ("+", "-"):
+                    raise PeptacularError(f"Invalid formula sign in loss: {paf_formula}")
+                if count < 0:  # a negative count turns a loss into a gain and back
+                    sign = "+" if sign == "-" else "-"
+                count_str = str(abs(count)) if abs(count) > 1 else ""
+                parts.append(f"{sign}{count_str}{paf_formula[1:]}")
 
         # Internal mass diff loss (from internal fragment type)
         if internal_loss is not None:

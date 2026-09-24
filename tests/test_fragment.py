@@ -867,13 +867,57 @@ class TestFragmentMzPAF(unittest.TestCase):
         # the spec's own canonical water-loss example (section 4.5).
         self.assertTrue(any("-H2O" in label for label in labels))
 
-    def test_numeric_neutral_loss_rejected(self):
-        # mzPAF's neutral_loss grammar only accepts a chemical formula or a bracketed
-        # reference-group name after the sign (section 4.5); there is no
-        # representation for an arbitrary unnamed mass delta.
+    def test_numeric_neutral_loss_written_as_signed_mass(self):
+        # mzPAF section 4.5 writes an unnamed mass delta as a signed number (``y8-17.0265``).
+        # A number takes no repeat count, so the count is folded into the mass.
         frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], deltas=[15.9949])
-        with self.assertRaises(ValueError):
-            frags[0].to_mzpaf()
+        self.assertTrue(frags[0].to_mzpaf(include_sequence=False).endswith("+15.9949"))
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[2], deltas=[{-17.0: 2}])[1]
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "b2-34.0^2")
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[1], deltas=[{"H2O": -1, -1: 1}], isotopes=[1])[2]
+        # {"H2O": -1} is a water gain (+18.01), so mzPAF must say +H2O
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "b3-1.0+H2O+i")
+        gain = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[1], deltas=[{"H2O": -2}])[2]
+        self.assertEqual(gain.to_mzpaf(include_sequence=False), "b3+2H2O")
+
+    def test_numeric_delta_is_fixed_point(self):
+        # mzPAF numbers have no exponent, and float repr noise must not leak into the label.
+        from peptacular.annotation.frag import _mzpaf_mass
+
+        cases = {1e-5: "+0.00001", 0.1 * 3: "+0.3", -34.0: "-34.0", -17.02655: "-17.02655", 1e-9: "+0.0", -1e-9: "+0.0", 2.0000004: "+2.0"}
+        for value, label in cases.items():
+            self.assertEqual(_mzpaf_mass(value), label)
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[{0.1: 3}])[4]
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "y5+0.3")
+        # a delta that rounds to zero is left out of the label
+        for zero in (-1e-9, {1e-8: 3}):
+            deltas = zero if isinstance(zero, dict) else {zero: 1}
+            frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[deltas])[4]
+            self.assertEqual(frag.to_mzpaf(include_sequence=False), "y5")
+
+    def test_numeric_delta_labels_parse_back(self):
+        # Every numeric label must be valid mzPAF: paftacular's parser when available, else the
+        # spec's number grammar (sign, digits, optional fraction, no exponent).
+        import re
+
+        try:
+            import paftacular
+        except ImportError:
+            paftacular = None
+        number = re.compile(r"[+-]\d+(\.\d+)?")
+        for delta in (1e-5, {0.1: 3}, -17.02655, {-18.0: -1}, 123456.7891234):
+            deltas = delta if isinstance(delta, dict) else {delta: 1}
+            frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[deltas])[4]
+            label = frag.to_mzpaf(include_sequence=False)
+            suffix = label[len("y5") :]
+            self.assertRegex(suffix, number)
+            self.assertEqual(number.fullmatch(suffix).group(0), suffix)  # type: ignore[union-attr]
+            expected = sum(float(k) * c for k, c in deltas.items())
+            self.assertAlmostEqual(float(suffix), expected, places=6)
+            if paftacular is not None:
+                annotation = paftacular.parse(label)
+                self.assertEqual(len(annotation.neutral_losses), 1)
+                self.assertAlmostEqual(float(str(annotation.neutral_losses[0])), expected, places=5)
 
     def test_adduct_repeat_count(self):
         # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with two

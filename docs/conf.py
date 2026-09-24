@@ -49,3 +49,16 @@ autodoc_default_options = {
 autodoc_typehints = "description"  # Or 'signature' to put types in signature
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
+
+# Examples that need pandas or polars are skipped when the library is not installed
+# (``:skipif: pd is None``). peptacular itself depends on neither.
+doctest_global_setup = """
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+try:
+    import polars as pl
+except ImportError:
+    pl = None
+"""

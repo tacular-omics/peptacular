@@ -49,7 +49,7 @@ from .digestion import (
 )
 from .fragmentation import fast_fragment, frag, fragment
 from .isotope import isotopic_distribution
-from .localization import candidate_sites, localization_isomers, pairwise_site_determining_ions, site_determining_ions
+from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers, pairwise_site_determining_ions, site_determining_ions
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
     append_mods,
@@ -98,6 +98,7 @@ from .properties import (
     surface_accessibility,
     transmembrane_tendency,
 )
+from .records import DIGEST_RECORD_KEYS, FRAGMENT_RECORD_KEYS, digest_records, fragment_records
 from .subseqs import (
     coverage,
     find_subsequence_indices,
@@ -154,9 +155,15 @@ __all__ = [
     "fast_fragment",
     # localization
     "localization_isomers",
+    "DEFAULT_MAX_ISOMERS",
     "candidate_sites",
     "site_determining_ions",
     "pairwise_site_determining_ions",
+    # records
+    "digest_records",
+    "fragment_records",
+    "DIGEST_RECORD_KEYS",
+    "FRAGMENT_RECORD_KEYS",
     # mass_funcs
     "mass",
     "mz",
