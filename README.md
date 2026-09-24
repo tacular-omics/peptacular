@@ -66,7 +66,7 @@ peptide = pt.parse("PEM[Oxidation]TIDE")
 
 # Calculate mass and m/z
 print(peptide.mass())              # 849.3426002717299
-print(peptide.mz(charge=2))        # 425.67857658818554
+print(peptide.mz(charge=2))        # 425.6785766024859
 
 # Chained edits return a modified annotation
 print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())
@@ -96,8 +96,8 @@ batches:
 import peptacular as pt
 
 peptides = ["[Acetyl]-PEPTIDES", "<13C>ARE", "SICK/2"]
-print(pt.mass(peptides))               # [928.4025574375299, 388.23835027296, 451.245357946571]
-print(pt.mz(peptides, charge=2))       # [465.20855517108555, 195.12645158880056, 225.6226789732855]
+print(pt.mass(peptides))               # [928.4025574375299, 388.23835027296, 451.24535797517194]
+print(pt.mz(peptides, charge=2))       # [465.20855518538593, 195.12645160310103, 225.62267898758597]
 ```
 
 For streaming input and per-item error collection instead of a raised

@@ -47,11 +47,11 @@ import peptacular as pt
 
 peptide = pt.parse("PEM[Oxidation]TIDE")
 print(peptide.mass())                   # 849.3426002717299
-print(peptide.mz(charge=2))             # 425.67857658818554
+print(peptide.mz(charge=2))             # 425.6785766024859
 print(peptide.set_charge(2).set_peptide_name("Peptacular").serialize())  # (>Peptacular)PEM[Oxidation]TIDE/2
 
 print(pt.mass("PEM[Oxidation]TIDE"))    # 849.3426002717299
-print(pt.mass(["PEPTIDE", "SICK/2"]))   # [799.3599640328299, 451.245357946571]
+print(pt.mass(["PEPTIDE", "SICK/2"]))   # [799.3599640328299, 451.24535797517194]
 ```
 
 Masses are in daltons. `mass()` is the mass of the ion, including any charge: a `/2`
@@ -208,11 +208,11 @@ ProFormaAnnotation.neutral_mass(ion_type="p", monoisotopic=True, *, isotopes=Non
 import peptacular as pt
 
 p = pt.parse("PEPTIDE/2")
-print(p.mass(), p.neutral_mass(), p.mz())         # 801.3745169374711 799.3599640328299 400.68725846873554
-print(pt.mass("PEPTIDE", charge=2))               # 801.3745169374711
+print(p.mass(), p.neutral_mass(), p.mz())         # 801.3745169660718 799.3599640328299 400.6872584830359
+print(pt.mass("PEPTIDE", charge=2))               # 801.3745169660718
 print(pt.mass("PEPTIDE", monoisotopic=False))     # 799.8238767988298
-print(pt.mass("PEPTIDE", ion_type="y", charge=1)) # 800.3672404851504
-print(pt.mz("PEPTIDE", charge="Na:z+1"))          # 822.3491847349204
+print(pt.mass("PEPTIDE", ion_type="y", charge=1)) # 800.367240499451
+print(pt.mz("PEPTIDE", charge="Na:z+1"))          # 822.3491847349209
 print(round(pt.mass("PEPTIDE", deltas={"H-2O-1": 1}), 4))  # 781.3494
 print(round(pt.mass("PEPTIDE", isotopes=1), 4))   # 800.3633
 
@@ -554,7 +554,7 @@ import peptacular as pt
 
 print(pt.hydrophobicity(["PEPTIDE", "KKK"]))         # [0.34285714285714286, 0.06666666666666668]
 p = pt.parse("PEPTIDE").prop
-print(round(p.pi, 3), p.aromaticity)                 # 2.86 0.0
+print(round(p.pi, 3), p.aromaticity)                 # 2.87 0.0
 ss = p.secondary_structure()
 print(round(ss["alpha_helix"], 3))                   # 0.275
 print(round(pt.calc_property("PEPTIDE", scale=pt.HydrophobicityScale.KYTE_DOOLITTLE), 3))  # -1.414
