@@ -18,6 +18,11 @@ All notable changes to this project will be documented in this file.
 - `parse_chimeric` read cross-linked peptidoforms (`A//B`) as separate chimeric ions, so `serialize_chimeric` wrote them back as `A+B`, a different meaning. Cross-links are not supported, so it now raises `UnsupportedOperationError`.
 - Satellite ions (d, v, w and the residue-specific da/db/wa/wb variants) summed every residue of the fragment and then added the side-chain remnant, counting the cleaved residue twice. They now use the mzPAF 1.0.1 sum of the other residues (n-1 for d, c-1 for v and w) plus the remnant; the cleaved residue's modifications leave with its side chain. Requesting `d` or `w` now also yields the generic ion (it returned only da/db or wa/wb, so `fragment("SAMPLER", ion_types=["d"])` was empty), db now forms on the last residue like da and wb on the first like wa, a residue-specific match no longer stops later positions in `fragment()`, and `frag(position=...)` checks the fragment's own terminal residue. Masses also follow tacular's corrected d/v/w offsets (tacular 5ffebec).
 - `Fragment.to_mzpaf` wrote the Biemann z ion as mzPAF `z`, which mzPAF 1.0.1 defines as the z-dot radical, so the label parsed back 1.008 Da heavy; z-dot was written as `z.`, which is not mzPAF. z-dot is now `z`, and Biemann z, z+H and c-H are written as `z-H`, `z+H` and `c-H`, matching paftacular's `to_mzpaf`.
+- `C13_NEUTRON_MASS` was rounded to 1.003350; it is now the AME2020 13C-12C difference, 1.00335483507.
+- `parse` and `parse_chimeric` raised a bare `ValueError` for invalid ProForma, and `parse` raised `ValueError` for chimeric or cross-linked input. They now raise `ProFormaFormatError` (a `ValueError` subclass, so existing `except ValueError` still works) and `UnsupportedOperationError` respectively.
+
+### Added
+- `ProFormaFormatError`, raised for strings that are not valid ProForma.
 
 ## [4.1.0] (2026-09-23)
 

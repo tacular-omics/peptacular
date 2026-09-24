@@ -26,7 +26,13 @@ from tacular import (
 )
 
 from ..constants import PROTON_MASS, ModType, ModTypeLiteral, Terminal
-from ..diagnostics import CompositionError, UnsupportedOperationError
+from ..diagnostics import (
+    CompositionError,
+    InvalidAdjustmentError,
+    ProFormaFormatError,
+    UnknownModificationError,
+    UnsupportedOperationError,
+)
 from ..digestion.core import (
     EnzymeConfig,
     digest_annotation_by_aa,
@@ -123,6 +129,10 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Errors that already say what went wrong; any other ValueError from the parser is a
+# notation error and is re-raised as ProFormaFormatError.
+_TYPED_ERRORS = (ProFormaFormatError, UnsupportedOperationError, UnknownModificationError, CompositionError, InvalidAdjustmentError)
 
 fe = FormulaElement(element=Element.H, occurance=1)
 H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
@@ -2480,7 +2490,20 @@ class ProFormaAnnotation:
 
     @classmethod
     def parse_chimeric(cls, sequence: str, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
-        """Parse a ProForma string into multiple ProFormaAnnotation objects"""
+        """Parse a ProForma string into multiple ProFormaAnnotation objects.
+
+        :raises ProFormaFormatError: The string is not valid ProForma.
+        :raises UnsupportedOperationError: Cross-linked (``//``) peptidoforms.
+        """
+        try:
+            yield from cls._parse_chimeric(sequence, validate)
+        except _TYPED_ERRORS:
+            raise
+        except ValueError as e:
+            raise ProFormaFormatError(str(e)) from e
+
+    @classmethod
+    def _parse_chimeric(cls, sequence: str, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
         if validate is None:
             validate = False
         # Initialize the Generator
@@ -2534,7 +2557,21 @@ class ProFormaAnnotation:
 
     @classmethod
     def parse(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
-        """Parse a ProForma string into a ProFormaAnnotation object"""
+        """Parse a ProForma string into a ProFormaAnnotation object.
+
+        :raises ProFormaFormatError: The string is not valid ProForma.
+        :raises UnsupportedOperationError: Valid ProForma that one annotation cannot hold
+            (chimeric ``+`` or cross-linked ``//`` peptidoforms).
+        """
+        try:
+            return cls._parse_single(sequence, validate)
+        except _TYPED_ERRORS:
+            raise
+        except ValueError as e:
+            raise ProFormaFormatError(str(e)) from e
+
+    @classmethod
+    def _parse_single(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
         if validate is None:
             validate = False
         # Initialize the Generator
@@ -2548,7 +2585,7 @@ class ProFormaAnnotation:
 
         # Validate that this is a single peptide (not chimeric/crosslinked)
         if connection is not None:
-            raise ValueError(f"Chimeric and crosslinked peptides not supported in single annotation: {sequence}")
+            raise UnsupportedOperationError(f"Chimeric and crosslinked peptides not supported in single annotation: {sequence}")
 
         # Ensure there are no subsequent segments waiting in the generator
         try:

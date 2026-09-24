@@ -188,7 +188,7 @@ All of these are also available from the top-level ``peptacular`` namespace.
 
 .. py:data:: peptacular.constants.C13_NEUTRON_MASS
    :type: float
-   :value: 1.00335
+   :value: 1.00335483507
 
    Mass difference between carbon-13 and carbon-12.
 

@@ -171,3 +171,29 @@ def test_mzpaf_z_and_c_variants(ion, label, delta_h):
 def test_mzpaf_z_variant_delta_precedes_neutral_losses():
     f = pt.parse("PEPIDE").frag(ion_type="z", charge=2, position=3, deltas={"H2O": -1})
     assert f.to_mzpaf() == "z3{IDE}-H-H2O^2"
+
+
+# --------------------------------------------------------------------------- typed parse errors
+
+
+@pytest.mark.parametrize("bad", ["PEP[", "PEPTIDE)", "PEP{", "<13C", "PEPTIDE/", "[Acetyl]PEP", "PEP(TI"])
+def test_invalid_proforma_raises_typed_error(bad):
+    with pytest.raises(pt.ProFormaFormatError):
+        pt.parse(bad)
+    # still a ValueError for existing callers
+    assert issubclass(pt.ProFormaFormatError, ValueError)
+
+
+def test_chimeric_string_in_single_parse_is_unsupported_not_invalid():
+    with pytest.raises(pt.UnsupportedOperationError):
+        pt.parse("PEPTIDE+PEPTIDE")
+
+
+def test_parse_chimeric_invalid_raises_typed_error():
+    with pytest.raises(pt.ProFormaFormatError):
+        list(pt.parse_chimeric("PEP[+PEPTIDE"))
+
+
+def test_c13_neutron_mass_is_ame2020_difference():
+    # AME2020 (Wang et al. 2021): 13C = 13.00335483507 u, 12C = 12 u exactly.
+    assert pt.C13_NEUTRON_MASS == pytest.approx(1.00335483507, abs=1e-11)

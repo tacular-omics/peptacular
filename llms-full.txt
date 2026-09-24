@@ -670,7 +670,7 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
 - `PROTON_MASS` = 1.00727646688
 - `ELECTRON_MASS` = 0.00054857990946
 - `NEUTRON_MASS` = 1.00866491597
-- `C13_NEUTRON_MASS` = 1.00335
+- `C13_NEUTRON_MASS` = 1.00335483507
 - `PEPTIDE_AVERAGINE_NEUTRON_MASS` = 1.002856
 - `AVERAGINE_RATIOS`: elemental ratios per dalton
 - `ModType` and its string values: `nterm`, `cterm`, `isotope`, `static`, `labile`,
