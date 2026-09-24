@@ -197,3 +197,42 @@ def test_parse_chimeric_invalid_raises_typed_error():
 def test_c13_neutron_mass_is_ame2020_difference():
     # AME2020 (Wang et al. 2021): 13C = 13.00335483507 u, 12C = 12 u exactly.
     assert pt.C13_NEUTRON_MASS == pytest.approx(1.00335483507, abs=1e-11)
+
+
+# --------------------------------------------------------------------------- found by Hypothesis
+
+
+def _parse_in_subprocess(s: str) -> str:
+    # Run in a child process so a parser hang fails the test instead of stalling pytest.
+    import subprocess
+    import sys
+
+    code = "import sys, peptacular as pt\ntry:\n    pt.parse(sys.argv[1]).mass()\nexcept pt.ProFormaFormatError:\n    print('ProFormaFormatError')\n"
+    out = subprocess.run([sys.executable, "-c", code, s], capture_output=True, text=True, timeout=60, check=True)
+    return out.stdout.strip()
+
+
+@pytest.mark.parametrize("bad", ["?[Phospho]PEPTIDE", "[Acetyl]-?[Phospho]PEPTIDE"])
+def test_question_mark_before_bracket_does_not_hang(bad):
+    assert _parse_in_subprocess(bad) == "ProFormaFormatError"
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "PEPTIDE/[+H]",  # adduct charge written as '+H'
+        "PEPTIDE/[Na]",  # adduct with no charge
+        "PEPTIDE/[Na:z+1^x]",  # non-numeric multiplier was read as ^1
+        "PEPTIDE/[Na:z+1^0]",
+        "A[+{15.995]",  # malformed mass delta
+        "{Glycan:[Hex1HexNAc1}A",  # malformed glycan
+        "<{13C>A",  # malformed isotope label
+        "<113C>A",  # isotope that does not exist (was a KeyError)
+        "<{[Oxidation]@M>A",  # malformed static mod
+    ],
+)
+def test_lazily_parsed_components_raise_format_error(bad):
+    # Component strings are parsed when a mass is first needed; a malformed one used to
+    # surface as a bare ValueError (or KeyError) from mass().
+    with pytest.raises(pt.ProFormaFormatError):
+        pt.parse(bad).mass()

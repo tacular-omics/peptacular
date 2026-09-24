@@ -5,13 +5,15 @@ This module contains all parsing logic, independent of other modules.
 """
 
 import re
-from functools import lru_cache
+from collections.abc import Callable
+from functools import lru_cache, wraps
 from math import isfinite
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
 
-from tacular import AminoAcid, Element, Monosaccharide
+from tacular import ELEMENT_LOOKUP, AminoAcid, Element, Monosaccharide
 
 from ..constants import CV
+from ..diagnostics import CompositionError, InvalidAdjustmentError, ProFormaFormatError, UnknownModificationError, UnsupportedOperationError
 
 if TYPE_CHECKING:
     from .comps import (
@@ -40,6 +42,31 @@ if TYPE_CHECKING:
         TagMass,
         TagName,
     )
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+_TYPED_ERRORS = (ProFormaFormatError, UnknownModificationError, UnsupportedOperationError, CompositionError, InvalidAdjustmentError)
+
+
+def _format_errors(func: "Callable[_P, _R]") -> "Callable[_P, _R]":
+    """Re-raise a bare ValueError from a component parser as ProFormaFormatError.
+
+    Component strings are parsed lazily (often only when a mass is needed), so without
+    this a malformed tag surfaced as an untyped ValueError from ``mass()``.
+    ProFormaFormatError subclasses ValueError, so existing handlers still work.
+    Applied under ``lru_cache`` so cache hits pay nothing.
+    """
+
+    @wraps(func)
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        try:
+            return func(*args, **kwargs)
+        except _TYPED_ERRORS:
+            raise
+        except ValueError as e:
+            raise ProFormaFormatError(str(e)) from e
+
+    return wrapper
 
 
 # Try to match known monosaccharide names (longest first)
@@ -85,6 +112,7 @@ _FORMULA_ELEMENT_PATTERN: re.Pattern[str] = re.compile(
 _CHARGED_FORMULA_PATTERN: re.Pattern[str] = re.compile(r"^Formula:(.+?)(?::z([+-]?\d+))?$", re.IGNORECASE)
 
 
+@_format_errors
 def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
     """
     Parse a formula element string like '[13C2]' or 'H2' or 'C'
@@ -172,6 +200,7 @@ def parse_formula_element(s: str, allow_zero: bool = False) -> "FormulaElement":
 
 
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_charged_formula(s: str, allow_zero: bool = False, require_formula_prefix: bool = True, sep: str = "") -> "ChargedFormula":
     """
     Parse a charged formula string like 'Formula:C2H6' or 'Formula:C2H6:z+2'
@@ -308,6 +337,7 @@ def _parse_formula_string(formula_str: str, allow_zero: bool = False) -> tuple["
     return tuple(elements)
 
 
+@_format_errors
 def parse_position_score(s: str) -> "PositionScore":
     from .comps import PositionScore
 
@@ -337,6 +367,7 @@ def parse_position_score(s: str) -> "PositionScore":
 
 
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_modification_tag(mod_str: str) -> "MODIFICATION_TAG_TYPE":
     """
     Parse a ProForma modification string into its corresponding tag object.
@@ -443,6 +474,7 @@ _GLYCAN_MASS_PATTERN = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
 # each followed by an optional count. Whitespace MAY surround names and numbers. Note the
 # `Formula:`-keyword form (`Glycan:Hex1Formula:CH2`) is NOT valid -- only the `{...}` form is.
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_glycan(s: str) -> tuple["GlycanComponent", ...]:
     """
     Parse a glycan string like 'Glycan:Hex5HexNAc4'
@@ -585,6 +617,7 @@ def _parse_glycan_composition(glycan_str: str) -> tuple["GlycanComponent", ...]:
 
 
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_modification_tags(mod_str: str) -> "ModificationTags":
     """
     Parse a modification string that may contain multiple tags separated by pipe (|).
@@ -622,6 +655,7 @@ _POSITION_RULE_PATTERN = re.compile(r"^(?:(N-term|C-term|Protein N-term|Protein 
 
 
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_position_rule(s: str) -> "PositionRule":
     """
     Parse a position rule string like 'N-term', 'C-term:K', or 'M'
@@ -697,6 +731,7 @@ NAME_LOC_PATTERN = re.compile(r"^([^#]+?)(?:#([^#()]+)(?:\(([^()]+)\))?)?$")
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_tag_accession(s: str) -> "TagAccession":
     """
     Parse an accession string using FULL CV names only.
@@ -752,6 +787,7 @@ def parse_tag_accession(s: str) -> "TagAccession":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_tag_mass(s: str) -> "TagMass":
     """
     Parse a mass delta string according to ProForma 2.1 specification.
@@ -825,6 +861,7 @@ def parse_tag_mass(s: str) -> "TagMass":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_tag_name(s: str) -> "TagName | TagCustom":
     """
     Parse a named modification string.
@@ -887,6 +924,7 @@ def parse_tag_name(s: str) -> "TagName | TagCustom":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_tag_info(s: str) -> "TagInfo":
     """
     Parse an INFO string like 'INFO:some text'
@@ -909,6 +947,7 @@ def parse_tag_info(s: str) -> "TagInfo":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_tag_custom(s: str) -> "TagCustom":
     """
     Parse a custom tag string
@@ -933,6 +972,7 @@ def parse_tag_custom(s: str) -> "TagCustom":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_glycan_component(s: str) -> "GlycanComponent":
     """
     Parse a glycan component string like 'Hex5' or 'HexNAc4'
@@ -982,6 +1022,7 @@ def parse_glycan_component(s: str) -> "GlycanComponent":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
     """
     Parse an isotope replacement string like '13C' or '15N' or 'D'
@@ -1027,10 +1068,14 @@ def parse_isotope_replacement(s: str) -> "IsotopeReplacement":
     except ValueError as e:
         raise ValueError(f"Unknown element symbol: {element_str}") from e
 
+    if (element, isotope) not in ELEMENT_LOOKUP:
+        raise ValueError(f"Unknown isotope: {isotope}{element_str}")
+
     return IsotopeReplacement(element=element, isotope=isotope)
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
     """
     Parse a charge carrier string like 'Na:z+1' or 'H:z+1^2'.
@@ -1087,6 +1132,7 @@ def parse_global_charge_carrier(s: str) -> "GlobalChargeCarrier":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_modification_ambiguous_primary(s: str) -> "ModificationAmbiguousPrimary":
     """
     Parse an ambiguous primary modification string.
@@ -1171,6 +1217,7 @@ def parse_modification_ambiguous_primary(s: str) -> "ModificationAmbiguousPrimar
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_modification_ambiguous_secondary(s: str) -> "ModificationAmbiguousSecondary":
     """
     Parse an ambiguous secondary modification string.
@@ -1205,6 +1252,7 @@ def parse_modification_ambiguous_secondary(s: str) -> "ModificationAmbiguousSeco
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_modification_cross_linker(s: str) -> "ModificationCrossLinker":
     """
     Parse a cross-linker modification string.
@@ -1255,6 +1303,7 @@ def parse_modification_cross_linker(s: str) -> "ModificationCrossLinker":
 
 
 @lru_cache(maxsize=256)
+@_format_errors
 def parse_fixed_modification(s: str) -> "FixedModification":
     """
     Parse a fixed modification string.
@@ -1303,6 +1352,7 @@ def parse_fixed_modification(s: str) -> "FixedModification":
     return FixedModification(modifications=modification_tags, position_rules=position_rules)
 
 
+@_format_errors
 def parse_modification(s: str) -> "MODIFICATION_TYPE":
     """
     Parse a modification string into its corresponding modification object.
@@ -1398,6 +1448,7 @@ def _extract_bracketed_modifications(s: str) -> tuple["MODIFICATION_TYPE", ...]:
 
 
 @lru_cache(maxsize=1024)
+@_format_errors
 def parse_sequence_element(s: str) -> "SequenceElement":
     """
     Parse a sequence element string like 'M[Oxidation]' or 'K'
@@ -1431,6 +1482,7 @@ def parse_sequence_element(s: str) -> "SequenceElement":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_sequence_region(s: str) -> "SequenceRegion":
     """
     Parse a sequence region string like '(PEPTIDE)[Oxidation]' or '(PEPTIDE)'
@@ -1516,6 +1568,7 @@ def parse_sequence_region(s: str) -> "SequenceRegion":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_peptidoform(s: str) -> "Peptidoform":
     """
     Parse a ProForma peptidoform string.
@@ -1533,6 +1586,7 @@ def parse_peptidoform(s: str) -> "Peptidoform":
 
 
 @lru_cache(maxsize=512)
+@_format_errors
 def parse_peptidoform_ion(s: str) -> "PeptidoformIon":
     """
     Parse a ProForma peptidoform ion string.
@@ -1550,6 +1604,7 @@ def parse_peptidoform_ion(s: str) -> "PeptidoformIon":
 
 
 @lru_cache(maxsize=256)
+@_format_errors
 def parse_compound_peptidoform_ion(s: str) -> "CompoundPeptidoformIon":
     """
     Parse a ProForma compound peptidoform ion string.

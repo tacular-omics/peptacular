@@ -34,7 +34,7 @@ from tacular import (
 )
 
 from ..constants import CV, Terminal
-from ..diagnostics import CompositionError, UnknownModificationError
+from ..diagnostics import CompositionError, ProFormaFormatError, UnknownModificationError
 
 # Reusable hint appended to "unknown modification" errors so callers (including AI
 # agents) can immediately see how to specify a resolvable modification.
@@ -565,7 +565,10 @@ class TagMass(MassPropertyMixin, PositionScoreMixin):
 
     @property
     def mass(self) -> float:
-        return float(self.mass_str)
+        try:
+            return float(self.mass_str)
+        except ValueError:
+            raise ProFormaFormatError(f"Invalid mass delta: {self.mass_str!r}") from None
 
     def get_mass(self, monoisotopic: bool = True) -> float:
         return self.mass
@@ -583,10 +586,10 @@ class TagMass(MassPropertyMixin, PositionScoreMixin):
             case CV.XL_MOD:
                 mod_info = XLMOD_LOOKUP.query_mass(self.mass, monoisotopic=True, tolerance=0.005)
             case _:
-                raise ValueError(f"Modification lookup by mass not implemented for CV: {self.cv}")
+                raise CompositionError(f"Modification lookup by mass not implemented for CV: {self.cv}")
 
         if len(mod_info) > 1:
-            raise ValueError(f"Multiple modifications found for mass: {self.mass} in CV: {self.cv}")
+            raise CompositionError(f"Multiple modifications found for mass: {self.mass} in CV: {self.cv}")
 
         return Counter(mod_info[0].composition) if mod_info and mod_info[0].composition else Counter()
 
@@ -1105,7 +1108,7 @@ class GlobalChargeCarrier(MassPropertyMixin):
 
     def get_charge(self) -> int:
         if self.charged_formula.charge is None:
-            raise ValueError("Charge carrier has no defined charge")
+            raise ProFormaFormatError(f"Charge carrier {self.charged_formula.serialize()!r} has no defined charge: write it as e.g. 'Na:z+1'")
         return int(self.charged_formula.charge * self.occurance)
 
     def get_composition(self) -> Counter[ElementInfo]:
