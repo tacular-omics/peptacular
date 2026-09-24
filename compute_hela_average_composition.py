@@ -1,12 +1,13 @@
 from collections import Counter
 
 import tacular
+from fastatacular import read_fasta
 
 import peptacular as pt
 
 if __name__ == "__main__":
     FASTA = "/home/patrick-garrett/Data/fasta/human_and_contaminants.fasta"
-    fasta_entries: list[str] = [f.sequence for f in pt.parse_fasta(FASTA)]
+    fasta_entries: list[str] = [f.sequence for f in read_fasta(FASTA)]
 
     # remove any peptides with X, B, J, U, or Z
     fasta_entries = [seq for seq in fasta_entries if not any(aa in seq for aa in "XBJUZ")]

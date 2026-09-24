@@ -81,6 +81,7 @@ dev = [
     "pytest-xdist>=3.8.0",
     "lxml>=6.0.2",
     "hypothesis>=6.100",
+    "fastatacular>=1.0,<2",
 ]
 
 [tool.pytest.ini_options]

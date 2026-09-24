@@ -14,7 +14,6 @@ ERROR_CLASSES = [
     pt.InvalidAdjustmentError,
     pt.UnsupportedOperationError,
     pt.InvalidPositionError,
-    pt.FastaFormatError,
 ]
 
 
@@ -72,20 +71,6 @@ def test_out_of_range_slice_is_position_error():
 def test_out_of_range_frag_position_is_position_error():
     with pytest.raises(pt.InvalidPositionError, match="position"):
         pt.parse("PEPTIDE").frag(ion_type="b", position=40)
-
-
-@pytest.mark.parametrize(
-    ("text", "match"),
-    [
-        ("garbage", "Sequence data before header"),
-        (">x\n", "No valid FASTA sequences"),
-        ("", "Empty input"),
-        (">\nPEP", "Empty header"),
-    ],
-)
-def test_parse_fasta_text_errors_are_typed(text, match):
-    with pytest.raises(pt.FastaFormatError, match=match):
-        pt.parse_fasta_text(text)
 
 
 @pytest.mark.parametrize("enzyme", ["notanenzyme", "trypsn", "(?<=K)", "([KR])", ""])

@@ -27,7 +27,6 @@ from .constants import (
 from .diagnostics import (
     CompositionError,
     Diagnostic,
-    FastaFormatError,
     InvalidAdjustmentError,
     InvalidPositionError,
     PeptacularError,
@@ -39,7 +38,6 @@ from .diagnostics import (
     UnsupportedOperationError,
 )
 from .digestion import DigestProtocol, EnzymeConfig
-from .fasta import FASTA_INPUT_TYPE, FastaSequence, iter_fasta, parse_fasta, parse_fasta_text
 from .isotope import (
     AVERAGINE_RATIOS,
     IsotopicData,
@@ -207,6 +205,7 @@ from .sequence import (
     transmembrane_tendency,
     validate,
 )
+from .sequence.util import HasSequence
 from .spans import (
     Span,
     build_enzymatic_spans,
@@ -380,12 +379,9 @@ __all__ = [
     "convert_casanovo_sequence",
     "to_ms2_pip",
     "from_ms2_pip",
-    # FASTA / batch
-    "parse_fasta",
-    "parse_fasta_text",
-    "iter_fasta",
-    "FastaSequence",
-    "FASTA_INPUT_TYPE",
+    # Input protocol
+    "HasSequence",
+    # Batch
     "batch",
     "iter_batch",
     "diagnose",
@@ -440,7 +436,6 @@ __all__ = [
     "CompositionError",
     "InvalidAdjustmentError",
     "InvalidPositionError",
-    "FastaFormatError",
     "UnsupportedOperationError",
     # parallel
     "ParallelMethod",

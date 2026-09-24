@@ -13,7 +13,7 @@ from ..annotation.annotation import (
 from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..isotope import IsotopicData
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "isotopic_distribution",
@@ -22,7 +22,7 @@ __all__ = [
 
 
 def _isotopic_distribution_single(
-    annotation: str | ProFormaAnnotation,
+    annotation: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -42,7 +42,7 @@ def _isotopic_distribution_single(
 
 @overload
 def isotopic_distribution(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -58,7 +58,7 @@ def isotopic_distribution(
 
 @overload
 def isotopic_distribution(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -73,7 +73,7 @@ def isotopic_distribution(
 
 
 def isotopic_distribution(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -127,7 +127,7 @@ def isotopic_distribution(
 
 
 def _estimate_isotopic_distribution_single(
-    annotation: str | ProFormaAnnotation,
+    annotation: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -147,7 +147,7 @@ def _estimate_isotopic_distribution_single(
 
 @overload
 def estimate_isotopic_distribution(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -163,7 +163,7 @@ def estimate_isotopic_distribution(
 
 @overload
 def estimate_isotopic_distribution(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -178,7 +178,7 @@ def estimate_isotopic_distribution(
 
 
 def estimate_isotopic_distribution(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,

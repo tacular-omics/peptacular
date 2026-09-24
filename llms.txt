@@ -20,7 +20,7 @@ Optional extras add an MCP server (`peptacular[mcp]`, console script
 Errors are typed: every peptacular error subclasses `pt.PeptacularError`, itself a
 `ValueError`. Invalid ProForma raises `pt.ProFormaFormatError`; the others are
 `UnknownModificationError`, `CompositionError`, `InvalidAdjustmentError`,
-`InvalidPositionError`, `FastaFormatError` and `UnsupportedOperationError`.
+`InvalidPositionError`, `UnknownEnzymeError`, `UnknownElementError` and `UnsupportedOperationError`.
 
 peptacular is part of tacular-omics. It takes all reference data (modifications, amino
 acids, elements, ion types, proteases) from `tacular`, and its fragments export as mzPAF
@@ -32,7 +32,7 @@ strings that `paftacular` parses.
 - [README](https://github.com/tacular-omics/peptacular/blob/main/README.md): overview, install, quick examples
 - [Quick start](https://peptacular.readthedocs.io/en/latest/quickstart.html): tested examples of parsing, editing, mass, fragments, digestion, isotopes, properties
 - [Mass calculation](https://peptacular.readthedocs.io/en/latest/mass_calculation.html): ion types, charge, isotopes and deltas
-- [Streaming and batch](https://peptacular.readthedocs.io/en/latest/streaming.html): `iter_fasta`, `batch`, `iter_batch`, diagnostics
+- [Streaming and batch](https://peptacular.readthedocs.io/en/latest/streaming.html): reading FASTA with fastatacular, `batch`, `iter_batch`, diagnostics
 - [JSON serialization](https://peptacular.readthedocs.io/en/latest/json_serialization.html): versioned lossless JSON and its schema
 - [CHANGELOG](https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md): release notes and migration from 3.x
 

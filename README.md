@@ -31,7 +31,9 @@ lookup data, and its fragments export directly as mzPAF strings readable by
 - **Fragment ion generation** for 20+ ion types, exportable straight to
   mzPAF strings for [paftacular](https://github.com/tacular-omics/paftacular).
 - **Batch-friendly**: functional API calls on lists of sequences parallelize
-  automatically, with streaming FASTA/gzip input and per-item error collection.
+  automatically, with per-item error collection. Pass FASTA/PEFF entries from
+  [fastatacular](https://github.com/tacular-omics/fastatacular) straight in: any object with a
+  `sequence` string works.
 - **Type-annotated throughout**, plus optional Pyteomics, psm_utils, AlphaBase,
   and MCP integrations.
 
@@ -118,7 +120,7 @@ invalid ProForma raises `pt.ProFormaFormatError`, an unresolved modification
 | Digestion | `pt.digest`, `pt.semi_digest`, `pt.nonspecific_digest` |
 | Fragmentation | `pt.fragment`, `pt.fast_fragment` |
 | Isotopes | `pt.isotopic_distribution`, `pt.brain_isotopic_distribution` |
-| FASTA / streaming | `pt.parse_fasta`, `pt.iter_fasta`, `pt.batch`, `pt.iter_batch` |
+| Batch / streaming | `pt.batch`, `pt.iter_batch`, `pt.diagnose` (read FASTA with fastatacular) |
 | JSON interchange | see the [JSON serialization guide](https://peptacular.readthedocs.io/en/latest/json_serialization.html) |
 
 ## Local MCP integration

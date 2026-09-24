@@ -130,12 +130,14 @@ Digestion and spans
    :members:
    :show-inheritance:
 
-FASTA
-~~~~~
+Input protocol
+~~~~~~~~~~~~~~
 
-.. automodule:: peptacular.fasta
-   :members:
-   :show-inheritance:
+Sequence functions accept a ProForma ``str``, a :class:`~peptacular.ProFormaAnnotation`,
+or any object with a ``sequence`` string attribute, such as a fastatacular
+``SequenceEntry``. peptacular itself does not read FASTA files.
+
+.. autoclass:: peptacular.sequence.util.HasSequence
 
 Properties and scales
 ~~~~~~~~~~~~~~~~~~~~~
@@ -227,10 +229,6 @@ These are available from the top-level ``peptacular`` namespace, except the
 .. py:data:: peptacular.property.WeightingMethodsLiteral
 
    ``Literal['uniform', 'linear', 'exponential', 'gaussian', 'sigmoid', 'cosine', 'sinusoidal']``
-
-.. py:data:: peptacular.fasta.FASTA_INPUT_TYPE
-
-   Accepted FASTA inputs: ``str | pathlib.Path | io.IOBase``.
 
 .. py:data:: peptacular.proforma_components.SEQUENCE_TYPE
 

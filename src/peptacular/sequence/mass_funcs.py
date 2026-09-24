@@ -16,7 +16,7 @@ from ..constants import (
     ParallelMethodLiteral,
 )
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "mass",
@@ -26,7 +26,7 @@ __all__ = [
 
 
 def _mass_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE,
     charge: CHARGE_TYPE | None,
     monoisotopic: bool,
@@ -47,7 +47,7 @@ def _mass_single(
 
 @overload
 def mass(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -63,7 +63,7 @@ def mass(
 
 @overload
 def mass(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -78,7 +78,7 @@ def mass(
 
 
 def mass(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -120,7 +120,7 @@ def mass(
 
 
 def _mz_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE,
     charge: CHARGE_TYPE | None,
     monoisotopic: bool,
@@ -141,7 +141,7 @@ def _mz_single(
 
 @overload
 def mz(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -157,7 +157,7 @@ def mz(
 
 @overload
 def mz(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -172,7 +172,7 @@ def mz(
 
 
 def mz(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -214,7 +214,7 @@ def mz(
 
 
 def _comp_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     isotopes: ISOTOPE_TYPE | None = None,
@@ -232,7 +232,7 @@ def _comp_single(
 
 @overload
 def comp(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -246,7 +246,7 @@ def comp(
 
 @overload
 def comp(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,
@@ -259,7 +259,7 @@ def comp(
 
 
 def comp(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     charge: CHARGE_TYPE | None = None,
     *,
     ion_type: ION_TYPE = IonType.PRECURSOR,

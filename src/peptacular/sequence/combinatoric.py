@@ -4,7 +4,7 @@ from typing import overload
 from ..annotation import ProFormaAnnotation
 from ..constants import ParallelMethod, ParallelMethodLiteral
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "permutations",
@@ -15,7 +15,7 @@ __all__ = [
 
 
 def _permutations_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None = None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence, copy=False)
@@ -24,7 +24,7 @@ def _permutations_single(
 
 @overload
 def permutations(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None = None,
     *,
     n_workers: None = None,
@@ -35,7 +35,7 @@ def permutations(
 
 @overload
 def permutations(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None = None,
     *,
     n_workers: int | None = None,
@@ -45,7 +45,7 @@ def permutations(
 
 
 def permutations(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None = None,
     *,
     n_workers: int | None = None,
@@ -89,7 +89,7 @@ def permutations(
 
 
 def _product_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     repeat: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -98,7 +98,7 @@ def _product_single(
 
 @overload
 def product(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     repeat: int | None,
     *,
     n_workers: None = None,
@@ -109,7 +109,7 @@ def product(
 
 @overload
 def product(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     repeat: int | None,
     *,
     n_workers: int | None = None,
@@ -119,7 +119,7 @@ def product(
 
 
 def product(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     repeat: int | None,
     *,
     n_workers: int | None = None,
@@ -163,7 +163,7 @@ def product(
 
 
 def _combinations_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -172,7 +172,7 @@ def _combinations_single(
 
 @overload
 def combinations(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
     *,
     n_workers: None = None,
@@ -183,7 +183,7 @@ def combinations(
 
 @overload
 def combinations(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
     *,
     n_workers: int | None = None,
@@ -193,7 +193,7 @@ def combinations(
 
 
 def combinations(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
     *,
     n_workers: int | None = None,
@@ -237,7 +237,7 @@ def combinations(
 
 
 def _combinations_with_replacement_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
 ) -> list[str]:
     annotation = get_annotation_input(sequence=sequence, copy=False)
@@ -246,7 +246,7 @@ def _combinations_with_replacement_single(
 
 @overload
 def combinations_with_replacement(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     size: int | None,
     *,
     n_workers: None = None,
@@ -257,7 +257,7 @@ def combinations_with_replacement(
 
 @overload
 def combinations_with_replacement(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
     *,
     n_workers: int | None = None,
@@ -267,7 +267,7 @@ def combinations_with_replacement(
 
 
 def combinations_with_replacement(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     size: int | None,
     *,
     n_workers: int | None = None,

@@ -10,7 +10,6 @@ __all__ = [
     "CompositionError",
     "InvalidAdjustmentError",
     "InvalidPositionError",
-    "FastaFormatError",
     "UnsupportedOperationError",
     "UnknownModificationError",
     "UnknownEnzymeError",
@@ -76,10 +75,6 @@ class UnknownEnzymeError(PeptacularKeyError):
 
 class UnknownElementError(PeptacularKeyError):
     """An element or isotope symbol is not in tacular's ``ELEMENT_LOOKUP``. Also a ``KeyError``."""
-
-
-class FastaFormatError(PeptacularError):
-    """The input is not valid FASTA text."""
 
 
 class UnsupportedOperationError(PeptacularError):

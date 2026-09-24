@@ -14,7 +14,7 @@ from ..annotation.annotation import (
 from ..annotation.utils import Fragment
 from ..constants import ParallelMethod, ParallelMethodLiteral
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "FRAGMENT_MASSES_RETURN",
@@ -27,7 +27,7 @@ FRAGMENT_MASSES_RETURN = dict[tuple[IonType, int], list[float]]
 
 
 def _fragment_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     monoisotopic: bool = True,
@@ -53,7 +53,7 @@ def _fragment_single(
 
 @overload
 def fragment(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     *,
@@ -71,7 +71,7 @@ def fragment(
 
 @overload
 def fragment(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     *,
@@ -88,7 +88,7 @@ def fragment(
 
 
 def fragment(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[CHARGE_TYPE] | None = None,
     *,
@@ -136,7 +136,7 @@ def fragment(
 
 
 def _frag_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     monoisotopic: bool = True,
@@ -160,7 +160,7 @@ def _frag_single(
 
 @overload
 def frag(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     *,
@@ -177,7 +177,7 @@ def frag(
 
 @overload
 def frag(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     *,
@@ -193,7 +193,7 @@ def frag(
 
 
 def frag(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
     *,
@@ -238,7 +238,7 @@ def frag(
 
 
 def _fast_fragment_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     monoisotopic: bool = True,
@@ -253,7 +253,7 @@ def _fast_fragment_single(
 
 @overload
 def fast_fragment(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     *,
@@ -266,7 +266,7 @@ def fast_fragment(
 
 @overload
 def fast_fragment(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     *,
@@ -278,7 +278,7 @@ def fast_fragment(
 
 
 def fast_fragment(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
     charges: Sequence[int] | None = None,
     *,

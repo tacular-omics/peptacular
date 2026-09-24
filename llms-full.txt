@@ -486,34 +486,37 @@ print(pt.convert_casanovo_sequence("+43.006PEPTIDE"))      # [+43.006]-PEPTIDE
 print(pt.to_ms2_pip("PEM[Oxidation]TIDE"))                 # ('PEMTIDE', '3|Oxidation')
 ```
 
-## FASTA and streaming
+## FASTA input
+
+peptacular does not read files (5.0 removed `parse_fasta`, `parse_fasta_text`,
+`iter_fasta`, `FastaSequence` and `FastaFormatError`). Read FASTA with fastatacular
+(`pip install fastatacular`) or PEFF with pefftacular. Every sequence function, and
+`batch` / `iter_batch` / `diagnose`, accepts any object with a `sequence` str attribute
+(the `pt.HasSequence` protocol), so entries go straight in:
 
 ```
-parse_fasta(input_data: str | Path | IOBase, *, encoding: str | None = None) -> list[FastaSequence]
-parse_fasta_text(text: str) -> list[FastaSequence]
-iter_fasta(input_data: str | Path | IOBase, *, encoding: str | None = None) -> Iterator[FastaSequence]
-FastaSequence(header: str, sequence: str)                  # NamedTuple; header has no '>'
+HasSequence                                               # Protocol: .sequence -> str, read as ProForma
 ```
-
-A `str` argument to `parse_fasta` / `iter_fasta` is a **path**. Use `parse_fasta_text`
-for FASTA content that is already in a string. `.gz` paths are decompressed. Files
-opened by the iterator are closed when it finishes. Streams you pass in stay open.
 
 ```python
 import io
+from fastatacular import FastaReader, read_fasta
 import peptacular as pt
 
-print(pt.parse_fasta_text(">sp|P1|X\nMKVLATSAGER\n"))   # [FastaSequence(header='sp|P1|X', sequence='MKVLATSAGER')]
-for rec in pt.iter_fasta(io.StringIO(">a\nPEPTIDE\n>b\nMKR\n")):
-    print(rec.header, rec.sequence)
-# a PEPTIDE
-# b MKR
+with FastaReader(io.StringIO(">a\nPEPTIDE\n>b\nMKR\n")) as entries:
+    for entry in entries:
+        print(entry.identifier, round(pt.mass(entry), 3))
+# a 799.36
+# b 433.247
 ```
+
+fastatacular keeps residue case and raises on an entry with no sequence; the old
+`pt.parse_fasta` uppercased and silently skipped empty entries.
 
 ## Batch processing with per-item errors
 
 ```
-batch(operation, sequences: Iterable[str | ProFormaAnnotation], *, errors: "raise" | "collect" = "raise",
+batch(operation, sequences: Iterable[str | ProFormaAnnotation | HasSequence], *, errors: "raise" | "collect" = "raise",
       batch_size: int = 1000, n_workers=None, chunksize=None, method=None, start_method=None, **kwargs) -> list[BatchResult]
 iter_batch(...same...) -> Iterator[BatchResult]              # yields results lazily, batch_size at a time
 diagnose(sequence, operation="mass", **kwargs) -> Diagnostic | None
@@ -550,7 +553,6 @@ All of these subclass `PeptacularError` (4.2), which subclasses `ValueError`, so
 - `CompositionError`: a composition was requested for delta-mass mods, or the sequence is empty (`pt.mass("")`).
 - `InvalidAdjustmentError`: bad isotope or delta counts.
 - `InvalidPositionError` (4.2): a slice index or `frag(position=...)` is outside the sequence.
-- `FastaFormatError` (4.2): invalid FASTA text (`parse_fasta_text`, `iter_fasta`).
 - `UnsupportedOperationError`: the operation does not support this input, e.g. an unknown ion type (`fragment(ion_types=["q"])`; the message lists valid types).
 - `UnknownEnzymeError` (5.0): an `enzyme` string names no protease in `PROTEASE_LOOKUP` (a typo such as `"trypsn"`, or a regex passed as a string; pass `re.compile(...)` for a custom rule). Also a `KeyError`.
 
@@ -699,8 +701,8 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
    and 1. MS2PIP output is 1-based, because that is its format.
 6. **`fast_fragment` returns a dict of m/z lists**, not `Fragment` objects.
 7. **A single `parse` cannot hold `+`-joined chimeric input.** Use `parse_chimeric`.
-8. **A string passed to `parse_fasta` / `iter_fasta` is a path.** Use
-   `parse_fasta_text` for FASTA content already in a string.
+8. **peptacular does not read FASTA.** Use fastatacular (`read_fasta`, `FastaReader`)
+   and pass the entries directly; anything with a `.sequence` str is accepted.
 9. **Properties ignore modifications.** `secondary_structure` returns fractions, not
    percentages.
 10. **Star imports leak names.** `pt.` also exposes some typing helpers (`pt.Counter`,

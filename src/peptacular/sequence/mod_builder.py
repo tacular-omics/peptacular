@@ -5,7 +5,7 @@ from ..annotation import ProFormaAnnotation
 from ..constants import ModType, ModTypeLiteral, ParallelMethod, ParallelMethodLiteral
 from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "MOD_BUILDER_INPUT_TYPE",
@@ -179,7 +179,7 @@ def modify(
 
 
 def get_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | ModTypeLiteral | None = None,
 ) -> dict[ModType | ModTypeLiteral, Any]:
     """
@@ -190,7 +190,7 @@ def get_mods(
 
 
 def set_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any] | None,
 ) -> str:
     """Replace modifications and return the new ProForma string.
@@ -206,7 +206,7 @@ def set_mods(
 
 
 def append_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
     """Add one modification per key and return the new ProForma string.
@@ -221,7 +221,7 @@ def append_mods(
 
 
 def extend_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
     """Add several modifications per key and return the new ProForma string.
@@ -236,7 +236,7 @@ def extend_mods(
 
 
 def condense_static_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     """
     Condenses static modifications into internal modifications.
@@ -269,7 +269,7 @@ def condense_static_mods(
 
 
 def pop_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> tuple[str, dict[ModType, Any]]:
     """
@@ -293,7 +293,7 @@ def pop_mods(
 
 
 def remove_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     """Remove modifications of the given types and return the new ProForma string.
@@ -308,7 +308,7 @@ def remove_mods(
 
 
 def _strip_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     annotation = get_annotation_input(sequence=sequence, copy=True)
@@ -317,20 +317,20 @@ def _strip_mods(
 
 @overload
 def strip_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str: ...
 
 
 @overload
 def strip_mods(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     mods: ModType | Iterable[ModType] | None = None,
 ) -> list[str]: ...
 
 
 def strip_mods(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str | list[str]:
     """
@@ -357,7 +357,7 @@ def strip_mods(
 
 
 def filter_mods(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
     """
@@ -521,25 +521,25 @@ def from_ms2_pip(
 
 
 def _condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     return get_annotation_input(sequence=sequence, copy=True).condense_to_peptidoform(inplace=False).serialize()
 
 
 @overload
 def condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str: ...
 
 
 @overload
 def condense_to_peptidoform(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
 ) -> list[str]: ...
 
 
 def condense_to_peptidoform(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
 ) -> str | list[str]:
     """
     Condenses all modifications into a peptidoform representation for a sequence or list of sequences.

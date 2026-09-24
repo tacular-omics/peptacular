@@ -21,7 +21,7 @@ from ..property.types import (
     WeightingMethodsLiteral,
 )
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "calc_property",
@@ -54,7 +54,7 @@ __all__ = [
 
 
 def _calc_property_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
     missing_aa_handling: (MissingAAHandlingLiteral | MissingAAHandling) = MissingAAHandling.ERROR,
     aggregation_method: (AggregationMethodLiteral | AggregationMethod) = AggregationMethod.AVG,
@@ -77,7 +77,7 @@ def _calc_property_single(
 
 @overload
 def calc_property(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
     *,
     missing_aa_handling: MissingAAHandlingLiteral | MissingAAHandling = MissingAAHandling.ERROR,
@@ -94,7 +94,7 @@ def calc_property(
 
 @overload
 def calc_property(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     scale: str | dict[str, float],
     *,
     missing_aa_handling: MissingAAHandlingLiteral | MissingAAHandling = MissingAAHandling.ERROR,
@@ -110,7 +110,7 @@ def calc_property(
 
 
 def calc_property(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     scale: str | dict[str, float],
     *,
     missing_aa_handling: MissingAAHandlingLiteral | MissingAAHandling = MissingAAHandling.ERROR,
@@ -156,7 +156,7 @@ def calc_property(
 
 # Helper function for simple property calculations
 def _simple_property_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
 ) -> float:
     return get_annotation_input(sequence=sequence, copy=True).prop.calc_property(
@@ -170,7 +170,7 @@ def _simple_property_single(
 
 @overload
 def hydrophobicity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -180,7 +180,7 @@ def hydrophobicity(
 
 @overload
 def hydrophobicity(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -189,7 +189,7 @@ def hydrophobicity(
 
 
 def hydrophobicity(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -224,7 +224,7 @@ def hydrophobicity(
 
 @overload
 def flexibility(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -234,7 +234,7 @@ def flexibility(
 
 @overload
 def flexibility(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -243,7 +243,7 @@ def flexibility(
 
 
 def flexibility(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -278,7 +278,7 @@ def flexibility(
 
 @overload
 def hydrophilicity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -288,7 +288,7 @@ def hydrophilicity(
 
 @overload
 def hydrophilicity(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -297,7 +297,7 @@ def hydrophilicity(
 
 
 def hydrophilicity(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -332,7 +332,7 @@ def hydrophilicity(
 
 @overload
 def surface_accessibility(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -342,7 +342,7 @@ def surface_accessibility(
 
 @overload
 def surface_accessibility(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -351,7 +351,7 @@ def surface_accessibility(
 
 
 def surface_accessibility(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -386,7 +386,7 @@ def surface_accessibility(
 
 @overload
 def polarity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -396,7 +396,7 @@ def polarity(
 
 @overload
 def polarity(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -405,7 +405,7 @@ def polarity(
 
 
 def polarity(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -440,7 +440,7 @@ def polarity(
 
 @overload
 def mutability(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -450,7 +450,7 @@ def mutability(
 
 @overload
 def mutability(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -459,7 +459,7 @@ def mutability(
 
 
 def mutability(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -494,7 +494,7 @@ def mutability(
 
 @overload
 def codons(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -504,7 +504,7 @@ def codons(
 
 @overload
 def codons(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -513,7 +513,7 @@ def codons(
 
 
 def codons(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -548,7 +548,7 @@ def codons(
 
 @overload
 def bulkiness(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -558,7 +558,7 @@ def bulkiness(
 
 @overload
 def bulkiness(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -567,7 +567,7 @@ def bulkiness(
 
 
 def bulkiness(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -602,7 +602,7 @@ def bulkiness(
 
 @overload
 def recognition_factors(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -612,7 +612,7 @@ def recognition_factors(
 
 @overload
 def recognition_factors(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -621,7 +621,7 @@ def recognition_factors(
 
 
 def recognition_factors(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -656,7 +656,7 @@ def recognition_factors(
 
 @overload
 def transmembrane_tendency(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -666,7 +666,7 @@ def transmembrane_tendency(
 
 @overload
 def transmembrane_tendency(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -675,7 +675,7 @@ def transmembrane_tendency(
 
 
 def transmembrane_tendency(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -710,7 +710,7 @@ def transmembrane_tendency(
 
 @overload
 def average_buried_area(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -720,7 +720,7 @@ def average_buried_area(
 
 @overload
 def average_buried_area(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -729,7 +729,7 @@ def average_buried_area(
 
 
 def average_buried_area(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -764,7 +764,7 @@ def average_buried_area(
 
 @overload
 def hplc(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -774,7 +774,7 @@ def hplc(
 
 @overload
 def hplc(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -783,7 +783,7 @@ def hplc(
 
 
 def hplc(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -818,7 +818,7 @@ def hplc(
 
 @overload
 def refractivity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -828,7 +828,7 @@ def refractivity(
 
 @overload
 def refractivity(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -837,7 +837,7 @@ def refractivity(
 
 
 def refractivity(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -871,7 +871,7 @@ def refractivity(
 
 
 def calc_window_property(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
     *,
     window_size: int = 9,
@@ -908,7 +908,7 @@ def calc_window_property(
 
 
 def _charge_at_ph_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     pH: float = 7.0,
 ) -> float:
     return get_annotation_input(sequence=sequence, copy=False).prop.charge_at_ph(
@@ -918,7 +918,7 @@ def _charge_at_ph_single(
 
 @overload
 def charge_at_ph(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     pH: float = 7.0,
     *,
     n_workers: None = None,
@@ -929,7 +929,7 @@ def charge_at_ph(
 
 @overload
 def charge_at_ph(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     pH: float = 7.0,
     *,
     n_workers: int | None = None,
@@ -939,7 +939,7 @@ def charge_at_ph(
 
 
 def charge_at_ph(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     pH: float = 7.0,
     *,
     n_workers: int | None = None,
@@ -974,7 +974,7 @@ def charge_at_ph(
 
 
 def _pi_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> float:
     annotation = get_annotation_input(sequence=sequence, copy=False)
     return annotation.prop.pi
@@ -982,7 +982,7 @@ def _pi_single(
 
 @overload
 def pi(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -992,7 +992,7 @@ def pi(
 
 @overload
 def pi(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1001,7 +1001,7 @@ def pi(
 
 
 def pi(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1030,7 +1030,7 @@ def pi(
 
 
 def _aa_property_percentage_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     residues: list[str],
 ) -> float:
     return get_annotation_input(sequence=sequence, copy=False).prop.aa_property_percentage(
@@ -1040,7 +1040,7 @@ def _aa_property_percentage_single(
 
 @overload
 def aa_property_percentage(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     residues: list[str],
     *,
     n_workers: None = None,
@@ -1051,7 +1051,7 @@ def aa_property_percentage(
 
 @overload
 def aa_property_percentage(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     residues: list[str],
     *,
     n_workers: int | None = None,
@@ -1061,7 +1061,7 @@ def aa_property_percentage(
 
 
 def aa_property_percentage(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     residues: list[str],
     *,
     n_workers: int | None = None,
@@ -1098,7 +1098,7 @@ DEFAULT_AROMATIC_RESIDUES = ["Y", "W", "F"]
 
 @overload
 def aromaticity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     aromatic_residues: list[str] | None = None,
     n_workers: None = None,
@@ -1109,7 +1109,7 @@ def aromaticity(
 
 @overload
 def aromaticity(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     aromatic_residues: list[str] | None = None,
     n_workers: int | None = None,
@@ -1119,7 +1119,7 @@ def aromaticity(
 
 
 def aromaticity(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     aromatic_residues: list[str] | None = None,
     n_workers: int | None = None,
@@ -1154,7 +1154,7 @@ def aromaticity(
 
 
 def _secondary_structure_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
 ) -> dict[str, float]:
     return get_annotation_input(sequence=sequence, copy=True).prop.secondary_structure(
@@ -1164,7 +1164,7 @@ def _secondary_structure_single(
 
 @overload
 def secondary_structure(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
     n_workers: None = None,
@@ -1175,7 +1175,7 @@ def secondary_structure(
 
 @overload
 def secondary_structure(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
     n_workers: int | None = None,
@@ -1185,7 +1185,7 @@ def secondary_structure(
 
 
 def secondary_structure(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     scale: str = SecondaryStructureMethod.DELEAGE_ROUX,
     n_workers: int | None = None,
@@ -1218,7 +1218,7 @@ def secondary_structure(
 
 
 def _alpha_helix_percent_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> float:
     d = _secondary_structure_single(sequence, scale=SecondaryStructureMethod.DELEAGE_ROUX)
     return d[SecondaryStructureType.ALPHA_HELIX]
@@ -1226,7 +1226,7 @@ def _alpha_helix_percent_single(
 
 @overload
 def alpha_helix_percent(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -1236,7 +1236,7 @@ def alpha_helix_percent(
 
 @overload
 def alpha_helix_percent(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1245,7 +1245,7 @@ def alpha_helix_percent(
 
 
 def alpha_helix_percent(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1276,7 +1276,7 @@ def alpha_helix_percent(
 
 
 def _beta_sheet_percent_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> float:
     d = _secondary_structure_single(sequence, scale=SecondaryStructureMethod.DELEAGE_ROUX)
     return d[SecondaryStructureType.BETA_SHEET]
@@ -1284,7 +1284,7 @@ def _beta_sheet_percent_single(
 
 @overload
 def beta_sheet_percent(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -1294,7 +1294,7 @@ def beta_sheet_percent(
 
 @overload
 def beta_sheet_percent(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1303,7 +1303,7 @@ def beta_sheet_percent(
 
 
 def beta_sheet_percent(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1334,7 +1334,7 @@ def beta_sheet_percent(
 
 
 def _beta_turn_percent_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> float:
     d = _secondary_structure_single(sequence, scale=SecondaryStructureMethod.DELEAGE_ROUX)
     return d[SecondaryStructureType.BETA_TURN]
@@ -1342,7 +1342,7 @@ def _beta_turn_percent_single(
 
 @overload
 def beta_turn_percent(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -1352,7 +1352,7 @@ def beta_turn_percent(
 
 @overload
 def beta_turn_percent(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1361,7 +1361,7 @@ def beta_turn_percent(
 
 
 def beta_turn_percent(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1392,7 +1392,7 @@ def beta_turn_percent(
 
 
 def _coil_percent_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> float:
     d = _secondary_structure_single(sequence, scale=SecondaryStructureMethod.DELEAGE_ROUX)
     return d[SecondaryStructureType.COIL]
@@ -1400,7 +1400,7 @@ def _coil_percent_single(
 
 @overload
 def coil_percent(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -1410,7 +1410,7 @@ def coil_percent(
 
 @overload
 def coil_percent(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1419,7 +1419,7 @@ def coil_percent(
 
 
 def coil_percent(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -1450,7 +1450,7 @@ def coil_percent(
 
 
 def _property_partitions_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
     num_windows: int = 5,
     aa_overlap: int = 0,
@@ -1476,7 +1476,7 @@ def _property_partitions_single(
 
 @overload
 def property_partitions(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     scale: str | dict[str, float],
     *,
     num_windows: int = 5,
@@ -1495,7 +1495,7 @@ def property_partitions(
 
 @overload
 def property_partitions(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     scale: str | dict[str, float],
     *,
     num_windows: int = 5,
@@ -1513,7 +1513,7 @@ def property_partitions(
 
 
 def property_partitions(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     scale: str | dict[str, float],
     *,
     num_windows: int = 5,

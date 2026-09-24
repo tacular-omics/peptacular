@@ -8,7 +8,7 @@ from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..diagnostics import PeptacularError
 from ..spans import Span
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "reverse",
@@ -22,7 +22,7 @@ __all__ = [
 
 
 def _reverse_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
 ) -> str:
@@ -31,7 +31,7 @@ def _reverse_single(
 
 @overload
 def reverse(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
@@ -43,7 +43,7 @@ def reverse(
 
 @overload
 def reverse(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
@@ -54,7 +54,7 @@ def reverse(
 
 
 def reverse(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
@@ -95,7 +95,7 @@ def reverse(
 
 
 def _shuffle_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
@@ -106,7 +106,7 @@ def _shuffle_single(
 
 @overload
 def shuffle(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     seed: int | None = None,
     keep_nterm: int = 0,
@@ -119,7 +119,7 @@ def shuffle(
 
 @overload
 def shuffle(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     seed: int | None = None,
     keep_nterm: int = 0,
@@ -131,7 +131,7 @@ def shuffle(
 
 
 def shuffle(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     seed: int | None = None,
     keep_nterm: int = 0,
@@ -173,7 +173,7 @@ def shuffle(
 
 
 def _shift_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     n: int,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
@@ -184,7 +184,7 @@ def _shift_single(
 
 @overload
 def shift(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     n: int,
     *,
     keep_nterm: int = 0,
@@ -197,7 +197,7 @@ def shift(
 
 @overload
 def shift(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     n: int,
     *,
     keep_nterm: int = 0,
@@ -209,7 +209,7 @@ def shift(
 
 
 def shift(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     n: int,
     *,
     keep_nterm: int = 0,
@@ -251,7 +251,7 @@ def shift(
 
 
 def _span_to_sequence_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     span: tuple[int, int, int],
 ) -> str:
     return get_annotation_input(sequence=sequence, copy=True).slice(span[0], span[1], inplace=True).serialize()
@@ -259,7 +259,7 @@ def _span_to_sequence_single(
 
 @overload
 def span_to_sequence(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     span: tuple[int, int, int],
     *,
     n_workers: None = None,
@@ -270,7 +270,7 @@ def span_to_sequence(
 
 @overload
 def span_to_sequence(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     span: tuple[int, int, int],
     *,
     n_workers: int | None = None,
@@ -280,7 +280,7 @@ def span_to_sequence(
 
 
 def span_to_sequence(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     span: tuple[int, int, int] | Span,
     *,
     n_workers: int | None = None,
@@ -313,14 +313,14 @@ def span_to_sequence(
 
 
 def _split_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> list[str]:
     return [a.serialize() for a in get_annotation_input(sequence=sequence, copy=True).split()]
 
 
 @overload
 def split(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -330,7 +330,7 @@ def split(
 
 @overload
 def split(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -339,7 +339,7 @@ def split(
 
 
 def split(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -368,7 +368,7 @@ def split(
 
 
 def _sort_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
 ) -> str:
@@ -377,7 +377,7 @@ def _sort_single(
 
 @overload
 def sort(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
@@ -389,7 +389,7 @@ def sort(
 
 @overload
 def sort(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
@@ -400,7 +400,7 @@ def sort(
 
 
 def sort(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,

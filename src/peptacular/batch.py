@@ -11,6 +11,7 @@ from .annotation import ProFormaAnnotation
 from .constants import ParallelMethod, ParallelMethodLiteral
 from .diagnostics import Diagnostic, PeptacularError, diagnostic_from_exception
 from .sequence.parallel import AUTO_PARALLEL_MIN_ITEMS, _get_optimal_method, _validate_positive_int, coerce_parallel_method
+from .sequence.util import HasSequence, as_sequence_input
 
 if TYPE_CHECKING:
     from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
@@ -35,13 +36,13 @@ class BatchResult:
     ``input`` is a :class:`ProFormaAnnotation` or ``value`` is a list or dict.
 
     :param index: Zero-based position in the original iterable.
-    :param input: Original sequence string or annotation.
+    :param input: The original input (sequence string, annotation, or object with a ``sequence`` attribute).
     :param value: Operation result, or ``None`` on input failure.
     :param error: Input diagnostic, or ``None`` on success.
     """
 
     index: int
-    input: str | ProFormaAnnotation
+    input: str | ProFormaAnnotation | HasSequence
     value: Any = None
     error: Diagnostic | None = None
 
@@ -60,18 +61,19 @@ def _validate_operation(operation: BatchOperation, kwargs: dict[str, Any]) -> No
 
 
 def _run_item(
-    item: tuple[int, str | ProFormaAnnotation],
+    item: tuple[int, str | ProFormaAnnotation | HasSequence],
     *,
     operation: BatchOperation,
     kwargs: dict[str, Any],
     errors: Literal["raise", "collect"],
 ) -> BatchResult:
-    index, sequence = item
+    index, original = item
     stage: Literal["parse", "validate", "calculate"] = "parse"
-    if not isinstance(sequence, (str, ProFormaAnnotation)):
+    sequence = as_sequence_input(original)
+    if sequence is None:
         if errors == "raise":
-            raise TypeError("Batch inputs must be sequence strings or ProFormaAnnotation objects")
-        return BatchResult(index, sequence, error=Diagnostic("invalid_input", "parse", "Expected a sequence string or annotation", "TypeError"))
+            raise TypeError("Batch inputs must be sequence strings, ProFormaAnnotation objects, or objects with a str 'sequence' attribute")
+        return BatchResult(index, original, error=Diagnostic("invalid_input", "parse", "Expected a sequence string or annotation", "TypeError"))
     try:
         annotation = ProFormaAnnotation.parse(sequence) if isinstance(sequence, str) else sequence.copy()
         stage = "validate"
@@ -88,14 +90,14 @@ def _run_item(
             if operation == "digest":
                 # Consume lazy failures here and return a process-safe value.
                 value = list(value)
-        return BatchResult(index, sequence, value=value)
+        return BatchResult(index, original, value=value)
     except (ValueError, KeyError) as exc:
         if errors == "raise":
             raise
-        return BatchResult(index, sequence, error=diagnostic_from_exception(exc, stage))
+        return BatchResult(index, original, error=diagnostic_from_exception(exc, stage))
 
 
-def diagnose(sequence: str | ProFormaAnnotation, operation: BatchOperation = "mass", **kwargs: Any) -> Diagnostic | None:
+def diagnose(sequence: str | ProFormaAnnotation | HasSequence, operation: BatchOperation = "mass", **kwargs: Any) -> Diagnostic | None:
     """Run one operation and return its input diagnostic, or ``None`` on success.
 
     Parsing, annotation validation, and calculation failures are distinguished.
@@ -110,7 +112,7 @@ def diagnose(sequence: str | ProFormaAnnotation, operation: BatchOperation = "ma
 
 def iter_batch(
     operation: BatchOperation,
-    sequences: Iterable[str | ProFormaAnnotation],
+    sequences: Iterable[str | ProFormaAnnotation | HasSequence],
     *,
     errors: Literal["raise", "collect"] = "raise",
     batch_size: int = 1000,
@@ -200,7 +202,7 @@ def _available_cpus() -> int:
 
 def batch(
     operation: BatchOperation,
-    sequences: Iterable[str | ProFormaAnnotation],
+    sequences: Iterable[str | ProFormaAnnotation | HasSequence],
     *,
     errors: Literal["raise", "collect"] = "raise",
     batch_size: int = 1000,

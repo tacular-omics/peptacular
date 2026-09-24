@@ -1,11 +1,17 @@
 """
 FASTA Digestion Example
 ========================
-Parse protein sequences from a FASTA file and digest each one with trypsin.
+Read proteins from a FASTA file with fastatacular and digest each one with trypsin.
+
+peptacular does not read files. Its sequence functions accept any object with a
+``sequence`` string attribute, so a fastatacular ``SequenceEntry`` goes straight in.
+Install the reader with ``pip install fastatacular``.
 """
 
 import os
 import tempfile
+
+from fastatacular import read_fasta
 
 import peptacular as pt
 
@@ -18,21 +24,18 @@ MSEQKGARVTDEPTIDER
 
 
 def run():
-    # Write the FASTA text to a real file so pt.parse_fasta can read it from disk. Use a
-    # temporary directory so the file is cleaned up automatically when the block exits.
+    # Write the FASTA text to a real file, in a temporary directory that is removed on exit.
     with tempfile.TemporaryDirectory() as tmp_dir:
         fasta_path = os.path.join(tmp_dir, "example.fasta")
         with open(fasta_path, "w") as f:
             f.write(FASTA_TEXT)
 
-        records = pt.parse_fasta(fasta_path)
+        entries = read_fasta(fasta_path)
 
-        for record in records:
-            protein = pt.parse(record.sequence)
-            print(f"\n{record.header} ({record.sequence})")
-            for span in protein.digest_spans(pt.Protease.TRYPSIN, missed_cleavages=1, min_len=4):
-                peptide = protein[span]
-                print(f"  {peptide.serialize()}  mass={peptide.mass():.4f}")
+    for entry in entries:
+        print(f"\n{entry.accession} {entry.pname} ({entry.sequence})")
+        for peptide, span in pt.digest(entry, pt.Protease.TRYPSIN, missed_cleavages=1, min_len=4):
+            print(f"  {peptide:<20} {span.start:>3}-{span.end:<3} mass={pt.mass(peptide):.4f}")
 
 
 if __name__ == "__main__":

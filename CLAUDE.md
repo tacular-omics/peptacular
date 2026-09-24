@@ -83,7 +83,6 @@ src/peptacular/
   spans.py               Span(start, end, missed_cleavages) and span builders
   isotope.py             BRAIN isotope envelopes, averagine estimates, IsotopicData
   chem.py                chem_mass / chem_comp / chem_formula / parse_formula
-  fasta.py               parse_fasta, iter_fasta (streaming, .gz), FastaSequence
   batch.py               batch / iter_batch / diagnose with per-item error collection
   diagnostics.py         Diagnostic, UnknownModificationError, CompositionError, ...
   proforma_json.py       versioned lossless JSON; schema in schemas/proforma-json-v1.schema.json
@@ -133,8 +132,9 @@ which builds a `Fragment`.
   `annot.prop` object (`AnnotationProperties`).
 - **Converters**: `convert_ip2_sequence`, `convert_diann_sequence`,
   `convert_casanovo_sequence`, `to_ms2_pip`, `from_ms2_pip`.
-- **FASTA / batch**: `parse_fasta`, `parse_fasta_text`, `iter_fasta`, `FastaSequence`,
-  `batch`, `iter_batch`, `diagnose`, `BatchResult`, `Diagnostic`.
+- **Batch**: `batch`, `iter_batch`, `diagnose`, `BatchResult`, `Diagnostic`, and the
+  `HasSequence` input protocol (any object with a `.sequence` str, e.g. a fastatacular
+  entry; peptacular itself reads no files).
 - **JSON**: `to_proforma_json`, `from_proforma_json`, `to_proforma_dict`,
   `from_proforma_dict`, `get_proforma_json_schema`.
 - **ProForma components** (`proforma_components`): `ChargedFormula`, `FormulaElement`,

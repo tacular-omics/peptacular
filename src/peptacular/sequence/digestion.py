@@ -7,7 +7,7 @@ from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..digestion.core import generate_regex
 from ..spans import Span
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "left_semi_digest",
@@ -22,7 +22,7 @@ __all__ = [
 
 
 def _left_semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
@@ -38,7 +38,7 @@ def _left_semi_digest(
 
 @overload
 def left_semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -50,7 +50,7 @@ def left_semi_digest(
 
 @overload
 def left_semi_digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -61,7 +61,7 @@ def left_semi_digest(
 
 
 def left_semi_digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -98,7 +98,7 @@ def left_semi_digest(
 
 
 def _right_semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
@@ -114,7 +114,7 @@ def _right_semi_digest(
 
 @overload
 def right_semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -126,7 +126,7 @@ def right_semi_digest(
 
 @overload
 def right_semi_digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -137,7 +137,7 @@ def right_semi_digest(
 
 
 def right_semi_digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -174,7 +174,7 @@ def right_semi_digest(
 
 
 def _semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
@@ -190,7 +190,7 @@ def _semi_digest(
 
 @overload
 def semi_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -202,7 +202,7 @@ def semi_digest(
 
 @overload
 def semi_digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -213,7 +213,7 @@ def semi_digest(
 
 
 def semi_digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -244,7 +244,7 @@ def semi_digest(
 
 
 def _nonspecific_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
@@ -260,7 +260,7 @@ def _nonspecific_digest(
 
 @overload
 def nonspecific_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -272,7 +272,7 @@ def nonspecific_digest(
 
 @overload
 def nonspecific_digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -283,7 +283,7 @@ def nonspecific_digest(
 
 
 def nonspecific_digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     min_len: int | None = None,
     max_len: int | None = None,
@@ -312,13 +312,13 @@ def nonspecific_digest(
         )
 
 
-def _cleavage_sites(sequence: str | ProFormaAnnotation, enzyme: str | re.Pattern[str]) -> list[int]:
+def _cleavage_sites(sequence: str | ProFormaAnnotation | HasSequence, enzyme: str | re.Pattern[str]) -> list[int]:
     return list(get_annotation_input(sequence, copy=False).cleavage_sites(enzyme=enzyme))
 
 
 @overload
 def cleavage_sites(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     enzyme: str | re.Pattern[str],
     *,
     n_workers: None = None,
@@ -329,7 +329,7 @@ def cleavage_sites(
 
 @overload
 def cleavage_sites(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     enzyme: str | re.Pattern[str],
     *,
     n_workers: int | None = None,
@@ -339,7 +339,7 @@ def cleavage_sites(
 
 
 def cleavage_sites(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     enzyme: str | re.Pattern[str],
     *,
     n_workers: int | None = None,
@@ -380,7 +380,7 @@ def cleavage_sites(
 
 
 def _simple_cleavage_sites(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     cleave_on: str,
     restrict_before: str = "",
     restrict_after: str = "",
@@ -397,7 +397,7 @@ def _simple_cleavage_sites(
 
 @overload
 def simple_cleavage_sites(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     cleave_on: str,
     *,
     restrict_before: str = "",
@@ -411,7 +411,7 @@ def simple_cleavage_sites(
 
 @overload
 def simple_cleavage_sites(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     cleave_on: str,
     *,
     restrict_before: str = "",
@@ -424,7 +424,7 @@ def simple_cleavage_sites(
 
 
 def simple_cleavage_sites(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     cleave_on: str,
     *,
     restrict_before: str = "",
@@ -460,7 +460,7 @@ def simple_cleavage_sites(
 
 
 def _digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
@@ -482,7 +482,7 @@ def _digest(
 
 @overload
 def digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     enzyme: str | re.Pattern[str],
     *,
     missed_cleavages: int = 0,
@@ -497,7 +497,7 @@ def digest(
 
 @overload
 def digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     enzyme: str | re.Pattern[str],
     *,
     missed_cleavages: int = 0,
@@ -511,7 +511,7 @@ def digest(
 
 
 def digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     enzyme: str | re.Pattern[str],
     *,
     missed_cleavages: int = 0,
@@ -565,7 +565,7 @@ def digest(
 
 
 def _digest_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     cleave_on: str,
     restrict_before: str = "",
     restrict_after: str = "",
@@ -593,7 +593,7 @@ def _digest_single(
 
 @overload
 def simple_digest(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     cleave_on: str,
     *,
     restrict_before: str = "",
@@ -611,7 +611,7 @@ def simple_digest(
 
 @overload
 def simple_digest(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     cleave_on: str,
     *,
     restrict_before: str = "",
@@ -628,7 +628,7 @@ def simple_digest(
 
 
 def simple_digest(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     cleave_on: str,
     *,
     restrict_before: str = "",

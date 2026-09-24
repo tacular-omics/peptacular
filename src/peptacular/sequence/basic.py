@@ -7,7 +7,7 @@ from ..annotation import (
 from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..diagnostics import PeptacularError
 from .parallel import parallel_apply_internal
-from .util import get_annotation_input
+from .util import HasSequence, get_annotation_input
 
 __all__ = [
     "parse_chimeric",
@@ -203,14 +203,14 @@ def parse(
 
 
 def _serialize_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> str:
     return get_annotation_input(sequence, copy=False).serialize()
 
 
 @overload
 def serialize(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -220,7 +220,7 @@ def serialize(
 
 @overload
 def serialize(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -229,7 +229,7 @@ def serialize(
 
 
 def serialize(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -248,13 +248,13 @@ def serialize(
         return _serialize_single(sequence)
 
 
-def _sequence_length_single(sequence: str | ProFormaAnnotation) -> int:
+def _sequence_length_single(sequence: str | ProFormaAnnotation | HasSequence) -> int:
     return len(get_annotation_input(sequence, copy=False))
 
 
 @overload
 def sequence_length(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -264,7 +264,7 @@ def sequence_length(
 
 @overload
 def sequence_length(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -273,7 +273,7 @@ def sequence_length(
 
 
 def sequence_length(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -292,13 +292,13 @@ def sequence_length(
         return _sequence_length_single(sequence)
 
 
-def _is_ambiguous_single(sequence: str | ProFormaAnnotation) -> bool:
+def _is_ambiguous_single(sequence: str | ProFormaAnnotation | HasSequence) -> bool:
     return get_annotation_input(sequence, copy=False).has_sequence_ambiguity
 
 
 @overload
 def is_ambiguous(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -308,7 +308,7 @@ def is_ambiguous(
 
 @overload
 def is_ambiguous(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -317,7 +317,7 @@ def is_ambiguous(
 
 
 def is_ambiguous(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -336,13 +336,13 @@ def is_ambiguous(
         return _is_ambiguous_single(sequence)
 
 
-def _is_modified_single(sequence: str | ProFormaAnnotation) -> bool:
+def _is_modified_single(sequence: str | ProFormaAnnotation | HasSequence) -> bool:
     return get_annotation_input(sequence, copy=False).has_mods()
 
 
 @overload
 def is_modified(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -352,7 +352,7 @@ def is_modified(
 
 @overload
 def is_modified(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -361,7 +361,7 @@ def is_modified(
 
 
 def is_modified(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -380,7 +380,7 @@ def is_modified(
         return _is_modified_single(sequence)
 
 
-def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: bool = True) -> dict[str, int]:
+def _count_residues_single(sequence: str | ProFormaAnnotation | HasSequence, include_mods: bool = True) -> dict[str, int]:
     # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
     # caller-supplied ProFormaAnnotation in what is meant to be a read-only query.
     return get_annotation_input(sequence, copy=True).condense_static_mods(inplace=True).count_residues(include_mods=include_mods)
@@ -388,7 +388,7 @@ def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: boo
 
 @overload
 def count_residues(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     include_mods: bool = True,
     n_workers: None = None,
@@ -399,7 +399,7 @@ def count_residues(
 
 @overload
 def count_residues(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     include_mods: bool = True,
     n_workers: int | None = None,
@@ -409,7 +409,7 @@ def count_residues(
 
 
 def count_residues(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     include_mods: bool = True,
     n_workers: int | None = None,
@@ -447,7 +447,7 @@ def count_residues(
 
 
 def _percent_residues_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     include_mods: bool = True,
 ) -> dict[str, float]:
     # copy=True: condense_static_mods(inplace=True) below would otherwise mutate a
@@ -457,7 +457,7 @@ def _percent_residues_single(
 
 @overload
 def percent_residues(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     include_mods: bool = True,
     n_workers: None = None,
@@ -468,7 +468,7 @@ def percent_residues(
 
 @overload
 def percent_residues(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     include_mods: bool = True,
     n_workers: int | None = None,
@@ -478,7 +478,7 @@ def percent_residues(
 
 
 def percent_residues(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     include_mods: bool = True,
     n_workers: int | None = None,
@@ -518,7 +518,7 @@ def percent_residues(
 
 
 def annotate_ambiguity(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     forward_coverage: list[int],
     reverse_coverage: list[int],
     *,
@@ -583,7 +583,7 @@ def annotate_ambiguity(
 
 
 def _validate_single(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
 ) -> bool:
     try:
         get_annotation_input(sequence, copy=False).validate_annotation()
@@ -594,7 +594,7 @@ def _validate_single(
 
 @overload
 def validate(
-    sequence: str | ProFormaAnnotation,
+    sequence: str | ProFormaAnnotation | HasSequence,
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -604,7 +604,7 @@ def validate(
 
 @overload
 def validate(
-    sequence: Sequence[str | ProFormaAnnotation],
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -613,7 +613,7 @@ def validate(
 
 
 def validate(
-    sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,

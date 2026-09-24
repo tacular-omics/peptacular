@@ -173,8 +173,8 @@ zero-based end-exclusive spans. Pass the selected peptide strings to
     }
 
 For file ingestion, filtering, and saving tables, use the client's existing
-file tools or Peptacular's Python APIs. Large FASTA workflows can use
-``iter_fasta`` and ``iter_batch`` from the :doc:`streaming` guide. The MCP
+file tools or Peptacular's Python APIs. Large FASTA workflows can read entries
+with fastatacular and pass them to ``iter_batch``, as in the :doc:`streaming` guide. The MCP
 interface is intended for individual annotations and small batches.
 
 Execution and limits
