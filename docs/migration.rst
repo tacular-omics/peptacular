@@ -79,4 +79,4 @@ Behaviour changes
    * - Bare ``ValueError`` from parsers and internals
      - ``ProFormaFormatError`` for bad ProForma, ``PeptacularError`` otherwise
    * - ``IndexError`` for positions outside the sequence
-     - ``InvalidPositionError`` (a ``PeptacularError``, not an ``IndexError``)
+     - ``InvalidPositionError`` (a ``PeptacularError`` and still an ``IndexError``)

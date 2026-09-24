@@ -24,7 +24,7 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 - Digestion takes `enzyme=`, a protease name or a compiled `re.Pattern`. A string is only looked up as a protease name; an unknown name raises the new `UnknownEnzymeError` (a `PeptacularError`) instead of being used as a regex. `digestion.core.resolve_enzyme` does the lookup. `EnzymeConfig` has `enzyme` instead of `enzyme_regex` and is frozen.
 - `ProFormaAnnotation.digest`/`simple_digest`/`sequential_digest` are renamed `digest_spans`/`simple_digest_spans`/`sequential_digest_spans`, since they return spans while the functional `pt.digest` returns sequence/span pairs. The batch `"digest"` operation calls `digest_spans`.
 - `ProFormaAnnotation` is unhashable (`__hash__ = None`): it is mutable, so a hash could change while it sits in a set or dict. Key on `annot.serialize()`.
-- The library raises `PeptacularError` subclasses instead of bare `ValueError`, and `InvalidPositionError` instead of `IndexError`. The ProForma component parsers raise `ProFormaFormatError`. The MCP layer still raises `ValueError` for pydantic.
+- The library raises `PeptacularError` subclasses instead of bare `ValueError`, and `InvalidPositionError` (still an `IndexError` subclass) instead of a bare `IndexError`. The ProForma component parsers raise `ProFormaFormatError`. The MCP layer still raises `ValueError` for pydantic.
 
 ## [4.2.0] (2026-09-23)
 

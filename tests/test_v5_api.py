@@ -111,3 +111,9 @@ class TestPeptacularErrors:
     def test_internal_index_errors_are_invalid_position_errors(self):
         assert issubclass(pt.InvalidPositionError, IndexError)
         assert issubclass(pt.InvalidPositionError, pt.PeptacularError)
+
+
+def test_annotation_simple_cleavage_sites_uses_generated_pattern():
+    annot = pt.parse("PEPTIDEKAAR")
+    assert list(annot.simple_cleavage_sites("KR")) == [8, 11]
+    assert list(annot.simple_cleavage_sites("KR")) == pt.simple_cleavage_sites("PEPTIDEKAAR", "KR")
