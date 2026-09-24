@@ -62,6 +62,8 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 
 ### Fixed
 - `Fragment.to_mzpaf` wrote a formula gain (`deltas={"H2O": -1}`) as a loss (`-H2O`); it now writes `+H2O`. A numeric mass delta is written as a signed fixed-point mass rounded to 6 decimals (`b2-34.0` for `{-17.0: 2}`, `+0.00001` for `1e-5`) instead of raising.
+- `Fragment.to_mzpaf` and `serialize(format="mzpaf")` write a negative charge signed (`y3{IDE}^-1`, `b3{PEP}^-2`) instead of as a bare magnitude (`^1`), which parsed back as a positive ion 2 Da heavier per charge. This reverses the 4.x change. The new `signed_charge=False` keyword writes the magnitude only (mzPAF 1.0.1 section 4.8), matching paftacular's `serialize(signed_charge=False)`.
+- The mzPAF label of an immonium ion dropped a terminal modification on its residue, so the label's mass was wrong: `[Acetyl]-PEPTIDE` at position 1 gave `IP`. The terminal mod is now written as the immonium modification (`IP[Acetyl]`, `IE[Amidated]`), as paftacular 2.0 does. More than one modification to write (for example `[Acetyl]-P[Oxidation]`) raises `PeptacularError`.
 
 ## [4.2.0] (2026-09-23)
 

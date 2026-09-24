@@ -496,7 +496,7 @@ class Fragment:
             "deltas": self.deltas,
         }
 
-    def serialize(self, *, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True) -> str:
+    def serialize(self, *, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Serialize the fragment to a string representation.
 
         :param format: Output format. ``"default"`` returns the human-readable representation,
@@ -504,17 +504,19 @@ class Fragment:
         :type format: Literal["default", "mzpaf"]
         :param include_sequence: If True, include the peptide sequence in the mzPAF label. Only used for ``"mzpaf"`` format.
         :type include_sequence: bool
+        :param signed_charge: If True, write a negative charge as ``^-n`` in the mzPAF label. Only used for ``"mzpaf"`` format.
+        :type signed_charge: bool
         :return: The serialized fragment string.
         :rtype: str
         """
         if format == "default":
             return str(self)
         elif format == "mzpaf":
-            return self._serialize_mzpaf(include_sequence=include_sequence)
+            return self._serialize_mzpaf(include_sequence=include_sequence, signed_charge=signed_charge)
         else:
             raise PeptacularError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
 
-    def to_mzpaf(self, *, include_sequence: bool = True) -> str:
+    def to_mzpaf(self, *, include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Serialize the fragment to an mzPAF (Peak Annotation Format) label string.
 
         mzPAF 1.0.1 ``z`` is the z-dot radical (``IonType.Z_RADICAL``). The Biemann ``z``
@@ -529,14 +531,26 @@ class Fragment:
         decimals (``b2-34.0`` for ``{-17.0: 2}``); one that rounds to zero is left out. A formula with both positive and negative
         element counts (``CH-2``) cannot be written and raises :class:`PeptacularError`.
 
+        A negative charge is written signed (``y3{IDE}^-1``) so the label parses back to the
+        same m/z, as paftacular does. mzPAF 1.0.1 section 4.8 says the charge MUST NOT include
+        the minus sign (negative mode is a property of the spectrum); pass
+        ``signed_charge=False`` to write only the magnitude.
+
+        An immonium ion takes at most one modification (``IP[Oxidation]``). A terminal
+        modification on the residue is written there as well, so ``[Acetyl]-PEP`` at position
+        1 gives ``IP[Acetyl]``; more than one modification raises :class:`PeptacularError`.
+
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
+        :param signed_charge: If True (default), write a negative charge as ``^-n``;
+            if False, write ``^n``.
+        :type signed_charge: bool
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
         :rtype: str
         """
-        return self._serialize_mzpaf(include_sequence=include_sequence)
+        return self._serialize_mzpaf(include_sequence=include_sequence, signed_charge=signed_charge)
 
-    def _serialize_mzpaf(self, *, include_sequence: bool = True) -> str:
+    def _serialize_mzpaf(self, *, include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Build the mzPAF label string for this fragment."""
         from .annotation import ProFormaAnnotation
 
@@ -571,16 +585,24 @@ class Fragment:
                             annot = ProFormaAnnotation.parse(seq)
                             parts.append(f"I{annot.sequence}")
 
-                            if annot.has_internal_mods_at_index(0):
-                                internal_mods = annot.get_internal_mods_at_index(0)
-                                if len(internal_mods) > 1:
-                                    raise PeptacularError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
-                                if len(internal_mods) == 1 and internal_mods.mods[0].count > 1:
-                                    raise PeptacularError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
-                                mods_str = internal_mods.serialize()[1:-1]  # remove surrounding brackets
-                                if mods_str == "":
-                                    raise PeptacularError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
-                                parts.append(f"[{mods_str}]")
+                            # mzPAF allows one modification on an immonium ion. A terminal
+                            # modification of the residue (e.g. an N-terminal acetyl) adds the
+                            # same mass, so it is written there too (matches paftacular 2.0).
+                            tags: list[str] = []
+                            for has_mods, get_mods in (
+                                (annot.has_internal_mods_at_index(0), lambda: annot.get_internal_mods_at_index(0)),
+                                (annot.has_nterm_mods, lambda: annot.nterm_mods),
+                                (annot.has_cterm_mods, lambda: annot.cterm_mods),
+                            ):
+                                if has_mods:
+                                    for mod in get_mods().mods:
+                                        tags.extend([str(mod.value)] * mod.count)
+                            if len(tags) > 1:
+                                raise PeptacularError(f"mzPAF allows one modification on an immonium ion, got {', '.join(tags)}")
+                            if tags:
+                                if tags[0] == "":
+                                    raise PeptacularError("Empty modification string for immonium ion is not valid in mzPAF.")
+                                parts.append(f"[{tags[0]}]")
                         else:
                             raise PeptacularError("Immonium ion must have a sequence annotation.")
                     else:
@@ -680,12 +702,13 @@ class Fragment:
             adduct_parts.sort(key=_adduct_sort_key)
             parts.append(f"[M{''.join(adduct_parts)}]")
 
-        # Charge: mzPAF omits the component only for +1 (implicit); everything else,
-        # including negative charges, is written as a bare magnitude with no sign
-        # (mzPAF spec section 4.8: "The charge state component ... MUST NOT include
-        # the minus sign").
-        if self.charge_state != 0 and self.charge_state != 1:
-            parts.append(f"^{abs(self.charge_state)}")
+        # Charge: mzPAF omits the component only for +1 (implicit). A negative charge is
+        # written signed (``^-1``) so the label parses back to the same m/z. mzPAF 1.0.1
+        # section 4.8 says the charge MUST NOT include the minus sign (negative mode is a
+        # property of the spectrum); ``signed_charge=False`` writes only the magnitude.
+        charge = self.charge_state if signed_charge else abs(self.charge_state)
+        if charge != 0 and charge != 1:
+            parts.append(f"^{charge}")
 
         return "".join(parts)
 

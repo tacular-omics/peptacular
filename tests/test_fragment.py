@@ -755,6 +755,27 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEP[+10]TIDE/2").frag(ion_type=pt.IonType.IMMONIUM, charge=2, position=3)
         self.assertEqual(frag.to_mzpaf(), "IP[+10]^2")
 
+    def test_immonium_nterm_mod(self):
+        frag = pt.parse("[Acetyl]-PEPTIDE").frag(ion_type=pt.IonType.IMMONIUM, charge=1, position=1)
+        self.assertEqual(frag.to_mzpaf(), "IP[Acetyl]")
+
+    def test_immonium_cterm_mod(self):
+        frag = pt.parse("PEPTIDE-[Amidated]").frag(ion_type=pt.IonType.IMMONIUM, charge=1, position=7)
+        self.assertEqual(frag.to_mzpaf(), "IE[Amidated]")
+
+    def test_immonium_terminal_mod_only_on_terminal_residue(self):
+        frag = pt.parse("[Acetyl]-PEPTIDE-[Amidated]").frag(ion_type=pt.IonType.IMMONIUM, charge=1, position=3)
+        self.assertEqual(frag.to_mzpaf(), "IP")
+
+    def test_immonium_nterm_and_internal_mod_raises(self):
+        frag = pt.parse("[Acetyl]-P[Oxidation]EPTIDE").frag(ion_type=pt.IonType.IMMONIUM, charge=1, position=1)
+        with self.assertRaises(pt.PeptacularError):
+            frag.to_mzpaf()
+
+    def test_immonium_negative_charge(self):
+        frag = pt.parse("[Acetyl]-PEPTIDE").frag(ion_type=pt.IonType.IMMONIUM, charge=-1, position=1)
+        self.assertEqual(frag.to_mzpaf(), "IP[Acetyl]^-1")
+
     def test_internal_by(self):
         frag = pt.parse("PEPTIDE/2").frag(ion_type=pt.IonType.BY, charge=2, position=(3, 5))
         self.assertEqual(frag.to_mzpaf(), "m3:5{PTI}^2")
@@ -956,20 +977,20 @@ class TestFragmentMzPAF(unittest.TestCase):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.B, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^1")  # mzPAF: charge is a bare magnitude, no minus sign
-        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^1")
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-1")  # signed so the label round trips
+        self.assertEqual(frag.serialize(format="mzpaf"), "b3{PEP}^-1")
 
     def test_negative_charge_z_minus_2(self):
         frag = pt.parse("PEPTIDE/-3").frag(ion_type=pt.IonType.B, charge=-2, position=3)
         self.assertEqual(frag.charge_state, -2)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^2")  # mzPAF: charge is a bare magnitude, no minus sign
+        self.assertEqual(frag.to_mzpaf(), "b3{PEP}^-2")  # signed so the label round trips
 
     def test_negative_charge_y_ion(self):
         frag = pt.parse("PEPTIDE/-2").frag(ion_type=pt.IonType.Y, charge=-1, position=3)
         self.assertEqual(frag.charge_state, -1)
         self.assertGreater(frag.mz, 0)
-        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^1")  # mzPAF: charge is a bare magnitude, no minus sign
+        self.assertEqual(frag.to_mzpaf(), "y3{IDE}^-1")  # signed so the label round trips
 
     def test_negative_charge_mz_less_than_positive(self):
         # Negative-mode b3 loses a proton; positive-mode adds one — so neg mz < pos mz

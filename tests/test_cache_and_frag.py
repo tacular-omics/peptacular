@@ -2,6 +2,8 @@
 
 from collections import Counter
 
+import pytest
+
 import peptacular as pt
 from peptacular.annotation.cached_comps import ChargeCarrierInfo, DeltaInfo, get_losses
 
@@ -50,8 +52,9 @@ class TestCacheMutationIsolation:
 
 
 class TestMzPAFChargeSign:
-    """mzPAF charge component must be a bare magnitude, never signed (spec section 4.8:
-    "The charge state component in the peak annotation MUST NOT include the minus sign")."""
+    """A negative mzPAF charge is written signed (``^-n``) so the label parses back to the same
+    m/z, as paftacular 2.0 does. ``signed_charge=False`` writes the bare magnitude (mzPAF 1.0.1
+    section 4.8)."""
 
     def test_positive_charge_omits_one(self):
         a = pt.parse("PEPTIDE")
@@ -63,11 +66,24 @@ class TestMzPAFChargeSign:
         y3 = [f for f in a.fragment(ion_types=["y"], charges=[2]) if f.position == 3][0]
         assert y3.serialize(format="mzpaf") == "y3{IDE}^2"
 
-    def test_negative_charge_no_minus_sign(self):
+    def test_negative_charge_signed(self):
         a = pt.parse("PEPTIDE")
-        for z, expected in ((-1, "y3{IDE}^1"), (-2, "y3{IDE}^2")):
+        for z, expected in ((-1, "y3{IDE}^-1"), (-2, "y3{IDE}^-2")):
             y3 = [f for f in a.fragment(ion_types=["y"], charges=[z]) if f.position == 3][0]
             assert y3.serialize(format="mzpaf") == expected
+            assert y3.to_mzpaf() == expected
+
+    def test_negative_charge_unsigned_opt_out(self):
+        a = pt.parse("PEPTIDE")
+        # the magnitude 1 is implicit, as in paftacular's serialize(signed_charge=False)
+        for z, expected in ((-1, "y3{IDE}"), (-2, "y3{IDE}^2")):
+            y3 = [f for f in a.fragment(ion_types=["y"], charges=[z]) if f.position == 3][0]
+            assert y3.serialize(format="mzpaf", signed_charge=False) == expected
+            assert y3.to_mzpaf(signed_charge=False) == expected
+
+    def test_str_keeps_negative_sign(self):
+        y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=-2, position=3)
+        assert "charge=-2" in str(y3)
 
 
 class TestFragmentNeutralMass:
@@ -80,3 +96,31 @@ class TestFragmentNeutralMass:
             y3 = [f for f in a.fragment(ion_types=["y"], charges=[z]) if f.position == 3][0]
             vals.append(y3.neutral_mass)
         assert max(vals) - min(vals) < 1e-9
+
+
+class TestMzPAFLabelMass:
+    """An mzPAF label must describe the same ion as the fragment it was written from."""
+
+    CASES = (
+        ("PEPTIDE", "y", -1, 3),
+        ("PEPTIDE", "b", -3, 2),
+        ("[Acetyl]-PEPTIDE", "i", 1, 1),
+        ("[Acetyl]-PEPTIDE", "i", -1, 1),
+        ("PEPTIDE-[Amidated]", "i", 1, 7),
+        ("PEP[+10]TIDE", "i", 2, 3),
+    )
+
+    def test_immonium_terminal_mod_mass_matches_residue_mod(self):
+        # IP[Acetyl] means P carrying Acetyl: same mass as the N-terminal acetyl immonium
+        nterm = pt.parse("[Acetyl]-PEPTIDE").frag(ion_type="i", charge=1, position=1)
+        residue = pt.parse("P[Acetyl]EPTIDE").frag(ion_type="i", charge=1, position=1)
+        assert nterm.to_mzpaf() == residue.to_mzpaf() == "IP[Acetyl]"
+        assert abs(nterm.mz - residue.mz) < 1e-9
+
+    def test_label_mz_matches_paftacular(self):
+        paf = pytest.importorskip("paftacular")
+        for seq, ion, z, pos in self.CASES:
+            frag = pt.parse(seq).frag(ion_type=ion, charge=z, position=pos)
+            parsed = paf.parse(frag.to_mzpaf())
+            parsed = parsed[0] if isinstance(parsed, list) else parsed
+            assert abs(parsed.mz() - frag.mz) < 1e-6, (seq, ion, z, pos, frag.to_mzpaf())
