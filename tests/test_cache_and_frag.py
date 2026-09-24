@@ -274,3 +274,38 @@ class TestImmoniumGlobalMods:
         frag = pt.parse(seq).frag(ion_type="i", charge=1, position=1)
         with pytest.raises(pt.PeptacularError):
             frag.to_mzpaf()
+
+
+class TestLabelledDeprotonation:
+    """Deprotonating a labelled ion removes the hydrogen isotope the ion holds."""
+
+    @staticmethod
+    def _mass(comp: Counter) -> float:
+        return sum(e.get_mass(monoisotopic=True) * n for e, n in comp.items())
+
+    @pytest.mark.parametrize("seq", ["<D>PEK", "<2H>PEK", "<13C>PEK", "PEK"])
+    @pytest.mark.parametrize("charge", [-1, -2])
+    def test_negative_charge_mass_matches_composition(self, seq, charge):
+        from peptacular.constants import ELECTRON_MASS
+
+        neutral = pt.parse(seq).frag("y", charge=0, calculate_with_composition=True).composition
+        frag = pt.parse(seq).frag("y", charge=charge, calculate_with_composition=True)
+        comp = frag.composition
+        assert all(n > 0 for n in comp.values())
+        h_neutral = sum(n for e, n in neutral.items() if e.symbol == "H")
+        h_ion = sum(n for e, n in comp.items() if e.symbol == "H")
+        assert h_ion == h_neutral + charge
+        assert frag.mass == pytest.approx(self._mass(comp) - charge * ELECTRON_MASS, abs=1e-9)
+        # The mass path (isotope as mass) agrees with the composition path.
+        assert pt.parse(seq).frag("y", charge=charge).mass == pytest.approx(frag.mass, abs=1e-9)
+
+    @pytest.mark.parametrize("seq", ["<D>PEK", "<2H>PEK"])
+    def test_deuterated_ion_loses_a_deuteron(self, seq):
+        comp = pt.parse(seq).frag("b", charge=-1, calculate_with_composition=True).composition
+        assert {e.mass_number for e in comp if e.symbol == "H"} == {2}
+        assert pt.fragment(seq, ion_types="b", charges=-1)
+
+    def test_carbon13_ion_loses_a_protium(self):
+        comp = pt.parse("<13C>PEK").frag("y", charge=-1, calculate_with_composition=True).composition
+        assert {e.mass_number for e in comp if e.symbol == "H"} == {None}
+        assert {e.mass_number for e in comp if e.symbol == "C"} == {13}

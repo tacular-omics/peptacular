@@ -126,6 +126,25 @@ def adjust_mass_mz(
     )
 
 
+def _borrow_from_isotopes(comp: Counter[ElementInfo], element: ElementInfo) -> None:
+    """Cover a charge carrier's atom deficit with other isotopes of the same element.
+
+    Deprotonating a labelled ion (``<D>PEK``, ``<2H>PEK``) removes a hydrogen, but the
+    composition holds only 2H. The carrier then removes the isotope the ion holds, so
+    the composition stays valid and its mass matches the reported mass.
+    """
+    for other in [e for e in comp if e.symbol == element.symbol and e != element]:
+        if comp[element] >= 0:
+            break
+        take = min(comp[other], -comp[element])
+        if take <= 0:
+            continue
+        comp[other] -= take
+        comp[element] += take
+    if comp[element] == 0:
+        del comp[element]
+
+
 def adjust_comp(
     base_comp: Counter[ElementInfo],
     charge: Mods[GlobalChargeCarrier],
@@ -178,6 +197,8 @@ def adjust_comp(
     for mod in charge.mods:
         for element, count in mod.get_composition().items():
             base_comp[element] += count
+            if count < 0 and base_comp[element] < 0:
+                _borrow_from_isotopes(base_comp, element)
 
     # Validate no negative counts
     if any(count < 0 for count in base_comp.values()):
