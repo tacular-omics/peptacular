@@ -2,8 +2,7 @@ import logging
 import re
 from collections import Counter
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
-from enum import StrEnum
-from itertools import product
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,12 +12,8 @@ from typing import (
 
 from tacular import (
     AA_LOOKUP,
-    FRAGMENT_ION_LOOKUP,
-    NEUTRAL_DELTA_LOOKUP,
     AminoAcid,
-    Element,
     ElementInfo,
-    FragmentIonInfo,
     IonType,
     IonTypeLiteral,
     NeutralDelta,
@@ -26,11 +21,10 @@ from tacular import (
     NeutralDeltaLiteral,
 )
 
-from ..constants import ELECTRON_MASS, HYDROGEN_BINDING_MASS, PROTON_MASS, ModType, ModTypeLiteral, Terminal
+from ..constants import ModType, Terminal
 from ..diagnostics import (
     CompositionError,
     InvalidAdjustmentError,
-    InvalidPositionError,
     PeptacularError,
     ProFormaFormatError,
     UnknownModificationError,
@@ -57,20 +51,33 @@ from ..proforma_components import (
     MODIFICATION_TYPE,
     ChargedFormula,
     FixedModification,
-    FormulaElement,
     GlobalChargeCarrier,
     IsotopeReplacement,
     ModificationTags,
     PositionRule,
-    PositionScore,
     SequenceElement,
     SequenceRegion,
-    TagMass,
-    add_composition,
 )
 from ..property.prop import AnnotationProperties
 from ..spans import Span
-from ..utils import _resolve_mod_types
+from . import _frag_engine, _mass
+from ._frag_engine import get_loss_combinations
+from ._mass import (
+    EMPTY_CHARGE_MODS,
+    H_CHARGE_FORMULA,
+    H_DECHARGE_FORMULA,
+)
+from ._mod_access import (
+    EMPTY_CTERM_MODS,
+    EMPTY_INTERNAL_MODS,
+    EMPTY_ISOTOPE_MODS,
+    EMPTY_LABILE_MODS,
+    EMPTY_NTERM_MODS,
+    EMPTY_STATIC_MODS,
+    EMPTY_UNKNOWN_MODS,
+    ChargeType,
+    _ModAccessMixin,
+)
 from .ambiguity import (
     annotate_ambiguity,
     condense_ambiguity_to_xnotation,
@@ -84,7 +91,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
-from .frag import _ION_TYPE_TO_MZPAF_SERIES, proton_binding_offset
+from .frag import proton_binding_offset
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
@@ -102,14 +109,10 @@ from .mod import (
     Interval,
     Mod,
     Mods,
-    as_mod_iterable,
-    convert_moddict_input,
     convert_single_mod_input,
-    is_mod_collection,
 )
 from .mod_builder import modify
 from .parser import ProFormaParser
-from .positions import to_ion_type, validate_position
 from .randomizer import generate_random_proforma_annotation
 from .serializer import serialize_annotation, serialize_charge
 from .slicing import (
@@ -122,21 +125,56 @@ from .slicing import (
     sort_annotation,
     split_annotation,
 )
-from .utils import (
-    H_ELEMENT_INFO,
-    SATELLITE_TRIM_END,
-    SATELLITE_TRIM_START,
-    Fragment,
-    _adjust_mass_value,
-    _ion_mass,
-    adjust_comp,
-    adjust_mass_mz,
-    can_fragment_sequence,
-    validate_mass,
-)
+from .utils import Fragment
 
 if TYPE_CHECKING:
     import numpy as np
+
+# Names that were module attributes here before the frag engine, mass functions and
+# modification accessors moved to their own modules. Re-exported so imports from
+# ``peptacular.annotation.annotation`` keep working.
+from ._frag_engine import (  # noqa: E402, F401
+    _ION_TYPE_TO_MZPAF_SERIES,
+    ELECTRON_MASS,
+    FRAGMENT_ION_LOOKUP,
+    NEUTRAL_DELTA_LOOKUP,
+    PROTON_MASS,
+    SATELLITE_TRIM_END,
+    SATELLITE_TRIM_START,
+    FragmentIonInfo,
+    _as_options,
+    _carrier_mass,
+    _ion_mass,
+    _unless_impossible_loss,
+    adjust_comp,
+    adjust_mass_mz,
+    validate_mass,
+    validate_position,
+)
+from ._mass import (  # noqa: E402, F401
+    _AA_COMPOSITIONS,
+    _AVERAGE_AA_MASSES,
+    _MONOISOTOPIC_AA_MASSES,
+    H_ELEMENT_INFO,
+    HYDROGEN_BINDING_MASS,
+    Element,
+    FormulaElement,
+    TagMass,
+    _adjust_mass_value,
+    can_fragment_sequence,
+    fe,
+    to_ion_type,
+)
+from ._mod_access import (  # noqa: E402, F401
+    InvalidPositionError,
+    ModTypeLiteral,
+    PositionScore,
+    _concrete_position_labels,
+    _resolve_mod_types,
+    as_mod_iterable,
+    convert_moddict_input,
+    is_mod_collection,
+)
 
 __all__ = [
     "H_CHARGE_FORMULA",
@@ -166,11 +204,6 @@ logger = logging.getLogger(__name__)
 # notation error and is re-raised as ProFormaFormatError.
 _TYPED_ERRORS = (ProFormaFormatError, UnsupportedOperationError, UnknownModificationError, CompositionError, InvalidAdjustmentError)
 
-fe = FormulaElement(element=Element.H, occurance=1)
-H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
-H_DECHARGE_FORMULA = ChargedFormula(formula=(FormulaElement(element=Element.H, occurance=-1),), charge=-1)
-
-
 ION_TYPE = IonTypeLiteral | IonType
 CHARGE_TYPE = int | str | list[str] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier]
 ISOTOPE_TYPE = int | dict[str | ElementInfo, int]
@@ -178,134 +211,8 @@ LOSS_TYPE = NeutralDelta | NeutralDeltaLiteral | NeutralDeltaInfo | str
 CUSTOM_LOSS_TYPE = str | ChargedFormula | float | dict[str | ChargedFormula | float, int]
 POSITION_TYPE = int | tuple[int, int]
 
-EMPTY_ISOTOPE_MODS = Mods[IsotopeReplacement](mod_type=ModType.ISOTOPE, _mods=None)
-EMPTY_STATIC_MODS = Mods[FixedModification](mod_type=ModType.STATIC, _mods=None)
-EMPTY_UNKNOWN_MODS = Mods[ModificationTags](mod_type=ModType.UNKNOWN, _mods=None)
-EMPTY_LABILE_MODS = Mods[ModificationTags](mod_type=ModType.LABILE, _mods=None)
-EMPTY_NTERM_MODS = Mods[ModificationTags](mod_type=ModType.NTERM, _mods=None)
-EMPTY_CTERM_MODS = Mods[ModificationTags](mod_type=ModType.CTERM, _mods=None)
-EMPTY_CHARGE_MODS = Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=None)
-EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=None)
 
-# Residue masses are fixed reference data, independent of mutable annotations.
-_MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.items()}
-# Per-residue compositions read once; get_sequence_composition only reads them.
-_AA_COMPOSITIONS: dict[str, Counter[ElementInfo] | None] = {aa: info.composition for aa, info in AA_LOOKUP.items()}
-_AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.items()}
-
-
-def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
-    """Yield the ambiguous-position label (``#label``) id of every *concrete* modification
-    in ``mods`` (bare ``[#label]`` references and ``PositionScore`` tags carry no concrete
-    modification and are skipped). A label repeated in the output has multiple concrete
-    occurrences, which ``validate_ambiguous_labels`` treats as an error."""
-    if mods is None:
-        return
-    for mod in mods.mods:
-        value = mod.value
-        if not isinstance(value, ModificationTags):
-            continue
-        for tag in value.tags:
-            position_id = getattr(tag, "position_id", None)
-            if position_id is None or isinstance(tag, PositionScore):
-                continue
-            yield position_id
-
-
-class ChargeType(StrEnum):
-    INT = "int"
-    ADDUCTS = "adducts"
-    NONE = "none"
-
-
-def _as_options(value: Any) -> Any:
-    """Wrap a single str/int option (an ion type, charge, isotope or loss name) in a tuple."""
-    if isinstance(value, str | int):
-        return (value,)
-    return value
-
-
-def _carrier_mass(monoisotopic: bool) -> float:
-    """Mass one default (protonated) charge adds: CODATA ``PROTON_MASS``, or average H minus an electron."""
-    if monoisotopic:
-        return PROTON_MASS
-    return H_ELEMENT_INFO.get_mass(monoisotopic=False) - ELECTRON_MASS
-
-
-def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], **kwargs: Any) -> "Fragment | None":
-    """Build one ion for ``fragment()``, or None when that ion cannot exist.
-
-    ``neutral_deltas`` offers a loss wherever one of its residues occurs (H3PO4 on any S/T), so
-    a loss can ask for more of an element than the fragment has (no phosphorus on an
-    unmodified S). An ion can also lack the atoms its own offset removes (the one-residue a1 of
-    ``G-[Amidated]`` at charge -1), or the atoms the caller's ``isotopes`` swap (``{"15N": 3}``
-    on b1). Such ions are skipped; ``fragment()`` raises when the caller's isotopes leave no
-    ion at all. The error still propagates when the caller's own ``deltas`` are at fault: the
-    ion exists without them. An explicit ``frag()`` does not come through here and always raises.
-    """
-    try:
-        return make(**kwargs)
-    except InvalidAdjustmentError as error:
-        if ndelta._items:
-            return None
-        delta: DeltaInfo = kwargs["delta"]
-        isotope: IsotopeInfo = kwargs["isotope"]
-        if not delta.deltas and not isotope.data:
-            return None
-        no_isotope = IsotopeInfo.from_input(None)
-        try:
-            make(**{**kwargs, "delta": DeltaInfo.from_input(None), "isotope": no_isotope})
-        except InvalidAdjustmentError:
-            return None  # the ion itself cannot exist
-        if delta.deltas:
-            try:
-                make(**{**kwargs, "isotope": no_isotope})
-            except InvalidAdjustmentError:
-                raise error from None  # the caller's deltas are at fault
-        return None  # the caller's isotopes do not fit this ion
-
-
-def get_loss_combinations(losses: dict[NeutralDeltaInfo, int], max_losses: int) -> list[DeltaInfo]:
-    """Generate all combinations of losses up to max_losses."""
-    if not losses:
-        return [DeltaInfo.from_input(None)]
-
-    # Generate all possible count combinations for each loss
-    loss_items = list(losses.items())
-    count_ranges = [range(count + 1) for _, count in loss_items]
-
-    loss_combinations: list[dict[NeutralDeltaInfo, int] | None] = [None]
-
-    for counts in product(*count_ranges):
-        total_losses = sum(counts)
-        # Skip if no losses or exceeds max
-        if total_losses == 0 or total_losses > max_losses:
-            continue
-
-        # Build combination dict
-        combo = {}
-        for (loss, _), count in zip(loss_items, counts, strict=True):
-            if count > 0:
-                combo[loss] = count
-
-        loss_combinations.append(combo)
-
-    # Convert to DeltaInfo
-    delta_combinations: list[DeltaInfo] = []
-    for loss_combo in loss_combinations:
-        if loss_combo is None:
-            delta_combinations.append(DeltaInfo.from_input(None))
-        else:
-            formula_dict: dict[ChargedFormula, int] = {}
-            for nd, count in loss_combo.items():
-                nd_formula: ChargedFormula = ChargedFormula.from_composition(nd.composition)
-                formula_dict[nd_formula] = count
-            delta_combinations.append(DeltaInfo.from_input(formula_dict))  # type: ignore
-
-    return delta_combinations
-
-
-class ProFormaAnnotation:
+class ProFormaAnnotation(_ModAccessMixin):
     """A single ProForma 2.1 peptidoform: a sequence plus its modifications, intervals, names and charge.
 
     Create one with :meth:`parse` (or :func:`peptacular.parse`) from a ProForma string, or with the
@@ -431,167 +338,6 @@ class ProFormaAnnotation:
             return ChargeType.ADDUCTS
         else:
             return ChargeType.NONE
-
-    """
-    Validators
-    """
-
-    def validate_sequence(self) -> None:
-        """Check that every residue in the sequence is a recognised amino acid.
-
-        :raises PeptacularError: If an unrecognised amino acid code is found.
-        """
-        for aa in self.sequence:
-            if aa not in AA_LOOKUP:
-                raise PeptacularError(f"Invalid amino acid '{aa}' in sequence '{self.sequence}'")
-
-    def validate_isotope_mods(self) -> None:
-        """Check that all isotope modifications are structurally valid.
-
-        :raises PeptacularError: If any isotope modification is invalid.
-        """
-        if errors := self.isotope_mods.validate():
-            raise PeptacularError(f"Invalid isotope modifications: {errors}")
-
-    def validate_static_mods(self) -> None:
-        """Check that all static (fixed) modifications are structurally valid.
-
-        :raises PeptacularError: If any static modification is invalid.
-        """
-        if errors := self.static_mods.validate():
-            raise PeptacularError(f"Invalid static modifications: {errors}")
-
-    def validate_labile_mods(self) -> None:
-        """Check that all labile modifications are structurally valid.
-
-        :raises PeptacularError: If any labile modification is invalid.
-        """
-        if errors := self.labile_mods.validate():
-            raise PeptacularError(f"Invalid labile modifications: {errors}")
-
-    def validate_unknown_mods(self) -> None:
-        """Check that all unknown-localisation modifications are structurally valid.
-
-        :raises PeptacularError: If any unknown modification is invalid.
-        """
-        if errors := self.unknown_mods.validate():
-            raise PeptacularError(f"Invalid unknown modifications: {errors}")
-
-    def validate_nterm_mods(self) -> None:
-        """Check that all N-terminal modifications are structurally valid.
-
-        :raises PeptacularError: If any N-terminal modification is invalid.
-        """
-        if errors := self.nterm_mods.validate():
-            raise PeptacularError(f"Invalid N-terminal modifications: {errors}")
-
-    def validate_cterm_mods(self) -> None:
-        """Check that all C-terminal modifications are structurally valid.
-
-        :raises PeptacularError: If any C-terminal modification is invalid.
-        """
-        if errors := self.cterm_mods.validate():
-            raise PeptacularError(f"Invalid C-terminal modifications: {errors}")
-
-    def validate_internal_mods(self) -> None:
-        """Check that all internal (per-position) modifications are structurally valid.
-
-        :raises PeptacularError: If any internal modification at any position is invalid.
-        """
-        for pos, mods in self.internal_mods.items():
-            if errors := mods.validate():
-                raise PeptacularError(f"Invalid internal modifications at position {pos}: {errors}")
-
-    def validate_intervals(self) -> None:
-        """Check that all intervals are valid, non-overlapping, and within sequence bounds.
-
-        :raises PeptacularError: If any interval is invalid, intervals overlap, or an interval
-            falls outside the sequence length.
-        """
-        intervals = self.intervals
-        for interval in intervals:
-            if errors := interval.validate():
-                raise PeptacularError(f"Invalid interval: {errors}")
-
-        # ensure no overlapping intervals
-        sorted_intervals = sorted(intervals, key=lambda x: x.start)
-        for i in range(1, len(sorted_intervals)):
-            if sorted_intervals[i].start < sorted_intervals[i - 1].end:
-                raise PeptacularError(f"Overlapping intervals detected: {sorted_intervals[i - 1]} and {sorted_intervals[i]}")
-
-        # ensure that intervals dont start/end out of bounds
-        seq_len = len(self.sequence) if self._sequence is not None else 0
-        for interval in intervals:
-            if interval.start < 0 or interval.end > seq_len:
-                raise PeptacularError(f"Interval {interval} is out of bounds for sequence length {seq_len}")
-
-    def validate_ambiguous_labels(self) -> None:
-        """Check that each ambiguous-position label (``#label``) has at most one
-        concrete modification among its occurrences; the rest must be bare
-        references (e.g. ``[#label]``).
-
-        :raises PeptacularError: If a label has more than one concrete occurrence.
-        """
-        concrete_label_counts: Counter[str] = Counter()
-
-        def scan(mods: "Mods | None") -> None:
-            for position_id in _concrete_position_labels(mods):
-                concrete_label_counts[position_id] += 1
-
-        if self.has_internal_mods:
-            for mods in self.internal_mods.values():
-                scan(mods)
-        if self.has_nterm_mods:
-            scan(self.nterm_mods)
-        if self.has_cterm_mods:
-            scan(self.cterm_mods)
-        if self.has_intervals:
-            for interval in self.intervals:
-                scan(interval.mods)
-
-        duplicated = sorted(label for label, count in concrete_label_counts.items() if count > 1)
-        if duplicated:
-            raise PeptacularError(
-                f"Ambiguous modification label(s) {duplicated} have more than one concrete modification; "
-                "exactly one occurrence of a labelled group may carry the modification text, "
-                "others must be bare references (e.g. [#label])."
-            )
-
-    def validate_charge(self) -> None:
-        """Check that the charge value is structurally valid.
-
-        :raises PeptacularError: If the charge adducts are invalid or the charge type is
-            unrecognised.
-        """
-        charge_type = self.charge_type
-
-        match charge_type:
-            case ChargeType.INT:
-                pass
-            case ChargeType.ADDUCTS:
-                if errors := self.charge_adducts.validate():
-                    raise PeptacularError(f"Invalid charge adducts: {errors}")
-            case ChargeType.NONE:
-                pass
-            case _:
-                raise PeptacularError(f"Invalid charge type: {charge_type}")
-
-    def validate_annotation(self) -> None:
-        """Run all individual validators in order; raises on the first error found.
-
-        :raises PeptacularError: If any component of the annotation is structurally invalid.
-        """
-        self.validate_sequence()
-        self.validate_isotope_mods()
-        self.validate_static_mods()
-        self.validate_labile_mods()
-        self.validate_unknown_mods()
-        self.validate_nterm_mods()
-        self.validate_cterm_mods()
-        self.validate_internal_mods()
-        self.validate_intervals()
-        self.validate_ambiguous_labels()
-        self.validate_charge()
 
     @property
     def start_aa(self) -> str | None:
@@ -939,39 +685,6 @@ class ProFormaAnnotation:
             for interval in self.intervals:
                 interval._validate = value
 
-    def has_internal_mods_at_index(self, position: int) -> bool:
-        """Check if there are any modifications at a specific position in the sequence."""
-        if self._internal_mods is None:
-            return False
-
-        mods_dict = self._internal_mods.get(position, None)
-        if mods_dict is None or len(mods_dict) == 0:
-            return False
-
-        return True
-
-    def get_internal_mod_indexes(self) -> list[int]:
-        """Get a list of all indexes that have internal modifications."""
-        if self._internal_mods is None:
-            return []
-        return list(self._internal_mods.keys())
-
-    def get_internal_mods_str_at_index(self, position: int) -> str:
-        """Get the modification string at a specific position in the sequence."""
-        if self.has_internal_mods_at_index(position) is False:
-            return ""
-
-        return self.get_internal_mods_at_index(position).serialize()
-
-    def get_internal_mods_at_index(self, position: int) -> Mods[ModificationTags]:
-        """Get all modifications at a specific position in the sequence."""
-        if self.has_internal_mods_at_index(position) is False:
-            return EMPTY_INTERNAL_MODS
-        return Mods[ModificationTags](
-            mod_type=ModType.INTERNAL,
-            _mods=self._internal_mods[position],  # type: ignore
-        )
-
     @property
     def intervals(self) -> tuple[Interval, ...]:
         """Ambiguous sequence intervals; empty tuple when unset.
@@ -1013,15 +726,7 @@ class ProFormaAnnotation:
         :rtype: int
         :raises PeptacularError: If the stored charge value has an unexpected type.
         """
-        charge = self.charge
-        if isinstance(charge, int):
-            return charge
-        elif isinstance(charge, Mods):
-            return sum(mod.get_charge() for mod in charge.mods)
-        elif charge is None:
-            return 0
-        else:
-            raise PeptacularError(f"Invalid charge type: {type(charge)}")
+        return _mass.charge_state(self)
 
     @property
     def charge_adducts(self) -> Mods[GlobalChargeCarrier]:
@@ -1032,1137 +737,7 @@ class ProFormaAnnotation:
 
         :rtype: Mods[GlobalChargeCarrier]
         """
-        charge = self.charge
-        if isinstance(charge, int):
-            if charge == 0:
-                return EMPTY_CHARGE_MODS
-            elif charge > 0:
-                s = str(GlobalChargeCarrier(charged_formula=H_CHARGE_FORMULA, occurance=charge))
-                return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={s: 1})
-            else:  # charge < 0
-                s = str(GlobalChargeCarrier(charged_formula=H_DECHARGE_FORMULA, occurance=-charge))
-                return Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods={s: 1})
-        elif isinstance(charge, Mods):
-            return charge
-        return EMPTY_CHARGE_MODS
-
-    """
-    Set Methods - Replace existing modifications
-    """
-
-    def set_sequence(self, sequence: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Set the amino-acid sequence.
-
-        :param sequence: New sequence, or ``None`` to clear.
-        :type sequence: str | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().set_sequence(sequence, inplace=True, validate=validate)
-        self._sequence = sequence
-        if validate:
-            self.validate_sequence()
-        return self
-
-    def set_compound_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Set the compound-level name.
-
-        :param name: New name, or ``None`` to clear.
-        :type name: str | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_name_generic(name, "_compound_name", inplace, validate)
-
-    def set_ion_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Set the ion-level name.
-
-        :param name: New name, or ``None`` to clear.
-        :type name: str | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_name_generic(name, "_ion_name", inplace, validate)
-
-    def set_peptide_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Set the peptide-level name.
-
-        :param name: New name, or ``None`` to clear.
-        :type name: str | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_name_generic(name, "_peptide_name", inplace, validate)
-
-    def set_isotope_mods(self, mods: dict[str, int] | Mods[IsotopeReplacement] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace all isotope modifications.
-
-        :param mods: New isotope modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[IsotopeReplacement] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_mod_generic(mods, "_isotope_mods", "validate_isotope_mods", inplace, validate)
-
-    def set_static_mods(self, mods: dict[str, int] | Mods[FixedModification] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace all static (fixed) modifications.
-
-        :param mods: New static modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[FixedModification] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_mod_generic(mods, "_static_mods", "validate_static_mods", inplace, validate)
-
-    def set_labile_mods(self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace all labile modifications.
-
-        :param mods: New labile modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[ModificationTags] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_mod_generic(mods, "_labile_mods", "validate_labile_mods", inplace, validate)
-
-    def set_unknown_mods(self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace all unknown-localisation modifications.
-
-        :param mods: New unknown modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[ModificationTags] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._set_mod_generic(mods, "_unknown_mods", "validate_unknown_mods", inplace, validate)
-
-    def set_nterm_mods(
-        self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None
-    ) -> Self:
-        """Replace all N-terminal modifications.
-
-        :param mods: New N-terminal modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[ModificationTags] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
-        :type start_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if start_aa is not None:
-            if self.start_aa != start_aa:
-                return self if inplace else self.copy()
-        return self._set_mod_generic(mods, "_nterm_mods", "validate_nterm_mods", inplace, validate)
-
-    def set_cterm_mods(
-        self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None
-    ) -> Self:
-        """Replace all C-terminal modifications.
-
-        :param mods: New C-terminal modifications, or ``None`` to clear.
-        :type mods: dict[str, int] | Mods[ModificationTags] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
-        :type end_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if end_aa is not None:
-            if self.end_aa != end_aa:
-                return self if inplace else self.copy()
-        return self._set_mod_generic(mods, "_cterm_mods", "validate_cterm_mods", inplace, validate)
-
-    def set_internal_mods(
-        self, mods: dict[int, dict[str, int] | Mods[ModificationTags] | None] | None, *, inplace: bool = True, validate: bool | None = None
-    ) -> Self:
-        """Replace all internal (per-position) modifications.
-
-        :param mods: Mapping of 0-based residue index to modification dict, or ``None`` to clear.
-        :type mods: dict[int, dict[str, int] | Mods[ModificationTags] | None] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-
-        if not inplace:
-            return self.copy().set_internal_mods(mods, inplace=True, validate=validate)
-
-        if mods is None:
-            self._internal_mods = None
-            return self
-
-        internal_mods: dict[int, dict[str, int]] = {}
-        for pos, mods_dict in mods.items():
-            internalmod = convert_moddict_input(mods_dict)
-            if internalmod is None or len(internalmod) == 0:
-                continue
-            internal_mods[pos] = internalmod
-
-        if len(internal_mods) == 0:
-            self._internal_mods = None
-            return self
-
-        self._internal_mods = internal_mods
-        if validate:
-            self.validate_internal_mods()
-            self.validate_ambiguous_labels()
-        return self
-
-    def set_intervals(self, intervals: list[Interval] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace all ambiguous sequence intervals.
-
-        :param intervals: New list of intervals, or ``None`` to clear.
-        :type intervals: list[Interval] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-
-        if not inplace:
-            return self.copy().set_intervals(intervals, inplace=True, validate=validate)
-
-        if intervals is None:
-            self._intervals = None
-            return self
-
-        if len(intervals) == 0:
-            self._intervals = None
-            return self
-
-        self._intervals = intervals.copy()
-        if validate:
-            self.validate_intervals()
-            self.validate_ambiguous_labels()
-        return self
-
-    def set_internal_mods_at_index(self, index: int, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Replace internal modifications at a single 0-based sequence position.
-
-        :param index: 0-based residue index.
-        :type index: int
-        :param mods: New modifications for this position, or ``None`` to remove them.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().set_internal_mods_at_index(index, mods, inplace=True, validate=validate)
-
-        if mods is None:
-            # remove mod at index
-            if self._internal_mods is not None and index in self._internal_mods:
-                del self._internal_mods[index]
-            return self
-
-        mods = convert_moddict_input(mods)
-
-        if len(mods) == 0:
-            # remove mod at index
-            if self._internal_mods is not None and index in self._internal_mods:
-                del self._internal_mods[index]
-            return self
-
-        if validate:
-            if not Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=mods).is_valid:
-                raise PeptacularError(f"Invalid internal modifications at position {index}")
-
-        if self._internal_mods is None:
-            self._internal_mods = {}
-
-        self._internal_mods[index] = mods
-        # The ambiguous-label invariant is global (a label may have at most one concrete
-        # modification across the whole annotation), but a full re-scan on every single-index
-        # set makes residue-by-residue construction O(n^2). Mods that carry no concrete
-        # position label can't introduce a new violation, so only re-validate when they do.
-        new_mods = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=mods)
-        if validate and any(True for _ in _concrete_position_labels(new_mods)):
-            self.validate_ambiguous_labels()
-        return self
-
-    def set_charge(
-        self,
-        charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None,
-        *,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        """Replace the charge value.
-
-        :param charge: New charge as an integer, adduct string(s), ``Mods``, or ``None`` to clear.
-        :type charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        :raises PeptacularError: If the resolved charge value has an unsupported type.
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().set_charge(charge, inplace=True, validate=validate)
-
-        set_value: None | int | list[str] = None
-        if isinstance(charge, bool):
-            # bool is an int subclass; guard it before the int branch so True/False don't
-            # slip through and serialize as a garbage charge like 'PEPTIDE/True'.
-            raise PeptacularError(f"Unsupported charge type: {type(charge)!r}")
-        elif isinstance(charge, int):
-            # A charge of 0 is a neutral peptidoform (no charge component per ProForma 2.1
-            # section 11.5), so clear it to None rather than storing a literal 0.
-            set_value = charge if charge != 0 else None
-        elif isinstance(charge, str):
-            set_value = [charge]
-        elif isinstance(charge, (list, tuple)):
-            if len(charge) == 0:
-                set_value = None
-            else:
-                set_value = [str(c) for c in charge]
-                if len(set_value) == 0:
-                    set_value = None
-        elif charge is None:
-            set_value = None
-        elif isinstance(charge, Mods):
-            # Expand each carrier by its occurrence count so repeated adducts survive
-            # the round-trip into the ``list[str]`` storage; iterating keys alone would
-            # drop the count and silently reduce a multi-adduct charge to one carrier.
-            set_value = [str(c) for c, n in charge._mods.items() for _ in range(n)] if charge._mods else None
-        elif isinstance(charge, Mod):
-            # A Mod wraps a charge carrier value; str(Mod) would emit the dataclass repr
-            # (e.g. "Mod(value=GlobalChargeCarrier(...), count=1)"), which is not a valid
-            # charge carrier. Serialize the wrapped carrier itself (it already encodes its
-            # own occurrence, e.g. "Na:z+1^2"), repeated by the Mod's count.
-            # A count of 0 is a neutral peptidoform: clear to None (matching the empty
-            # list/int-zero branches) rather than storing [] and serializing "PEPTIDE/[]".
-            set_value = [str(charge.value)] * charge.count if charge.count > 0 else None
-        elif isinstance(charge, GlobalChargeCarrier):
-            set_value = [str(charge)]
-        else:
-            raise PeptacularError(f"Unsupported charge type: {type(charge)!r}")
-
-        self._charge: None | int | list[str] = set_value
-
-        if validate:
-            self.validate_charge()
-
-        return self
-
-    def _set_name_generic(
-        self,
-        name: Any | None,
-        attr_name: str,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy()._set_name_generic(name, attr_name, inplace=True, validate=validate)
-
-        if name is not None and not isinstance(name, str):
-            name = str(name)
-        if name == "":
-            name = None
-        setattr(self, attr_name, name)
-        return self
-
-    def _set_mod_generic(
-        self,
-        mods: Any,
-        attr_name: str,
-        validator_method_name: str | None = None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy()._set_mod_generic(mods, attr_name, validator_method_name, inplace=True, validate=validate)
-
-        if mods is None:
-            setattr(self, attr_name, None)
-            return self
-
-        converted_mods = convert_moddict_input(mods)
-        if len(converted_mods) == 0:
-            setattr(self, attr_name, None)
-            return self
-
-        setattr(self, attr_name, converted_mods)
-
-        if validate and validator_method_name:
-            getattr(self, validator_method_name)()
-
-        return self
-
-    def _set_mod_by_type(
-        self,
-        value: Any,
-        mod_type: ModType,
-    ) -> Self:
-        match mod_type:
-            case ModType.ISOTOPE:
-                self.isotope_mods = value
-            case ModType.STATIC:
-                self.static_mods = value
-            case ModType.LABILE:
-                self.labile_mods = value
-            case ModType.UNKNOWN:
-                self.unknown_mods = value
-            case ModType.NTERM:
-                self.nterm_mods = value
-            case ModType.CTERM:
-                self.cterm_mods = value
-            case ModType.INTERNAL:
-                self.internal_mods = value
-            case ModType.INTERVAL:
-                self.intervals = value
-            case ModType.CHARGE:
-                self.charge = value
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-        return self
-
-    def set_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any] | None, *, inplace: bool = True) -> Self:
-        """Set a modification by type, replacing any existing mods of that type"""
-
-        if not inplace:
-            return self.copy().set_mods(mods=mods, inplace=True)
-
-        if mods is None:
-            self.clear_mods(inplace=True)
-            return self
-
-        for mod_type, mod_value in mods.items():
-            if isinstance(mod_type, int):
-                if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
-                self.set_internal_mods_at_index(mod_type, mod_value, inplace=True)
-                continue
-
-            self._set_mod_by_type(mod_value, ModType(mod_type))
-
-        return self
-
-    """
-    Append Methods
-    """
-
-    def _append_mod_generic(
-        self,
-        mod: Any,
-        attr_name: str,
-        validator: Callable[[str], Any],
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if validate is None:
-            validate = self._validate
-
-        if not inplace:
-            return self.copy()._append_mod_generic(mod, attr_name, validator, inplace=True, validate=validate)
-
-        if is_mod_collection(mod):
-            for item in mod:
-                self._append_mod_generic(item, attr_name, validator, inplace=True, validate=validate)
-            return self
-
-        mod_str, count = convert_single_mod_input(mod)
-
-        if validate:
-            if not validator(mod_str).is_valid:
-                raise PeptacularError(f"Invalid modification: {mod_str}")
-
-        mod_dict = getattr(self, attr_name)
-        if mod_dict is None:
-            setattr(self, attr_name, {})
-            mod_dict = getattr(self, attr_name)
-
-        if mod_str in mod_dict:
-            mod_dict[mod_str] += count
-        else:
-            mod_dict[mod_str] = count
-
-        return self
-
-    def append_isotope_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append an isotope modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._append_mod_generic(mod, "_isotope_mods", IsotopeReplacement.from_string, inplace, validate)
-
-    def append_static_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append a static (fixed) modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._append_mod_generic(mod, "_static_mods", FixedModification.from_string, inplace, validate)
-
-    def append_labile_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append a labile modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._append_mod_generic(mod, "_labile_mods", ModificationTags.from_string, inplace, validate)
-
-    def append_unknown_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append an unknown-localisation modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._append_mod_generic(mod, "_unknown_mods", ModificationTags.from_string, inplace, validate)
-
-    def append_nterm_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None) -> Self:
-        """Append an N-terminal modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
-        :type start_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if start_aa is not None:
-            if self.start_aa != start_aa:
-                return self if inplace else self.copy()
-        return self._append_mod_generic(mod, "_nterm_mods", ModificationTags.from_string, inplace, validate)
-
-    def append_cterm_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None) -> Self:
-        """Append a C-terminal modification.
-
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
-        :type end_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if end_aa is not None:
-            if self.end_aa != end_aa:
-                return self if inplace else self.copy()
-        return self._append_mod_generic(mod, "_cterm_mods", ModificationTags.from_string, inplace, validate)
-
-    def append_internal_mod_at_index(self, index: int, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append an internal modification at a specific 0-based sequence position.
-
-        :param index: 0-based residue index.
-        :type index: int
-        :param mod: Modification to append.
-        :type mod: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-
-        if not inplace:
-            return self.copy().append_internal_mod_at_index(index, mod, inplace=True, validate=validate)
-
-        if is_mod_collection(mod):
-            for item in mod:
-                self.append_internal_mod_at_index(index, item, inplace=True, validate=validate)
-            return self
-
-        mod_str, count = convert_single_mod_input(mod)
-
-        if validate:
-            if not ModificationTags.from_string(mod_str).is_valid:
-                raise PeptacularError(f"Invalid modification: {mod_str}")
-
-        if self._internal_mods is None:
-            self._internal_mods = {}
-
-        if index not in self._internal_mods:
-            self._internal_mods[index] = {}
-
-        if mod_str in self._internal_mods[index]:
-            self._internal_mods[index][mod_str] += count
-        else:
-            self._internal_mods[index][mod_str] = count
-
-        return self
-
-    def append_interval(self, interval: Interval | tuple[int, int, bool, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append an ambiguous sequence interval.
-
-        :param interval: ``Interval`` object or a ``(start, end, ambiguous, mods)`` tuple.
-        :type interval: Interval | tuple[int, int, bool, Any]
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().append_interval(interval, inplace=True, validate=validate)
-
-        if isinstance(interval, tuple):
-            start, end, ambiguous, mods_input = interval
-            mods_converted = convert_moddict_input(mods_input)
-            interval = Interval(
-                start=start,
-                end=end,
-                ambiguous=ambiguous,
-                mods=mods_converted,
-                validate=validate,
-            )
-        else:
-            interval = interval.copy()
-            interval._validate = validate
-
-        if validate:
-            if not isinstance(interval, Interval):
-                raise TypeError(f"Expected Interval object, got {type(interval)}")
-            if not interval.is_valid:
-                raise PeptacularError(f"Invalid interval: {interval}")
-
-        if self._intervals is None:
-            self._intervals = []
-
-        self._intervals.append(interval)
-        return self
-
-    def _append_by_type(
-        self,
-        value: Any,
-        mod_type: ModType,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if not inplace:
-            return self.copy()._append_by_type(value, mod_type, inplace=True, validate=validate)
-
-        match mod_type:
-            case ModType.ISOTOPE:
-                self.append_isotope_mod(value, inplace=True, validate=validate)
-            case ModType.STATIC:
-                self.append_static_mod(value, inplace=True, validate=validate)
-            case ModType.LABILE:
-                self.append_labile_mod(value, inplace=True, validate=validate)
-            case ModType.UNKNOWN:
-                self.append_unknown_mod(value, inplace=True, validate=validate)
-            case ModType.NTERM:
-                self.append_nterm_mod(value, inplace=True, validate=validate)
-            case ModType.CTERM:
-                self.append_cterm_mod(value, inplace=True, validate=validate)
-            case ModType.INTERNAL:
-                for key, val in value.items():
-                    self.append_internal_mod_at_index(key, val, inplace=True, validate=validate)
-            case ModType.INTERVAL:
-                self.append_interval(value, inplace=True, validate=validate)
-            case ModType.CHARGE:
-                self.set_charge(value, inplace=True, validate=validate)
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-        return self
-
-    def append_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Append modifications of multiple types from a mapping of mod-type to value.
-
-        :param mods: Mapping of :class:`ModType` (or literal/index) to a modification value, or a list/tuple of values to append each of.
-        :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        :raises InvalidPositionError: If an integer key is out of range for the current sequence.
-        """
-        if not inplace:
-            return self.copy().append_mods(mods, inplace=True, validate=validate)
-
-        for mod_type, value in mods.items():
-            if isinstance(mod_type, int):
-                if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
-                self.append_internal_mod_at_index(mod_type, value, inplace=True, validate=validate)
-                continue
-
-            self._append_by_type(value, ModType(mod_type), inplace=True, validate=validate)
-
-        return self
-
-    """
-    Extend Methods - Add multiple modifications
-    """
-
-    def _extend_generic(
-        self,
-        mods: Any,
-        append_method: Callable[..., Self],
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy()._extend_generic(mods, append_method, inplace=True, validate=validate)
-        if mods is not None:
-            for mod in as_mod_iterable(mods):
-                append_method(mod, inplace=True, validate=validate)
-        return self
-
-    def extend_isotope_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend isotope modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._extend_generic(mods, self.append_isotope_mod, inplace, validate)
-
-    def extend_static_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend static modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._extend_generic(mods, self.append_static_mod, inplace, validate)
-
-    def extend_labile_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend labile modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._extend_generic(mods, self.append_labile_mod, inplace, validate)
-
-    def extend_unknown_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend unknown-localisation modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._extend_generic(mods, self.append_unknown_mod, inplace, validate)
-
-    def extend_nterm_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None) -> Self:
-        """Extend N-terminal modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param start_aa: Only apply if the sequence starts with this residue; no-op otherwise.
-        :type start_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().extend_nterm_mods(mods, inplace=True, validate=validate, start_aa=start_aa)
-        if start_aa is not None:
-            if self.start_aa != start_aa:
-                return self
-        if mods is not None:
-            for mod in as_mod_iterable(mods):
-                self.append_nterm_mod(mod, inplace=True, validate=validate, start_aa=start_aa)
-        return self
-
-    def extend_cterm_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None) -> Self:
-        """Extend C-terminal modifications by appending each item in *mods*.
-
-        :param mods: Iterable of modifications to append.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :param end_aa: Only apply if the sequence ends with this residue; no-op otherwise.
-        :type end_aa: str | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().extend_cterm_mods(mods, inplace=True, validate=validate, end_aa=end_aa)
-        if end_aa is not None:
-            if self.end_aa != end_aa:
-                return self
-        if mods is not None:
-            for mod in as_mod_iterable(mods):
-                self.append_cterm_mod(mod, inplace=True, validate=validate, end_aa=end_aa)
-        return self
-
-    def extend_internal_mods_at_index(self, index: int, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend internal modifications at a single position by appending each item in *mods*.
-
-        :param index: 0-based residue index.
-        :type index: int
-        :param mods: Iterable of modifications to append at this position.
-        :type mods: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().extend_internal_mods_at_index(index, mods, inplace=True, validate=validate)
-        if mods is not None:
-            for mod in as_mod_iterable(mods):
-                self.append_internal_mod_at_index(index, mod, inplace=True, validate=validate)
-        return self
-
-    def extend_intervals(self, intervals: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend ambiguous sequence intervals by appending each item in *intervals*.
-
-        :param intervals: Iterable of intervals to append.
-        :type intervals: Any
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._extend_generic(intervals, self.append_interval, inplace, validate)
-
-    def _extend_by_type(
-        self,
-        value: Any,
-        mod_type: ModType,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy()._extend_by_type(value, mod_type, inplace=True, validate=validate)
-
-        match mod_type:
-            case ModType.ISOTOPE:
-                self.extend_isotope_mods(value, inplace=True, validate=validate)
-            case ModType.STATIC:
-                self.extend_static_mods(value, inplace=True, validate=validate)
-            case ModType.LABILE:
-                self.extend_labile_mods(value, inplace=True, validate=validate)
-            case ModType.UNKNOWN:
-                self.extend_unknown_mods(value, inplace=True, validate=validate)
-            case ModType.NTERM:
-                self.extend_nterm_mods(value, inplace=True, validate=validate)
-            case ModType.CTERM:
-                self.extend_cterm_mods(value, inplace=True, validate=validate)
-            case ModType.INTERNAL:
-                for index, mod in value.items():
-                    self.extend_internal_mods_at_index(index, mod, inplace=True, validate=validate)
-            case ModType.INTERVAL:
-                self.extend_intervals(value, inplace=True, validate=validate)
-            case ModType.CHARGE:
-                raise NotImplementedError("Extending charge not supported.")
-            case _:
-                raise NotImplementedError(f"Appending {mod_type} not supported.")
-
-        return self
-
-    def extend_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
-        """Extend modifications of multiple types by iterating through each mapped iterable.
-
-        :param mods: Mapping of :class:`ModType` (or literal/index) to iterable of modification values. A bare string is one modification.
-        :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param validate: Override the instance-level validation flag for this call only.
-        :type validate: bool | None
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        :raises InvalidPositionError: If an integer key is out of range for the current sequence.
-        """
-        if validate is None:
-            validate = self._validate
-        if not inplace:
-            return self.copy().extend_mods(mods, inplace=True, validate=validate)
-
-        for mod_type, value in mods.items():
-            if isinstance(mod_type, int):
-                if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
-                self.extend_internal_mods_at_index(mod_type, value, inplace=True, validate=validate)
-                continue
-            self._extend_by_type(value, ModType(mod_type), inplace=True, validate=validate)
-
-        return self
-
-    """
-    REMOVE Methods
-    """
-
-    def remove_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True) -> Self:
-        """Remove modifications by decrementing their counts."""
-        if not inplace:
-            return self.copy().remove_mods(mods, inplace=True)
-
-        for mod_type, mod_value in mods.items():
-            if isinstance(mod_type, int):
-                if mod_type < 0 or mod_type >= len(self.sequence):
-                    raise InvalidPositionError(f"Internal modification index out of range: {mod_type}")
-                self.remove_internal_mod_at_index(mod_type, mod_value, inplace=True)
-                continue
-
-            match ModType(mod_type):
-                case ModType.ISOTOPE:
-                    self.remove_isotope_mod(mod_value, inplace=True)
-                case ModType.STATIC:
-                    self.remove_static_mod(mod_value, inplace=True)
-                case ModType.LABILE:
-                    self.remove_labile_mod(mod_value, inplace=True)
-                case ModType.UNKNOWN:
-                    self.remove_unknown_mod(mod_value, inplace=True)
-                case ModType.NTERM:
-                    self.remove_nterm_mod(mod_value, inplace=True)
-                case ModType.CTERM:
-                    self.remove_cterm_mod(mod_value, inplace=True)
-                case ModType.INTERNAL:
-                    raise NotImplementedError("Use remove_internal_mod_at_index for internal modifications.")
-                case ModType.INTERVAL:
-                    self.remove_interval(mod_value, inplace=True)
-                case ModType.CHARGE:
-                    raise NotImplementedError("Removing charge modifications not supported.")
-                case _:
-                    raise TypeError(f"Unknown mod type: {mod_type}")
-
-        return self
-
-    def _remove_mod_generic(
-        self,
-        mod: Any,
-        attr_name: str,
-        inplace: bool = True,
-    ) -> Self:
-        """Generic method to remove a modification by decrementing its count."""
-        if not inplace:
-            return self.copy()._remove_mod_generic(mod, attr_name, inplace=True)
-
-        mod_dict = getattr(self, attr_name)
-        if mod_dict is None:
-            return self
-
-        mod_str, count = convert_single_mod_input(mod)
-
-        if mod_str not in mod_dict:
-            return self
-
-        # Decrement count, ensuring it doesn't go below 0
-        mod_dict[mod_str] = max(0, mod_dict[mod_str] - count)
-
-        # Remove if count reaches 0
-        if mod_dict[mod_str] == 0:
-            del mod_dict[mod_str]
-
-        # Clean up if dict is now empty
-        if len(mod_dict) == 0:
-            setattr(self, attr_name, None)
-
-        return self
-
-    def remove_isotope_mod(self, mod: Any, *, inplace: bool = True) -> Self:
-        """Remove a specific isotope modification by decrementing its count."""
-        return self._remove_mod_generic(mod, "_isotope_mods", inplace)
-
-    def remove_static_mod(self, mod: Any, *, inplace: bool = True) -> Self:
-        """Remove a specific static modification by decrementing its count."""
-        return self._remove_mod_generic(mod, "_static_mods", inplace)
-
-    def remove_labile_mod(self, mod: Any, *, inplace: bool = True) -> Self:
-        """Remove a specific labile modification by decrementing its count."""
-        return self._remove_mod_generic(mod, "_labile_mods", inplace)
-
-    def remove_unknown_mod(self, mod: Any, *, inplace: bool = True) -> Self:
-        """Remove a specific unknown modification by decrementing its count."""
-        return self._remove_mod_generic(mod, "_unknown_mods", inplace)
-
-    def remove_nterm_mod(self, mod: Any, *, inplace: bool = True, start_aa: str | None = None) -> Self:
-        """Remove a specific N-terminal modification by decrementing its count."""
-        if start_aa is not None and self.start_aa != start_aa:
-            return self if inplace else self.copy()
-        return self._remove_mod_generic(mod, "_nterm_mods", inplace)
-
-    def remove_cterm_mod(self, mod: Any, *, inplace: bool = True, end_aa: str | None = None) -> Self:
-        """Remove a specific C-terminal modification by decrementing its count."""
-        if end_aa is not None and self.end_aa != end_aa:
-            return self if inplace else self.copy()
-        return self._remove_mod_generic(mod, "_cterm_mods", inplace)
-
-    def remove_internal_mod_at_index(self, index: int, mod: Any, *, inplace: bool = True) -> Self:
-        """Remove a specific internal modification at a position by decrementing its count."""
-        if not inplace:
-            return self.copy().remove_internal_mod_at_index(index, mod, inplace=True)
-
-        if self._internal_mods is None or index not in self._internal_mods:
-            return self
-
-        mod_str, count = convert_single_mod_input(mod)
-
-        if mod_str not in self._internal_mods[index]:
-            return self
-
-        # Decrement count, ensuring it doesn't go below 0
-        self._internal_mods[index][mod_str] = max(0, self._internal_mods[index][mod_str] - count)
-
-        # Remove if count reaches 0
-        if self._internal_mods[index][mod_str] == 0:
-            del self._internal_mods[index][mod_str]
-
-        # Remove position if no mods left
-        if len(self._internal_mods[index]) == 0:
-            del self._internal_mods[index]
-
-        # Clean up if internal_mods is now empty
-        if len(self._internal_mods) == 0:
-            self._internal_mods = None
-
-        return self
-
-    def remove_interval(self, interval: Interval, *, inplace: bool = True) -> Self:
-        """Remove a specific interval from the intervals list."""
-        if not inplace:
-            return self.copy().remove_interval(interval, inplace=True)
-
-        if self._intervals is None:
-            return self
-
-        try:
-            self._intervals.remove(interval)
-        except ValueError:
-            # Interval not found, just return
-            pass
-
-        if len(self._intervals) == 0:
-            self._intervals = None
-
-        return self
+        return _mass.charge_adducts(self)
 
     """
     Magic Methods
@@ -2354,99 +929,6 @@ class ProFormaAnnotation:
         return self
 
     @property
-    def has_sequence(self) -> bool:
-        return bool(self._sequence)
-
-    @property
-    def has_compound_name(self) -> bool:
-        return bool(self._compound_name)
-
-    @property
-    def has_ion_name(self) -> bool:
-        return bool(self._ion_name)
-
-    @property
-    def has_peptide_name(self) -> bool:
-        return bool(self._peptide_name)
-
-    @property
-    def has_isotope_mods(self) -> bool:
-        return bool(self._isotope_mods)
-
-    @property
-    def has_static_mods(self) -> bool:
-        return bool(self._static_mods)
-
-    @property
-    def has_labile_mods(self) -> bool:
-        return bool(self._labile_mods)
-
-    @property
-    def has_unknown_mods(self) -> bool:
-        return bool(self._unknown_mods)
-
-    @property
-    def has_nterm_mods(self) -> bool:
-        return bool(self._nterm_mods)
-
-    @property
-    def has_cterm_mods(self) -> bool:
-        return bool(self._cterm_mods)
-
-    @property
-    def has_internal_mods(self) -> bool:
-        return bool(self._internal_mods)
-
-    @property
-    def has_intervals(self) -> bool:
-        return bool(self._intervals)
-
-    @property
-    def has_charge(self) -> bool:
-        if isinstance(self._charge, list):
-            return len(self._charge) > 0
-        elif isinstance(self._charge, int):
-            return self._charge != 0
-        return self._charge is not None
-
-    def _has_mods_by_type(self, mod_type: ModType) -> bool:
-        match mod_type:
-            case ModType.ISOTOPE:
-                return self.has_isotope_mods
-            case ModType.STATIC:
-                return self.has_static_mods
-            case ModType.LABILE:
-                return self.has_labile_mods
-            case ModType.UNKNOWN:
-                return self.has_unknown_mods
-            case ModType.NTERM:
-                return self.has_nterm_mods
-            case ModType.CTERM:
-                return self.has_cterm_mods
-            case ModType.INTERNAL:
-                return self.has_internal_mods
-            case ModType.INTERVAL:
-                return self.has_intervals
-            case ModType.CHARGE:
-                return self.has_charge
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-    def has_mods(
-        self,
-        mod_types: (Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None) = None,
-    ) -> bool:
-        """Return ``True`` if any of the specified modification types are present.
-
-        :param mod_types: Types to check; all types when ``None``.
-        :type mod_types: Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None
-        :return: ``True`` if at least one matching modification exists.
-        :rtype: bool
-        """
-        mod_enums = _resolve_mod_types(mod_types)
-        return any(self._has_mods_by_type(mod_enum) for mod_enum in mod_enums)
-
-    @property
     def has_sequence_ambiguity(self) -> bool:
         return self.has_intervals or self.has_unknown_mods
 
@@ -2465,45 +947,6 @@ class ProFormaAnnotation:
     @property
     def mass_ambiguous_residues(self) -> tuple[str, ...]:
         return tuple(aa for aa in self.stripped_sequence if AA_LOOKUP.is_mass_ambiguous(aa))
-
-    def _get_mods_by_type(self, mod_type: ModType) -> Any:
-        match mod_type:
-            case ModType.ISOTOPE:
-                return self.isotope_mods
-            case ModType.STATIC:
-                return self.static_mods
-            case ModType.LABILE:
-                return self.labile_mods
-            case ModType.UNKNOWN:
-                return self.unknown_mods
-            case ModType.NTERM:
-                return self.nterm_mods
-            case ModType.CTERM:
-                return self.cterm_mods
-            case ModType.INTERNAL:
-                return self.internal_mods
-            case ModType.INTERVAL:
-                return self.intervals
-            case ModType.CHARGE:
-                return self.charge
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-    def get_mods(
-        self,
-        mod_types: (Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None) = None,
-    ) -> dict[ModType | ModTypeLiteral, Any]:
-        """Return a dict of present modification types mapped to their values.
-
-        Only types that currently have modifications are included in the result.
-
-        :param mod_types: Types to include; all types when ``None``.
-        :type mod_types: Iterable[ModTypeLiteral] | Iterable[ModType] | ModType | ModTypeLiteral | None
-        :return: Mapping of mod type to modification value.
-        :rtype: dict[ModType | ModTypeLiteral, Any]
-        """
-        mod_enums = _resolve_mod_types(mod_types)
-        return {mod_enum: self._get_mods_by_type(mod_enum) for mod_enum in mod_enums if self._has_mods_by_type(mod_enum)}
 
     @classmethod
     def parse_chimeric(cls, sequence: str, *, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
@@ -2709,15 +1152,7 @@ class ProFormaAnnotation:
         :rtype: Counter[ElementInfo]
         :raises CompositionError: If a residue (e.g. ``X``) has no defined composition.
         """
-        sequence_composition: Counter[ElementInfo] = Counter()
-        # Count residues once, then scale each residue's composition by its count.
-        for aa, n in Counter(self.stripped_sequence).items():
-            residue_comp = _AA_COMPOSITIONS[aa] if aa in _AA_COMPOSITIONS else AA_LOOKUP[aa].composition
-            if residue_comp is None:
-                raise CompositionError(f"Composition not available for amino acid: {aa}")
-            for element, count in residue_comp.items():
-                sequence_composition[element] += count * n
-        return sequence_composition
+        return _mass.sequence_composition(self)
 
     @property
     def stripped_sequence(self) -> str:
@@ -2770,74 +1205,9 @@ class ProFormaAnnotation:
 
         return isotope_map
 
-    # Thin wrapper over the shared negative-safe merge helper (see
-    # proforma_components.comps.add_composition) so the many call sites below read cleanly.
-    _merge_comp = staticmethod(add_composition)
-
     def _base_comp(self, skip_labile: bool = False, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], int, float]:
-        total_composition: Counter[ElementInfo] = self.get_sequence_composition()
-        total_charge = 0  # results from internal formula mods
-        total_delta_mass = 0.0  # only from MassTags
-
-        if self.has_unknown_mods:
-            unknown_mods = self.unknown_mods
-            composition, delta_mass, charge = unknown_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-            self._merge_comp(total_composition, composition)
-            total_delta_mass += delta_mass
-            total_charge += charge
-
-        if not skip_labile and self.has_labile_mods:
-            labile_mods = self.labile_mods
-            composition, delta_mass, charge = labile_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-            self._merge_comp(total_composition, composition)
-            total_delta_mass += delta_mass
-            total_charge += charge
-
-        if self.has_nterm_mods:
-            nterm_mods = self.nterm_mods
-            composition, delta_mass, charge = nterm_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-            self._merge_comp(total_composition, composition)
-            total_delta_mass += delta_mass
-            total_charge += charge
-
-        if self.has_cterm_mods:
-            cterm_mods = self.cterm_mods
-            composition, delta_mass, charge = cterm_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-            self._merge_comp(total_composition, composition)
-            total_delta_mass += delta_mass
-            total_charge += charge
-
-        if self.has_static_mods:
-            static_mod_map = self.map_static_mods_to_indexes()
-            for _, mods in static_mod_map.items():
-                for mod in mods:
-                    try:
-                        self._merge_comp(total_composition, mod.get_composition())
-                    except ValueError as e:
-                        if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
-                            # MassTag does not have composition, only delta mass
-                            total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
-                        else:
-                            raise e
-                    total_charge += mod.get_charge()
-
-        # Internal mods
-        if self.has_internal_mods:
-            for mods in self.internal_mods.values():
-                composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-                self._merge_comp(total_composition, composition)
-                total_delta_mass += delta_mass
-                total_charge += charge
-
-        # Intervals
-        if self.has_intervals:
-            for interval in self.intervals:
-                composition, delta_mass, charge = interval.mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
-                self._merge_comp(total_composition, composition)
-                total_delta_mass += delta_mass
-                total_charge += charge
-
-        return total_composition, total_charge, total_delta_mass
+        """Composition of the residues and modifications, with the internal charge and mass-only delta (see :func:`._mass.base_comp`)."""
+        return _mass.base_comp(self, skip_labile=skip_labile, monoisotopic=monoisotopic)
 
     def comp(
         self,
@@ -2848,98 +1218,15 @@ class ProFormaAnnotation:
         deltas: CUSTOM_LOSS_TYPE | None = None,
     ) -> Counter[ElementInfo]:
         """Calculate composition, preferring user charge over annotation charge."""
-
-        frag = self.frag(
-            ion_type=ion_type,
-            charge=charge,
-            monoisotopic=True,
-            isotopes=isotopes,
-            deltas=deltas,
-            calculate_with_composition=True,
-            _include_sequence=False,
-        )
-
-        if frag.composition is None:
-            raise PeptacularError("Fragment composition could not be calculated.")
-
-        return frag.composition
+        return _mass.comp(self, charge, ion_type=ion_type, isotopes=isotopes, deltas=deltas)
 
     def _base_mass(self, monoisotopic: bool = True, skip_labile: bool = False) -> tuple[float, int]:
         """Optimized mass calculation with minimal overhead."""
-        total_mass = 0.0
-        total_charge = 0  # results from internal formula mods
-
-        # Inline mass lookup to avoid function call overhead
-        # Amino acids - hot path, optimize heavily
-        aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
-        for aa in self.stripped_sequence:
-            mass = aa_lookup[aa]
-            if mass is None:
-                raise PeptacularError(f"Mass not available for amino acid: {aa}")
-            total_mass += mass
-
-        # Unknown mods
-        if self.has_unknown_mods:
-            m, c = self.unknown_mods.get_mass_charge(monoisotopic=monoisotopic)
-            total_mass += m
-            total_charge += c
-
-        # Labile mods
-        if not skip_labile and self.has_labile_mods:
-            m, c = self.labile_mods.get_mass_charge(monoisotopic=monoisotopic)
-            total_mass += m
-            total_charge += c
-
-        # N-terminal mods
-        if self.has_nterm_mods:
-            m, c = self.nterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            total_mass += m
-            total_charge += c
-
-        # Internal mods
-        if self.has_internal_mods:
-            for mods in self.internal_mods.values():
-                m, c = mods.get_mass_charge(monoisotopic=monoisotopic)
-                total_mass += m
-                total_charge += c
-
-        # Interval mods
-        if self.has_intervals:
-            for interval in self.intervals:
-                m, c = interval.mods.get_mass_charge(monoisotopic=monoisotopic)
-                total_mass += m
-                total_charge += c
-
-        # C-terminal mods
-        if self.has_cterm_mods:
-            m, c = self.cterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            total_mass += m
-            total_charge += c
-
-        # Static mods
-        if self.has_static_mods:
-            static_mod_map = self.map_static_mods_to_indexes()
-            for mods in static_mod_map.values():
-                for mod in mods:
-                    total_mass += mod.get_mass(monoisotopic=monoisotopic)
-                    total_charge += mod.get_charge()
-
-        return total_mass, total_charge
+        return _mass.base_mass(self, monoisotopic=monoisotopic, skip_labile=skip_labile)
 
     def _get_mass_vector(self, monoisotopic: bool = True) -> list[float]:
-        # slice sequence into single aa slcices
-        vec: list[float] = []
-        for i in range(len(self)):
-            sub_annot = self.slice(i, i + 1, inplace=False)
-            vec.append(
-                sub_annot.mass(
-                    ion_type=IonType.NEUTRAL,
-                    charge=None,
-                    monoisotopic=monoisotopic,
-                    isotopes=None,
-                )
-            )
-        return vec
+        """Neutral mass of each one-residue slice (see :func:`._mass.residue_mass_vector`)."""
+        return _mass.residue_mass_vector(self, monoisotopic=monoisotopic)
 
     def _build_mass_vector(self, monoisotopic: bool = True) -> list[float]:
         """Build a per-residue mass array without sequence slicing.
@@ -2954,66 +1241,21 @@ class ProFormaAnnotation:
         :rtype: list[float]
         :raises PeptacularError: If the annotation contains unknown mods or interval mods.
         """
-        if self.has_unknown_mods or self.has_intervals:
-            raise UnsupportedOperationError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
-
-        aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
-        masses: list[float] = []
-        for aa in self.stripped_sequence:
-            m = aa_lookup[aa]
-            if m is None:
-                raise PeptacularError(f"Mass not available for amino acid: {aa}")
-            masses.append(m)
-
-        if self.has_nterm_mods:
-            m, _ = self.nterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            masses[0] += m
-
-        if self.has_internal_mods:
-            for pos, mods in self.internal_mods.items():
-                m, _ = mods.get_mass_charge(monoisotopic=monoisotopic)
-                masses[pos] += m
-
-        if self.has_cterm_mods:
-            m, _ = self.cterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            masses[-1] += m
-
-        if self.has_static_mods:
-            static_mod_map = self.map_static_mods_to_indexes()
-            for pos, mods_list in static_mod_map.items():
-                # map_static_mods_to_indexes uses -1 for N-term and -2 for C-term
-                if pos == -1:
-                    pos = 0
-                elif pos == -2:
-                    pos = len(masses) - 1
-                for mod in mods_list:
-                    masses[pos] += mod.get_mass(monoisotopic=monoisotopic)
-
-        return masses
+        return _frag_engine.build_mass_vector(self, monoisotopic=monoisotopic)
 
     def _get_comp_vector(self) -> list[Counter[ElementInfo]]:
-        # slice sequence into single aa slcices
-        vec: list[Counter[ElementInfo]] = []
-        for i in range(len(self)):
-            sub_annot = self.slice(i, i + 1, inplace=False)
-            vec.append(
-                sub_annot.comp(
-                    ion_type=IonType.NEUTRAL,
-                    charge=None,
-                    isotopes=None,
-                )
-            )
-        return vec
+        """Neutral composition of each one-residue slice (see :func:`._mass.residue_comp_vector`)."""
+        return _mass.residue_comp_vector(self)
 
     @property
     def monoisotopic_base_mass(self) -> float:
         """Calculate monoisotopic mass of the unmodified sequence."""
-        return self._base_mass(monoisotopic=True)[0]
+        return _mass.base_mass(self, monoisotopic=True)[0]
 
     @property
     def average_base_mass(self) -> float:
         """Calculate average mass of the unmodified sequence."""
-        return self._base_mass(monoisotopic=False)[0]
+        return _mass.base_mass(self, monoisotopic=False)[0]
 
     def mass(
         self,
@@ -3026,8 +1268,7 @@ class ProFormaAnnotation:
         calculate_with_composition: bool = False,
     ) -> float:
         """Calculate mass, preferring user charge over annotation charge."""
-
-        return self._mass_and_charge(ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)[0]
+        return _mass.mass_and_charge(self, ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)[0]
 
     def _mass_and_charge(
         self,
@@ -3039,40 +1280,7 @@ class ProFormaAnnotation:
         calculate_with_composition: bool,
     ) -> tuple[float, int]:
         """Avoid fragment allocation and annotation copies for ordinary intact ions."""
-        effective_charge = self._charge if charge is None else charge
-        if (
-            ion_type in (IonType.PRECURSOR, IonType.NEUTRAL)
-            and isotopes is None
-            and deltas is None
-            and not calculate_with_composition
-            and not self.has_isotope_mods
-            and (effective_charge is None or type(effective_charge) is int and effective_charge >= 0)
-        ):
-            ion_type = to_ion_type(ion_type)
-            can_fragment_sequence(self.sequence, ion_type)
-            base_mass, internal_charge = self._base_mass(monoisotopic=monoisotopic)
-            external_charge = effective_charge or 0
-            total_charge = external_charge + internal_charge
-            mass = _adjust_mass_value(
-                base_mass,
-                # H atoms here, the electrons come off below; the binding term lifts H - e to PROTON_MASS.
-                (H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) + (HYDROGEN_BINDING_MASS if monoisotopic else 0.0)) * external_charge,
-                total_charge,
-                ion_type,
-                monoisotopic,
-            )
-            return mass, total_charge
-
-        f = self.frag(
-            ion_type=ion_type,
-            charge=charge,
-            monoisotopic=monoisotopic,
-            isotopes=isotopes,
-            deltas=deltas,
-            calculate_with_composition=calculate_with_composition,
-            _include_sequence=False,
-        )
-        return f.mass, f.charge_state
+        return _mass.mass_and_charge(self, ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)
 
     def neutral_mass(
         self,
@@ -3119,23 +1327,9 @@ class ProFormaAnnotation:
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
     ) -> Fragment:
-        # Satellite ions: the residue whose side chain is cleaved is not in the residue sum;
-        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it,
-        # but a terminal modification sits on the backbone and stays: a full-length d ion
-        # keeps the C-terminal mod, a full-length v/w ion keeps the N-terminal mod.
-        blocked = self._satellite_mod_error(ion_type)
-        if blocked is not None:
-            raise PeptacularError(blocked)
-        annot = self
-        if ion_type in SATELLITE_TRIM_END:
-            annot = self.slice(0, len(self) - 1, inplace=False)
-            if self.has_cterm_mods:
-                annot.set_cterm_mods(self.cterm_mods, validate=False)
-        elif ion_type in SATELLITE_TRIM_START:
-            annot = self.slice(1, len(self), inplace=False)
-            if self.has_nterm_mods:
-                annot.set_nterm_mods(self.nterm_mods, validate=False)
-        return annot._frag_impl(
+        """Build one ion; satellite ions drop the cleaved residue first (see :func:`._frag_engine.frag_one`)."""
+        return _frag_engine.frag_one(
+            self,
             ion_type=ion_type,
             monoisotopic=monoisotopic,
             isotope=isotope,
@@ -3154,18 +1348,7 @@ class ProFormaAnnotation:
         fixed modification (as in paftacular). A v ion loses the whole side chain, and its
         modification with it, so v ions are always defined.
         """
-        if ion_type == IonType.V or not self:
-            return None
-        if ion_type in SATELLITE_TRIM_END:
-            index = len(self) - 1
-        elif ion_type in SATELLITE_TRIM_START:
-            index = 0
-        else:
-            return None
-        if self.has_internal_mods_at_index(index) or (self.has_static_mods and index in self.map_static_mods_to_indexes()):
-            label = _ION_TYPE_TO_MZPAF_SERIES.get(ion_type, ion_type.value)
-            return f"{label} ion is not defined when residue {self.stripped_sequence[index]} carries a modification"
-        return None
+        return _frag_engine.satellite_mod_error(self, ion_type)
 
     def _frag_impl(
         self,
@@ -3178,75 +1361,17 @@ class ProFormaAnnotation:
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
     ) -> Fragment:
-        # Dont include labile mods for fragment ions
-        skip_labile = True
-        if ion_type == IonType.NEUTRAL or ion_type == IonType.PRECURSOR:
-            skip_labile = False
-
-        # Elemental adjustments share one order in both calculation modes.
-        # Mass-only modifications remain additive and do not invent atom counts.
-        formula_deltas: dict[ChargedFormula | float, int] = {key: count for key, count in delta.deltas.items() if isinstance(key, ChargedFormula)}
-        charge_carriers = self.charge_adducts
-        removes_atoms = any(count < 0 for mod in charge_carriers for count in mod.get_composition().values())
-        if self.has_isotope_mods or calculate_with_composition or isotope.data or formula_deltas or removes_atoms:
-            base_comp, base_charge, delta_mass = self._base_comp(skip_labile=skip_labile, monoisotopic=monoisotopic)
-            if calculate_with_composition and (delta_mass != 0.0 or delta.has_floats):
-                raise CompositionError("Cannot calculate composition with delta mass changes. Use mass() or mz() instead.")
-            result = adjust_comp(
-                base_comp=base_comp,
-                charge=charge_carriers,
-                ion_type=ion_type,
-                monoisotopic=monoisotopic,
-                isotope=isotope,
-                delta=DeltaInfo(formula_deltas),
-                inplace=True,
-                isotope_map=self.map_isotopes() if self.has_isotope_mods else None,
-                position=position,
-                parent_sequence=parent_sequence,
-                parent_sequence_length=parent_sequence_length,
-                internal_charge=base_charge,
-                isotope_as_mass=not calculate_with_composition,
-            )
-            if not calculate_with_composition and not self.has_isotope_mods:
-                # The composition above only validates the ion (atoms left for a formula loss,
-                # an isotope swap or a deprotonation). The mass comes from the listed masses,
-                # as for the plain ion, so a loss or isotope peak is exactly the plain ion plus
-                # its delta. Summing the mods' compositions instead would move named mods off
-                # their listed mass (Oxidation 15.994915 vs 15.9949146 from O).
-                base_mass, _ = self._base_mass(monoisotopic=monoisotopic, skip_labile=skip_labile)
-                mass = _adjust_mass_value(
-                    base_mass,
-                    charge_carriers.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge_carriers, monoisotopic),
-                    result.charge_state,
-                    ion_type,
-                    monoisotopic,
-                    isotope.get_mass_delta(monoisotopic),
-                    delta.get_mass_delta(monoisotopic),
-                )
-                result = result._replace(mass=mass, _composition=None, _deltas=delta.to_fragment_mapping)
-            elif not calculate_with_composition:
-                # A global isotope label (<13C>) changes every atom's mass, so the labelled
-                # composition is the mass; mass-only tags and float deltas are added on top.
-                mass = result.mass + delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
-                result = result._replace(mass=mass, _composition=None, _deltas=delta.to_fragment_mapping)
-            else:
-                result = result._replace(_deltas=delta.to_fragment_mapping)
-            validate_mass(result.mass)
-            return result
-
-        base_mass, base_charge = self._base_mass(monoisotopic=monoisotopic, skip_labile=skip_labile)
-
-        return adjust_mass_mz(
-            base=base_mass,
-            charge=charge_carriers,
-            monoisotopic=monoisotopic,
+        """Build one ion of this (sub)sequence by mass or composition (see :func:`._frag_engine.frag_impl`)."""
+        return _frag_engine.frag_impl(
+            self,
             ion_type=ion_type,
+            monoisotopic=monoisotopic,
             isotope=isotope,
             delta=delta,
-            position=position,
+            calculate_with_composition=calculate_with_composition,
             parent_sequence=parent_sequence,
             parent_sequence_length=parent_sequence_length,
-            internal_charge=base_charge,
+            position=position,
         )
 
     def frag(
@@ -3262,62 +1387,16 @@ class ProFormaAnnotation:
         _include_sequence: bool = True,
     ) -> Fragment:
         """Calculate mass, preferring user charge over annotation charge."""
-        ion_type = to_ion_type(ion_type)
-        delta_info = DeltaInfo.from_input(deltas)
-
-        inplace = False
-
-        frag_annot = self
-        if charge is not None:  # update charge
-            frag_annot = frag_annot.set_charge(charge, inplace=inplace)
-            inplace = True
-
-        parent_sequence = None
-        if _include_sequence:
-            parent_sequence = frag_annot.serialize(exclude_charge=False)
-        else:
-            parent_sequence = ""
-
-        if position is None:
-            ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
-            if ion_info.is_forward | ion_info.is_backward:
-                position = len(self)  # default to full length for terminal ions
-            if ion_info.is_internal:
-                if ion_info.ion_type == IonType.IMMONIUM and len(frag_annot) != 1:
-                    raise PeptacularError("Immonium ions must be single amino acids, or the position must be specified.")
-                position = (
-                    1,
-                    len(self),
-                )  # use whole sequence for internal ions by default
-            if ion_info.is_intact:
-                position = None  # use whole sequence for intact ions
-
-        _pos: tuple[int, int] | None = validate_position(ion_type, position, len(self))
-
-        iso_info = IsotopeInfo.from_input(isotopes)
-
-        # get the appropriate fragment annotation based on the position parameter
-        match _pos:
-            case None:
-                pass
-            case tuple() as pios_tuple:
-                pos_start, pos_end = pios_tuple
-                frag_annot = frag_annot.slice(pos_start, pos_end, inplace=inplace)
-            case _:
-                raise PeptacularError(f"Invalid position type: {type(position)}")
-
-        # Checked on the fragment itself: satellite ions depend on its terminal residue.
-        ion_type = can_fragment_sequence(frag_annot.sequence, ion_type)
-
-        return frag_annot._frag(
-            ion_type=ion_type,
+        return _frag_engine.frag(
+            self,
+            ion_type,
+            charge,
             monoisotopic=monoisotopic,
-            isotope=iso_info,
-            delta=delta_info,
+            isotopes=isotopes,
+            deltas=deltas,
             calculate_with_composition=calculate_with_composition,
-            parent_sequence=parent_sequence,
-            parent_sequence_length=len(self),
             position=position,
+            _include_sequence=_include_sequence,
         )
 
     def mz(
@@ -3331,8 +1410,7 @@ class ProFormaAnnotation:
         calculate_with_composition: bool = False,
     ) -> float:
         """Calculate m/z, preferring user charge over annotation charge."""
-
-        mass, total_charge = self._mass_and_charge(ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)
+        mass, total_charge = _mass.mass_and_charge(self, ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)
         return mass / abs(total_charge) if total_charge else mass
 
     def _series_mass_vector(self, monoisotopic: bool, calculate_with_composition: bool) -> list[float] | None:
@@ -3343,39 +1421,7 @@ class ProFormaAnnotation:
         sum equals ``self[len - i:]``. Anything that needs the composition path, or that slicing
         treats specially, returns None so the caller slices instead.
         """
-        if (
-            calculate_with_composition
-            or self.has_isotope_mods
-            or self.has_static_mods
-            or self.has_unknown_mods
-            or self.has_intervals
-            or any(count < 0 for mod in self.charge_adducts for count in mod.get_composition().values())
-        ):
-            return None
-        aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
-        masses: list[float] = []
-        for aa in self.stripped_sequence:
-            m = aa_lookup[aa]
-            if m is None:
-                return None
-            masses.append(m)
-        if self.has_nterm_mods:
-            m, c = self.nterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            if c:
-                return None
-            masses[0] += m
-        if self.has_internal_mods:
-            for pos, mods in self.internal_mods.items():
-                m, c = mods.get_mass_charge(monoisotopic=monoisotopic)
-                if c:
-                    return None
-                masses[pos] += m
-        if self.has_cterm_mods:
-            m, c = self.cterm_mods.get_mass_charge(monoisotopic=monoisotopic)
-            if c:
-                return None
-            masses[-1] += m
-        return masses
+        return _frag_engine.series_mass_vector(self, monoisotopic, calculate_with_composition)
 
     def _fragment_series(
         self,
@@ -3400,117 +1446,22 @@ class ProFormaAnnotation:
         annotation; everything else (composition mode, formula deltas, isotope swaps,
         satellite ions, ...) slices and goes through :meth:`_frag`.
         """
-        n = len(self)
-        stripped = self.stripped_sequence
-        masses = self._series_mass_vector(monoisotopic, calculate_with_composition) if _fast else None
-
-        cumulative: list[float] = []
-        charge_mass = 0.0
-        external_charge = 0
-        adducts: tuple[str, ...] | None = None
-        if masses is not None:
-            total = 0.0
-            cumulative.append(total)
-            for m in masses if forward else reversed(masses):
-                total += m
-                cumulative.append(total)
-            charge_carriers = self.charge_adducts
-            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge_carriers, monoisotopic)
-            external_charge = charge_carriers.get_charge()
-            if not all(m.value.is_protonated for m in charge_carriers.mods):
-                adducts = tuple(key for key, count in charge_carriers._mods.items() for _ in range(count)) if charge_carriers._mods else None
-
-        # Per-ion work that does not depend on the position is done once per series:
-        # the (isotope, delta, loss) products are cached per loss-site count, and the
-        # ion-type lookup per (possibly residue-specific) ion type.
-        combo_cache: dict[tuple[tuple[NeutralDeltaInfo, int], ...], list[tuple[IsotopeInfo, DeltaInfo, DeltaInfo, bool, float, float]]] = {}
-        ion_cache: dict[IonType, tuple[IonType, bool, float]] = {}
-        loss_dict: dict[NeutralDeltaInfo, int] = {}
-        for i in range(1, n + 1):
-            if min_length is not None and i < min_length:
-                continue
-            if max_length is not None and i > max_length:
-                break
-
-            sub_sequence = stripped[:i] if forward else stripped[n - i :]
-            try:
-                frag_type = can_fragment_sequence(sub_sequence, ion_type)
-            except ValueError:
-                continue
-
-            if neutral_deltas:
-                loss_dict.clear()
-                for nd in neutral_deltas:
-                    loss_dict[nd] = min(nd.calculate_loss_sites(sub_sequence), max_deltas)
-            loss_key = tuple(loss_dict.items())
-            products = combo_cache.get(loss_key)
-            if products is None:
-                products = []
-                for isotope in isotopes:
-                    for delta in deltas:
-                        for ndelta in get_loss_combinations(loss_dict, max_deltas):
-                            combined_delta = delta + ndelta
-                            plain = not isotope.data and not any(isinstance(k, ChargedFormula) for k in combined_delta.deltas)
-                            iso_mass = isotope.get_mass_delta(monoisotopic) if plain else 0.0
-                            delta_mass = combined_delta.get_mass_delta(monoisotopic) if plain else 0.0
-                            products.append((isotope, combined_delta, ndelta, plain, iso_mass, delta_mass))
-                combo_cache[loss_key] = products
-
-            ion_entry = ion_cache.get(frag_type)
-            if ion_entry is None:
-                fast_type = masses is not None and frag_type not in SATELLITE_TRIM_END and frag_type not in SATELLITE_TRIM_START
-                frag_ion_type = FRAGMENT_ION_LOOKUP[frag_type].ion_type
-                ion_entry = (frag_ion_type, fast_type, _ion_mass(frag_ion_type, monoisotopic) if fast_type else 0.0)
-                ion_cache[frag_type] = ion_entry
-            frag_ion_type, fast_type, ion_mass = ion_entry
-            sub_annot: ProFormaAnnotation | None = None
-
-            for isotope, combined_delta, ndelta, plain, iso_mass, delta_mass in products:
-                if fast_type and plain:
-                    # Same arithmetic order as adjust_mass_mz / _adjust_mass_value.
-                    mass = cumulative[i]
-                    mass += iso_mass
-                    mass += delta_mass
-                    mass += charge_mass
-                    mass += ion_mass
-                    mass -= external_charge * ELECTRON_MASS
-                    validate_mass(mass)
-                    yield Fragment(
-                        ion_type=frag_ion_type,
-                        position=i,
-                        mass=mass,
-                        monoisotopic=monoisotopic,
-                        charge_state=external_charge,
-                        charge_adducts=adducts,
-                        external_charge=external_charge,
-                        isotopes=isotope.to_fragment_mapping,
-                        deltas=combined_delta.to_fragment_mapping,
-                        composition=None,
-                        parent_sequence=parent_sequence,
-                        parent_sequence_length=parent_sequence_length,
-                    )
-                    continue
-                if sub_annot is None:
-                    sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
-                if frag_type in SATELLITE_TRIM_END or frag_type in SATELLITE_TRIM_START:
-                    # A series skips d/w ions of a modified cleaved residue; an explicit
-                    # frag() of the same ion raises.
-                    if sub_annot._satellite_mod_error(frag_type) is not None:
-                        break
-                fragment = _unless_impossible_loss(
-                    ndelta,
-                    sub_annot._frag,
-                    ion_type=frag_type,
-                    monoisotopic=monoisotopic,
-                    isotope=isotope,
-                    delta=combined_delta,
-                    calculate_with_composition=calculate_with_composition,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    position=i,
-                )
-                if fragment is not None:
-                    yield fragment
+        return _frag_engine.fragment_series(
+            self,
+            ion_type,
+            forward=forward,
+            monoisotopic=monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            neutral_deltas=neutral_deltas,
+            calculate_with_composition=calculate_with_composition,
+            parent_sequence=parent_sequence,
+            parent_sequence_length=parent_sequence_length,
+            max_deltas=max_deltas,
+            min_length=min_length,
+            max_length=max_length,
+            _fast=_fast,
+        )
 
     def _fragment(
         self,
@@ -3528,156 +1479,22 @@ class ProFormaAnnotation:
         max_length: int | None,
         _expand: bool = True,
     ) -> Generator[Fragment, None, None]:
-        if self.has_unknown_mods or self.has_intervals:
-            raise PeptacularError(f"Fragmentation not supported for sequences with unknown modifications or intervals: {str(self)}")
-
-        # "d" and "w" cover the generic ion and the residue-specific a/b variants
-        # (d-valine, da-/db-threonine, ...); each variant only forms on its own residues.
-        if _expand and ion_type in (IonType.D, IonType.W):
-            family = (IonType.D, IonType.DA, IonType.DB) if ion_type == IonType.D else (IonType.W, IonType.WA, IonType.WB)
-            for member in family:
-                yield from self._fragment(
-                    member,
-                    monoisotopic,
-                    isotopes=isotopes,
-                    deltas=deltas,
-                    neutral_deltas=neutral_deltas,
-                    calculate_with_composition=calculate_with_composition,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    max_deltas=max_deltas,
-                    min_length=min_length,
-                    max_length=max_length,
-                    _expand=False,
-                )
-            return
-
-        ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
-
-        loss_dict: dict[NeutralDeltaInfo, int] = {}
-        # Terminal series: forward ions (b1, b2, ...) grow from the N-terminus,
-        # backward ions (y1, y2, ...) from the C-terminus.
-        if ion_info.is_forward or ion_info.is_backward:
-            yield from self._fragment_series(
-                ion_type,
-                forward=ion_info.is_forward,
-                monoisotopic=monoisotopic,
-                isotopes=isotopes,
-                deltas=deltas,
-                neutral_deltas=neutral_deltas,
-                calculate_with_composition=calculate_with_composition,
-                parent_sequence=parent_sequence,
-                parent_sequence_length=parent_sequence_length,
-                max_deltas=max_deltas,
-                min_length=min_length,
-                max_length=max_length,
-            )
-
-        elif ion_info.is_intact:
-            if min_length is not None and len(self) < min_length:
-                return
-
-            if max_length is not None and len(self) > max_length:
-                return
-
-            if neutral_deltas:
-                loss_dict.clear()
-                for nd in neutral_deltas:
-                    loss_dict[nd] = min(nd.calculate_loss_sites(self.sequence), max_deltas)
-
-            neutral_delta_combinations = get_loss_combinations(loss_dict, max_deltas)
-
-            for isotope in isotopes:
-                for delta in deltas:
-                    for ndelta in neutral_delta_combinations:
-                        combined_delta = delta + ndelta
-                        fragment = _unless_impossible_loss(
-                            ndelta,
-                            self._frag,
-                            ion_type=ion_type,
-                            monoisotopic=monoisotopic,
-                            isotope=isotope,
-                            delta=combined_delta,
-                            calculate_with_composition=calculate_with_composition,
-                            parent_sequence=parent_sequence,
-                            parent_sequence_length=parent_sequence_length,
-                            # Intact precursor/neutral ions represent the whole sequence.
-                            # Keep position unset so Fragment.composition/sequence do not
-                            # try to validate an integer cleavage position for a non-series ion.
-                            position=None,
-                        )
-                        if fragment is not None:
-                            yield fragment
-        elif ion_info.is_internal:
-            if ion_info.ion_type == IonType.IMMONIUM:
-                # Immonium ions are single residue fragments
-                for i in range(1, len(self) + 1):
-                    sub_annot = self.slice(i - 1, i, inplace=False)
-
-                    if neutral_deltas:
-                        loss_dict.clear()
-                        for nd in neutral_deltas:
-                            loss_dict[nd] = min(nd.calculate_loss_sites(sub_annot.sequence), max_deltas)
-
-                    neutral_delta_combinations = get_loss_combinations(loss_dict, max_deltas)
-
-                    for isotope in isotopes:
-                        for delta in deltas:
-                            for ndelta in neutral_delta_combinations:
-                                combined_delta = delta + ndelta
-                                fragment = _unless_impossible_loss(
-                                    ndelta,
-                                    sub_annot._frag,
-                                    ion_type=ion_type,
-                                    monoisotopic=monoisotopic,
-                                    isotope=isotope,
-                                    delta=combined_delta,
-                                    calculate_with_composition=calculate_with_composition,
-                                    parent_sequence=parent_sequence,
-                                    parent_sequence_length=parent_sequence_length,
-                                    position=i,  # Position is the residue index
-                                )
-                                if fragment is not None:
-                                    yield fragment
-            else:
-                # gen all internal fragmetns from 1 to n-1
-                for start in range(2, len(self)):  # Start from position 1 to len-1
-                    for end in range(start, len(self)):  # End before C-terminus
-                        # Apply length filters
-                        if min_length is not None and (end - start + 1) < min_length:
-                            continue
-                        if max_length is not None and (end - start + 1) > max_length:
-                            continue
-                        sub_annot = self.slice(start - 1, end, inplace=False)
-
-                        if neutral_deltas:
-                            loss_dict.clear()
-                            for nd in neutral_deltas:
-                                loss_dict[nd] = min(nd.calculate_loss_sites(sub_annot.sequence), max_deltas)
-
-                        neutral_delta_combinations = get_loss_combinations(loss_dict, max_deltas)
-
-                        for isotope in isotopes:
-                            for delta in deltas:
-                                for ndelta in neutral_delta_combinations:
-                                    combined_delta = delta + ndelta
-                                    fragment = _unless_impossible_loss(
-                                        ndelta,
-                                        sub_annot._frag,
-                                        ion_type=ion_type,
-                                        monoisotopic=monoisotopic,
-                                        isotope=isotope,
-                                        delta=combined_delta,
-                                        calculate_with_composition=calculate_with_composition,
-                                        parent_sequence=parent_sequence,
-                                        parent_sequence_length=parent_sequence_length,
-                                        position=(
-                                            start,
-                                            end,
-                                        ),
-                                    )
-                                    if fragment is not None:
-                                        yield fragment
+        """Yield every ion of one ion type (see :func:`._frag_engine.fragment_ions`)."""
+        return _frag_engine.fragment_ions(
+            self,
+            ion_type,
+            monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            neutral_deltas=neutral_deltas,
+            calculate_with_composition=calculate_with_composition,
+            parent_sequence=parent_sequence,
+            parent_sequence_length=parent_sequence_length,
+            max_deltas=max_deltas,
+            min_length=min_length,
+            max_length=max_length,
+            _expand=_expand,
+        )
 
     @staticmethod
     def _default_fragment_charges(charge_state: int) -> tuple[int, ...]:
@@ -3687,11 +1504,7 @@ class ProFormaAnnotation:
         For a negative precursor charge ``c``, returns ``-1, -2, …, c+1``.
         Falls back to ``(1,)`` when ``charge_state`` is 0 (unannotated) or ±1.
         """
-        if charge_state > 1:
-            return tuple(range(1, charge_state))
-        if charge_state < -1:
-            return tuple(range(-1, charge_state, -1))
-        return (1,)  # charge 0 (unannotated) or ±1 — last resort
+        return _frag_engine.default_fragment_charges(charge_state)
 
     def fragment(
         self,
@@ -3712,68 +1525,19 @@ class ProFormaAnnotation:
         A single ion type, charge, isotope or neutral delta may be passed without a list
         (``fragment("by", 2)`` is ``fragment(["by"], [2])``).
         """
-        ion_types = _as_options(ion_types)
-        isotopes = _as_options(isotopes)
-        neutral_deltas = _as_options(neutral_deltas)
-        if charges is None:
-            charges = self._default_fragment_charges(self.charge_state)
-        charges = _as_options(charges)
-
-        # charge_infos: list[ChargeCarrierInfo] = [ChargeCarrierInfo.from_input(charge) for charge in charges]
-
-        isotope_infos: list[IsotopeInfo] = [IsotopeInfo.from_input(isotope) for isotope in isotopes]
-
-        neutral_deltas_infos: list[NeutralDeltaInfo] = []
-        if neutral_deltas_infos is not None:
-            for loss in neutral_deltas:
-                if loss is None:
-                    continue
-                if isinstance(loss, NeutralDeltaInfo):
-                    neutral_deltas_infos.append(loss)
-                else:
-                    nd: NeutralDeltaInfo = NEUTRAL_DELTA_LOOKUP[loss]
-                    neutral_deltas_infos.append(nd)
-
-        delta_infos = [DeltaInfo.from_input(loss) for loss in deltas]
-
-        fragments: list[Fragment] = []
-        for charge in charges:
-            charged_annot = self.set_charge(charge, inplace=False)
-            sequence = charged_annot.serialize()
-            for ion in ion_types:
-                fragments.extend(
-                    list(
-                        charged_annot._fragment(
-                            ion_type=to_ion_type(ion),
-                            monoisotopic=monoisotopic,
-                            isotopes=isotope_infos,
-                            deltas=delta_infos,
-                            neutral_deltas=neutral_deltas_infos,
-                            calculate_with_composition=calculate_with_composition,
-                            parent_sequence=sequence,
-                            parent_sequence_length=len(charged_annot),
-                            max_deltas=max_ndeltas,
-                            min_length=min_length,
-                            max_length=max_length,
-                        )
-                    )
-                )
-        if not fragments and any(info.data for info in isotope_infos):
-            # Each ion the caller's isotopes do not fit is skipped; when none is left, say so.
-            plain = self.fragment(
-                ion_types,
-                charges,
-                monoisotopic=monoisotopic,
-                deltas=deltas,
-                neutral_deltas=neutral_deltas,
-                max_ndeltas=max_ndeltas,
-                calculate_with_composition=calculate_with_composition,
-                min_length=min_length,
-                max_length=max_length,
-            )
-            if plain:
-                raise InvalidAdjustmentError(f"isotopes={isotopes!r} do not fit any requested ion: every ion has fewer atoms of the swapped element")
-        return fragments
+        return _frag_engine.fragment(
+            self,
+            ion_types,
+            charges,
+            monoisotopic=monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            neutral_deltas=neutral_deltas,
+            calculate_with_composition=calculate_with_composition,
+            max_ndeltas=max_ndeltas,
+            min_length=min_length,
+            max_length=max_length,
+        )
 
     def fragment_arrays(
         self,
@@ -3838,524 +1602,7 @@ class ProFormaAnnotation:
         :raises PeptacularError: If the ion type is unsupported, a charge is invalid,
             or the annotation contains unknown mods or interval mods.
         """
-        ion_types = _as_options(ion_types)
-        if charges is None:
-            charges = self._default_fragment_charges(self.charge_state)
-        charges = _as_options(charges)
-        for charge in charges:
-            if isinstance(charge, bool) or not isinstance(charge, int) or charge == 0:
-                raise PeptacularError("fast_fragment charges must be nonzero integers")
-        supported = {IonType.A, IonType.B, IonType.C, IonType.X, IonType.Y, IonType.Z, IonType.PRECURSOR, IonType.NEUTRAL}
-        for ion_type_input in ion_types:
-            if to_ion_type(ion_type_input) not in supported:
-                raise UnsupportedOperationError(f"Ion type {ion_type_input!r} is not supported in fast_fragment(). Use fragment() instead.")
-
-        n = len(self)
-        mass_vec = self._build_mass_vector(monoisotopic=monoisotopic)
-        mod_groups = [self.nterm_mods, self.cterm_mods, *self.internal_mods.values()]
-        intrinsic_charge = any(mod.get_charge() for mods in mod_groups for mod in mods)
-        intrinsic_charge |= any(mod.get_charge() for mods in self.map_static_mods_to_indexes().values() for mod in mods)
-        needs_fallback = self.has_isotope_mods or self.has_labile_mods or intrinsic_charge or not monoisotopic or any(c < 0 for c in charges)
-        if needs_fallback:
-            fallback: dict[tuple[IonType, int], list[float]] = {}
-            for charge in charges:
-                for ion_type_input in ion_types:
-                    ion_type = to_ion_type(ion_type_input)
-                    ion_info = FRAGMENT_ION_LOOKUP[ion_type]
-                    if ion_info.is_intact:
-                        value = self.frag(ion_type=ion_type, charge=charge, monoisotopic=monoisotopic).mz
-                        fallback[(ion_type, charge)] = [value] * n
-                    else:
-                        fallback[(ion_type, charge)] = [
-                            self.frag(ion_type=ion_type, charge=charge, monoisotopic=monoisotopic, position=position).mz for position in range(1, n + 1)
-                        ]
-            return fallback
-        result: dict[tuple[IonType, int], list[float]] = {}
-
-        # A proton charge carrier weighs PROTON_MASS (monoisotopic), as in fragment().
-        proton_offset = _carrier_mass(monoisotopic)
-        for charge in charges:
-            charge_offset = charge * proton_offset
-            for ion_type_input in ion_types:
-                ion_type = to_ion_type(ion_type_input)
-                ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
-                ion_offset = _ion_mass(ion_type, monoisotopic)
-
-                abs_charge = abs(charge)
-                if ion_info.is_forward:
-                    prefix = 0.0
-                    masses_out: list[float] = []
-                    for m in mass_vec:
-                        prefix += m
-                        masses_out.append((prefix + ion_offset + charge_offset) / abs_charge)
-                    result[(ion_type, charge)] = masses_out
-
-                elif ion_info.is_backward:
-                    prefix = 0.0
-                    masses_out = []
-                    for i in range(n - 1, -1, -1):
-                        prefix += mass_vec[i]
-                        masses_out.append((prefix + ion_offset + charge_offset) / abs_charge)
-                    result[(ion_type, charge)] = masses_out
-
-                elif ion_info.is_intact:
-                    total = sum(mass_vec)
-                    mz = (total + ion_offset + charge_offset) / abs_charge
-                    result[(ion_type, charge)] = [mz] * n
-
-                elif ion_info.is_internal:
-                    result[(ion_type, charge)] = [(mass_vec[i] + ion_offset + charge_offset) / abs_charge for i in range(n)]
-
-        for values in result.values():
-            for value in values:
-                validate_mass(value)
-        return result
-
-    """
-    Pop Methods
-    """
-
-    def pop_isotope_mods(self, *, inplace: bool = True) -> Mods[IsotopeReplacement]:
-        """Pop and return isotope modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed isotope modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[IsotopeReplacement]
-        """
-        if not self.has_isotope_mods:
-            return EMPTY_ISOTOPE_MODS
-
-        if not inplace:
-            return self.copy().pop_isotope_mods(inplace=True)
-
-        value = self.isotope_mods
-        self._isotope_mods = None
-        return value
-
-    def pop_static_mods(self, *, inplace: bool = True) -> Mods[FixedModification]:
-        """Pop and return static modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed static modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[FixedModification]
-        """
-        if not self.has_static_mods:
-            return EMPTY_STATIC_MODS
-
-        if not inplace:
-            return self.copy().pop_static_mods(inplace=True)
-
-        value = self.static_mods
-        self._static_mods = None
-        return value
-
-    def pop_labile_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
-        """Pop and return labile modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed labile modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[ModificationTags]
-        """
-        if not self.has_labile_mods:
-            return EMPTY_LABILE_MODS
-
-        if not inplace:
-            return self.copy().pop_labile_mods(inplace=True)
-
-        value = self.labile_mods
-        self._labile_mods = None
-        return value
-
-    def pop_unknown_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
-        """Pop and return unknown-localisation modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed unknown modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[ModificationTags]
-        """
-        if not self.has_unknown_mods:
-            return EMPTY_UNKNOWN_MODS
-
-        if not inplace:
-            return self.copy().pop_unknown_mods(inplace=True)
-
-        value = self.unknown_mods
-        self._unknown_mods = None
-        return value
-
-    def pop_nterm_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
-        """Pop and return N-terminal modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed N-terminal modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[ModificationTags]
-        """
-        if not self.has_nterm_mods:
-            return EMPTY_NTERM_MODS
-
-        if not inplace:
-            return self.copy().pop_nterm_mods(inplace=True)
-
-        value = self.nterm_mods
-        self._nterm_mods = None
-        return value
-
-    def pop_cterm_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
-        """Pop and return C-terminal modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed C-terminal modifications (empty ``Mods`` if none were present).
-        :rtype: Mods[ModificationTags]
-        """
-        if not self.has_cterm_mods:
-            return EMPTY_CTERM_MODS
-
-        if not inplace:
-            return self.copy().pop_cterm_mods(inplace=True)
-
-        value = self.cterm_mods
-        self._cterm_mods = None
-        return value
-
-    def pop_internal_mods(self, *, inplace: bool = True) -> dict[int, Mods[ModificationTags]]:
-        """Pop and return all internal modifications, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed internal modifications (empty dict if none were present).
-        :rtype: dict[int, Mods[ModificationTags]]
-        """
-        if not self.has_internal_mods:
-            return {}
-
-        if not inplace:
-            return self.copy().pop_internal_mods(inplace=True)
-
-        value = self.internal_mods
-        self._internal_mods = None
-        return value
-
-    def pop_intervals(self, *, inplace: bool = True) -> list[Interval]:
-        """Pop and return all intervals, clearing them from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed intervals (empty list if none were present).
-        :rtype: list[Interval]
-        """
-        if not self.has_intervals:
-            return []
-
-        if not inplace:
-            return self.copy().pop_intervals(inplace=True)
-
-        value = self._intervals.copy() if self._intervals else []
-        self._intervals = None
-        return value
-
-    def pop_charge(self, *, inplace: bool = True) -> int | Mods[GlobalChargeCarrier] | None:
-        """Pop and return the charge, clearing it from the annotation.
-
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: The removed charge value, or ``None`` if no charge was set.
-        :rtype: int | Mods[GlobalChargeCarrier] | None
-        """
-        if not self.has_charge:
-            return None
-
-        if not inplace:
-            return self.copy().pop_charge(inplace=True)
-
-        value = self.charge
-        self._charge = None
-        return value
-
-    def pop_internal_mod_at_index(self, index: int, *, inplace: bool = True) -> tuple[tuple[MODIFICATION_TYPE, int], ...]:
-        """Pop and return internal modifications at a single 0-based position.
-
-        :param index: 0-based residue index.
-        :type index: int
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: Tuple of ``(modification, count)`` pairs; empty tuple if none were present.
-        :rtype: tuple[tuple[MODIFICATION_TYPE, int], ...]
-        """
-        if self._internal_mods is None:
-            return ()
-
-        if index not in self._internal_mods:
-            return ()
-
-        if not inplace:
-            return self.copy().pop_internal_mod_at_index(index, inplace=True)
-
-        # Parse the modifications at this index before removing
-        mods_dict = self._internal_mods[index]
-        mods = tuple((ModificationTags.from_string(mod_str), count) for mod_str, count in mods_dict.items())
-
-        # Remove the mod dict at this index
-        del self._internal_mods[index]
-
-        # Clean up if internal_mods is now empty
-        if len(self._internal_mods) == 0:
-            self._internal_mods = None
-
-        return mods
-
-    def _pop_mod_by_type(self, mod_type: ModType) -> Any:
-        match mod_type:
-            case ModType.ISOTOPE:
-                return self.pop_isotope_mods(inplace=True)
-            case ModType.STATIC:
-                return self.pop_static_mods(inplace=True)
-            case ModType.LABILE:
-                return self.pop_labile_mods(inplace=True)
-            case ModType.UNKNOWN:
-                return self.pop_unknown_mods(inplace=True)
-            case ModType.NTERM:
-                return self.pop_nterm_mods(inplace=True)
-            case ModType.CTERM:
-                return self.pop_cterm_mods(inplace=True)
-            case ModType.INTERNAL:
-                return self.pop_internal_mods(inplace=True)
-            case ModType.INTERVAL:
-                return self.pop_intervals(inplace=True)
-            case ModType.CHARGE:
-                return self.pop_charge(inplace=True)
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-    def pop_mods(
-        self, mod_types: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True
-    ) -> dict[ModType, Any]:
-        """Pop and return modifications of the specified types, clearing them from the annotation.
-
-        :param mod_types: Types to pop; all types when ``None``.
-        :type mod_types: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
-        :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
-        :type inplace: bool
-        :return: Mapping of :class:`ModType` to the removed modification values.
-        :rtype: dict[ModType, Any]
-        """
-        if inplace is False:
-            return self.copy().pop_mods(mod_types=mod_types, inplace=True)
-
-        mod_enums: list[ModType] = _resolve_mod_types(mod_types)
-
-        d: dict[ModType, Any] = {}
-        for mod_enum in mod_enums:
-            d[mod_enum] = self._pop_mod_by_type(mod_enum)
-
-        return d
-
-    def filter_mods(
-        self, mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True, keep: bool = True
-    ) -> Self:
-        """Filter modifications by type, either keeping or removing the specified types.
-
-        :param mods: Modification types to keep or remove; all types when ``None``.
-        :type mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :param keep: When ``True`` keep only the specified types; when ``False`` remove them.
-        :type keep: bool
-        :return: The (possibly new) annotation with filtered modifications.
-        :rtype: Self
-        """
-        if inplace is False:
-            return self.copy().filter_mods(mods=mods, inplace=True, keep=keep)
-
-        if keep:
-            # Keep only specified mods
-            mod_types_to_keep = set(_resolve_mod_types(mods))
-
-            all_mod_types = {mod_type for mod_type in ModType}
-            mod_types_to_remove = all_mod_types - mod_types_to_keep
-        else:
-            # Remove only specified mods
-            mod_types_to_remove = _resolve_mod_types(mods)
-
-        if len(mod_types_to_remove) == 0:
-            # If no mods to remove, return the annotation as is
-            return self
-        self.pop_mods(mod_types_to_remove)
-        return self
-
-    """
-    Remove Methods
-    """
-
-    def _clear_mod_dict(self, attr_name: str, inplace: bool = True) -> Self:
-        if not inplace:
-            return self.copy()._clear_mod_dict(attr_name, inplace=True)
-        setattr(self, attr_name, None)
-        return self
-
-    def clear_isotope_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all isotope modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_isotope_mods", inplace)
-
-    def clear_static_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all static modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_static_mods", inplace)
-
-    def clear_nterm_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all N-terminal modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_nterm_mods", inplace)
-
-    def clear_cterm_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all C-terminal modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_cterm_mods", inplace)
-
-    def clear_labile_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all labile modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_labile_mods", inplace)
-
-    def clear_unknown_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all unknown-localisation modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_unknown_mods", inplace)
-
-    def clear_internal_mods(self, *, inplace: bool = True) -> Self:
-        """Clear all internal (per-position) modifications.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_internal_mods", inplace)
-
-    def clear_internal_mod_at_index(self, index: int, *, inplace: bool = True) -> Self:
-        """Clear internal modifications at a single 0-based sequence position.
-
-        :param index: 0-based residue index.
-        :type index: int
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        if not inplace:
-            return self.copy().clear_internal_mod_at_index(index, inplace=True)
-        if self._internal_mods is None or index not in self._internal_mods:
-            return self
-        del self._internal_mods[index]
-        if len(self._internal_mods) == 0:
-            self._internal_mods = None
-        return self
-
-    def clear_intervals(self, *, inplace: bool = True) -> Self:
-        """Clear all ambiguous sequence intervals.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_intervals", inplace)
-
-    def clear_charge(self, *, inplace: bool = True) -> Self:
-        """Clear the charge value.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation.
-        :rtype: Self
-        """
-        return self._clear_mod_dict("_charge", inplace)
-
-    def _clear_mod_by_type(self, mod_type: ModType) -> None:
-        match mod_type:
-            case ModType.ISOTOPE:
-                self.clear_isotope_mods(inplace=True)
-            case ModType.STATIC:
-                self.clear_static_mods(inplace=True)
-            case ModType.LABILE:
-                self.clear_labile_mods(inplace=True)
-            case ModType.UNKNOWN:
-                self.clear_unknown_mods(inplace=True)
-            case ModType.NTERM:
-                self.clear_nterm_mods(inplace=True)
-            case ModType.CTERM:
-                self.clear_cterm_mods(inplace=True)
-            case ModType.INTERNAL:
-                self.clear_internal_mods(inplace=True)
-            case ModType.INTERVAL:
-                self.clear_intervals(inplace=True)
-            case ModType.CHARGE:
-                self.clear_charge(inplace=True)
-            case _:
-                raise TypeError(f"Unknown mod type: {mod_type}")
-
-    def clear_mods(self, mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True) -> Self:
-        """Clear modifications of the specified types (all types when ``None``).
-
-        :param mods: Types to clear; all types when ``None``.
-        :type mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) annotation with selected modifications cleared.
-        :rtype: Self
-        """
-        if inplace is False:
-            return self.copy().clear_mods(mods=mods, inplace=True)
-        mod_enums = _resolve_mod_types(mods)
-        for mod_enum in mod_enums:
-            self._clear_mod_by_type(mod_enum)
-        return self
-
-    def strip_mods(self, *, inplace: bool = False) -> Self:
-        """Remove all modifications of every type, leaving only the bare sequence.
-
-        :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
-        :type inplace: bool
-        :return: The (possibly new) bare annotation.
-        :rtype: Self
-        """
-        return self.clear_mods(None, inplace=inplace)
+        return _frag_engine.fast_fragment(self, ion_types, charges, monoisotopic=monoisotopic)
 
     """
     Slicing Methods
@@ -5149,3 +2396,21 @@ class ProFormaAnnotation:
     def prop(self) -> AnnotationProperties:
         """Get the properties of this annotation."""
         return AnnotationProperties(self.stripped_sequence)
+
+
+def _adopt_mixin_qualnames() -> None:
+    """Name the inherited mod accessors ``ProFormaAnnotation.<name>``, not ``_ModAccessMixin.<name>``.
+
+    Keeps the private base class out of reprs, argument errors and tracebacks. Only
+    ``ProFormaAnnotation`` inherits ``_ModAccessMixin``, so the rename is exact.
+    """
+    prefix = f"{_ModAccessMixin.__qualname__}."
+    for member in vars(_ModAccessMixin).values():
+        funcs = (member.fget, member.fset, member.fdel) if isinstance(member, property) else (member,)
+        for func in funcs:
+            if isinstance(func, FunctionType) and func.__qualname__.startswith(prefix):
+                func.__qualname__ = f"{ProFormaAnnotation.__qualname__}.{func.__qualname__[len(prefix) :]}"
+
+
+_adopt_mixin_qualnames()
+del _adopt_mixin_qualnames

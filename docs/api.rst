@@ -106,7 +106,13 @@ Annotation classes
    :members:
    :undoc-members:
    :show-inheritance:
-   :exclude-members: AnnotationProperties
+   :exclude-members: AnnotationProperties, ProFormaAnnotation
+
+.. autoclass:: peptacular.annotation.ProFormaAnnotation
+   :members:
+   :undoc-members:
+   :inherited-members:
+   :show-inheritance:
 
 ProForma components
 ~~~~~~~~~~~~~~~~~~~

@@ -132,7 +132,7 @@ def fragment_arrays(
     annotation's index in ``annotations``.
     """
     np = _require_numpy()
-    from .annotation import _as_options, get_loss_combinations
+    from ._frag_engine import _as_options, get_loss_combinations
 
     kwargs: dict[str, Any] = {
         "monoisotopic": monoisotopic,
@@ -256,7 +256,7 @@ def _fast_plan(
     annotation: "ProFormaAnnotation", charges: Any, monoisotopic: bool, min_length: int | None, max_length: int | None
 ) -> tuple[list[float], tuple[tuple[float, int], ...], int] | None:
     """Residue masses, per-charge carrier info and ion count per series, or None for the object path."""
-    from .annotation import _as_options
+    from ._frag_engine import _as_options
 
     n = len(annotation)
     if n == 0:

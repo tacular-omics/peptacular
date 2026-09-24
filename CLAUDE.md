@@ -20,7 +20,10 @@ Key entry points:
 - `pt.mass(seq_or_list)`, `pt.fragment(...)`, `pt.digest(...)` and friends are the
   functional API (`sequence/`): they take a string, an annotation or a list of either,
   and parallelize lists.
-- `ProFormaAnnotation` lives in `src/peptacular/annotation/annotation.py` (~4900 lines).
+- `ProFormaAnnotation` lives in `src/peptacular/annotation/annotation.py` (~2400 lines). Its
+  per-mod-type accessors come from the private `_ModAccessMixin` (`_mod_access.py`), and
+  mass/fragment work is delegated to the private `_mass.py` and `_frag_engine.py`.
+  `annotation.py` re-exports the helpers that used to live there.
 
 ## Commands
 
@@ -61,8 +64,12 @@ lowest-direct resolution, the built wheel per extra (`scripts/test_wheel.py`), t
 src/peptacular/
   __init__.py            star-imports everything below plus `from tacular import *`
   annotation/            the OOP API
-    annotation.py        ProFormaAnnotation: storage, get/set/append/extend/pop/remove/clear
-                         per mod type, mass/mz/comp, fragment, digest, slicing, conversions
+    annotation.py        ProFormaAnnotation: storage, mass/mz/comp, fragment, digest,
+                         slicing, conversions (thin methods over the modules below)
+    _mod_access.py       _ModAccessMixin: get/set/append/extend/pop/remove/clear per mod type
+    _mass.py             base mass/composition of an annotation, ion-type and mass helpers
+    _frag_engine.py      ion mass engine: frag/fragment/fast_fragment internals, adjust_comp
+    frag_arrays.py       fragment_arrays (numpy columns)
     parser.py            ProForma string -> ProFormaAnnotation (syntax only)
     serializer.py        ProFormaAnnotation -> ProForma string
     mod.py               Mod (value + count) and Mods (one mod type's collection), Interval
