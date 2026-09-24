@@ -352,9 +352,10 @@ class ProFormaParser:
                         start_pos,
                     )
 
-            elif char == "?" and self.cursor + 1 < self.length and self.original_sequence[self.cursor + 1] == "[":
-                # Handling rare case if ? comes before (unlikely in standard ProForma 2.1 but robust to check)
-                pass
+            elif char == "?":
+                # '?' only follows an unknown-position mod ('[Mod]?'). A leading '?' used to
+                # leave the cursor in place and loop forever.
+                self._raise_parse_error("'?' must follow a modification: write '[Mod]?' for an unknown-position modification")
             else:
                 # If we hit something else, assume sequence start if valid, else error
                 if char in VALID_AMINO_ACIDS:
@@ -496,7 +497,7 @@ class ProFormaParser:
         slash_pos = self.cursor
         self.cursor += 1  # Skip /
         if self.cursor >= self.length:
-            self._raise_parse_error("Expected a charge value after '/' (e.g. '/2' or '/2[+H]')", slash_pos)
+            self._raise_parse_error("Expected a charge value after '/' (e.g. '/2' or '/[Na:z+1^2]')", slash_pos)
 
         seq = self.original_sequence
         char = seq[self.cursor]
@@ -529,7 +530,9 @@ class ProFormaParser:
                 part = part.strip()
                 if "^" in part:
                     base, mult = part.rsplit("^", 1)
-                    count = int(mult) if mult.isdigit() else 1
+                    if not mult.isdigit() or int(mult) == 0:
+                        self._raise_parse_error(f"Invalid adduct multiplier '^{mult}': expected a positive integer", start)
+                    count = int(mult)
                     part = base
                 else:
                     count = 1

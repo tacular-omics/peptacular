@@ -20,9 +20,12 @@ All notable changes to this project will be documented in this file.
 - `Fragment.to_mzpaf` wrote the Biemann z ion as mzPAF `z`, which mzPAF 1.0.1 defines as the z-dot radical, so the label parsed back 1.008 Da heavy; z-dot was written as `z.`, which is not mzPAF. z-dot is now `z`, and Biemann z, z+H and c-H are written as `z-H`, `z+H` and `c-H`, matching paftacular's `to_mzpaf`.
 - `C13_NEUTRON_MASS` was rounded to 1.003350; it is now the AME2020 13C-12C difference, 1.00335483507.
 - `parse` and `parse_chimeric` raised a bare `ValueError` for invalid ProForma, and `parse` raised `ValueError` for chimeric or cross-linked input. They now raise `ProFormaFormatError` (a `ValueError` subclass, so existing `except ValueError` still works) and `UnsupportedOperationError` respectively.
+- `parse` looped forever on a `?` that does not follow a modification (`?[Phospho]PEPTIDE`). It now raises `ProFormaFormatError`.
+- Malformed modification, glycan, isotope, static-mod and adduct strings parse lazily, so they surfaced from `mass()` as a bare `ValueError` (or `KeyError` for an unknown isotope such as `<113C>`). They now raise `ProFormaFormatError`. A non-numeric adduct multiplier (`/[Na:z+1^x]`) was read as `^1`; it is now a parse error.
 
 ### Added
 - `ProFormaFormatError`, raised for strings that are not valid ProForma.
+- Reference-value tests (`tests/reference/`) against pyteomics, Biopython, ExPASy ProtScale and the ProForma 2.0 spec examples, and Hypothesis property tests (`hypothesis` added to the dev group).
 
 ## [4.1.0] (2026-09-23)
 
