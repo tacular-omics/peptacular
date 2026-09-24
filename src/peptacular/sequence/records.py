@@ -12,6 +12,7 @@ from typing import Any, cast
 from ..annotation import ProFormaAnnotation
 from ..annotation.frag import Fragment
 from ..diagnostics import PeptacularError
+from ..proforma_components import ChargedFormula
 from .digestion import _digest_input, _span_output
 from .util import HasSequence
 
@@ -144,7 +145,12 @@ def digest_records(
 def _format_counts(items: Iterable[tuple[object, int]]) -> str:
     parts: list[str] = []
     for key, count in items:
-        label = f"{key:+}" if isinstance(key, float) else str(key)
+        if isinstance(key, float):
+            label = f"{key:+}"
+        elif isinstance(key, ChargedFormula):  # from ``Fragment.deltas``
+            label = key.serialize().removeprefix("Formula:")
+        else:
+            label = str(key)
         parts.append(label if count == 1 else f"{label}^{count}")
     return ",".join(parts)
 
@@ -236,7 +242,7 @@ def fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]
                 "mass": fragment.mass,
                 "neutral_mass": fragment.neutral_mass,
                 "monoisotopic": fragment.monoisotopic,
-                "deltas": _format_counts((fragment._deltas or {}).items()),
+                "deltas": _format_counts(fragment.deltas.items()),
                 "isotopes": isotopes,
                 "sequence": sequence,
                 "parent_sequence": parent,
