@@ -131,8 +131,11 @@ def _borrow_from_isotopes(comp: Counter[ElementInfo], element: ElementInfo) -> N
 
     Deprotonating a labelled ion (``<D>PEK``, ``<2H>PEK``) removes a hydrogen, but the
     composition holds only 2H. The carrier then removes the isotope the ion holds, so
-    the composition stays valid and its mass matches the reported mass.
+    the composition stays valid and its mass matches the reported mass. A carrier that
+    names an isotope (``D-1:z-1``) must find that isotope: it never borrows a light atom.
     """
+    if element.mass_number is not None:
+        return
     for other in [e for e in comp if e.symbol == element.symbol and e != element]:
         if comp[element] >= 0:
             break

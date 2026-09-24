@@ -363,26 +363,42 @@ class TestImmoniumLabelWithCarriers:
     _SHIFT = TestImmoniumLabelOnFinalIon._SHIFT
 
     @pytest.mark.parametrize(
-        ("labelled", "plain", "charge", "label", "iso", "n"),
+        ("labelled", "plain", "charge", "plain_charge", "label", "iso", "n"),
         [
-            ("<2H>P", "P", "D:z+1", "IP+7i2H[M+[2H]]", "2H", 7),
-            # The adduct removes a 2H here but a 1H from the unlabelled ion: 7 - 1 net shifts.
-            ("<2H>P", "P", "D-1:z-1", "IP+7i2H[M-[2H]]^-1", "2H", 6),
-            ("<13C>P", "P", "[13C]:z+1", "IP+4i13C[M+[13C]]", "13C", 4),
-            ("<2H>P", "P", "Na:z+1", "IP+7i2H[M+Na]", "2H", 7),
-            ("<15N>K", "K", "NH4:z+1", "IK+2i15N[M+NH4]", "15N", 2),
+            ("<2H>P", "P", "D:z+1", "D:z+1", "IP+7i2H[M+[2H]]", "2H", 7),
+            # An unlabelled P has no 2H for D-1:z-1 to remove, so compare with plain
+            # deprotonation (-H): 7 labelled atoms minus the deuteron the adduct takes = 6.
+            ("<2H>P", "P", "D-1:z-1", -1, "IP+7i2H[M-[2H]]^-1", "2H", 6),
+            ("<13C>P", "P", "[13C]:z+1", "[13C]:z+1", "IP+4i13C[M+[13C]]", "13C", 4),
+            ("<2H>P", "P", "Na:z+1", "Na:z+1", "IP+7i2H[M+Na]", "2H", 7),
+            ("<15N>K", "K", "NH4:z+1", "NH4:z+1", "IK+2i15N[M+NH4]", "15N", 2),
         ],
     )
-    def test_label_reads_back_to_mz(self, labelled, plain, charge, label, iso, n):
+    def test_label_reads_back_to_mz(self, labelled, plain, charge, plain_charge, label, iso, n):
         frag = pt.parse(labelled).frag(ion_type="i", charge=charge)
         assert frag.to_mzpaf() == label
-        unlabelled = pt.parse(plain).frag(ion_type="i", charge=charge)
-        assert frag.mz == pytest.approx(unlabelled.mz + n * self._SHIFT[iso] / abs(frag.charge_state), abs=1e-9)
+        unlabelled = pt.parse(plain).frag(ion_type="i", charge=plain_charge)
+        z = abs(frag.charge_state)
+        # A plain integer charge is a proton carrier, which adds HYDROGEN_BINDING_MASS per proton.
+        binding = -plain_charge * pt.HYDROGEN_BINDING_MASS / z if isinstance(plain_charge, int) else 0.0
+        assert frag.mz == pytest.approx(unlabelled.mz + n * self._SHIFT[iso] / z + binding, abs=1e-10)
         try:
             import paftacular
         except ImportError:
             return
         assert paftacular.parse(label).mz() == pytest.approx(frag.mz, abs=1e-9)
+
+
+class TestIsotopeCarrierNeedsIsotope:
+    """A carrier that removes 2H needs a 2H in the ion; it never takes a light H instead."""
+
+    def test_mass_raises(self):
+        with pytest.raises(pt.PeptacularError):
+            pt.parse("PEK").mass(charge="D-1:z-1")
+
+    def test_fragment_raises(self):
+        with pytest.raises(pt.PeptacularError):
+            pt.parse("PEK").frag(ion_type="y", position=2, charge="D-1:z-1")
 
 
 class TestCarrierOrder:
@@ -436,9 +452,21 @@ class TestSatelliteIons:
             pt.parse("V-[Amidated]").frag(ion_type="d", position=1, charge=-1)
 
     def test_impossible_caller_isotopes_raise(self):
-        with pytest.raises(pt.PeptacularError):
+        with pytest.raises(pt.PeptacularError, match="do not fit any requested ion"):
             pt.fragment("PEPTIDE", ion_types="b", charges=1, isotopes=[{"13C": 100}])
         assert len(pt.fragment("PEPTIDE", ion_types="b", charges=1, isotopes=[{"13C": 1}])) == 7
+
+    @pytest.mark.parametrize("composition", [False, True])
+    def test_caller_isotopes_skip_ions_they_do_not_fit(self, composition):
+        # b1, b2, y1, y2 have fewer than 3 N; the other ten ions of b and y take the swap.
+        frags = pt.fragment("PEPTIDE", ion_types=["b", "y"], charges=1, isotopes=[{"15N": 3}], calculate_with_composition=composition)
+        assert sorted((f.ion_type.value, f.position) for f in frags) == sorted((t, i) for t in "by" for i in range(3, 8))
+
+    def test_caller_deltas_still_raise(self):
+        with pytest.raises(pt.InvalidAdjustmentError):
+            pt.fragment("PEPTIDE", ion_types="b", charges=1, deltas=[{"H3PO4": 1}])
+        with pytest.raises(pt.InvalidAdjustmentError):
+            pt.fragment("PEPTIDE", ion_types="b", charges=1, deltas=[{"H3PO4": 1}], isotopes=[{"15N": 3}])
 
     def test_any_series_skips_impossible_ion(self):
         assert pt.fragment("G-[Amidated]", ion_types="a", charges=-1) == []

@@ -234,24 +234,31 @@ def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], 
     ``neutral_deltas`` offers a loss wherever one of its residues occurs (H3PO4 on any S/T), so
     a loss can ask for more of an element than the fragment has (no phosphorus on an
     unmodified S). An ion can also lack the atoms its own offset removes (the one-residue a1 of
-    ``G-[Amidated]`` at charge -1). Such ions are skipped. The error still propagates when the
-    ion exists without the caller's own ``deltas`` and ``isotopes``: then those are at fault. An
-    explicit ``frag()`` does not come through here and always raises.
+    ``G-[Amidated]`` at charge -1), or the atoms the caller's ``isotopes`` swap (``{"15N": 3}``
+    on b1). Such ions are skipped; ``fragment()`` raises when the caller's isotopes leave no
+    ion at all. The error still propagates when the caller's own ``deltas`` are at fault: the
+    ion exists without them. An explicit ``frag()`` does not come through here and always raises.
     """
     try:
         return make(**kwargs)
-    except InvalidAdjustmentError:
+    except InvalidAdjustmentError as error:
         if ndelta._items:
             return None
         delta: DeltaInfo = kwargs["delta"]
         isotope: IsotopeInfo = kwargs["isotope"]
         if not delta.deltas and not isotope.data:
             return None
+        no_isotope = IsotopeInfo.from_input(None)
         try:
-            make(**{**kwargs, "delta": DeltaInfo.from_input(None), "isotope": IsotopeInfo.from_input(None)})
+            make(**{**kwargs, "delta": DeltaInfo.from_input(None), "isotope": no_isotope})
         except InvalidAdjustmentError:
-            return None
-        raise
+            return None  # the ion itself cannot exist
+        if delta.deltas:
+            try:
+                make(**{**kwargs, "isotope": no_isotope})
+            except InvalidAdjustmentError:
+                raise error from None  # the caller's deltas are at fault
+        return None  # the caller's isotopes do not fit this ion
 
 
 def get_loss_combinations(losses: dict[NeutralDeltaInfo, int], max_losses: int) -> list[DeltaInfo]:
@@ -3731,6 +3738,21 @@ class ProFormaAnnotation:
                         )
                     )
                 )
+        if not fragments and any(info.data for info in isotope_infos):
+            # Each ion the caller's isotopes do not fit is skipped; when none is left, say so.
+            plain = self.fragment(
+                ion_types,
+                charges,
+                monoisotopic=monoisotopic,
+                deltas=deltas,
+                neutral_deltas=neutral_deltas,
+                max_ndeltas=max_ndeltas,
+                calculate_with_composition=calculate_with_composition,
+                min_length=min_length,
+                max_length=max_length,
+            )
+            if plain:
+                raise InvalidAdjustmentError(f"isotopes={isotopes!r} do not fit any requested ion: every ion has fewer atoms of the swapped element")
         return fragments
 
     def fast_fragment(
