@@ -3207,7 +3207,26 @@ class ProFormaAnnotation:
                 internal_charge=base_charge,
                 isotope_as_mass=not calculate_with_composition,
             )
-            if not calculate_with_composition:
+            if not calculate_with_composition and not self.has_isotope_mods:
+                # The composition above only validates the ion (atoms left for a formula loss,
+                # an isotope swap or a deprotonation). The mass comes from the listed masses,
+                # as for the plain ion, so a loss or isotope peak is exactly the plain ion plus
+                # its delta. Summing the mods' compositions instead would move named mods off
+                # their listed mass (Oxidation 15.994915 vs 15.9949146 from O).
+                base_mass, _ = self._base_mass(monoisotopic=monoisotopic, skip_labile=skip_labile)
+                mass = _adjust_mass_value(
+                    base_mass,
+                    charge_carriers.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge_carriers, monoisotopic),
+                    result.charge_state,
+                    ion_type,
+                    monoisotopic,
+                    isotope.get_mass_delta(monoisotopic),
+                    delta.get_mass_delta(monoisotopic),
+                )
+                result = result._replace(mass=mass, _composition=None, _deltas=delta.to_fragment_mapping)
+            elif not calculate_with_composition:
+                # A global isotope label (<13C>) changes every atom's mass, so the labelled
+                # composition is the mass; mass-only tags and float deltas are added on top.
                 mass = result.mass + delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
                 result = result._replace(mass=mass, _composition=None, _deltas=delta.to_fragment_mapping)
             else:

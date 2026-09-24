@@ -347,7 +347,9 @@ def fragment_arrays(
 
     Needs numpy (``pip install "peptacular[numpy]"``); without it this raises
     :class:`~peptacular.interop.MissingOptionalDependencyError`. Takes the arguments of
-    :func:`fragment` and returns the same ions, in the same order, with the same values.
+    :func:`fragment`, plus ``min_length``/``max_length`` as on
+    :meth:`ProFormaAnnotation.fragment`, and returns the same ions, in the same order, with the
+    same values.
     ``pl.DataFrame(result)``, ``pa.table(result)`` and ``pd.DataFrame(result)`` accept the
     dict as is. The keys are :data:`FRAGMENT_ARRAY_KEYS`:
 

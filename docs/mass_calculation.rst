@@ -38,8 +38,10 @@ database mass (tacular's ``monoisotopic_mass`` / ``average_mass``, e.g. 15.99491
 Oxidation). The elemental composition is used only when there is no listed mass
 (``Formula:`` mods, glycans, unlisted entries). Because listed masses are rounded (Unimod
 gives 6 decimals), the mass of a named mod's ``composition`` can differ from ``mass()`` by
-up to about 1e-6 Da. ProForma text is never rewritten: names stay names and numbers stay
-as written.
+up to about 1e-6 Da. Loss, isotope and deprotonated ions use the same listed masses, so a
+loss or isotope peak is exactly the plain ion plus its delta; only
+``calculate_with_composition=True`` and global isotope labels (``<13C>``) sum compositions.
+ProForma text is never rewritten: names stay names and numbers stay as written.
 
 Neutral Mass
 ------------

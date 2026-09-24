@@ -194,7 +194,8 @@ def fragment_arrays(
     for key in _FLOAT_KEYS:
         out[key] = np.zeros(total, dtype=np.float64)
     for key in _STR_KEYS:
-        out[key] = np.empty(total, dtype=object)
+        # An empty result gets a numpy str dtype, so polars/arrow still type the column as a string.
+        out[key] = np.empty(total, dtype=object) if total else np.array([], dtype=str)
 
     if object_rows:
         _fill_objects(np, out, object_rows, offsets)

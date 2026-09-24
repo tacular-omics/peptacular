@@ -122,8 +122,8 @@ polars
 Fragment columns with numpy
 ---------------------------
 
-:func:`~peptacular.fragment_arrays` takes the arguments of :func:`~peptacular.fragment`
-and returns the same ions, in the same order and with the same float values, as a
+:func:`~peptacular.fragment_arrays` takes the arguments of :func:`~peptacular.fragment`,
+plus ``min_length``/``max_length`` as on :meth:`~peptacular.ProFormaAnnotation.fragment`, and returns the same ions, in the same order and with the same float values, as a
 ``dict`` of equal-length numpy arrays: one row per ion, with ``peptide_index`` saying which
 input peptide each row came from. It needs numpy (``pip install "peptacular[numpy]"``);
 without it, it raises :class:`~peptacular.interop.MissingOptionalDependencyError` naming
@@ -153,7 +153,8 @@ that command. The dict goes straight into ``pl.DataFrame``, ``pa.table`` or
 - ``mz``, ``mass`` and ``delta_mass`` are ``float64``. ``mass`` is the charged mass
   (:attr:`~peptacular.Fragment.mass`); ``delta_mass`` is the total mass the deltas add
   (negative for a loss).
-- ``ion_type``, ``isotope_label`` and ``delta_label`` are ``object`` arrays of ``str``.
+- ``ion_type``, ``isotope_label`` and ``delta_label`` are ``object`` arrays of ``str``
+  (numpy ``str`` dtype when the result is empty, so polars and pyarrow still see a string column).
   The labels use the ``isotopes`` and ``deltas`` format of the fragment rows above;
   ``isotope`` is the number of 13C swapped in (the ``isotopes=`` offset).
 - Plain a/b/c/x/y/z series (no isotope swap, formula delta or neutral loss) are computed
