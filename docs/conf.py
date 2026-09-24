@@ -61,4 +61,8 @@ try:
     import polars as pl
 except ImportError:
     pl = None
+try:
+    import numpy as np
+except ImportError:
+    np = None
 """

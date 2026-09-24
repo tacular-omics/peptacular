@@ -74,6 +74,15 @@ values ordered from fragment position 1 to N.
    # Functional API — supports batch list inputs (auto-parallelised)
    results = pt.fast_fragment(["PEPTIDE", "ACDEFGHIK"], ion_types=["y"], charges=[1])
 
+**Fragment columns (numpy)**
+
+``fragment_arrays()`` returns every ion ``fragment()`` would, with the same values, as a
+``dict`` of numpy arrays (one row per ion, with ``peptide_index``, ``ion_type``,
+``position``, ``charge_state``, ``mz``, ``mass`` and delta/isotope columns) that
+``polars.DataFrame`` or ``pyarrow.table`` take as is. Unlike ``fast_fragment()`` it keeps
+every ``fragment()`` option. Needs ``pip install "peptacular[numpy]"``; see
+:doc:`records`.
+
 Property Calculations
 ~~~~~~~~~~~~~~~~~~~~~
 

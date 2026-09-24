@@ -10,9 +10,8 @@ from collections.abc import Iterable
 from typing import Any, cast
 
 from ..annotation import ProFormaAnnotation
-from ..annotation.frag import Fragment
+from ..annotation.frag import Fragment, _format_counts
 from ..diagnostics import PeptacularError
-from ..proforma_components import ChargedFormula
 from .digestion import _digest_input, _span_output
 from .util import HasSequence
 
@@ -140,19 +139,6 @@ def digest_records(
         single = cast("str | ProFormaAnnotation | HasSequence", sequence)
         return _digest_one(single, enzyme, missed_cleavages, semi, min_len, max_len)
     return [row for item in sequence for row in _digest_one(item, enzyme, missed_cleavages, semi, min_len, max_len)]
-
-
-def _format_counts(items: Iterable[tuple[object, int]]) -> str:
-    parts: list[str] = []
-    for key, count in items:
-        if isinstance(key, float):
-            label = f"{key:+}"
-        elif isinstance(key, ChargedFormula):  # from ``Fragment.deltas``
-            label = key.serialize().removeprefix("Formula:")
-        else:
-            label = str(key)
-        parts.append(label if count == 1 else f"{label}^{count}")
-    return ",".join(parts)
 
 
 def _without_charge(sequence: str, cache: dict[str, str]) -> str:

@@ -5,6 +5,7 @@ from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from enum import StrEnum
 from itertools import product
 from typing import (
+    TYPE_CHECKING,
     Any,
     Self,
     cast,
@@ -133,6 +134,9 @@ from .utils import (
     can_fragment_sequence,
     validate_mass,
 )
+
+if TYPE_CHECKING:
+    import numpy as np
 
 __all__ = [
     "H_CHARGE_FORMULA",
@@ -3751,6 +3755,45 @@ class ProFormaAnnotation:
             if plain:
                 raise InvalidAdjustmentError(f"isotopes={isotopes!r} do not fit any requested ion: every ion has fewer atoms of the swapped element")
         return fragments
+
+    def fragment_arrays(
+        self,
+        ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
+        charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
+        *,
+        monoisotopic: bool = True,
+        isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
+        deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
+        neutral_deltas: Sequence[LOSS_TYPE | None] = (),
+        calculate_with_composition: bool = False,
+        max_ndeltas: int = 1,
+        min_length: int | None = None,
+        max_length: int | None = None,
+    ) -> "dict[str, np.ndarray]":
+        """The ions of :meth:`fragment` as numpy columns, one row per ion (needs ``peptacular[numpy]``).
+
+        Takes the same arguments as :meth:`fragment` and returns the same ions in the same
+        order, as a dict of equal-length arrays keyed by :data:`~peptacular.FRAGMENT_ARRAY_KEYS`
+        (see :func:`peptacular.fragment_arrays`). ``pl.DataFrame(result)``,
+        ``pa.table(result)`` and ``pd.DataFrame(result)`` accept it directly.
+
+        :raises MissingOptionalDependencyError: If numpy is not installed.
+        """
+        from .frag_arrays import fragment_arrays
+
+        return fragment_arrays(
+            [self],
+            ion_types,
+            charges,
+            monoisotopic=monoisotopic,
+            isotopes=isotopes,
+            deltas=deltas,
+            neutral_deltas=neutral_deltas,
+            calculate_with_composition=calculate_with_composition,
+            max_ndeltas=max_ndeltas,
+            min_length=min_length,
+            max_length=max_length,
+        )
 
     def fast_fragment(
         self, ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y), charges: int | Sequence[int] | None = None, *, monoisotopic: bool = True
