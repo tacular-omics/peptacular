@@ -449,10 +449,14 @@ class ChargedFormula(MassPropertyMixin, PositionScoreMixin):
 
     @property
     def is_protonated(self) -> bool:
-        """Check if the formula is protonated (charge == 1)."""
+        """Check if the formula is protons: plain hydrogen carrying +1 per atom (``H:z+1``).
+
+        A hydride (``H:z-1``) or an isotope-labelled hydrogen is a real adduct, not a proton.
+        """
         if len(self.formula) == 1:
-            if self.formula[0].element == Element.H:
-                return True
+            fe = self.formula[0]
+            if fe.element == Element.H and fe.isotope is None:
+                return self.charge is None or self.charge == fe.occurance
         return False
 
 

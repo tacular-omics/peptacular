@@ -18,7 +18,7 @@ from ..constants import ELECTRON_MASS
 from ..diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 from ..proforma_components.comps import ChargedFormula, GlobalChargeCarrier
 from .cached_comps import DeltaInfo, IsotopeInfo
-from .frag import Fragment
+from .frag import Fragment, proton_binding_offset
 from .mod import Mods
 from .positions import to_ion_type
 
@@ -96,7 +96,7 @@ def adjust_mass_mz(
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
     base_mass = _adjust_mass_value(
         base_mass,
-        charge.get_mass(monoisotopic=monoisotopic),
+        charge.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge, monoisotopic),
         total_charge,
         ion_info.ion_type,
         monoisotopic,
@@ -124,6 +124,30 @@ def adjust_mass_mz(
         parent_sequence=parent_sequence,
         parent_sequence_length=parent_sequence_length,
     )
+
+
+def _borrow_from_isotopes(comp: Counter[ElementInfo], element: ElementInfo) -> None:
+    """Cover a charge carrier's atom deficit with other isotopes of the same element.
+
+    Deprotonating a labelled ion (``<D>PEK``, ``<2H>PEK``) removes a hydrogen, but the
+    composition holds only 2H. The carrier then removes the isotope the ion holds, so
+    the composition stays valid and its mass matches the reported mass. A carrier that
+    names an isotope (``D-1:z-1``) must find that isotope: it never borrows a light atom.
+    """
+    if element.mass_number is not None:
+        return
+    for other in [e for e in comp if e.symbol == element.symbol and e != element]:
+        if comp[element] >= 0:
+            break
+        take = min(comp[other], -comp[element])
+        if take <= 0:
+            continue
+        comp[other] -= take
+        comp[element] += take
+        if comp[other] == 0:
+            del comp[other]
+    if comp[element] == 0:
+        del comp[element]
 
 
 def adjust_comp(
@@ -175,9 +199,20 @@ def adjust_comp(
                 count = base_comp.pop(original_element)
                 base_comp[replaced_element] += count
 
+    # Sum the carriers first so the result does not depend on their order: ["H:z+1",
+    # "H-1:z-1", "H-1:z-1"] on a deuterated ion removes one hydrogen however it is listed.
+    # A deficit the ion already had before the carriers still raises below.
+    carrier_comp: Counter[ElementInfo] = Counter()
     for mod in charge.mods:
         for element, count in mod.get_composition().items():
-            base_comp[element] += count
+            carrier_comp[element] += count
+    for element, count in carrier_comp.items():
+        if count == 0:
+            continue
+        before = base_comp[element]
+        base_comp[element] = before + count
+        if count < 0 and base_comp[element] < 0 and before >= 0:
+            _borrow_from_isotopes(base_comp, element)
 
     # Validate no negative counts
     if any(count < 0 for count in base_comp.values()):
@@ -200,6 +235,8 @@ def adjust_comp(
         base_mass += elem.get_mass(monoisotopic=monoisotopic) * count
     if isotope_as_mass and isotope.data:
         base_mass += isotope.get_mass_delta(monoisotopic)
+    # The composition counts an H atom per proton; lift each to CODATA PROTON_MASS.
+    base_mass += proton_binding_offset(charge, monoisotopic)
 
     # Correct for electron mass based on charge
     if total_charge != 0:

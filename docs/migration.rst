@@ -348,8 +348,8 @@ Behaviour changes
      - Options after ``charge_state`` are keyword-only.
    * - Fragments compared by identity
      - Compared and hashed by value.
-   * - ``fast_fragment`` m/z values
-     - Move by -1.4e-8 Da per charge (charge carrier is now H - e, as in ``fragment()``). ``fragment()`` and ``mass()`` are unchanged.
+   * - Monoisotopic ``mass()``, ``mz()``, ``fragment()`` values of charged ions
+     - A proton charge carrier is now CODATA ``PROTON_MASS`` (was H - e), as mzPAF 4.4.1, pyteomics and OpenMS use. Mass moves by +1.43e-8 Da per charge and m/z by +1.43e-8 Da (-1.43e-8 Da for deprotonated ions). ``fast_fragment`` already used ``PROTON_MASS`` and is unchanged; it now matches ``fragment()`` to 1e-9 Da. Average masses are unchanged.
    * - ``ProFormaAnnotation("PEPTIDE", None, None, ...)``, ``Interval(1, 3, True, mods)``
      - Every option after ``sequence`` (and after ``start``, ``end``) is keyword-only:
        ``Interval(1, 3, ambiguous=True, mods=mods)``.
@@ -371,7 +371,8 @@ Behaviour changes
        is removed. Use ``pt.parse`` / ``pt.parse_chimeric`` and the annotation methods.
    * - mzPAF neutral-loss labels ``-H3CON``, ``-H2CO2``
      - Canonical names: ``-HCONH2``, ``-HCOOH``. Other formulas are written in Hill order
-       (``+NaS``, not ``+SNa``). Every other 4.2.0 label, including ``-NH3``, is unchanged.
+       (``+NaS``, not ``+SNa``). ``-NH3`` is unchanged. The other 5.0 label changes are
+       in the rows below.
    * - ``fragment(..., ion_types="by")`` (a string of letters meant b and y)
      - A string is one ion type. Write ``ion_types=("b", "y")``.
    * - ``fragment(..., neutral_deltas=["H3PO4"])`` on a peptide with an unmodified S/T/Y
@@ -383,3 +384,28 @@ Behaviour changes
        (a FASTA entry) is now accepted.
    * - ``fragment.to_mzpaf()`` with a gain (``deltas={"H2O": -1}``) or a numeric delta
      - A gain is written ``+H2O`` (4.x wrote ``-H2O``). A numeric delta is written as a signed mass (``b2-34.0``) instead of raising.
+   * - ``fragment.to_mzpaf()`` at a negative charge: ``y3{IDE}^1`` for z=-1, ``^2`` for z=-2
+     - Signed: ``y3{IDE}^-1``, ``^-2``, so the label reads back to the same m/z.
+       ``to_mzpaf(signed_charge=False)`` restores the magnitude-only form. That form is
+       mzPAF 1.0.1 section 4.8 and is only valid next to negative-mode spectrum metadata.
+       At z=-1 it has no charge suffix, so on its own it reads as +1.
+   * - ``fragment.to_mzpaf()`` for an immonium ion wrote only the residue's own mod
+       (``IP`` for ``[Acetyl]-PEP``, ``<[Oxidation]@P>PEP`` or ``<13C>PEP``)
+     - A terminal mod or a global fixed mod on the residue is written as the immonium
+       mod: ``IP[Acetyl]``, ``IP[Oxidation]``. A global isotope label is written as isotope
+       shifts, one per labelled atom of the final ion: ``IP+4i13C``, ``IP+6i2H^-1`` for
+       ``<D>P`` at charge -1, ``IK-NH3+i15N``. Two or more mods raise ``PeptacularError``. The mod tag is the
+       plain name: ``P[U:Oxidation]`` gives ``IP[Oxidation]`` (4.x wrote ``IP[U:Oxidation]``).
+   * - ``fragment.to_mzpaf()`` for ax/bx internal ions: ``-2H``, ``+CO-2H``
+     - Hill order, like every other delta: ``-H2``, ``+CO-H2``.
+   * - ``charge="H:z-1"`` (hydride): ``is_protonated`` True, mzPAF ``y3{IDE}^-1``
+     - A hydride is an adduct, not a proton: ``is_protonated`` is False, and the mzPAF is
+       ``y3{IDE}[M+H]^-1``. The mass is unchanged.
+   * - d/da/db/w/wa/wb ion of a modified residue (``PEPV[Oxidation]K`` d4 gave ``d4{PEPV[Oxidation]}``)
+     - Not defined: ``frag()`` raises ``PeptacularError`` (explicit or global fixed mod),
+       ``fragment()`` leaves the ion out. v ions still drop the mod.
+   * - ``fragment.to_mzpaf()`` of an uncharged fragment: ``b3{PEP}`` (reads as +1)
+     - Raises ``PeptacularError``; build the ion with ``charge=1``.
+   * - Full-length d/da/db ions ignored the C-terminal mod, v/w/wa/wb ions the N-terminal mod
+     - Every full-length ion type carries both terminal mods, as a/b/c/x/y/z already did.
+       Only those ions' masses change.

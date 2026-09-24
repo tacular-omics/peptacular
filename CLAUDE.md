@@ -151,7 +151,7 @@ which builds a `Fragment`.
 - **Parallel**: `set_start_method`, `get_start_method`, `get_available_start_methods`,
   `ParallelMethod`.
 - **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS` (re-exported from
-  `tacular.constants`), `PROTON_CARRIER_MASS` (H - e, the mass one charge adds), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
+  `tacular.constants`), `HYDROGEN_BINDING_MASS` (PROTON_MASS - (H - e), added per proton to composition-based masses; a monoisotopic proton carrier weighs PROTON_MASS), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
   `PEPTIDE_AVERAGINE_NEUTRON_MASS`, `AVERAGINE_RATIOS`, `PROFORMA_JSON_SCHEMA_ID`.
   Do not hard-code physical constants; import them from `tacular.constants`.
 - **Optional** `peptacular.interop` (not star-imported): `to/from_pyteomics`,

@@ -2,7 +2,7 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 from functools import cache
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from tacular import (
     ELEMENT_LOOKUP,
@@ -13,14 +13,18 @@ from tacular import (
     IonTypeProperty,
 )
 
-from ..constants import ELECTRON_MASS, ModType
+from ..constants import ELECTRON_MASS, HYDROGEN_BINDING_MASS, ModType
 from ..diagnostics import PeptacularError
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
+    IsotopeReplacement,
 )
 from .mod import Mods
 from .positions import validate_position
+
+if TYPE_CHECKING:
+    from .annotation import ProFormaAnnotation
 
 __all__ = [
     "Fragment",
@@ -80,13 +84,48 @@ def _mzpaf_formula(formula: ChargedFormula) -> str:
 # None means no difference from "by". Derived from tacular's internal(F,B) = deltaF + deltaB
 # offsets (tacular>=1.1.0, itself derived from mzPAF's own primary-ion formulas: a=b-CO,
 # c=b+NH3, x=y+CO2-H2O, z=y-NH3) and written using mzPAF's neutral-loss conventions: strung
-# together signed tokens (mzPAF section 4.5), an ordinal prefix for a repeated named atom
-# (e.g. "-2H", not "H2"), and the canonical group names the spec requires when they apply
+# together signed tokens (mzPAF section 4.5), formulas in Hill order like every other delta
+# (e.g. "-H2", as paftacular writes it), and the canonical group names the spec requires when they apply
 # (e.g. "NH3" per "do not write an ammonia loss (NH3) as H3N"; "HCONH2"/Formamide for the
 # combined CO+NH3 magnitude).
+def _immonium_isotope_tokens(annot: "ProFormaAnnotation", fragment: "Fragment") -> list[str]:
+    """mzPAF isotope tokens for the global isotope labels of a one-residue immonium annotation.
+
+    A label such as ``<13C>`` replaces every atom of that element, so it is written as one
+    isotope shift per labelled atom of the final ion: ``<13C>P`` -> ``+4i13C``, ``<D>P`` ->
+    ``+7i2H``. The labelled atoms are counted on the final ion composition, after the immonium
+    offset, the formula deltas and any atoms a charge carrier removes (``<D>P`` at charge -1
+    loses a deuteron: ``+6i2H^-1``; ``<15N>K`` with ``-NH3`` keeps one ``15N``: ``+i15N``).
+    Mass-only deltas, ``+i`` shifts and adduct atoms are never labelled: a carrier that is not
+    a plain proton (``D:z+1``, ``Na:z+1``) is written in the adduct, not in the isotope count.
+    """
+    labelled = annot.copy()
+    labelled.set_charge(None)
+    charge: int | Mods[GlobalChargeCarrier] = fragment.external_charge if fragment._charge_adducts is None else fragment.charge_adducts
+    if fragment._charge_adducts is not None:
+        # Only protons change the ion's own atoms. Any other carrier (Na, [2H], [13C]) is
+        # written as an adduct, which carries its own atoms, so counting them here too would
+        # label them twice.
+        charge = sum(m.get_charge() for m in fragment.charge_adducts.mods if m.value.is_protonated)
+    formula_deltas: dict[str | ChargedFormula | float, int] = {}
+    if fragment._deltas is not None:
+        formula_deltas = {key: count for key, count in fragment.deltas.items() if isinstance(key, ChargedFormula)}
+    try:
+        comp = labelled.comp(ion_type=IonType.IMMONIUM, deltas=formula_deltas or None, charge=charge)
+    except PeptacularError as error:
+        raise PeptacularError(f"Cannot write the isotope label of immonium ion {annot.serialize()} in mzPAF: {error}") from error
+    tokens: list[str] = []
+    for mod in annot.isotope_mods.mods:
+        replacement: IsotopeReplacement = mod.value
+        n = sum(count for element, count in comp.items() if element.symbol == replacement.element.value and element.mass_number == replacement.isotope)
+        if n:
+            tokens.append(f"+{n if n > 1 else ''}i{replacement.isotope}{replacement.element.value}")
+    return tokens
+
+
 _INTERNAL_MASS_DIFFS: dict[tuple[str, str], str | None] = {
-    ("a", "x"): "-2H",
-    ("b", "x"): "+CO-2H",
+    ("a", "x"): "-H2",
+    ("b", "x"): "+CO-H2",
     ("c", "x"): "+CHNO",
     ("a", "y"): "-CO",
     ("b", "y"): None,
@@ -355,8 +394,9 @@ class Fragment:
         # subtract adduct masses and add back the electrons removed by the charge:
         # self.mass == neutral + adduct_atoms - charge*electron, so the electron term
         # must be undone to recover the true neutral mass.
-        total_adduct_mass = 0.0
-        for adduct in self.charge_adducts:
+        adducts = self.charge_adducts
+        total_adduct_mass = proton_binding_offset(adducts, self.monoisotopic)
+        for adduct in adducts:
             total_adduct_mass += adduct.get_mass(monoisotopic=self.monoisotopic)
         return self.mass - total_adduct_mass + self.charge_state * ELECTRON_MASS
 
@@ -496,7 +536,7 @@ class Fragment:
             "deltas": self.deltas,
         }
 
-    def serialize(self, *, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True) -> str:
+    def serialize(self, *, format: Literal["default", "mzpaf"] = "default", include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Serialize the fragment to a string representation.
 
         :param format: Output format. ``"default"`` returns the human-readable representation,
@@ -504,17 +544,19 @@ class Fragment:
         :type format: Literal["default", "mzpaf"]
         :param include_sequence: If True, include the peptide sequence in the mzPAF label. Only used for ``"mzpaf"`` format.
         :type include_sequence: bool
+        :param signed_charge: If True, write a negative charge as ``^-n`` in the mzPAF label. Only used for ``"mzpaf"`` format.
+        :type signed_charge: bool
         :return: The serialized fragment string.
         :rtype: str
         """
         if format == "default":
             return str(self)
         elif format == "mzpaf":
-            return self._serialize_mzpaf(include_sequence=include_sequence)
+            return self._serialize_mzpaf(include_sequence=include_sequence, signed_charge=signed_charge)
         else:
             raise PeptacularError(f"Unknown format: {format!r}. Use 'default' or 'mzpaf'.")
 
-    def to_mzpaf(self, *, include_sequence: bool = True) -> str:
+    def to_mzpaf(self, *, include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Serialize the fragment to an mzPAF (Peak Annotation Format) label string.
 
         mzPAF 1.0.1 ``z`` is the z-dot radical (``IonType.Z_RADICAL``). The Biemann ``z``
@@ -529,19 +571,52 @@ class Fragment:
         decimals (``b2-34.0`` for ``{-17.0: 2}``); one that rounds to zero is left out. A formula with both positive and negative
         element counts (``CH-2``) cannot be written and raises :class:`PeptacularError`.
 
+        A negative charge is written signed (``y3{IDE}^-1``) so the label parses back to the
+        same m/z, as paftacular does. mzPAF 1.0.1 section 4.8 says the charge MUST NOT include
+        the minus sign (negative mode is a property of the spectrum); pass
+        ``signed_charge=False`` to write only the magnitude. The unsigned form is only valid
+        next to negative-mode spectrum metadata: at z=-1 it has no charge suffix
+        (``y3{IDE}``), so on its own it reads as a +1 ion.
+
+        An immonium ion takes at most one modification (``IP[Oxidation]``). A terminal
+        modification on the residue, or a global fixed modification that applies to it, is
+        written there as well: ``[Acetyl]-PEP`` at position 1 gives ``IP[Acetyl]`` and
+        ``<[Oxidation]@P>PEP`` gives ``IP[Oxidation]``. More than one modification raises
+        :class:`PeptacularError`. A global isotope label is written as isotope shifts, one per
+        labelled atom of the final ion, counted after the immonium offset, formula deltas and
+        any atoms a charge carrier removes: ``<13C>PEP`` gives ``IP+4i13C``, ``<D>P`` at
+        charge -1 gives ``IP+6i2H^-1`` and ``<15N>K`` with an NH3 loss gives ``IK-NH3+i15N``.
+        Mass-only deltas, ``+i`` shifts and adduct atoms are not labelled. An isotope label on
+        a residue with a mass-only modification raises, since the atoms cannot be counted.
+
+        mzPAF has no uncharged ion (a label without a charge suffix reads as +1), so a
+        fragment with charge 0 raises :class:`PeptacularError`; build it with ``charge=1``.
+
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
+        :param signed_charge: If True (default), write a negative charge as ``^-n``;
+            if False, write ``^n`` (valid only alongside negative-mode spectrum metadata).
+        :type signed_charge: bool
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
         :rtype: str
         """
-        return self._serialize_mzpaf(include_sequence=include_sequence)
+        return self._serialize_mzpaf(include_sequence=include_sequence, signed_charge=signed_charge)
 
-    def _serialize_mzpaf(self, *, include_sequence: bool = True) -> str:
+    def _serialize_mzpaf(self, *, include_sequence: bool = True, signed_charge: bool = True) -> str:
         """Build the mzPAF label string for this fragment."""
         from .annotation import ProFormaAnnotation
 
+        if self.charge_state == 0:
+            # mzPAF has no uncharged ion: a label with no charge suffix reads as +1, so it would
+            # parse back to a different m/z (paftacular raises too). This covers an ion built
+            # without a charge and charge carriers that cancel (["H:z-1", "Na:z+1"]).
+            if self._charge_adducts is not None:
+                raise PeptacularError(f"Cannot write an uncharged fragment in mzPAF: charge carriers {self.charge_adducts} sum to zero")
+            raise PeptacularError("Cannot write an uncharged fragment in mzPAF (a label with no charge reads as +1); pass charge=1")
+
         parts: list[str] = []
         internal_loss: str | None = None
+        immonium_isotopes: list[str] = []
         series_delta: str | None = None
 
         if self.ion_type is None:
@@ -571,16 +646,30 @@ class Fragment:
                             annot = ProFormaAnnotation.parse(seq)
                             parts.append(f"I{annot.sequence}")
 
-                            if annot.has_internal_mods_at_index(0):
-                                internal_mods = annot.get_internal_mods_at_index(0)
-                                if len(internal_mods) > 1:
-                                    raise PeptacularError(f"Multiple internal mods on immonium ion not supported in mzPAF, got {internal_mods}")
-                                if len(internal_mods) == 1 and internal_mods.mods[0].count > 1:
-                                    raise PeptacularError(f"Multiple occurrences of internal mod on immonium ion not supported in mzPAF, got {internal_mods}")
-                                mods_str = internal_mods.serialize()[1:-1]  # remove surrounding brackets
-                                if mods_str == "":
-                                    raise PeptacularError(f"Empty modification string for immonium ion is not valid in mzPAF. Internal mods: {internal_mods}")
-                                parts.append(f"[{mods_str}]")
+                            # mzPAF allows one modification on an immonium ion. A terminal
+                            # modification of the residue (e.g. an N-terminal acetyl) or a global
+                            # fixed modification that applies to it (<[Oxidation]@P>) adds the
+                            # same mass, so it is written there too (matches paftacular 2.0).
+                            tags: list[str] = []
+                            for has_mods, get_mods in (
+                                (annot.has_internal_mods_at_index(0), lambda: annot.get_internal_mods_at_index(0)),
+                                (annot.has_nterm_mods, lambda: annot.nterm_mods),
+                                (annot.has_cterm_mods, lambda: annot.cterm_mods),
+                            ):
+                                if has_mods:
+                                    for mod in get_mods().mods:
+                                        tags.extend([str(mod.value)] * mod.count)
+                            for static_mods in annot.map_static_mods_to_indexes().values():
+                                for mod in static_mods:
+                                    tags.extend([str(mod.value)] * mod.count)
+                            if len(tags) > 1:
+                                raise PeptacularError(f"mzPAF allows one modification on an immonium ion, got {', '.join(tags)}")
+                            if tags:
+                                if tags[0] == "":
+                                    raise PeptacularError("Empty modification string for immonium ion is not valid in mzPAF.")
+                                parts.append(f"[{tags[0]}]")
+                            if annot.has_isotope_mods:
+                                immonium_isotopes = _immonium_isotope_tokens(annot, self)
                         else:
                             raise PeptacularError("Immonium ion must have a sequence annotation.")
                     else:
@@ -644,7 +733,9 @@ class Fragment:
         if internal_loss is not None:
             parts.append(internal_loss)
 
-        # Isotopes
+        # Isotopes: a global isotope label on an immonium residue first (+4i13C), then the
+        # fragment's own isotope peaks
+        parts.extend(immonium_isotopes)
         if self._isotopes is not None:
             if isinstance(self._isotopes, int):
                 count_str = str(self._isotopes) if self._isotopes > 1 else ""
@@ -680,12 +771,13 @@ class Fragment:
             adduct_parts.sort(key=_adduct_sort_key)
             parts.append(f"[M{''.join(adduct_parts)}]")
 
-        # Charge: mzPAF omits the component only for +1 (implicit); everything else,
-        # including negative charges, is written as a bare magnitude with no sign
-        # (mzPAF spec section 4.8: "The charge state component ... MUST NOT include
-        # the minus sign").
-        if self.charge_state != 0 and self.charge_state != 1:
-            parts.append(f"^{abs(self.charge_state)}")
+        # Charge: mzPAF omits the component only for +1 (implicit). A negative charge is
+        # written signed (``^-1``) so the label parses back to the same m/z. mzPAF 1.0.1
+        # section 4.8 says the charge MUST NOT include the minus sign (negative mode is a
+        # property of the spectrum); ``signed_charge=False`` writes only the magnitude.
+        charge = self.charge_state if signed_charge else abs(self.charge_state)
+        if charge != 0 and charge != 1:
+            parts.append(f"^{charge}")
 
         return "".join(parts)
 
@@ -743,3 +835,17 @@ class Fragment:
             )
 
         raise PeptacularError("Invalid position format for fragment sequence extraction")
+
+
+def proton_binding_offset(charge: Mods[GlobalChargeCarrier], monoisotopic: bool) -> float:
+    """Mass to add so each monoisotopic proton carrier weighs CODATA ``PROTON_MASS``.
+
+    Charged masses are built from H atoms minus electrons, and ``H - e`` is lighter than a
+    proton by the hydrogen 1s binding energy (:data:`HYDROGEN_BINDING_MASS`, 1.4e-8 Da). This
+    returns that term times the net proton count (negative for deprotonation). Average masses
+    and non-proton adducts get no correction.
+    """
+    if not monoisotopic:
+        return 0.0
+    protons = sum(mod.get_charge() for mod in charge.mods if mod.value.is_protonated)
+    return protons * HYDROGEN_BINDING_MASS

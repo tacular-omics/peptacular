@@ -25,7 +25,7 @@ from tacular import (
     NeutralDeltaLiteral,
 )
 
-from ..constants import ELECTRON_MASS, PROTON_CARRIER_MASS, ModType, ModTypeLiteral, Terminal
+from ..constants import ELECTRON_MASS, HYDROGEN_BINDING_MASS, PROTON_MASS, ModType, ModTypeLiteral, Terminal
 from ..diagnostics import (
     CompositionError,
     InvalidAdjustmentError,
@@ -83,6 +83,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
+from .frag import _ION_TYPE_TO_MZPAF_SERIES, proton_binding_offset
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
@@ -221,26 +222,43 @@ def _as_options(value: Any) -> Any:
 
 
 def _carrier_mass(monoisotopic: bool) -> float:
-    """Mass one default (protonated) charge adds: :data:`PROTON_CARRIER_MASS`, or average H minus an electron."""
+    """Mass one default (protonated) charge adds: CODATA ``PROTON_MASS``, or average H minus an electron."""
     if monoisotopic:
-        return PROTON_CARRIER_MASS
+        return PROTON_MASS
     return H_ELEMENT_INFO.get_mass(monoisotopic=False) - ELECTRON_MASS
 
 
 def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], **kwargs: Any) -> "Fragment | None":
-    """Build one ion, or None when a neutral loss in ``ndelta`` needs atoms the ion lacks.
+    """Build one ion for ``fragment()``, or None when that ion cannot exist.
 
     ``neutral_deltas`` offers a loss wherever one of its residues occurs (H3PO4 on any S/T), so
     a loss can ask for more of an element than the fragment has (no phosphorus on an
-    unmodified S). That ion cannot exist and is skipped. The error still propagates when no
-    neutral loss is involved: then the caller's own ``deltas`` are at fault.
+    unmodified S). An ion can also lack the atoms its own offset removes (the one-residue a1 of
+    ``G-[Amidated]`` at charge -1), or the atoms the caller's ``isotopes`` swap (``{"15N": 3}``
+    on b1). Such ions are skipped; ``fragment()`` raises when the caller's isotopes leave no
+    ion at all. The error still propagates when the caller's own ``deltas`` are at fault: the
+    ion exists without them. An explicit ``frag()`` does not come through here and always raises.
     """
     try:
         return make(**kwargs)
-    except InvalidAdjustmentError:
+    except InvalidAdjustmentError as error:
         if ndelta._items:
             return None
-        raise
+        delta: DeltaInfo = kwargs["delta"]
+        isotope: IsotopeInfo = kwargs["isotope"]
+        if not delta.deltas and not isotope.data:
+            return None
+        no_isotope = IsotopeInfo.from_input(None)
+        try:
+            make(**{**kwargs, "delta": DeltaInfo.from_input(None), "isotope": no_isotope})
+        except InvalidAdjustmentError:
+            return None  # the ion itself cannot exist
+        if delta.deltas:
+            try:
+                make(**{**kwargs, "isotope": no_isotope})
+            except InvalidAdjustmentError:
+                raise error from None  # the caller's deltas are at fault
+        return None  # the caller's isotopes do not fit this ion
 
 
 def get_loss_combinations(losses: dict[NeutralDeltaInfo, int], max_losses: int) -> list[DeltaInfo]:
@@ -2720,8 +2738,24 @@ class ProFormaAnnotation:
                 mapped_mods[index].append(Mod(static_mod.value.modifications, count=static_mod.count))
         return mapped_mods
 
-    def _map_isotopes(self) -> dict[ElementInfo, ElementInfo]:
-        """Map isotope modifications to element replacements."""
+    def map_isotopes(self) -> dict[ElementInfo, ElementInfo]:
+        """Map each global isotope label to the element it replaces and its replacement.
+
+        ``<13C>PEPTIDE`` gives ``{C: 13C}``: every carbon atom in the composition is counted
+        as carbon-13. The keys and values are tacular ``ElementInfo`` objects (the key is the
+        element with no mass number). An annotation without global isotope labels gives ``{}``.
+
+        :return: ``{element: isotope}`` for each global isotope label.
+        :rtype: dict[ElementInfo, ElementInfo]
+
+        .. code-block:: python
+
+            >>> import peptacular as pt
+            >>> [(str(k.symbol), str(v.symbol), v.mass_number) for k, v in pt.parse("<13C>PEP").map_isotopes().items()]
+            [('C', 'C', 13)]
+            >>> pt.parse("PEP").map_isotopes()
+            {}
+        """
         isotope_map: dict[ElementInfo, ElementInfo] = {}
         if not self.has_isotope_mods:
             return isotope_map
@@ -2731,6 +2765,9 @@ class ProFormaAnnotation:
             isotope_map[template] = replaced
 
         return isotope_map
+
+    # Private alias kept for callers written before map_isotopes was public (paftacular 2.0).
+    _map_isotopes = map_isotopes
 
     # Thin wrapper over the shared negative-safe merge helper (see
     # proforma_components.comps.add_composition) so the many call sites below read cleanly.
@@ -3017,7 +3054,8 @@ class ProFormaAnnotation:
             total_charge = external_charge + internal_charge
             mass = _adjust_mass_value(
                 base_mass,
-                H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) * external_charge,  # the electrons come off below
+                # H atoms here, the electrons come off below; the binding term lifts H - e to PROTON_MASS.
+                (H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) + (HYDROGEN_BINDING_MASS if monoisotopic else 0.0)) * external_charge,
                 total_charge,
                 ion_type,
                 monoisotopic,
@@ -3081,12 +3119,21 @@ class ProFormaAnnotation:
         position: int | tuple[int, int] | None,
     ) -> Fragment:
         # Satellite ions: the residue whose side chain is cleaved is not in the residue sum;
-        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it.
+        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it,
+        # but a terminal modification sits on the backbone and stays: a full-length d ion
+        # keeps the C-terminal mod, a full-length v/w ion keeps the N-terminal mod.
+        blocked = self._satellite_mod_error(ion_type)
+        if blocked is not None:
+            raise PeptacularError(blocked)
         annot = self
         if ion_type in SATELLITE_TRIM_END:
             annot = self.slice(0, len(self) - 1, inplace=False)
+            if self.has_cterm_mods:
+                annot.set_cterm_mods(self.cterm_mods, validate=False)
         elif ion_type in SATELLITE_TRIM_START:
             annot = self.slice(1, len(self), inplace=False)
+            if self.has_nterm_mods:
+                annot.set_nterm_mods(self.nterm_mods, validate=False)
         return annot._frag_impl(
             ion_type=ion_type,
             monoisotopic=monoisotopic,
@@ -3097,6 +3144,27 @@ class ProFormaAnnotation:
             parent_sequence_length=parent_sequence_length,
             position=position,
         )
+
+    def _satellite_mod_error(self, ion_type: IonType) -> str | None:
+        """Why a d or w ion of this (sub)sequence is undefined, or None when it is defined.
+
+        A d or w ion keeps part of the cleaved residue's side chain (its beta substituent), so
+        it is not defined when that residue carries a modification, explicit or from a global
+        fixed modification (as in paftacular). A v ion loses the whole side chain, and its
+        modification with it, so v ions are always defined.
+        """
+        if ion_type == IonType.V or not self:
+            return None
+        if ion_type in SATELLITE_TRIM_END:
+            index = len(self) - 1
+        elif ion_type in SATELLITE_TRIM_START:
+            index = 0
+        else:
+            return None
+        if self.has_internal_mods_at_index(index) or (self.has_static_mods and index in self.map_static_mods_to_indexes()):
+            label = _ION_TYPE_TO_MZPAF_SERIES.get(ion_type, ion_type.value)
+            return f"{label} ion is not defined when residue {self.stripped_sequence[index]} carries a modification"
+        return None
 
     def _frag_impl(
         self,
@@ -3131,7 +3199,7 @@ class ProFormaAnnotation:
                 isotope=isotope,
                 delta=DeltaInfo(formula_deltas),
                 inplace=True,
-                isotope_map=self._map_isotopes() if self.has_isotope_mods else None,
+                isotope_map=self.map_isotopes() if self.has_isotope_mods else None,
                 position=position,
                 parent_sequence=parent_sequence,
                 parent_sequence_length=parent_sequence_length,
@@ -3327,7 +3395,7 @@ class ProFormaAnnotation:
                 total += m
                 cumulative.append(total)
             charge_carriers = self.charge_adducts
-            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic)
+            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic) + proton_binding_offset(charge_carriers, monoisotopic)
             external_charge = charge_carriers.get_charge()
             if not all(m.value.is_protonated for m in charge_carriers.mods):
                 adducts = tuple(key for key, count in charge_carriers._mods.items() for _ in range(count)) if charge_carriers._mods else None
@@ -3404,6 +3472,11 @@ class ProFormaAnnotation:
                     continue
                 if sub_annot is None:
                     sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
+                if frag_type in SATELLITE_TRIM_END or frag_type in SATELLITE_TRIM_START:
+                    # A series skips d/w ions of a modified cleaved residue; an explicit
+                    # frag() of the same ion raises.
+                    if sub_annot._satellite_mod_error(frag_type) is not None:
+                        break
                 fragment = _unless_impossible_loss(
                     ndelta,
                     sub_annot._frag,
@@ -3665,6 +3738,21 @@ class ProFormaAnnotation:
                         )
                     )
                 )
+        if not fragments and any(info.data for info in isotope_infos):
+            # Each ion the caller's isotopes do not fit is skipped; when none is left, say so.
+            plain = self.fragment(
+                ion_types,
+                charges,
+                monoisotopic=monoisotopic,
+                deltas=deltas,
+                neutral_deltas=neutral_deltas,
+                max_ndeltas=max_ndeltas,
+                calculate_with_composition=calculate_with_composition,
+                min_length=min_length,
+                max_length=max_length,
+            )
+            if plain:
+                raise InvalidAdjustmentError(f"isotopes={isotopes!r} do not fit any requested ion: every ion has fewer atoms of the swapped element")
         return fragments
 
     def fast_fragment(
@@ -3725,7 +3813,7 @@ class ProFormaAnnotation:
             return fallback
         result: dict[tuple[IonType, int], list[float]] = {}
 
-        # A charge carrier is a hydrogen atom minus one electron, the same arithmetic fragment() uses.
+        # A proton charge carrier weighs PROTON_MASS (monoisotopic), as in fragment().
         proton_offset = _carrier_mass(monoisotopic)
         for charge in charges:
             charge_offset = charge * proton_offset
@@ -4837,12 +4925,17 @@ class ProFormaAnnotation:
         composition = fragment.composition
         assert composition is not None
 
-        return brain_isotopic_distribution(
+        peaks = brain_isotopic_distribution(
             formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
             charge=fragment.charge_state,
         )
+        # The composition counts an H atom per proton; lift each to PROTON_MASS, as frag() does.
+        binding = proton_binding_offset(frag_annot.charge_adducts, True)
+        if binding:
+            peaks = [IsotopicData(mass=peak.mass + binding, neutron_count=peak.neutron_count, abundance=peak.abundance) for peak in peaks]
+        return peaks
 
     def estimate_isotopic_distribution(
         self,
