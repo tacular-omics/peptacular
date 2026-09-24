@@ -22,9 +22,20 @@ All notable changes to this project will be documented in this file.
 - `parse` and `parse_chimeric` raised a bare `ValueError` for invalid ProForma, and `parse` raised `ValueError` for chimeric or cross-linked input. They now raise `ProFormaFormatError` (a `ValueError` subclass, so existing `except ValueError` still works) and `UnsupportedOperationError` respectively.
 - `parse` looped forever on a `?` that does not follow a modification (`?[Phospho]PEPTIDE`). It now raises `ProFormaFormatError`.
 - Malformed modification, glycan, isotope, static-mod and adduct strings parse lazily, so they surfaced from `mass()` as a bare `ValueError` (or `KeyError` for an unknown isotope such as `<113C>`). They now raise `ProFormaFormatError`. A non-numeric adduct multiplier (`/[Na:z+1^x]`) was read as `^1`; it is now a parse error.
+- `pt.shift("PEPTIDE", "a")` raised `TypeError: not all arguments converted during string formatting`. A non-integer `n` now raises `TypeError: n must be an int`.
+- `fragment(ion_types=["q"])`, `frag(ion_type="q")` and `mass(..., ion_type="q")` leaked the enum's `'q' is not a valid IonType`. They raise `UnsupportedOperationError` listing the valid ion types.
+- `pt.digest(seq, "notanenzyme")` silently used an unknown protease name as a regex and returned the sequence uncut. A string that is neither a known protease nor contains regex metacharacters now emits a `UserWarning`; behaviour is otherwise unchanged.
+- Bare `ValueError`s on main public paths are now typed (all still `ValueError` subclasses): `mass("")` raises `CompositionError`; out-of-range slices and `frag(position=...)` raise `InvalidPositionError`; invalid `parse_fasta_text`/`iter_fasta` input raises `FastaFormatError`.
 
 ### Added
 - `ProFormaFormatError`, raised for strings that are not valid ProForma.
+- `PeptacularError(ValueError)`, the common base of `ProFormaFormatError`, `UnknownModificationError`, `CompositionError`, `InvalidAdjustmentError`, `UnsupportedOperationError` and the two new classes below. `except ValueError` still catches all of them.
+- `InvalidPositionError` (slice index or fragment position outside the sequence) and `FastaFormatError` (invalid FASTA text), both `PeptacularError` subclasses.
+- Docstrings for the property functions (`pi`, `charge_at_ph`, `hydrophobicity`, ...), `set_mods`/`append_mods`/`extend_mods`/`remove_mods`, `isotopic_distribution`, `left_semi_digest`/`right_semi_digest` and `ModType`; `set_start_method` has a `-> None` return annotation. The error classes are documented in the streaming guide, README, `llms.txt` and `llms-full.txt`.
+
+### Changed
+- An unknown isotope label (`<113C>PEPTIDE`) now raises `ProFormaFormatError` instead of `KeyError`. Code that caught `KeyError` for this case must catch `ProFormaFormatError` (or `ValueError`).
+- `Diagnostic.code` from `pt.diagnose`/`pt.batch(errors="collect")` follows the new types: an empty sequence reports `unavailable_composition` and an unknown ion type `unsupported_operation` (both were `calculation_error`).
 - Reference-value tests (`tests/reference/`) against pyteomics, Biopython, ExPASy ProtScale and the ProForma 2.0 spec examples, and Hypothesis property tests (`hypothesis` added to the dev group).
 
 ## [4.1.0] (2026-09-23)

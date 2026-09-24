@@ -77,6 +77,21 @@ def isotopic_distribution(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> list[IsotopicData] | list[list[IsotopicData]]:
+    """Exact isotopic distribution of a peptide ion from its elemental composition.
+
+    :param annotations: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param ion_type: Ion type whose composition is used; defaults to the precursor.
+    :param charge: Charge state or charge carriers; ``None`` uses the sequence's own charge.
+    :param isotopes: Isotope labels to apply.
+    :param deltas: Extra mass or formula deltas to apply.
+    :param max_isotopes: Keep at most this many peaks.
+    :param min_abundance_threshold: Drop peaks below this relative abundance.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A list of ``IsotopicData`` peaks, or a list of such lists for list input.
+    :raises CompositionError: The ion's composition is not available (e.g. a mass-only modification).
+    """
     if isinstance(annotations, Sequence) and not isinstance(annotations, (str, ProFormaAnnotation)):
         return parallel_apply_internal(
             _isotopic_distribution_single,

@@ -160,6 +160,17 @@ def hydrophobicity(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average hydrophobicity (Kyte-Doolittle).
+
+    The mean of the ``HydrophobicityScale.KYTE_DOOLITTLE`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -200,6 +211,17 @@ def flexibility(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average backbone flexibility (Vihinen).
+
+    The mean of the ``PhysicalPropertyScale.FLEXIBILITY_VIHINEN`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -240,6 +262,17 @@ def hydrophilicity(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average hydrophilicity (Hopp-Woods).
+
+    The mean of the ``PhysicalPropertyScale.HYDROPHILICITY_HOP_WOOD`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -280,6 +313,17 @@ def surface_accessibility(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average surface accessibility (Vergoten).
+
+    The mean of the ``SurfaceAccessibilityScale.VERGOTEN`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -320,6 +364,17 @@ def polarity(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average polarity (Grantham).
+
+    The mean of the ``PolarityScale.GRANTHAM`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -360,6 +415,17 @@ def mutability(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average relative mutability.
+
+    The mean of the ``PhysicalPropertyScale.MUTABILITY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -400,6 +466,17 @@ def codons(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average number of codons per residue.
+
+    The mean of the ``PhysicalPropertyScale.CODONS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -440,6 +517,17 @@ def bulkiness(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average side-chain bulkiness.
+
+    The mean of the ``PhysicalPropertyScale.BULKINESS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -480,6 +568,17 @@ def recognition_factors(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average recognition factor.
+
+    The mean of the ``PhysicalPropertyScale.RECOGNITION_FACTORS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -520,6 +619,17 @@ def transmembrane_tendency(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average transmembrane tendency.
+
+    The mean of the ``PhysicalPropertyScale.TRANSMEMBRANE_TENDENCY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -560,6 +670,17 @@ def average_buried_area(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average buried surface area.
+
+    The mean of the ``SurfaceAccessibilityScale.AVERAGE_BURIED_AREA`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -600,6 +721,17 @@ def hplc(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average HPLC retention coefficient (Meek, pH 2.1).
+
+    The mean of the ``HPLCScale.MEEK_2_1`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -640,6 +772,17 @@ def refractivity(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Average refractivity.
+
+    The mean of the ``PhysicalPropertyScale.REFRACTIVITY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    :raises ValueError: A residue has no value in the scale.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _simple_property_single,
@@ -667,6 +810,19 @@ def calc_window_property(
     min_weight: float = 0.1,
     max_weight: float = 1.0,
 ) -> list[float]:
+    """Property values over a sliding window along one sequence.
+
+    :param sequence: A ProForma string or annotation.
+    :param scale: A scale name from ``PROPERTY_SCALES`` (e.g. ``HydrophobicityScale.KYTE_DOOLITTLE``) or a residue-to-value dict.
+    :param window_size: Residues per window.
+    :param missing_aa_handling: What to do with residues missing from the scale.
+    :param aggregation_method: How the values in a window are combined.
+    :param normalize: Scale values to 0-1 across the scale first.
+    :param weighting_scheme: Per-position weights inside a window.
+    :param min_weight: Smallest weight for non-uniform schemes.
+    :param max_weight: Largest weight for non-uniform schemes.
+    :return: One value per window, ``len(sequence) - window_size + 1`` values.
+    """
     return get_annotation_input(sequence=sequence, copy=True).prop.property_windows(
         scale=scale,
         window_size=window_size,
@@ -715,6 +871,17 @@ def charge_at_ph(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Net charge at a given pH, from Henderson-Hasselbalch pKa values.
+
+    Sums the N-terminal, C-terminal and ionisable side-chain contributions. Modifications are ignored.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param pH: The pH.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: The net charge, or a list of charges for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _charge_at_ph_single,
@@ -762,6 +929,14 @@ def pi(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Isoelectric point: the pH at which :func:`charge_at_ph` is zero, found by bisection.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: The pI, or a list of pI values for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _pi_single,
@@ -812,6 +987,15 @@ def aa_property_percentage(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Fraction (0-1) of residues that are in ``residues``.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param residues: One-letter amino-acid codes to count.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _aa_property_percentage_single,
@@ -858,6 +1042,15 @@ def aromaticity(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Fraction (0-1) of aromatic residues (Y, W, F by default).
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param aromatic_residues: Residues counted as aromatic; defaults to ``['Y', 'W', 'F']``.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if aromatic_residues is None:
         aromatic_residues = DEFAULT_AROMATIC_RESIDUES
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -912,6 +1105,15 @@ def secondary_structure(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> dict[str, float] | list[dict[str, float]]:
+    """Predicted secondary-structure fractions.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param scale: A ``SecondaryStructureMethod``; defaults to Deleage-Roux.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A dict of ``SecondaryStructureType`` to fraction (alpha helix, beta sheet, beta turn, coil), or a list of dicts for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _secondary_structure_single,
@@ -959,6 +1161,16 @@ def alpha_helix_percent(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Predicted alpha helix fraction (0-1) by the Deleage-Roux method.
+
+    The ``alpha_helix`` entry of :func:`secondary_structure` with the default scale.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _alpha_helix_percent_single,
@@ -1004,6 +1216,16 @@ def beta_sheet_percent(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Predicted beta sheet fraction (0-1) by the Deleage-Roux method.
+
+    The ``beta_sheet`` entry of :func:`secondary_structure` with the default scale.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _beta_sheet_percent_single,
@@ -1049,6 +1271,16 @@ def beta_turn_percent(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Predicted beta turn fraction (0-1) by the Deleage-Roux method.
+
+    The ``beta_turn`` entry of :func:`secondary_structure` with the default scale.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _beta_turn_percent_single,
@@ -1094,6 +1326,16 @@ def coil_percent(
     chunksize: int | None = None,
     method: parallelMethod | parallelMethodLiteral | None = None,
 ) -> float | list[float]:
+    """Predicted coil fraction (0-1) by the Deleage-Roux method.
+
+    The ``coil`` entry of :func:`secondary_structure` with the default scale.
+
+    :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
+    :return: A float, or a list of floats for list input.
+    """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
             _coil_percent_single,

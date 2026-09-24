@@ -175,6 +175,15 @@ def set_mods(
     sequence: str | ProFormaAnnotation,
     mods: Mapping[ModType | ModTypeLiteral | int, Any] | None,
 ) -> str:
+    """Replace modifications and return the new ProForma string.
+
+    Each key selects what to replace: a ``ModType`` (or its string, e.g. ``'nterm'``) or a 0-based
+    residue index. The mods under that key are replaced by the value; keys not given are left alone.
+
+    :param sequence: A ProForma string or annotation (not modified).
+    :param mods: Mapping of ``ModType`` or residue index to the new modification(s). ``None`` removes every modification.
+    :return: The serialized ProForma string.
+    """
     return get_annotation_input(sequence, copy=True).set_mods(mods, inplace=True).serialize()
 
 
@@ -182,6 +191,14 @@ def append_mods(
     sequence: str | ProFormaAnnotation,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
+    """Add one modification per key and return the new ProForma string.
+
+    Like :func:`set_mods`, but the value is added to the existing modifications instead of replacing them. Use :func:`extend_mods` to add several at once.
+
+    :param sequence: A ProForma string or annotation (not modified).
+    :param mods: Mapping of ``ModType`` or 0-based residue index to a single modification.
+    :return: The serialized ProForma string.
+    """
     return get_annotation_input(sequence, copy=True).append_mods(mods, inplace=True).serialize()
 
 
@@ -189,6 +206,14 @@ def extend_mods(
     sequence: str | ProFormaAnnotation,
     mods: Mapping[ModType | ModTypeLiteral | int, Any],
 ) -> str:
+    """Add several modifications per key and return the new ProForma string.
+
+    Like :func:`append_mods`, but each value is an iterable of modifications.
+
+    :param sequence: A ProForma string or annotation (not modified).
+    :param mods: Mapping of ``ModType`` or 0-based residue index to an iterable of modifications.
+    :return: The serialized ProForma string.
+    """
     return get_annotation_input(sequence, copy=True).extend_mods(mods, inplace=True).serialize()
 
 
@@ -253,6 +278,12 @@ def remove_mods(
     sequence: str | ProFormaAnnotation,
     mods: ModType | Iterable[ModType] | None = None,
 ) -> str:
+    """Remove modifications of the given types and return the new ProForma string.
+
+    :param sequence: A ProForma string or annotation (not modified).
+    :param mods: A ``ModType`` or iterable of them; ``None`` removes every modification.
+    :return: The serialized ProForma string.
+    """
     annotation = get_annotation_input(sequence=sequence, copy=True)
 
     return annotation.clear_mods(mods=mods, inplace=True).serialize()

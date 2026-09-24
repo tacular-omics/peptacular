@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from collections.abc import Generator, Sequence
 
 from tacular import PROTEASE_LOOKUP
@@ -59,6 +60,9 @@ def nonspecific_spans(
     return build_non_enzymatic_spans(span=span, min_len=min_len, max_len=max_len)
 
 
+_REGEX_METACHARACTERS = frozenset(".^$*+?{}[]\\|()")
+
+
 def get_cleavage_sites(annotation: DigestProtocol, enzyme: str | re.Pattern[str]) -> Generator[int]:
     """Get cleavage sites for a given enzyme (name, regex string, or compiled pattern)."""
 
@@ -66,6 +70,13 @@ def get_cleavage_sites(annotation: DigestProtocol, enzyme: str | re.Pattern[str]
     if isinstance(enzyme, str):
         # Try to look up by name first
         protease_info = PROTEASE_LOOKUP.get(enzyme)
+        if protease_info is None and enzyme and not _REGEX_METACHARACTERS.intersection(enzyme):
+            warnings.warn(
+                f"{enzyme!r} is not a known protease name and contains no regex metacharacters, so it is used as a literal "
+                "regex pattern. Check the name against PROTEASE_LOOKUP, or pass re.compile(...) to use it as a regex.",
+                UserWarning,
+                stacklevel=2,
+            )
         pattern = protease_info.pattern if protease_info else re.compile(enzyme)
     else:
         pattern = enzyme

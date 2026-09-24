@@ -17,6 +17,11 @@ Optional extras add an MCP server (`peptacular[mcp]`, console script
 `peptacular-mcp`) and converters for pyteomics, psm_utils and AlphaBase
 (`peptacular[interop]`).
 
+Errors are typed: every peptacular error subclasses `pt.PeptacularError`, itself a
+`ValueError`. Invalid ProForma raises `pt.ProFormaFormatError`; the others are
+`UnknownModificationError`, `CompositionError`, `InvalidAdjustmentError`,
+`InvalidPositionError`, `FastaFormatError` and `UnsupportedOperationError`.
+
 peptacular is part of tacular-omics. It takes all reference data (modifications, amino
 acids, elements, ion types, proteases) from `tacular`, and its fragments export as mzPAF
 strings that `paftacular` parses.

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import operator
 import random
 from collections.abc import Callable, Generator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from ..annotation.mod import Mods
 from ..constants import Terminal
+from ..diagnostics import InvalidPositionError
 from ..proforma_components.comps import FixedModification, ModificationTags
 from .parser import Interval, ProFormaParser
 
@@ -224,8 +226,14 @@ def shift_annotation(
         The shifted annotation
 
     Raises:
-        ValueError: If intervals would be cut off and slice_intervals=False
+        TypeError: If n is not an integer
+        ValueError: If keep_nterm or keep_cterm is negative or together exceed the sequence length
     """
+
+    try:
+        n = operator.index(n)
+    except TypeError:
+        raise TypeError(f"n must be an int, got {type(n).__name__}: {n!r}") from None
 
     if not inplace:
         return shift_annotation(
@@ -637,10 +645,10 @@ def _normalize_start_index(start: int | None, seq_len: int) -> int:
     elif start < 0:
         start = seq_len + start
         if start < 0:
-            raise ValueError("Start index is out of bounds for the sequence length.")
+            raise InvalidPositionError("Start index is out of bounds for the sequence length.")
         return start
     elif start > seq_len:
-        raise ValueError(f"Start index exceeds the sequence length. Sequence length is {seq_len}, but start is {start}.")
+        raise InvalidPositionError(f"Start index exceeds the sequence length. Sequence length is {seq_len}, but start is {start}.")
     return start
 
 
@@ -651,17 +659,17 @@ def _normalize_stop_index(stop: int | None, seq_len: int) -> int:
     elif stop < 0:
         stop = seq_len + stop
         if stop < 0:
-            raise ValueError("Stop index is out of bounds for the sequence length.")
+            raise InvalidPositionError("Stop index is out of bounds for the sequence length.")
         return stop
     elif stop > seq_len:
-        raise ValueError(f"Stop index exceeds the sequence length. Sequence length is {seq_len}, but stop is {stop}.")
+        raise InvalidPositionError(f"Stop index exceeds the sequence length. Sequence length is {seq_len}, but stop is {stop}.")
     return stop
 
 
 def _validate_slice_indices(start: int, stop: int, seq_len: int) -> None:
     """Validate that slice indices are valid"""
     if start > stop:
-        raise ValueError(f"Start index {start} cannot be greater than stop index {stop}.")
+        raise InvalidPositionError(f"Start index {start} cannot be greater than stop index {stop}.")
 
 
 def _adjust_internal_mods(internal_mods: dict[int, dict[str, int]], start: int, stop: int) -> dict[int, dict[str, int]]:

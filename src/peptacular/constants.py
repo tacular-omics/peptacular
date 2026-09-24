@@ -85,6 +85,22 @@ class Terminal(StrEnum):
 
 
 class ModType(StrEnum):
+    """The kinds of modification a ProForma annotation stores.
+
+    Used as keys by ``get_mods``, ``set_mods``, ``append_mods``, ``extend_mods`` and
+    ``remove_mods``/``strip_mods``; the string values (``"nterm"``, ``"internal"``, ...)
+    are accepted wherever a ``ModType`` is.
+
+    - ``NTERM``/``CTERM``: terminal modifications (``[Acetyl]-PEP``, ``PEP-[Amidated]``)
+    - ``INTERNAL``: residue modifications (``PEM[Oxidation]``)
+    - ``ISOTOPE``: global isotope labels (``<13C>``)
+    - ``STATIC``: fixed modifications (``<[Carbamidomethyl]@C>``)
+    - ``LABILE``: labile modifications (``{Glycan:Hex}``)
+    - ``UNKNOWN``: modifications of unknown position (``[Phospho]?PEP``)
+    - ``INTERVAL``: modifications on a residue range (``P(EP)[Phospho]TIDE``)
+    - ``CHARGE``: the charge state or adducts (``/2``, ``/[Na:z+1]``)
+    """
+
     NTERM = "nterm"
     CTERM = "cterm"
     ISOTOPE = "isotope"

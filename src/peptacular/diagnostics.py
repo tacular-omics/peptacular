@@ -3,27 +3,57 @@
 from dataclasses import dataclass
 from typing import Literal
 
-__all__ = ["Diagnostic", "ProFormaFormatError", "CompositionError", "InvalidAdjustmentError", "UnsupportedOperationError", "UnknownModificationError"]
+__all__ = [
+    "Diagnostic",
+    "PeptacularError",
+    "ProFormaFormatError",
+    "CompositionError",
+    "InvalidAdjustmentError",
+    "InvalidPositionError",
+    "FastaFormatError",
+    "UnsupportedOperationError",
+    "UnknownModificationError",
+]
 
 
-class ProFormaFormatError(ValueError):
-    """The input is not valid ProForma notation (raised by ``parse`` and ``parse_chimeric``)."""
+class PeptacularError(ValueError):
+    """Base class for peptacular's typed errors.
+
+    It subclasses ``ValueError``, so code that catches ``ValueError`` keeps working.
+    Catch ``PeptacularError`` to handle any peptacular input error at once.
+    """
 
 
-class UnknownModificationError(ValueError):
+class ProFormaFormatError(PeptacularError):
+    """The input is not valid ProForma notation.
+
+    Raised by ``parse`` and ``parse_chimeric``, and by calculations that parse a
+    modification, glycan, isotope label or adduct lazily (e.g. ``mass("<113C>PEP")``).
+    """
+
+
+class UnknownModificationError(PeptacularError):
     """A modification could not be resolved in the reference vocabularies."""
 
 
-class CompositionError(ValueError):
-    """The requested elemental composition is not available."""
+class CompositionError(PeptacularError):
+    """The requested elemental composition or mass is not available (e.g. an empty sequence)."""
 
 
-class InvalidAdjustmentError(ValueError):
+class InvalidAdjustmentError(PeptacularError):
     """An adjustment has invalid counts or produces an impossible composition."""
 
 
-class UnsupportedOperationError(ValueError):
-    """The requested operation does not support this input."""
+class InvalidPositionError(PeptacularError):
+    """A slice index or fragment position is outside the sequence."""
+
+
+class FastaFormatError(PeptacularError):
+    """The input is not valid FASTA text."""
+
+
+class UnsupportedOperationError(PeptacularError):
+    """The requested operation does not support this input (e.g. an unknown ion type)."""
 
 
 @dataclass(frozen=True)

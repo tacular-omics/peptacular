@@ -25,7 +25,7 @@ def _validate_positive_int(value: int | None, name: str) -> None:
         raise ValueError(f"{name} must be a positive integer")
 
 
-def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = None):
+def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = None) -> None:
     """
     Set the multiprocessing start method.
 
