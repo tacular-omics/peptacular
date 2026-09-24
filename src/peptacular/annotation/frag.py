@@ -590,6 +590,11 @@ class Fragment:
         """Build the mzPAF label string for this fragment."""
         from .annotation import ProFormaAnnotation
 
+        if self._charge_adducts is not None and self.charge_state == 0:
+            # Charge carriers that cancel (["H:z-1", "Na:z+1"]) give an uncharged ion, which
+            # mzPAF cannot write: with no charge suffix it would read as +1 (paftacular raises too).
+            raise PeptacularError(f"Cannot write an uncharged fragment in mzPAF: charge carriers {self.charge_adducts} sum to zero")
+
         parts: list[str] = []
         internal_loss: str | None = None
         immonium_isotopes: list[str] = []

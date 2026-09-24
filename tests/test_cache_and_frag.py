@@ -217,6 +217,14 @@ class TestHydrideCarrier:
             y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=charge, position=3)
             assert y3.to_mzpaf() == "y3{IDE}[M+2H]^-2"
 
+    def test_carriers_summing_to_zero_raise(self):
+        y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=["H:z-1", "Na:z+1"], position=3)
+        assert y3.charge_state == 0
+        with pytest.raises(pt.PeptacularError, match="uncharged"):
+            y3.to_mzpaf()
+        with pytest.raises(pt.PeptacularError, match="uncharged"):
+            y3.serialize(format="mzpaf")
+
     def test_fragment_series_hydride(self):
         y3 = [f for f in pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=["H:z-1"]) if f.position == 3][0]
         assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
