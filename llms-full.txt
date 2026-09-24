@@ -409,7 +409,8 @@ print([round(r["mz"], 3) for r in ions][:3])  # [148.06, 263.087, 376.171]
 ```
 
 `fragment_arrays` needs numpy (`pip install "peptacular[numpy]"`; without it raises
-`MissingOptionalDependencyError` naming that command). Same arguments as `fragment`, same ions in
+`MissingOptionalDependencyError` naming that command). Same arguments as `fragment` plus `min_length`/`max_length` (as on
+`ProFormaAnnotation.fragment`), same ions in
 the same order with identical floats, returned as a dict of equal-length numpy arrays (keys
 `FRAGMENT_ARRAY_KEYS`), one row per ion; `peptide_index` is the input peptide's index (0 for one
 sequence). int64: `peptide_index`, `position`, `end_position`, `charge_state`, `isotope` (13C count);
