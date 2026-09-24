@@ -2,6 +2,7 @@ import logging
 import re
 from collections import Counter
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -56,12 +57,16 @@ from ..proforma_components import (
     PositionRule,
     SequenceElement,
     SequenceRegion,
-    add_composition,
 )
 from ..property.prop import AnnotationProperties
 from ..spans import Span
-from . import frag_engine as _frag_engine
-from . import mass as _mass
+from . import _frag_engine, _mass
+from ._frag_engine import get_loss_combinations
+from ._mass import (
+    EMPTY_CHARGE_MODS,
+    H_CHARGE_FORMULA,
+    H_DECHARGE_FORMULA,
+)
 from ._mod_access import (
     EMPTY_CTERM_MODS,
     EMPTY_INTERNAL_MODS,
@@ -87,7 +92,6 @@ from .combinatorics import (
     generate_product,
 )
 from .frag import proton_binding_offset
-from .frag_engine import get_loss_combinations
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
@@ -100,11 +104,6 @@ from .manipulation import (
     modification_coverage,
     percent_coverage,
     percent_residues,
-)
-from .mass import (
-    EMPTY_CHARGE_MODS,
-    H_CHARGE_FORMULA,
-    H_DECHARGE_FORMULA,
 )
 from .mod import (
     Interval,
@@ -134,17 +133,7 @@ if TYPE_CHECKING:
 # Names that were module attributes here before the frag engine, mass functions and
 # modification accessors moved to their own modules. Re-exported so imports from
 # ``peptacular.annotation.annotation`` keep working.
-from ._mod_access import (  # noqa: E402, F401
-    InvalidPositionError,
-    ModTypeLiteral,
-    PositionScore,
-    _concrete_position_labels,
-    _resolve_mod_types,
-    as_mod_iterable,
-    convert_moddict_input,
-    is_mod_collection,
-)
-from .frag_engine import (  # noqa: E402, F401
+from ._frag_engine import (  # noqa: E402, F401
     _ION_TYPE_TO_MZPAF_SERIES,
     ELECTRON_MASS,
     FRAGMENT_ION_LOOKUP,
@@ -162,7 +151,7 @@ from .frag_engine import (  # noqa: E402, F401
     validate_mass,
     validate_position,
 )
-from .mass import (  # noqa: E402, F401
+from ._mass import (  # noqa: E402, F401
     _AA_COMPOSITIONS,
     _AVERAGE_AA_MASSES,
     _MONOISOTOPIC_AA_MASSES,
@@ -175,6 +164,16 @@ from .mass import (  # noqa: E402, F401
     can_fragment_sequence,
     fe,
     to_ion_type,
+)
+from ._mod_access import (  # noqa: E402, F401
+    InvalidPositionError,
+    ModTypeLiteral,
+    PositionScore,
+    _concrete_position_labels,
+    _resolve_mod_types,
+    as_mod_iterable,
+    convert_moddict_input,
+    is_mod_collection,
 )
 
 __all__ = [
@@ -1206,12 +1205,8 @@ class ProFormaAnnotation(_ModAccessMixin):
 
         return isotope_map
 
-    # Thin wrapper over the shared negative-safe merge helper (see
-    # proforma_components.comps.add_composition) so the many call sites below read cleanly.
-    _merge_comp = staticmethod(add_composition)
-
     def _base_comp(self, skip_labile: bool = False, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], int, float]:
-        """Composition of the residues and modifications, with the internal charge and mass-only delta (see :func:`.mass.base_comp`)."""
+        """Composition of the residues and modifications, with the internal charge and mass-only delta (see :func:`._mass.base_comp`)."""
         return _mass.base_comp(self, skip_labile=skip_labile, monoisotopic=monoisotopic)
 
     def comp(
@@ -1230,7 +1225,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         return _mass.base_mass(self, monoisotopic=monoisotopic, skip_labile=skip_labile)
 
     def _get_mass_vector(self, monoisotopic: bool = True) -> list[float]:
-        """Neutral mass of each one-residue slice (see :func:`.mass.residue_mass_vector`)."""
+        """Neutral mass of each one-residue slice (see :func:`._mass.residue_mass_vector`)."""
         return _mass.residue_mass_vector(self, monoisotopic=monoisotopic)
 
     def _build_mass_vector(self, monoisotopic: bool = True) -> list[float]:
@@ -1249,7 +1244,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         return _frag_engine.build_mass_vector(self, monoisotopic=monoisotopic)
 
     def _get_comp_vector(self) -> list[Counter[ElementInfo]]:
-        """Neutral composition of each one-residue slice (see :func:`.mass.residue_comp_vector`)."""
+        """Neutral composition of each one-residue slice (see :func:`._mass.residue_comp_vector`)."""
         return _mass.residue_comp_vector(self)
 
     @property
@@ -1332,7 +1327,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
     ) -> Fragment:
-        """Build one ion; satellite ions drop the cleaved residue first (see :func:`.frag_engine.frag_one`)."""
+        """Build one ion; satellite ions drop the cleaved residue first (see :func:`._frag_engine.frag_one`)."""
         return _frag_engine.frag_one(
             self,
             ion_type=ion_type,
@@ -1366,7 +1361,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
     ) -> Fragment:
-        """Build one ion of this (sub)sequence by mass or composition (see :func:`.frag_engine.frag_impl`)."""
+        """Build one ion of this (sub)sequence by mass or composition (see :func:`._frag_engine.frag_impl`)."""
         return _frag_engine.frag_impl(
             self,
             ion_type=ion_type,
@@ -1484,7 +1479,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         max_length: int | None,
         _expand: bool = True,
     ) -> Generator[Fragment, None, None]:
-        """Yield every ion of one ion type (see :func:`.frag_engine.fragment_ions`)."""
+        """Yield every ion of one ion type (see :func:`._frag_engine.fragment_ions`)."""
         return _frag_engine.fragment_ions(
             self,
             ion_type,
@@ -2401,3 +2396,21 @@ class ProFormaAnnotation(_ModAccessMixin):
     def prop(self) -> AnnotationProperties:
         """Get the properties of this annotation."""
         return AnnotationProperties(self.stripped_sequence)
+
+
+def _adopt_mixin_qualnames() -> None:
+    """Name the inherited mod accessors ``ProFormaAnnotation.<name>``, not ``_ModAccessMixin.<name>``.
+
+    Keeps the private base class out of reprs, argument errors and tracebacks. Only
+    ``ProFormaAnnotation`` inherits ``_ModAccessMixin``, so the rename is exact.
+    """
+    prefix = f"{_ModAccessMixin.__qualname__}."
+    for member in vars(_ModAccessMixin).values():
+        funcs = (member.fget, member.fset, member.fdel) if isinstance(member, property) else (member,)
+        for func in funcs:
+            if isinstance(func, FunctionType) and func.__qualname__.startswith(prefix):
+                func.__qualname__ = f"{ProFormaAnnotation.__qualname__}.{func.__qualname__[len(prefix) :]}"
+
+
+_adopt_mixin_qualnames()
+del _adopt_mixin_qualnames

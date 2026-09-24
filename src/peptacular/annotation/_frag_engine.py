@@ -28,11 +28,11 @@ from ..diagnostics import (
     UnsupportedOperationError,
 )
 from ..proforma_components import ChargedFormula
+from ._mass import _AVERAGE_AA_MASSES, _MONOISOTOPIC_AA_MASSES
+from ._mass import base_comp as _base_comp
+from ._mass import base_mass as _base_mass
 from .cached_comps import DeltaInfo, IsotopeInfo
 from .frag import _ION_TYPE_TO_MZPAF_SERIES, proton_binding_offset
-from .mass import _AVERAGE_AA_MASSES, _MONOISOTOPIC_AA_MASSES
-from .mass import base_comp as _base_comp
-from .mass import base_mass as _base_mass
 from .positions import to_ion_type, validate_position
 from .utils import (
     H_ELEMENT_INFO,
@@ -49,21 +49,6 @@ from .utils import (
 
 if TYPE_CHECKING:
     from .annotation import CHARGE_TYPE, CUSTOM_LOSS_TYPE, ION_TYPE, ISOTOPE_TYPE, LOSS_TYPE, ProFormaAnnotation
-
-__all__ = [
-    "get_loss_combinations",
-    "build_mass_vector",
-    "frag_one",
-    "satellite_mod_error",
-    "frag_impl",
-    "frag",
-    "series_mass_vector",
-    "fragment_series",
-    "fragment_ions",
-    "default_fragment_charges",
-    "fragment",
-    "fast_fragment",
-]
 
 
 def _as_options(value: Any) -> Any:

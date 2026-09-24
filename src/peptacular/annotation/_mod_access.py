@@ -67,6 +67,11 @@ class ChargeType(StrEnum):
     NONE = "none"
 
 
+# ChargeType was defined in annotation.py (which re-exports it) before 5.0; keep that
+# module path so pickles stay loadable across peptacular versions.
+ChargeType.__module__ = "peptacular.annotation.annotation"
+
+
 class _ModAccessMixin:
     """Modification accessors of :class:`~peptacular.annotation.ProFormaAnnotation` (private base class)."""
 

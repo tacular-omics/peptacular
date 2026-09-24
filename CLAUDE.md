@@ -22,8 +22,8 @@ Key entry points:
   and parallelize lists.
 - `ProFormaAnnotation` lives in `src/peptacular/annotation/annotation.py` (~2400 lines). Its
   per-mod-type accessors come from the private `_ModAccessMixin` (`_mod_access.py`), and
-  mass/fragment work is delegated to `mass.py` and `frag_engine.py`. `annotation.py` re-exports
-  the helpers that used to live there.
+  mass/fragment work is delegated to the private `_mass.py` and `_frag_engine.py`.
+  `annotation.py` re-exports the helpers that used to live there.
 
 ## Commands
 
@@ -67,8 +67,8 @@ src/peptacular/
     annotation.py        ProFormaAnnotation: storage, mass/mz/comp, fragment, digest,
                          slicing, conversions (thin methods over the modules below)
     _mod_access.py       _ModAccessMixin: get/set/append/extend/pop/remove/clear per mod type
-    mass.py              base mass/composition of an annotation, ion-type and mass helpers
-    frag_engine.py       ion mass engine: frag/fragment/fast_fragment internals, adjust_comp
+    _mass.py             base mass/composition of an annotation, ion-type and mass helpers
+    _frag_engine.py      ion mass engine: frag/fragment/fast_fragment internals, adjust_comp
     frag_arrays.py       fragment_arrays (numpy columns)
     parser.py            ProForma string -> ProFormaAnnotation (syntax only)
     serializer.py        ProFormaAnnotation -> ProForma string

@@ -27,20 +27,6 @@ from .utils import H_ELEMENT_INFO, _adjust_mass_value, can_fragment_sequence
 if TYPE_CHECKING:
     from .annotation import CHARGE_TYPE, CUSTOM_LOSS_TYPE, ION_TYPE, ISOTOPE_TYPE, ProFormaAnnotation
 
-__all__ = [
-    "H_CHARGE_FORMULA",
-    "H_DECHARGE_FORMULA",
-    "EMPTY_CHARGE_MODS",
-    "charge_state",
-    "charge_adducts",
-    "sequence_composition",
-    "base_comp",
-    "comp",
-    "base_mass",
-    "residue_mass_vector",
-    "residue_comp_vector",
-    "mass_and_charge",
-]
 
 fe = FormulaElement(element=Element.H, occurance=1)
 H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
