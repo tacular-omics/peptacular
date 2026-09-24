@@ -61,21 +61,48 @@ class Analyze(Scientific, ChargeSettings):
 
 
 class Delta(Contract):
-    kind: Literal["formula", "mass"]
+    """One extra fragment variant. A formula is a loss unless it starts with "+"; a mass is added as signed."""
+
+    kind: Literal["formula", "mass"] = Field(
+        description='"formula": a loss ("H3PO4" or "-H3PO4"), or a gain with "+" ("+HPO3"). "mass": Da added, signed (-97.9769 is a loss).'
+    )
     value: Text | Number
 
     @model_validator(mode="after")
     def check_kind(self):
         if (self.kind == "formula") != isinstance(self.value, str):
             raise ValueError("Formula deltas require text, mass deltas require a finite number")
+        if isinstance(self.value, str):
+            from peptacular import ChargedFormula
+
+            body = self.value.strip().lstrip("+-")
+            try:
+                ChargedFormula.from_string(body, require_formula_prefix=False)
+            except ValueError:
+                raise ValueError(
+                    f"Delta formula {self.value!r} is not a chemical formula. Write a loss as 'H3PO4' or '-H3PO4', a gain as '+HPO3', "
+                    "or use kind='mass' with a signed number."
+                ) from None
         return self
+
+    def library_value(self):
+        """The ``deltas=`` item for ``fragment()``: a bare formula is a loss there, a count of -1 makes it a gain."""
+        if not isinstance(self.value, str):
+            return self.value
+        text = self.value.strip()
+        return {text[1:]: -1} if text.startswith("+") else text.lstrip("-")
 
 
 class Fragment(Scientific, ChargeSettings):
-    ion_series: Annotated[list[Literal["a", "b", "c", "x", "y", "z", "p"]], Field(min_length=1, max_length=7)] = ["b", "y"]
-    isotope_offsets: Annotated[list[Annotated[int, Field(strict=True, ge=0, le=10)]], Field(min_length=1, max_length=10)] = [0]
-    deltas: Annotated[list[Delta], Field(max_length=8)] = []
-    include: list[Literal["composition", "sequence", "label"]] = ["label"]
+    ion_types: Annotated[list[Literal["a", "b", "c", "x", "y", "z", "p"]], Field(min_length=1, max_length=7)] = ["b", "y"]
+    isotopes: Annotated[
+        list[Annotated[int, Field(strict=True, ge=0, le=10)]], Field(min_length=1, max_length=10, description="13C isotope offsets; 0 is monoisotopic.")
+    ] = [0]
+    deltas: Annotated[
+        list[Delta],
+        Field(max_length=8, description="Extra variants of every ion, besides the unmodified one. Ions a delta cannot apply to are skipped."),
+    ] = []
+    include: list[Literal["composition", "sequence", "mzpaf"]] = ["mzpaf"]
     min_mz: Number | None = None
     max_mz: Number | None = None
 
@@ -160,7 +187,7 @@ class Rule(Contract):
 
 class Enumerate(Scientific):
     rules: Annotated[list[Rule], Field(min_length=1, max_length=10)]
-    max_variable_modifications: Annotated[int, Field(strict=True, ge=0, le=5)] = 2
+    max_variable_mods: Annotated[int, Field(strict=True, ge=0, le=5)] = 2
     max_candidates: Annotated[int, Field(strict=True, ge=1, le=1000)] = 1000
 
 
@@ -219,7 +246,7 @@ class Computation(Contract):
 
 
 class Envelope(Contract):
-    contract_version: Literal["1.0"] = "1.0"
+    contract_version: Literal["2.0"] = "2.0"
     request_id: str
     status: Literal["complete", "partial", "error"] = "complete"
     applied_settings: dict[str, Any] = {}

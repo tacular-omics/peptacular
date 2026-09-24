@@ -63,21 +63,57 @@ def test_charge_conflicts_and_override():
 @pytest.mark.parametrize("ion", ["a", "b", "c", "x", "y", "z", "p"])
 @pytest.mark.parametrize("charge", [-1, 1, 2])
 def test_fragment_values_and_spans(ion, charge):
-    rows = calculate("fragment_peptides", ["PEPTIDE"], ion_series=[ion], charges=[charge], include=["composition", "sequence", "label"])["records"]
+    rows = calculate("fragment_peptides", ["PEPTIDE"], ion_types=[ion], charges=[charge], include=["composition", "sequence", "mzpaf"])["records"]
     expected = pt.parse("PEPTIDE").fragment(ion_types=[ion], charges=[charge])
     assert len(rows) == len(expected)
     for row, frag in zip(rows, expected, strict=True):
         assert row["status"] == "complete", row
         assert row["mz"] == frag.mz
-        assert row["ion_mass_da"] == frag.mass
-        assert row["end"] - row["start"] == (7 if ion == "p" else row["ordinal"])
-        assert row["ordinal"] is None if ion == "p" else row["ordinal"] > 0
+        assert row["mass"] == frag.mass
+        assert row["neutral_mass"] == frag.neutral_mass
+        assert row["charge_state"] == frag.charge_state
+        assert row["end"] - row["start"] == (7 if ion == "p" else row["position"])
+        assert row["position"] is None if ion == "p" else row["position"] > 0
 
 
 def test_numeric_fragment_delta_keeps_numbers():
-    rows = calculate("fragment_peptides", ["PEPTIDE/2"], deltas=[{"kind": "mass", "value": -18.0}], include=["label", "composition"])["records"]
+    rows = calculate("fragment_peptides", ["PEPTIDE/2"], deltas=[{"kind": "mass", "value": -18.0}], include=["mzpaf", "composition"])["records"]
     assert all("mz" in row for row in rows)
     assert any(row["diagnostics"] for row in rows)
+
+
+@pytest.mark.parametrize("value", ["-H3PO4", "H3PO4"])
+def test_formula_loss_skips_impossible_ions(value):
+    """A loss some ions cannot lose (y1 has no phosphate) skips those ions, not the whole call."""
+    result = calculate("fragment_peptides", ["PEPS[Phospho]TIDE/2"], ion_types=["y"], deltas=[{"kind": "formula", "value": value}])
+    rows = result["records"]
+    assert all(row["status"] == "complete" for row in rows)
+    plain = [row for row in rows if not row["deltas"]]
+    lost = [row for row in rows if row["deltas"]]
+    assert [row["position"] for row in plain] == list(range(1, 9))
+    assert [row["position"] for row in lost] == [5, 6, 7, 8]
+    for row in lost:
+        base = next(p for p in plain if p["position"] == row["position"])
+        assert row["neutral_mass"] == pytest.approx(base["neutral_mass"] - 97.97689557, abs=1e-6)
+    (note,) = result["diagnostics"]
+    assert note["code"] == "impossible_ions_skipped"
+    assert "y1, y2, y3, y4" in note["message"]
+    assert len(note["message"]) < 200
+
+
+def test_formula_gain_with_plus_sign():
+    rows = calculate("fragment_peptides", ["PEPTIDE/1"], ion_types=["y"], deltas=[{"kind": "formula", "value": "+HPO3"}])["records"]
+    plain = {row["position"]: row["neutral_mass"] for row in rows if not row["deltas"]}
+    gained = [row for row in rows if row["deltas"]]
+    assert len(gained) == len(plain)
+    for row in gained:
+        assert row["neutral_mass"] == pytest.approx(plain[row["position"]] + 79.96633, abs=1e-4)
+
+
+@pytest.mark.parametrize("value", ["-Q7", "+", "H3PO4!"])
+def test_bad_formula_delta_is_short_and_actionable(value):
+    with pytest.raises(ValidationError, match="is not a chemical formula"):
+        c.Delta(kind="formula", value=value)
 
 
 @pytest.mark.parametrize("axis", ["neutral_mass_da", "ion_mass_da", "mz", "neutron_offset"])

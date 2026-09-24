@@ -86,7 +86,7 @@ The tools are:
   ``enumerate_modifications``, and ``convert_annotations`` for bounded transformations.
 
 Responses include typed records, diagnostics, applied settings, a request ID,
-and contract version ``1.0``. Both structured content and text contain the same
+and contract version ``2.0``. Both structured content and text contain the same
 records. ``returned_rows`` counts the delivered rows. ``computation.complete``
 distinguishes a finished calculation from one stopped at a limit, with
 ``stop_reason`` explaining an early stop. A ``partial`` status can also mean a
@@ -114,8 +114,9 @@ The ``charges`` argument controls external carriers, and total ion charge also
 includes intrinsic charge. Neutral mass follows the core API's removal of
 external carriers. Intrinsic charge encoded in a modification remains explicit.
 
-Machine coordinates are zero-based and end-exclusive. Fragment ordinal counts
-residues from the appropriate terminus. Precursor ordinal is null. Peptide
+Machine coordinates are zero-based and end-exclusive. A fragment's ``position``
+is its ion number, counted in residues from the appropriate terminus, and
+``start``/``end`` give its residue span. Precursor ``position`` is null. Peptide
 comparison uses one explicit reference, with numeric differences defined as
 input minus reference. It does not infer an alignment or compare spectra.
 
@@ -134,10 +135,43 @@ searches require an explicit tolerance. Da errors are reference minus query, and
 ppm uses the absolute query mass as the denominator. Zero mass requires Da.
 Edits are atomic per input. Enumeration reports a candidate cap as incomplete.
 
-Only tested a/b/c/x/y/z backbone series and precursor ions are exposed. A label or
-composition failure does not discard a valid numeric fragment. Formula and
-numeric deltas are distinct. Cross-link calculations and unfinished outbound
-annotation formats remain excluded.
+Only tested a/b/c/x/y/z backbone series and precursor ions are exposed. An mzPAF
+label or composition failure does not discard a valid numeric fragment.
+Cross-link calculations and unfinished outbound annotation formats remain excluded.
+
+Fragments
+---------
+
+``fragment_peptides`` uses the library's names: the request takes ``ion_types``,
+``isotopes``, ``deltas``, ``charges`` and ``monoisotopic`` as
+``ProFormaAnnotation.fragment`` does, and each row has the
+``pt.FRAGMENT_RECORD_KEYS`` names ``ion_type``, ``position``,
+``charge_state``, ``mz``, ``mass`` (charged), ``neutral_mass``, ``monoisotopic``,
+``deltas``, ``isotopes`` and, when requested with ``include``, ``mzpaf``,
+``composition`` and ``sequence``. ``start``, ``end``, ``external_charge`` and
+``intrinsic_charge`` are added.
+
+Each delta adds one variant of every ion next to the unmodified ion. The sign rule:
+
+* A **formula** is a loss: ``"H3PO4"`` and ``"-H3PO4"`` both remove H3PO4. Prefix
+  ``+`` for a gain (``"+HPO3"``).
+* A **mass** is added as a signed number of Da: ``-97.9769`` is a loss.
+
+An ion that lacks the atoms a formula removes (y1 of ``PEPS[Phospho]TIDE`` cannot
+lose H3PO4) is skipped. The call still succeeds, and one ``impossible_ions_skipped``
+diagnostic per input lists the skipped ions. A formula that does not parse is
+rejected before any calculation:
+
+.. code-block:: json
+
+    {
+      "request": {
+        "inputs": [{"annotation": "PEPS[Phospho]TIDE/2"}],
+        "ion_types": ["b", "y"],
+        "deltas": [{"kind": "formula", "value": "H3PO4"}],
+        "include": ["mzpaf"]
+      }
+    }
 
 A short multi-step workflow
 ---------------------------

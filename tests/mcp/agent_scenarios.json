@@ -98,5 +98,18 @@
       "Suggest a larger max_rows or narrower ion settings",
       "Do not invent a stored result handle or continuation page"
     ]
+  },
+  {
+    "id": "phospho_neutral_loss",
+    "prompt": "Generate y ions at charge 2 for PEPS[Phospho]TIDE/2, with and without loss of phosphoric acid (H3PO4). Which y ions cannot lose it, and why?",
+    "expected_tools": [
+      "fragment_peptides"
+    ],
+    "checks": [
+      "Pass ion_types [\"y\"] and a formula delta H3PO4 (or -H3PO4), not a positive mass",
+      "Read ion_type, position and mz from the rows",
+      "Report y1 to y4 as skipped from the impossible_ions_skipped diagnostic, because they hold no phosphate",
+      "No helper Python script is needed"
+    ]
   }
 ]

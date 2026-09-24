@@ -307,6 +307,35 @@ Digestion
        ``annot.sequential_digest_spans(...)``. The functional ``pt.digest`` names are
        unchanged.
 
+MCP server
+----------
+
+The ``peptacular-mcp`` tools use the library's argument and record names. The
+response ``contract_version`` is ``2.0``. The old names are rejected, since
+unknown arguments are errors.
+
+.. list-table::
+   :header-rows: 1
+
+   * - 4.x MCP name
+     - 5.0 MCP name
+   * - ``fragment_peptides`` ``ion_series``
+     - ``ion_types``
+   * - ``fragment_peptides`` ``isotope_offsets``
+     - ``isotopes``
+   * - ``fragment_peptides`` ``include: ["label"]``, row ``label``
+     - ``include: ["mzpaf"]``, row ``mzpaf``
+   * - ``enumerate_modifications`` ``max_variable_modifications``
+     - ``max_variable_mods``
+   * - fragment rows ``ion_series``, ``ordinal``, ``charge``
+     - ``ion_type``, ``position``, ``charge_state``
+   * - fragment rows ``ion_mass_da``, ``neutral_mass_da``
+     - ``mass``, ``neutral_mass``
+   * - ``get_reference(topic="ions")`` rows ``ion_series``
+     - ``ion_type``
+   * - fragment formula delta ``"-H3PO4"`` (failed the call)
+     - A loss, as ``"H3PO4"``. ``"+HPO3"`` is a gain. Ions that cannot lose it are skipped.
+
 Behaviour changes
 -----------------
 

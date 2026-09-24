@@ -20,7 +20,9 @@ DESCRIPTIONS = {
         "Calculate selected theoretical precursor mass, m/z, composition or sequence properties. Keeps per-measurement successes and diagnostics."
     ),
     "fragment_peptides": (
-        "Generate theoretical backbone and precursor ions. Supply or encode a charge. Use max_rows and ion filters to bound the response. No observed spectra."
+        "Generate theoretical backbone and precursor ions. Supply or encode a charge. Use max_rows and ion filters to bound the response. "
+        "Deltas add variants: a formula is a loss ('H3PO4' or '-H3PO4', '+HPO3' is a gain), a mass is added as signed Da. "
+        "Ions a delta cannot apply to (y1 losing H3PO4) are skipped and listed in diagnostics. No observed spectra."
     ),
     "compare_peptides": (
         "Compare each input with one explicit reference annotation and theoretical precursor values. Deltas are input minus reference. No spectral matching."

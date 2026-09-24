@@ -41,15 +41,23 @@ class AnalysisRow(Row):
     residue_counts: dict[str, int] | None = None
 
 
-class FragmentRow(AnalysisRow):
-    ion_series: Literal["a", "b", "c", "x", "y", "z", "p"] | None = None
-    ordinal: int | None = None
+class FragmentRow(Row):
+    # Keys follow the library's fragment records (FRAGMENT_RECORD_KEYS); start/end is the residue span.
+    ion_type: Literal["a", "b", "c", "x", "y", "z", "p"] | None = None
+    position: int | None = None
     start: int | None = None
     end: int | None = None
-    label: str | None = None
-    isotopes: dict[str, int] | None = None
-    deltas: list[dict[str, Any]] | None = None
+    charge_state: int | None = None
+    external_charge: int | None = None
+    intrinsic_charge: int | None = None
+    mz: float | None = None
+    mass: float | None = None
+    neutral_mass: float | None = None
     monoisotopic: bool | None = None
+    deltas: list[dict[str, Any]] | None = None
+    isotopes: dict[str, int] | None = None
+    composition: dict[str, float] | None = None
+    mzpaf: str | None = None
 
 
 class Difference(BaseModel):
