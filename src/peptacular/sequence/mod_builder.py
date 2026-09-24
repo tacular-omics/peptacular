@@ -196,7 +196,7 @@ def append_mods(
     Like :func:`set_mods`, but the value is added to the existing modifications instead of replacing them. Use :func:`extend_mods` to add several at once.
 
     :param sequence: A ProForma string or annotation (not modified).
-    :param mods: Mapping of ``ModType`` or 0-based residue index to a single modification.
+    :param mods: Mapping of ``ModType`` or 0-based residue index to a modification, or a list/tuple of modifications to add each of.
     :return: The serialized ProForma string.
     """
     return get_annotation_input(sequence, copy=True).append_mods(mods, inplace=True).serialize()
@@ -211,7 +211,7 @@ def extend_mods(
     Like :func:`append_mods`, but each value is an iterable of modifications.
 
     :param sequence: A ProForma string or annotation (not modified).
-    :param mods: Mapping of ``ModType`` or 0-based residue index to an iterable of modifications.
+    :param mods: Mapping of ``ModType`` or 0-based residue index to an iterable of modifications. A bare string is one modification.
     :return: The serialized ProForma string.
     """
     return get_annotation_input(sequence, copy=True).extend_mods(mods, inplace=True).serialize()
