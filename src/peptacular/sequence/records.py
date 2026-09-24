@@ -201,8 +201,8 @@ def fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]
       (str | None): the peptide it came from. Both leave out the charge (see ``charge_state``)
       and are None when the fragment was built without its parent sequence.
     - ``mzpaf`` (str | None): the mzPAF label from :meth:`~peptacular.Fragment.to_mzpaf`, or None
-      when mzPAF cannot write the ion: an ion type with no mzPAF form, or a formula delta with
-      both positive and negative element counts (``"CH-2"``).
+      when mzPAF cannot write the ion: an uncharged ion, an ion type with no mzPAF form, or a
+      formula delta with both positive and negative element counts (``"CH-2"``).
 
     :raises TypeError: If ``fragments`` is not iterable (``None``, a number), as :func:`peptacular.digest` does.
     :raises PeptacularError: If an item is not a :class:`~peptacular.Fragment` or a list of them.

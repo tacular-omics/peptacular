@@ -330,3 +330,94 @@ class TestChargedIsotopePeaks:
         annot = pt.parse("PEPTIDEK")
         neutral = annot.isotopic_distribution(charge=0)
         assert neutral == pt.brain_isotopic_distribution(annot.comp(), charge=0)
+
+
+class TestImmoniumLabelOnFinalIon:
+    """An immonium isotope label counts the labelled atoms of the final ion."""
+
+    _SHIFT = {"2H": 2.01410177812 - 1.00782503223, "15N": 15.00010889888 - 14.00307400443, "13C": 1.00335483507}
+
+    @pytest.mark.parametrize(
+        ("labelled", "plain", "kwargs", "label", "iso", "n"),
+        [
+            ("<2H>P", "P", {"charge": -1}, "IP+6i2H^-1", "2H", 6),
+            ("<D>P", "P", {"charge": -1}, "IP+6i2H^-1", "2H", 6),
+            ("<2H>P", "P", {"charge": 1}, "IP+7i2H", "2H", 7),
+            ("<15N>K", "K", {"charge": 1, "deltas": {pt.NeutralDelta.AMMONIA: 1}}, "IK-NH3+i15N", "15N", 1),
+            ("<15N>K", "K", {"charge": 1, "deltas": {"NH3": -1}}, "IK+NH3+3i15N", "15N", 3),
+            ("<13C>P", "P", {"charge": 2}, "IP+4i13C^2", "13C", 4),
+            ("<15N>K", "K", {"charge": 1, "deltas": {17.0: -1}}, "IK-17.0+2i15N", "15N", 2),
+        ],
+    )
+    def test_label_matches_mz(self, labelled, plain, kwargs, label, iso, n):
+        frag = pt.parse(labelled).frag(ion_type="i", **kwargs)
+        assert frag.to_mzpaf() == label
+        unlabelled = pt.parse(plain).frag(ion_type="i", **kwargs)
+        z = abs(frag.charge_state)
+        assert frag.mz == pytest.approx(unlabelled.mz + n * self._SHIFT[iso] / z, abs=1e-9)
+
+
+class TestCarrierOrder:
+    """Charge carriers are summed before they touch the composition, so their order does not matter."""
+
+    @pytest.mark.parametrize("carriers", [["H:z+1", "H-1:z-1", "H-1:z-1"], ["H-1:z-1", "H-1:z-1", "H:z+1"], ["H-1:z-1", "H:z+1", "H-1:z-1"]])
+    def test_order_independent(self, carriers):
+        frag = pt.parse("<D>PEK").frag(ion_type="p", charge=carriers)
+        h = {(e.mass_number, n) for e, n in frag.composition.items() if e.symbol == "H"}
+        assert h == {(2, 27)}
+        assert frag.mass == pytest.approx(398.3631, abs=1e-4)
+
+    @pytest.mark.parametrize(("ion_type", "position"), [("i", 1), ("b", 1)])
+    def test_existing_deficit_still_raises(self, ion_type, position):
+        annot = pt.parse("G[cysteinyl mercury][Label:2H(6)15N(1)]IVK")
+        with pytest.raises(pt.InvalidAdjustmentError):
+            annot.frag(ion_type=ion_type, position=position, charge=-1)
+
+
+class TestSatelliteIons:
+    """d and w ions need an unmodified cleaved residue and the atoms their offset removes."""
+
+    @pytest.mark.parametrize(
+        ("seq", "ion_type", "position"),
+        [
+            ("PEPV[Oxidation]K", "d", 4),
+            ("<[Oxidation]@V>PEPVK", "d", 4),
+            ("PEPTV[Oxidation]K", "w", 2),
+            ("PET[Phospho]VK", "wa", 3),
+            ("<[Oxidation]@T>PETVK", "wa", 3),
+        ],
+    )
+    def test_modified_cleaved_residue_raises(self, seq, ion_type, position):
+        with pytest.raises(pt.PeptacularError, match="carries a modification"):
+            pt.parse(seq).frag(ion_type=ion_type, position=position, charge=1)
+
+    def test_v_ion_drops_the_modification(self):
+        assert pt.parse("PEPTV[Oxidation]K").frag(ion_type="v", position=2, charge=1).to_mzpaf() == "v2{V[Oxidation]K}"
+
+    def test_series_skips_modified_residue(self):
+        d = [f.to_mzpaf() for f in pt.fragment("PEPV[Oxidation]KV", ion_types="d", charges=1)]
+        assert "d4{PEPV[Oxidation]}" not in d
+        assert "d5{PEPV[Oxidation]K}" in d
+        w = [f.to_mzpaf() for f in pt.fragment("PEPV[Oxidation]KV", ion_types="w", charges=1)]
+        assert "w3{V[Oxidation]KV}" not in w
+        assert "w2{KV}" in w
+
+    def test_series_skips_impossible_composition(self):
+        assert pt.fragment("V-[Amidated]", ion_types="d", charges=-1) == []
+        with pytest.raises(pt.InvalidAdjustmentError):
+            pt.parse("V-[Amidated]").frag(ion_type="d", position=1, charge=-1)
+
+
+class TestUnchargedMzPAF:
+    """mzPAF has no uncharged ion: a label with no charge reads as +1."""
+
+    @pytest.mark.parametrize("kwargs", [{"ion_type": "b", "position": 3}, {"ion_type": "p"}, {"ion_type": "b", "position": 3, "charge": 0}])
+    def test_raises(self, kwargs):
+        frag = pt.parse("PEPK").frag(**kwargs)
+        with pytest.raises(pt.PeptacularError, match="uncharged"):
+            frag.to_mzpaf()
+        with pytest.raises(pt.PeptacularError, match="uncharged"):
+            frag.serialize(format="mzpaf")
+
+    def test_records_give_none(self):
+        assert pt.fragment_records([pt.parse("PEPK").frag(ion_type="b", position=3)])[0]["mzpaf"] is None

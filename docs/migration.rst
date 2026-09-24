@@ -393,13 +393,19 @@ Behaviour changes
        (``IP`` for ``[Acetyl]-PEP``, ``<[Oxidation]@P>PEP`` or ``<13C>PEP``)
      - A terminal mod or a global fixed mod on the residue is written as the immonium
        mod: ``IP[Acetyl]``, ``IP[Oxidation]``. A global isotope label is written as isotope
-       shifts: ``IP+4i13C``. Two or more mods raise ``PeptacularError``. The mod tag is the
+       shifts, one per labelled atom of the final ion: ``IP+4i13C``, ``IP+6i2H^-1`` for
+       ``<D>P`` at charge -1, ``IK-NH3+i15N``. Two or more mods raise ``PeptacularError``. The mod tag is the
        plain name: ``P[U:Oxidation]`` gives ``IP[Oxidation]`` (4.x wrote ``IP[U:Oxidation]``).
    * - ``fragment.to_mzpaf()`` for ax/bx internal ions: ``-2H``, ``+CO-2H``
      - Hill order, like every other delta: ``-H2``, ``+CO-H2``.
    * - ``charge="H:z-1"`` (hydride): ``is_protonated`` True, mzPAF ``y3{IDE}^-1``
      - A hydride is an adduct, not a proton: ``is_protonated`` is False, and the mzPAF is
        ``y3{IDE}[M+H]^-1``. The mass is unchanged.
+   * - d/da/db/w/wa/wb ion of a modified residue (``PEPV[Oxidation]K`` d4 gave ``d4{PEPV[Oxidation]}``)
+     - Not defined: ``frag()`` raises ``PeptacularError`` (explicit or global fixed mod),
+       ``fragment()`` leaves the ion out. v ions still drop the mod.
+   * - ``fragment.to_mzpaf()`` of an uncharged fragment: ``b3{PEP}`` (reads as +1)
+     - Raises ``PeptacularError``; build the ion with ``charge=1``.
    * - Full-length d/da/db ions ignored the C-terminal mod, v/w/wa/wb ions the N-terminal mod
      - Every full-length ion type carries both terminal mods, as a/b/c/x/y/z already did.
        Only those ions' masses change.

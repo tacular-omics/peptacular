@@ -141,6 +141,8 @@ def _borrow_from_isotopes(comp: Counter[ElementInfo], element: ElementInfo) -> N
             continue
         comp[other] -= take
         comp[element] += take
+        if comp[other] == 0:
+            del comp[other]
     if comp[element] == 0:
         del comp[element]
 
@@ -194,11 +196,20 @@ def adjust_comp(
                 count = base_comp.pop(original_element)
                 base_comp[replaced_element] += count
 
+    # Sum the carriers first so the result does not depend on their order: ["H:z+1",
+    # "H-1:z-1", "H-1:z-1"] on a deuterated ion removes one hydrogen however it is listed.
+    # A deficit the ion already had before the carriers still raises below.
+    carrier_comp: Counter[ElementInfo] = Counter()
     for mod in charge.mods:
         for element, count in mod.get_composition().items():
-            base_comp[element] += count
-            if count < 0 and base_comp[element] < 0:
-                _borrow_from_isotopes(base_comp, element)
+            carrier_comp[element] += count
+    for element, count in carrier_comp.items():
+        if count == 0:
+            continue
+        before = base_comp[element]
+        base_comp[element] = before + count
+        if count < 0 and base_comp[element] < 0 and before >= 0:
+            _borrow_from_isotopes(base_comp, element)
 
     # Validate no negative counts
     if any(count < 0 for count in base_comp.values()):

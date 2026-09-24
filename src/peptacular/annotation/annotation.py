@@ -83,7 +83,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
-from .frag import proton_binding_offset
+from .frag import _ION_TYPE_TO_MZPAF_SERIES, proton_binding_offset
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
@@ -3086,6 +3086,9 @@ class ProFormaAnnotation:
         # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it,
         # but a terminal modification sits on the backbone and stays: a full-length d ion
         # keeps the C-terminal mod, a full-length v/w ion keeps the N-terminal mod.
+        blocked = self._satellite_mod_error(ion_type)
+        if blocked is not None:
+            raise PeptacularError(blocked)
         annot = self
         if ion_type in SATELLITE_TRIM_END:
             annot = self.slice(0, len(self) - 1, inplace=False)
@@ -3105,6 +3108,27 @@ class ProFormaAnnotation:
             parent_sequence_length=parent_sequence_length,
             position=position,
         )
+
+    def _satellite_mod_error(self, ion_type: IonType) -> str | None:
+        """Why a d or w ion of this (sub)sequence is undefined, or None when it is defined.
+
+        A d or w ion keeps part of the cleaved residue's side chain (its beta substituent), so
+        it is not defined when that residue carries a modification, explicit or from a global
+        fixed modification (as in paftacular). A v ion loses the whole side chain, and its
+        modification with it, so v ions are always defined.
+        """
+        if ion_type == IonType.V or not self:
+            return None
+        if ion_type in SATELLITE_TRIM_END:
+            index = len(self) - 1
+        elif ion_type in SATELLITE_TRIM_START:
+            index = 0
+        else:
+            return None
+        if self.has_internal_mods_at_index(index) or (self.has_static_mods and index in self.map_static_mods_to_indexes()):
+            label = _ION_TYPE_TO_MZPAF_SERIES.get(ion_type, ion_type.value)
+            return f"{label} ion is not defined when residue {self.stripped_sequence[index]} carries a modification"
+        return None
 
     def _frag_impl(
         self,
@@ -3412,6 +3436,27 @@ class ProFormaAnnotation:
                     continue
                 if sub_annot is None:
                     sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
+                if frag_type in SATELLITE_TRIM_END or frag_type in SATELLITE_TRIM_START:
+                    # A series skips the d/w/v ions that cannot exist here (a modified cleaved
+                    # residue, or a one-residue ion lacking the atoms its offset removes);
+                    # an explicit frag() of the same ion raises.
+                    if sub_annot._satellite_mod_error(frag_type) is not None:
+                        break
+                    try:
+                        fragment = sub_annot._frag(
+                            ion_type=frag_type,
+                            monoisotopic=monoisotopic,
+                            isotope=isotope,
+                            delta=combined_delta,
+                            calculate_with_composition=calculate_with_composition,
+                            parent_sequence=parent_sequence,
+                            parent_sequence_length=parent_sequence_length,
+                            position=i,
+                        )
+                    except InvalidAdjustmentError:
+                        continue
+                    yield fragment
+                    continue
                 fragment = _unless_impossible_loss(
                     ndelta,
                     sub_annot._frag,
