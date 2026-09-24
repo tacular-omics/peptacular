@@ -274,13 +274,13 @@ class Fragment:
     def to_mzpaf(self, include_sequence: bool = True) -> str:
         """Serialize the fragment to an mzPAF (Peak Annotation Format) label string.
 
-        :param include_sequence: If True, include the peptide sequence in the label.
-        :type include_sequence: bool
         mzPAF 1.0.1 ``z`` is the z-dot radical (``IonType.Z_RADICAL``). The Biemann ``z``
         (``IonType.Z``), ``z+H`` and ``c-H`` ions have no letter of their own and are
         written as ``z``/``c`` with a hydrogen delta: ``z3{IDE}-H``, ``z3{IDE}+H``,
         ``c3{PEP}-H``, so the label parses back to the same m/z.
 
+        :param include_sequence: If True, include the peptide sequence in the label.
+        :type include_sequence: bool
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
         :rtype: str
         """
