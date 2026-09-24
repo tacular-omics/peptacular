@@ -70,7 +70,8 @@ src/peptacular/
     frag.py              Fragment, frozen with __slots__ (.mz, .to_mzpaf(), .composition)
     slicing.py, manipulation.py, combinatorics.py, ambiguity.py, randomizer.py,
     mod_builder.py, positions.py, utils.py
-    localization.py      localisation isomers, candidate_sites, site_determining_ions
+    localization.py      localization isomers (one mod per residue, max_isomers=10_000),
+                         candidate_sites, site_determining_ions (+ pairwise_)
                          (sites come from the ProForma string only; no residue tables)
   sequence/              the functional API: one wrapper per operation that accepts
                          str | annotation | list and dispatches through parallel.py

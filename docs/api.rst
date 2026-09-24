@@ -68,7 +68,7 @@ Mass/Comp/Isotope/Fragment
    :undoc-members:
    :show-inheritance:
 
-Localisation
+Localization
 ^^^^^^^^^^^^
 
 .. automodule:: peptacular.sequence.localization

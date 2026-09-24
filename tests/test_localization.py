@@ -1,4 +1,4 @@
-"""Localisation isomers, candidate sites and site-determining ions."""
+"""Localization isomers, candidate sites and site-determining ions."""
 
 import pytest
 from hypothesis import given, settings
@@ -43,11 +43,9 @@ def test_group_with_partial_scores():
     assert _ser(pt.localization_isomers("S[Phospho#g1]T[#g1(0.4)]")) == ["S[Phospho#g1]T", "ST[Phospho#g1(0.4)]"]
 
 
-def test_group_member_keeps_its_other_mods():
-    assert _ser(pt.localization_isomers("M[Oxidation][#g1(0.3)]S[Phospho#g1(0.7)]")) == [
-        "M[Oxidation][Phospho#g1(0.3)]S",
-        "M[Oxidation]S[Phospho#g1(0.7)]",
-    ]
+def test_group_member_with_other_mods_is_not_a_candidate():
+    # One mod per residue: M already carries Oxidation, so the group can only go on S.
+    assert _ser(pt.localization_isomers("M[Oxidation][#g1(0.3)]S[Phospho#g1(0.7)]")) == ["M[Oxidation]S[Phospho#g1(0.7)]"]
 
 
 def test_group_inside_range_expands_over_the_group():
@@ -58,12 +56,10 @@ def test_several_ambiguities_multiply_in_fixed_order():
     isomers = _ser(pt.localization_isomers("[Oxidation]?M(ST)[Phospho]M"))
     assert isomers == [
         "M[Oxidation]S[Phospho]TM",
-        "MS[Phospho][Oxidation]TM",
         "MS[Phospho]T[Oxidation]M",
         "MS[Phospho]TM[Oxidation]",
         "M[Oxidation]ST[Phospho]M",
         "MS[Oxidation]T[Phospho]M",
-        "MST[Phospho][Oxidation]M",
         "MST[Phospho]M[Oxidation]",
     ]
 
@@ -71,8 +67,9 @@ def test_several_ambiguities_multiply_in_fixed_order():
 def test_identical_mods_are_deduplicated():
     # Swapping the two Phospho copies between the unknown mod and the range gives the same peptide.
     isomers = _ser(pt.localization_isomers("[Phospho]?(ST)[Phospho]"))
-    assert isomers == ["S[Phospho][Phospho]T", "S[Phospho]T[Phospho]", "ST[Phospho][Phospho]"]
-    assert len(isomers) == len(set(isomers))
+    assert isomers == ["S[Phospho]T[Phospho]"]
+    isomers = _ser(pt.localization_isomers("[Phospho]?(ST)[Phospho]Y"))
+    assert isomers == ["S[Phospho]T[Phospho]Y", "S[Phospho]TY[Phospho]", "ST[Phospho]Y[Phospho]"]
 
 
 def test_two_ranges_with_the_same_mod_dedup():
@@ -140,13 +137,26 @@ def test_max_isomers_stops_early_on_huge_expansions():
 
 
 def test_max_isomers_counts_after_dedup():
-    assert len(pt.localization_isomers("[Phospho]?(ST)[Phospho]", max_isomers=3)) == 3
+    # two raw placements, one isomer after dedup
+    assert len(pt.localization_isomers("[Phospho]?(ST)[Phospho]", max_isomers=1)) == 1
 
 
 @pytest.mark.parametrize("bad", [0, -1, 1.5, True, "3"])
 def test_max_isomers_must_be_positive_int(bad):
     with pytest.raises(pt.PeptacularError):
         pt.localization_isomers("[Phospho]?PEST", max_isomers=bad)
+
+
+def test_max_isomers_defaults_to_10_000_and_none_is_unlimited():
+    from peptacular.annotation.localization import DEFAULT_MAX_ISOMERS
+
+    assert DEFAULT_MAX_ISOMERS == 10_000
+    big = "[Phospho]^2?" + "S" * 150  # 11,175 isomers
+    with pytest.raises(pt.PeptacularError, match="max_isomers=None for no limit"):
+        pt.localization_isomers(big)
+    with pytest.raises(pt.PeptacularError, match="max_isomers=10000"):
+        pt.parse(big).localization_isomers()
+    assert len(pt.localization_isomers(big, max_isomers=None)) == 150 * 149 // 2
 
 
 def test_max_isomers_is_keyword_only():
@@ -187,6 +197,69 @@ def test_more_copies_than_residues_raises():
         pt.localization_isomers("[Phospho]^3?ST")
 
 
+def test_group_with_the_same_mod_twice_says_use_two_labels():
+    with pytest.raises(pt.PeptacularError, match="its own label"):
+        pt.localization_isomers("PS[Phospho#g1]S[Phospho#g1]S[#g1]")
+
+
+def test_single_copy_error_is_singular():
+    with pytest.raises(pt.PeptacularError, match="1 copy of a modification on 0 unmodified candidate residues"):
+        pt.localization_isomers("[Phospho]?")
+
+
+# --- one mod per residue --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("sequence", "expected"),
+    [
+        # an unknown mod never stacks on a residue a range mod took
+        (
+            "[Phospho]?PE(ST)[Phospho]",
+            ["P[Phospho]ES[Phospho]T", "PE[Phospho]S[Phospho]T", "PES[Phospho]T[Phospho]", "P[Phospho]EST[Phospho]", "PE[Phospho]ST[Phospho]"],
+        ),
+        # nor on a residue that already carries a mod
+        ("[Phospho]?PES[Phospho]T", ["P[Phospho]ES[Phospho]T", "PE[Phospho]S[Phospho]T", "PES[Phospho]T[Phospho]"]),
+        # two groups over the same residues never share one
+        (
+            "PS[Phospho#g1(0.5)]S[Phospho#g2(0.5)]T[#g1(0.5)][#g2(0.5)]",
+            ["PS[Phospho#g1(0.5)]S[Phospho#g2(0.5)]T", "PS[Phospho#g1(0.5)]ST[Phospho#g2(0.5)]", "PSS[Phospho#g2(0.5)]T[Phospho#g1(0.5)]"],
+        ),
+    ],
+)
+def test_no_two_mods_on_one_residue(sequence, expected):
+    assert _ser(pt.localization_isomers(sequence)) == expected
+
+
+def test_no_way_to_separate_the_mods_raises():
+    # The range takes the only residue, so the unknown-position mod has nowhere to go.
+    with pytest.raises(pt.PeptacularError, match="different unmodified residues"):
+        pt.localization_isomers("[Phospho]?(S)[Phospho]")
+
+
+def test_candidate_sites_and_isomers_agree_on_modified_residues():
+    # Both skip a residue that already carries a mod.
+    from_isomers = _ser(pt.localization_isomers("[Phospho]?S[Oxidation]TY"))
+    from_sites = [a.serialize() for _, a in pt.candidate_sites("S[Oxidation]TY", "Phospho", residues="STY")]
+    assert from_isomers == from_sites
+
+
+def test_unused_range_without_mods_is_dropped():
+    assert _ser(pt.localization_isomers("P(ES)T")) == ["PEST"]
+
+
+# --- group labels next to INFO text ---------------------------------------------------------
+
+
+def test_hash_inside_info_is_not_a_group():
+    assert _ser(pt.localization_isomers("PS[Phospho|INFO:note #g1]T")) == ["PS[Phospho|INFO:note #g1]T"]
+
+
+def test_group_label_is_rebuilt_where_it_was():
+    assert _ser(pt.localization_isomers("PS[Phospho#g1(0.3)|INFO:x]T[#g1(0.7)]")) == ["PS[Phospho#g1(0.3)|INFO:x]T", "PST[Phospho#g1(0.7)|INFO:x]"]
+    assert _ser(pt.localization_isomers("PS[Phospho#g1|INFO:x]T[#g1]")) == ["PS[Phospho#g1|INFO:x]T", "PST[Phospho#g1|INFO:x]"]
+
+
 # --- round trips and invariants ---------------------------------------------------------
 
 
@@ -219,7 +292,8 @@ def _ambiguous_peptides(draw):
     kind = draw(st.sampled_from(["unknown", "range", "group", "mixed"]))
     mod = draw(st.sampled_from(_MODS))
     if kind in ("unknown", "mixed"):
-        count = draw(st.integers(min_value=1, max_value=min(2, len(seq))))
+        # a mixed peptide needs one residue for the range mod and ``count`` others
+        count = draw(st.integers(min_value=1, max_value=min(2, len(seq) - (kind == "mixed"))))
         prefix = f"[{mod}]^{count}?" if count > 1 else f"[{mod}]?"
     else:
         prefix = ""
@@ -261,6 +335,8 @@ def test_property_isomers_keep_composition_and_mass(sequence):
         if comp is not None:
             assert isomer.comp() == comp
         assert pt.parse(isomer.serialize()) == isomer
+        # one mod per residue: no placement stacks on another
+        assert all(sum(mods.values()) == 1 for mods in (isomer._internal_mods or {}).values())
     # deterministic
     assert _ser(pt.localization_isomers(sequence)) == texts
 
@@ -302,6 +378,11 @@ def test_candidate_sites_method_and_input_untouched():
 def test_candidate_sites_rejects_bad_residues(bad):
     with pytest.raises(pt.PeptacularError):
         pt.candidate_sites("PEPST", "Phospho", residues=bad)
+
+
+def test_candidate_sites_rejects_unknown_mod():
+    with pytest.raises(pt.PeptacularError, match="NotAMod"):
+        pt.candidate_sites("PEST", "NotAMod!!", residues="S")
 
 
 def test_candidate_sites_residues_is_required():
@@ -376,3 +457,54 @@ def test_site_determining_ions_empty_input():
 def test_site_determining_ions_rejects_bad_options(kwargs):
     with pytest.raises(pt.PeptacularError):
         pt.site_determining_ions(["PEPTIDE"], **kwargs)
+
+
+def test_site_determining_ions_middle_isomer_is_empty_but_pairwise_is_not():
+    isomers = pt.localization_isomers("PEP(STY)[Phospho]IDEK")
+    assert _labels(pt.site_determining_ions(isomers)) == [["b4+1", "y6+1"], [], ["b5+1", "y5+1"]]
+    pairs = {key: [f"{f.ion_type}{f.position}+{f.charge_state}" for f in frags] for key, frags in pt.pairwise_site_determining_ions(isomers).items()}
+    assert pairs == {
+        (0, 1): ["b4+1", "y6+1"],
+        (0, 2): ["b4+1", "b5+1", "y5+1", "y6+1"],
+        (1, 0): ["b4+1", "y6+1"],
+        (1, 2): ["b5+1", "y5+1"],
+        (2, 0): ["b4+1", "b5+1", "y5+1", "y6+1"],
+        (2, 1): ["b5+1", "y5+1"],
+    }
+
+
+def test_pairwise_matches_brute_force():
+    isomers = pt.localization_isomers("[Phospho]^2?PSTYK")
+    pairs = pt.pairwise_site_determining_ions(isomers, charges=(1, 2), tolerance=0.01)
+    frags = [isomer.fragment(ion_types=("b", "y"), charges=(1, 2)) for isomer in isomers]
+    assert set(pairs) == {(i, j) for i in range(len(isomers)) for j in range(len(isomers)) if i != j}
+    for (i, j), found in pairs.items():
+        expected = [f for f in frags[i] if all(abs(f.mz - g.mz) > 0.01 for g in frags[j])]
+        assert [f.mz for f in found] == [f.mz for f in expected]
+
+
+def test_pairwise_single_and_empty_input():
+    assert pt.pairwise_site_determining_ions(["PEPTIDE"]) == {}
+    assert pt.pairwise_site_determining_ions([]) == {}
+
+
+@pytest.mark.parametrize("kwargs", [{"unit": "mz"}, {"tolerance": -1.0}])
+def test_pairwise_rejects_bad_options(kwargs):
+    with pytest.raises(pt.PeptacularError):
+        pt.pairwise_site_determining_ions(["PEPTIDE"], **kwargs)
+
+
+@pytest.mark.parametrize("function", [pt.site_determining_ions, pt.pairwise_site_determining_ions])
+def test_tolerance_edge_counts_as_a_match(function):
+    # b4 of isomer 0 is ``gap`` Da from the nearest ion of isomer 1: a window of exactly ``gap`` matches it.
+    isomers = pt.localization_isomers("PEP(ST)[Phospho]IDE")
+    b4 = next(f.mz for f in isomers[0].fragment(ion_types=("b",), charges=(1,)) if f.position == 4)
+    gap = min(abs(f.mz - b4) for f in isomers[1].fragment(ion_types=("b", "y"), charges=(1,)))
+
+    def b4_left(tolerance):
+        result = function(isomers, tolerance=tolerance)
+        frags = result[0] if isinstance(result, list) else result[(0, 1)]
+        return any(f.ion_type == "b" and f.position == 4 for f in frags)
+
+    assert not b4_left(gap)
+    assert b4_left(gap * (1 - 1e-9))

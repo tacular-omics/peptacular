@@ -173,6 +173,7 @@ from .sequence import (
     mutability,
     mz,
     nonspecific_digest,
+    pairwise_site_determining_ions,
     parse,
     parse_chimeric,
     percent_coverage,
@@ -263,6 +264,7 @@ __all__ = [
     "localization_isomers",
     "candidate_sites",
     "site_determining_ions",
+    "pairwise_site_determining_ions",
     # digestion
     "digest",
     "simple_digest",

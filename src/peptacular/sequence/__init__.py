@@ -49,7 +49,7 @@ from .digestion import (
 )
 from .fragmentation import fast_fragment, frag, fragment
 from .isotope import isotopic_distribution
-from .localization import candidate_sites, localization_isomers, site_determining_ions
+from .localization import candidate_sites, localization_isomers, pairwise_site_determining_ions, site_determining_ions
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
     append_mods,
@@ -156,6 +156,7 @@ __all__ = [
     "localization_isomers",
     "candidate_sites",
     "site_determining_ions",
+    "pairwise_site_determining_ions",
     # mass_funcs
     "mass",
     "mz",

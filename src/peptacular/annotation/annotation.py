@@ -83,7 +83,7 @@ from .combinatorics import (
     generate_permutations,
     generate_product,
 )
-from .localization import candidate_sites, localization_isomers
+from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers
 from .manipulation import (
     condense_mods_to_intervals,
     condense_static_mods,
@@ -4529,15 +4529,16 @@ class ProFormaAnnotation:
         """
         return cast(Self, condense_ambiguity_to_xnotation(self, inplace=inplace))
 
-    def localization_isomers(self, *, max_isomers: int | None = None) -> list[Self]:
+    def localization_isomers(self, *, max_isomers: int | None = DEFAULT_MAX_ISOMERS) -> list[Self]:
         """Expand every ambiguous modification position into its concrete placements.
 
         Expands ``#label`` groups, ranges (``PEP(ST)[Phospho]IDE``) and unknown-position mods
-        (``[Phospho]?PEPTIDE``; these can go on any residue). A group's label and the chosen
+        (``[Phospho]?PEPTIDE``; these can go on any residue), one mod per residue. A group's label and the chosen
         residue's score stay on the placed mod (``S[Phospho#g1(0.8)]``). See
         :func:`peptacular.localization_isomers` for the full rules and ordering.
 
-        :param max_isomers: Raise :class:`PeptacularError` if there would be more isomers than this.
+        :param max_isomers: Raise :class:`PeptacularError` if there would be more isomers than
+            this. Defaults to 10,000; pass ``None`` for no limit.
         :type max_isomers: int | None
         :return: Deduplicated isomers in a fixed order. This annotation is not modified.
         :rtype: list[Self]
