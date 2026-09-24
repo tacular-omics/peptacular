@@ -98,7 +98,7 @@ from .properties import (
     surface_accessibility,
     transmembrane_tendency,
 )
-from .records import DIGEST_RECORD_FIELDS, FRAGMENT_RECORD_FIELDS, digest_records, fragment_records
+from .records import DIGEST_RECORD_KEYS, FRAGMENT_RECORD_KEYS, digest_records, fragment_records
 from .subseqs import (
     coverage,
     find_subsequence_indices,
@@ -161,8 +161,8 @@ __all__ = [
     # records
     "digest_records",
     "fragment_records",
-    "DIGEST_RECORD_FIELDS",
-    "FRAGMENT_RECORD_FIELDS",
+    "DIGEST_RECORD_KEYS",
+    "FRAGMENT_RECORD_KEYS",
     # mass_funcs
     "mass",
     "mz",

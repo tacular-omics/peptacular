@@ -143,7 +143,7 @@ print([[f"{f.ion_type}{f.position}" for f in frags] for frags in ions])  # [['b4
 peptacular does not ship pandas or polars. `pt.digest_records` and `pt.fragment_records`
 return a list of plain dicts (strings, numbers, booleans, `None`), one per peptide or ion,
 which either library turns into a table. Column names are listed in
-`pt.DIGEST_RECORD_FIELDS` and `pt.FRAGMENT_RECORD_FIELDS`:
+`pt.DIGEST_RECORD_KEYS` and `pt.FRAGMENT_RECORD_KEYS`:
 
 ```python
 import peptacular as pt
@@ -155,7 +155,7 @@ print(ions[1]["ion_type"], ions[1]["position"], ions[1]["charge_state"], ions[1]
 # pandas.DataFrame(rows) or polars.DataFrame(ions) gives a table
 ```
 
-A FASTA entry's `accession` is copied into each digest row. See the
+A FASTA entry's `accession` (or a PEFF entry's `db_unique_id`) is copied into each digest row. See the
 [tables guide](https://peptacular.readthedocs.io/en/latest/records.html).
 
 ## Local MCP integration

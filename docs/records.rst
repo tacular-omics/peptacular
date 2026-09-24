@@ -15,7 +15,7 @@ Digest rows
 
    rows = pt.digest_records("MKVLATSAGERTIDEK", "trypsin", missed_cleavages=1)
    print(rows[1])
-   print(pt.DIGEST_RECORD_FIELDS)
+   print(pt.DIGEST_RECORD_KEYS)
 
 .. testoutput::
 
@@ -27,31 +27,41 @@ Digest rows
 - ``start`` and ``end`` are 0-based and half-open: ``protein[start:end]``.
 - ``semi`` is True when one end is not a cleavage site or a protein terminus (only with
   ``semi=True``).
-- ``accession`` is copied from the input's ``accession`` attribute, so a FASTA or PEFF entry
-  from fastatacular or pefftacular labels its own rows. Pass a list of entries to get one flat
-  table for a whole proteome.
+- ``accession`` is copied from the input's ``accession`` attribute (a fastatacular entry), or
+  else its ``db_unique_id`` (a pefftacular entry), so each entry labels its own rows. Pass a
+  list of entries, or the generator a FASTA or PEFF reader returns, to get one flat table for
+  a whole proteome.
 
 Fragment rows
 -------------
 
-:func:`~peptacular.fragment_records` takes the list :func:`~peptacular.fragment` returns. The
-keys are the :class:`~peptacular.Fragment` attribute names:
+:func:`~peptacular.fragment_records` takes the list :func:`~peptacular.fragment` returns, or
+the list of lists it returns for several peptides (the rows come out flat, and
+``parent_sequence`` says which peptide each ion belongs to). The keys are named after the
+:class:`~peptacular.Fragment` constructor arguments:
 
 .. testcode::
 
    frags = pt.fragment("PEPTIDE/2", ion_types=("b", "y"), charges=(1, 2))
    rows = pt.fragment_records(frags)
-   print(len(rows), pt.FRAGMENT_RECORD_FIELDS)
+   print(len(rows), pt.FRAGMENT_RECORD_KEYS)
    print({k: rows[1][k] for k in ("ion_type", "position", "charge_state", "sequence", "mzpaf")})
 
 .. testoutput::
 
-   28 ('ion_type', 'position', 'charge_state', 'mz', 'mass', 'neutral_mass', 'monoisotopic', 'losses', 'isotopes', 'sequence', 'parent_sequence', 'mzpaf')
-   {'ion_type': 'b', 'position': 2, 'charge_state': 1, 'sequence': 'PE/1', 'mzpaf': 'b2{PE}'}
+   28 ('ion_type', 'position', 'end_position', 'charge_state', 'mz', 'mass', 'neutral_mass', 'monoisotopic', 'deltas', 'isotopes', 'sequence', 'parent_sequence', 'mzpaf')
+   {'ion_type': 'b', 'position': 2, 'charge_state': 1, 'sequence': 'PE', 'mzpaf': 'b2{PE}'}
 
-``losses`` and ``isotopes`` are strings (``"H-2O-1"``, ``"13C^2"``, ``""`` for none).
-``position`` is a ``(start, end)`` tuple for internal ions and None for precursor ions.
-``mzpaf`` is None for an ion that mzPAF cannot write, such as one with a bare mass delta.
+- ``position`` is the ion number, or the start of an internal ion, whose end is in
+  ``end_position``. Both are int or None (None for precursor ions; ``end_position`` is None
+  for every ion that is not internal), so each column has one type.
+- ``deltas`` holds the neutral losses and gains, ``isotopes`` the isotope swaps, both as
+  strings (``""`` for none). A formula counts as a loss: water loss is ``"H-2O-1"``, a
+  water gain ``"H-2O-1^-1"``; a mass is written with its sign (``"-17.0^2"``).
+- ``sequence`` and ``parent_sequence`` leave out the ``/charge`` suffix; the charge is in
+  ``charge_state``.
+- ``mzpaf`` is the :meth:`~peptacular.Fragment.to_mzpaf` label (``"b3{PEP}-H2O"``,
+  ``"b3{PEP}-34.0"``), or None for an ion type mzPAF cannot write.
 
 pandas
 ------
@@ -94,5 +104,3 @@ polars
 
    [148.06, 263.087, 376.171]
 
-Internal ions put a tuple in ``position``, which polars cannot mix with integers in one
-column; leave internal ions out of a polars table or split ``position`` first.

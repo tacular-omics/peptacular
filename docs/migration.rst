@@ -381,3 +381,5 @@ Behaviour changes
    * - ``pt.parse(b"PEPTIDE")``, ``pt.parse(None)`` (``TypeError: ... has no len()``)
      - ``TypeError`` naming the accepted inputs. An object with a str ``sequence``
        (a FASTA entry) is now accepted.
+   * - ``fragment.to_mzpaf()`` with a gain (``deltas={"H2O": -1}``) or a numeric delta
+     - A gain is written ``+H2O`` (4.x wrote ``-H2O``). A numeric delta is written as a signed mass (``b2-34.0``) instead of raising.

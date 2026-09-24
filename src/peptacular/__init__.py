@@ -118,8 +118,8 @@ from .property import (
     WeightingMethodsLiteral,
 )
 from .sequence import (
-    DIGEST_RECORD_FIELDS,
-    FRAGMENT_RECORD_FIELDS,
+    DIGEST_RECORD_KEYS,
+    FRAGMENT_RECORD_KEYS,
     aa_property_percentage,
     alpha_helix_percent,
     annotate_ambiguity,
@@ -272,8 +272,8 @@ __all__ = [
     # records (plain dicts for pandas/polars)
     "digest_records",
     "fragment_records",
-    "DIGEST_RECORD_FIELDS",
-    "FRAGMENT_RECORD_FIELDS",
+    "DIGEST_RECORD_KEYS",
+    "FRAGMENT_RECORD_KEYS",
     # digestion
     "digest",
     "simple_digest",

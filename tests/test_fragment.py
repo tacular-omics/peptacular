@@ -867,13 +867,18 @@ class TestFragmentMzPAF(unittest.TestCase):
         # the spec's own canonical water-loss example (section 4.5).
         self.assertTrue(any("-H2O" in label for label in labels))
 
-    def test_numeric_neutral_loss_rejected(self):
-        # mzPAF's neutral_loss grammar only accepts a chemical formula or a bracketed
-        # reference-group name after the sign (section 4.5); there is no
-        # representation for an arbitrary unnamed mass delta.
+    def test_numeric_neutral_loss_written_as_signed_mass(self):
+        # mzPAF section 4.5 writes an unnamed mass delta as a signed number (``y8-17.0265``).
+        # A number takes no repeat count, so the count is folded into the mass.
         frags = pt.parse("PEPTIDE/1").fragment(ion_types=["y"], charges=[1], deltas=[15.9949])
-        with self.assertRaises(ValueError):
-            frags[0].to_mzpaf()
+        self.assertTrue(frags[0].to_mzpaf(include_sequence=False).endswith("+15.9949"))
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[2], deltas=[{-17.0: 2}])[1]
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "b2-34.0^2")
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[1], deltas=[{"H2O": -1, -1: 1}], isotopes=[1])[2]
+        # {"H2O": -1} is a water gain (+18.01), so mzPAF must say +H2O
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "b3-1.0+H2O+i")
+        gain = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[1], deltas=[{"H2O": -2}])[2]
+        self.assertEqual(gain.to_mzpaf(include_sequence=False), "b3+2H2O")
 
     def test_adduct_repeat_count(self):
         # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with two

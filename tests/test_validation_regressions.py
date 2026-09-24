@@ -169,8 +169,12 @@ def test_mzpaf_z_and_c_variants(ion, label, delta_h):
 
 
 def test_mzpaf_z_variant_delta_precedes_neutral_losses():
+    # {"H2O": -1} is a water gain (+18 Da), so mzPAF writes +H2O after the z-variant -H.
     f = pt.parse("PEPIDE").frag(ion_type="z", charge=2, position=3, deltas={"H2O": -1})
-    assert f.to_mzpaf() == "z3{IDE}-H-H2O^2"
+    assert f.to_mzpaf() == "z3{IDE}-H+H2O^2"
+    loss = pt.parse("PEPIDE").frag(ion_type="z", charge=2, position=3, deltas={"H2O": 1})
+    assert loss.to_mzpaf() == "z3{IDE}-H-H2O^2"
+    assert f.mass - loss.mass > 0
 
 
 # --------------------------------------------------------------------------- typed parse errors

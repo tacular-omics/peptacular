@@ -371,21 +371,25 @@ for span in protein.digest_spans(pt.Protease.TRYPSIN):
 ## Tables (records for pandas or polars)
 
 ```
-digest_records(sequence: SEQ | Sequence[SEQ], enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False,
+digest_records(sequence: SEQ | Iterable[SEQ], enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False,
                min_len: int | None = None, max_len: int | None = None) -> list[dict]
-fragment_records(fragments: Iterable[Fragment]) -> list[dict]
-DIGEST_RECORD_FIELDS = ("peptide", "stripped_sequence", "start", "end", "missed_cleavages", "semi", "accession")
-FRAGMENT_RECORD_FIELDS = ("ion_type", "position", "charge_state", "mz", "mass", "neutral_mass", "monoisotopic",
-                          "losses", "isotopes", "sequence", "parent_sequence", "mzpaf")
+fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]]) -> list[dict]
+DIGEST_RECORD_KEYS = ("peptide", "stripped_sequence", "start", "end", "missed_cleavages", "semi", "accession")
+FRAGMENT_RECORD_KEYS = ("ion_type", "position", "end_position", "charge_state", "mz", "mass", "neutral_mass",
+                        "monoisotopic", "deltas", "isotopes", "sequence", "parent_sequence", "mzpaf")
 ```
 
 peptacular does NOT depend on pandas or polars (not even optionally); pass the rows to
 `pandas.DataFrame(rows)` / `polars.DataFrame(rows)` yourself. Digest rows: `start`/`end` are
 half-open, `semi` is True when an end is not a cleavage site or terminus (only with
-`semi=True`), `accession` comes from the input's `.accession` (FASTA/PEFF entries) or is None;
-a list of proteins gives one flat list. Fragment rows use the `Fragment` attribute names;
-`losses`/`isotopes` are strings (`"H-2O-1"`, `"13C^2"`, `""`), `position` is a tuple for
-internal ions (polars cannot mix that with ints), `mzpaf` is None for a bare mass delta.
+`semi=True`), `accession` comes from the input's `.accession` (FASTA entry), else `.db_unique_id` (PEFF
+entry), else None; a list or generator of proteins gives one flat list. Fragment rows use the
+`Fragment` constructor names and take one peptide's list or the nested batch list (flattened);
+`position` is the ion number or an internal ion's start, `end_position` the internal ion's end
+(both int or None); `deltas`/`isotopes` are strings (water loss `"H-2O-1"`, water gain
+`"H-2O-1^-1"`, `"-17.0^2"`, `"13C^2"`, `""`); `sequence`/`parent_sequence` have no `/charge`;
+`mzpaf` is None only for an ion type mzPAF cannot write. A non-Fragment item raises
+PeptacularError.
 
 ```python
 import peptacular as pt
