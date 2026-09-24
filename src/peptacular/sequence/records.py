@@ -123,6 +123,8 @@ def digest_records(
       else its ``db_unique_id`` (a pefftacular entry), otherwise None.
 
     :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
+    :raises TypeError: If ``sequence`` (or an item of it) is not a string, annotation or object
+        with a ``.sequence`` string, as :func:`peptacular.digest` does.
     :return: One dict per peptide, in the order :func:`peptacular.digest` returns them.
 
     .. code-block:: python
@@ -182,18 +184,21 @@ def fragment_records(fragments: Iterable[Fragment] | Iterable[Iterable[Fragment]
       the ``(position, end_position)`` pair); None for every other ion.
     - ``charge_state`` (int), ``mz`` (float), ``mass`` (float, charged), ``neutral_mass`` (float),
       ``monoisotopic`` (bool).
-    - ``deltas`` (str): the neutral losses and gains as ProForma formulas or signed masses,
-      joined by ``","``, with ``^n`` for a count other than one. A formula counts as a loss,
-      so water loss is ``"H-2O-1"`` and a water gain is ``"H-2O-1^-1"``; a mass is written
-      with its sign (``"-17.0^2"``). ``""`` when there are none.
+    - ``deltas`` (str): the fragment's deltas joined by ``","``. Each is a signed formula or
+      mass, added ``count`` times, with ``^count`` when the count is not one. Named losses
+      such as H2O are stored as negative formulas: water loss is ``"H-2O-1"``, a water gain
+      ``"H-2O-1^-1"``, while a plain formula such as ``"C2H2O"`` is a gain; a mass keeps its
+      sign (``"-17.0^2"``). ``""`` when there are none.
     - ``isotopes`` (str): the isotope swaps in the same form (``"13C"``, ``"13C^2"``, ``"15N"``);
       ``""`` when there are none.
     - ``sequence`` (str | None): the fragment's own residues as ProForma; ``parent_sequence``
       (str | None): the peptide it came from. Both leave out the charge (see ``charge_state``)
       and are None when the fragment was built without its parent sequence.
     - ``mzpaf`` (str | None): the mzPAF label from :meth:`~peptacular.Fragment.to_mzpaf`, or None
-      for an ion type peptacular cannot write as mzPAF.
+      when mzPAF cannot write the ion: an ion type with no mzPAF form, or a formula delta with
+      both positive and negative element counts (``"CH-2"``).
 
+    :raises TypeError: If ``fragments`` is not iterable (``None``, a number), as :func:`peptacular.digest` does.
     :raises PeptacularError: If an item is not a :class:`~peptacular.Fragment` or a list of them.
 
     .. code-block:: python

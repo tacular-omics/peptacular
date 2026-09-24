@@ -196,6 +196,28 @@ class TestFragmentRecords:
         with pytest.raises(pt.PeptacularError, match="inside a list"):
             pt.fragment_records([[1]])  # type: ignore[list-item]
 
+    def test_wrong_top_level_type_is_type_error(self):
+        # Same rule as pt.digest: a wrong top-level type is a TypeError.
+        for bad in (None, 5):
+            with pytest.raises(TypeError):
+                pt.fragment_records(bad)  # type: ignore[arg-type]
+            with pytest.raises(TypeError):
+                pt.digest_records(bad, "trypsin")  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            pt.digest_records([5], "trypsin")  # type: ignore[list-item]
+
+    def test_mixed_sign_formula_delta_has_no_mzpaf(self):
+        frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"CH-2": 1})
+        (row,) = pt.fragment_records([frag])
+        assert row["deltas"] == "CH-2" and row["mzpaf"] is None
+
+    def test_plain_formula_delta_is_a_gain(self):
+        frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"C2H2O": 1})
+        base = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3)
+        (row,) = pt.fragment_records([frag])
+        assert row["deltas"] == "C2H2O" and row["mzpaf"] == "b3{PEP}+C2H2O"
+        assert frag.mass > base.mass
+
     def test_batch_nested_list_is_flattened(self):
         nested = pt.fragment(["PEPTIDE", "PEK/2"], ion_types=("b",), charges=(1,))
         rows = pt.fragment_records(nested)

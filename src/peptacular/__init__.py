@@ -118,6 +118,7 @@ from .property import (
     WeightingMethodsLiteral,
 )
 from .sequence import (
+    DEFAULT_MAX_ISOMERS,
     DIGEST_RECORD_KEYS,
     FRAGMENT_RECORD_KEYS,
     aa_property_percentage,
@@ -266,6 +267,7 @@ __all__ = [
     "fast_fragment",
     # localization
     "localization_isomers",
+    "DEFAULT_MAX_ISOMERS",
     "candidate_sites",
     "site_determining_ions",
     "pairwise_site_determining_ions",

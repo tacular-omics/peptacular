@@ -43,9 +43,19 @@ def test_group_with_partial_scores():
     assert _ser(pt.localization_isomers("S[Phospho#g1]T[#g1(0.4)]")) == ["S[Phospho#g1]T", "ST[Phospho#g1(0.4)]"]
 
 
-def test_group_member_with_other_mods_is_not_a_candidate():
-    # One mod per residue: M already carries Oxidation, so the group can only go on S.
-    assert _ser(pt.localization_isomers("M[Oxidation][#g1(0.3)]S[Phospho#g1(0.7)]")) == ["M[Oxidation]S[Phospho#g1(0.7)]"]
+@pytest.mark.parametrize(
+    "sequence",
+    [
+        "M[Oxidation][#g1(0.3)]S[Phospho#g1(0.7)]",
+        "PS[Oxidation][Phospho#g1]T[#g1]",
+        "PS[Phospho#g1]T[Oxidation][#g1]",
+    ],
+)
+def test_group_member_with_other_mods_raises(sequence):
+    # One mod per residue: a group residue that already carries a mod can never hold the group mod,
+    # and silently dropping it would lose a placement the string names.
+    with pytest.raises(pt.PeptacularError, match="already carries a modification"):
+        pt.localization_isomers(sequence)
 
 
 def test_group_inside_range_expands_over_the_group():
@@ -150,7 +160,7 @@ def test_max_isomers_must_be_positive_int(bad):
 def test_max_isomers_defaults_to_10_000_and_none_is_unlimited():
     from peptacular.annotation.localization import DEFAULT_MAX_ISOMERS
 
-    assert DEFAULT_MAX_ISOMERS == 10_000
+    assert DEFAULT_MAX_ISOMERS == pt.DEFAULT_MAX_ISOMERS == 10_000
     big = "[Phospho]^2?" + "S" * 150  # 11,175 isomers
     with pytest.raises(pt.PeptacularError, match="max_isomers=None for no limit"):
         pt.localization_isomers(big)

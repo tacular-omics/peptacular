@@ -880,6 +880,40 @@ class TestFragmentMzPAF(unittest.TestCase):
         gain = pt.parse("PEPTIDE").fragment(ion_types=["b"], charges=[1], deltas=[{"H2O": -2}])[2]
         self.assertEqual(gain.to_mzpaf(include_sequence=False), "b3+2H2O")
 
+    def test_numeric_delta_is_fixed_point(self):
+        # mzPAF numbers have no exponent, and float repr noise must not leak into the label.
+        from peptacular.annotation.frag import _mzpaf_mass
+
+        cases = {1e-5: "+0.00001", 0.1 * 3: "+0.3", -34.0: "-34.0", -17.02655: "-17.02655", 1e-9: "+0.0", -1e-9: "+0.0", 2.0000004: "+2.0"}
+        for value, label in cases.items():
+            self.assertEqual(_mzpaf_mass(value), label)
+        frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[{0.1: 3}])[4]
+        self.assertEqual(frag.to_mzpaf(include_sequence=False), "y5+0.3")
+
+    def test_numeric_delta_labels_parse_back(self):
+        # Every numeric label must be valid mzPAF: paftacular's parser when available, else the
+        # spec's number grammar (sign, digits, optional fraction, no exponent).
+        import re
+
+        try:
+            import paftacular
+        except ImportError:
+            paftacular = None
+        number = re.compile(r"[+-]\d+(\.\d+)?")
+        for delta in (1e-5, {0.1: 3}, -17.02655, {-18.0: -1}, 123456.7891234, -1e-9):
+            deltas = delta if isinstance(delta, dict) else {delta: 1}
+            frag = pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=[1], deltas=[deltas])[4]
+            label = frag.to_mzpaf(include_sequence=False)
+            suffix = label[len("y5") :]
+            self.assertRegex(suffix, number)
+            self.assertEqual(number.fullmatch(suffix).group(0), suffix)  # type: ignore[union-attr]
+            expected = sum(float(k) * c for k, c in deltas.items())
+            self.assertAlmostEqual(float(suffix), expected, places=6)
+            if paftacular is not None:
+                annotation = paftacular.parse(label)
+                self.assertEqual(len(annotation.neutral_losses), 1)
+                self.assertAlmostEqual(float(str(annotation.neutral_losses[0])), expected, places=5)
+
     def test_adduct_repeat_count(self):
         # mzPAF section 4.7's own example: "[M+2Na] denotes an adduct ion with two
         # sodium atoms."

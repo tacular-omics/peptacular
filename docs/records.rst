@@ -55,13 +55,20 @@ the list of lists it returns for several peptides (the rows come out flat, and
 - ``position`` is the ion number, or the start of an internal ion, whose end is in
   ``end_position``. Both are int or None (None for precursor ions; ``end_position`` is None
   for every ion that is not internal), so each column has one type.
-- ``deltas`` holds the neutral losses and gains, ``isotopes`` the isotope swaps, both as
-  strings (``""`` for none). A formula counts as a loss: water loss is ``"H-2O-1"``, a
-  water gain ``"H-2O-1^-1"``; a mass is written with its sign (``"-17.0^2"``).
+- ``deltas`` and ``isotopes`` are strings (``""`` for none). Each delta is a signed formula
+  or mass, added ``count`` times (``^count`` when the count is not one). Named losses such as
+  H2O are stored as negative formulas: water loss is ``"H-2O-1"``, a water gain
+  ``"H-2O-1^-1"``, while a plain formula such as ``"C2H2O"`` is a gain; a mass keeps its sign
+  (``"-17.0^2"``).
 - ``sequence`` and ``parent_sequence`` leave out the ``/charge`` suffix; the charge is in
   ``charge_state``.
 - ``mzpaf`` is the :meth:`~peptacular.Fragment.to_mzpaf` label (``"b3{PEP}-H2O"``,
-  ``"b3{PEP}-34.0"``), or None for an ion type mzPAF cannot write.
+  ``"b3{PEP}-34.0"``; masses are fixed-point, rounded to 6 decimals), or None when mzPAF
+  cannot write the ion: an ion type with no mzPAF form, or a formula delta with both positive
+  and negative element counts (``"CH-2"``).
+- A wrong top-level input (``None``, a number) raises ``TypeError``, as
+  :func:`~peptacular.digest` does; a list item that is not a
+  :class:`~peptacular.Fragment` raises :class:`~peptacular.PeptacularError`.
 
 pandas
 ------
@@ -87,6 +94,10 @@ pandas
    VLATSAGERTIDEK      2   16                 1
             TIDEK     11   16                 0
    {1: 14, 2: 14}
+
+``position`` and ``end_position`` hold None for some rows, so pandas stores them as
+``float64`` with NaN. ``ions.astype({"position": "Int64", "end_position": "Int64"})`` gives
+nullable integer columns.
 
 polars
 ------

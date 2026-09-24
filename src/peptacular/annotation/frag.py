@@ -146,6 +146,12 @@ def _freeze(value: Mapping[Any, int] | int | None) -> Any:
     if isinstance(value, Mapping):
         return frozenset(value.items())
     return value
+def _mzpaf_mass(value: float) -> str:
+    """A signed mass for mzPAF: fixed-point, 6 decimals, trailing zeros stripped (``-34.0``, ``+1e-05`` -> ``+0.00001``)."""
+    text = f"{value:+.6f}".rstrip("0")
+    if text.endswith("."):
+        text += "0"
+    return "+0.0" if text == "-0.0" else text
 
 
 def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:
@@ -514,9 +520,12 @@ class Fragment:
         written as ``z``/``c`` with a hydrogen delta: ``z3{IDE}-H``, ``z3{IDE}+H``,
         ``c3{PEP}-H``, so the label parses back to the same m/z.
 
-        Formula deltas are written as losses (``-H2O``) or, with a negative count, gains
-        (``+H2O``); a numeric delta is written as a signed mass (``b2-34.0`` for
-        ``{-17.0: 2}``).
+        Each delta is a signed formula or mass, added ``count`` times. Named losses such as
+        H2O are stored as negative formulas (``H-2O-1``), so ``{"H2O": 1}`` is written
+        ``-H2O`` and ``{"H2O": -1}`` ``+H2O``; a plain formula such as ``C2H2O`` is a gain
+        (``+C2H2O``). A numeric delta is written as a signed fixed-point mass rounded to 6
+        decimals (``b2-34.0`` for ``{-17.0: 2}``). A formula with both positive and negative
+        element counts (``CH-2``) cannot be written and raises :class:`PeptacularError`.
 
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
@@ -615,7 +624,7 @@ class Fragment:
                 if isinstance(loss_key, float | int):
                     # mzPAF (spec section 4.5) writes an unnamed mass delta as a signed number,
                     # ``y8-17.0265``. A number takes no repeat count, so the count is folded in.
-                    parts.append(f"{loss_key * count:+}")
+                    parts.append(_mzpaf_mass(loss_key * count))
                     continue
                 loss_formula = ChargedFormula.from_string(loss_key, require_formula_prefix=False)
                 paf_formula = _mzpaf_formula(loss_formula)

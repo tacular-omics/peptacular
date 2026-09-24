@@ -14,6 +14,7 @@ from ..annotation.localization import site_determining_ions as _site_determining
 from .util import HasSequence, get_annotation_input
 
 __all__ = [
+    "DEFAULT_MAX_ISOMERS",
     "localization_isomers",
     "candidate_sites",
     "site_determining_ions",

@@ -303,10 +303,11 @@ annotation.localization_isomers(*, max_isomers=10_000); annotation.candidate_sit
 `#label` groups (`S[Phospho#g1(0.8)]T[#g1(0.2)]`). Candidate sites come from the ProForma
 string only; there is no built-in residue list. A group's label and the score of the chosen
 residue stay on the placed mod (`S[Phospho#g1(0.8)]`). Order is fixed (groups, ranges,
-unknown mods; N- to C-terminal), duplicates are dropped, and `max_isomers` (default 10,000;
+unknown mods; N- to C-terminal), duplicates are dropped, and `max_isomers` (default `pt.DEFAULT_MAX_ISOMERS` = 10,000;
 None = no limit) raises `PeptacularError` when exceeded. One mod per residue: a placed mod
 never goes on a residue that already has one or that another ambiguity used, so
-`[Phospho]?PES[Phospho]T` never gives `S[Phospho][Phospho]`. A `#` inside `INFO:` text is not
+`[Phospho]?PES[Phospho]T` never gives `S[Phospho][Phospho]`; a `#label` group listing a residue
+that already carries another mod raises `PeptacularError`. A `#` inside `INFO:` text is not
 a group label. `#XL`/`#BRANCH` labels are left alone.
 `candidate_sites` needs `residues` (no default) and adds one copy of the mod on each
 unmodified matching residue. `site_determining_ions` returns, per isomer, the Fragments
@@ -386,10 +387,12 @@ half-open, `semi` is True when an end is not a cleavage site or terminus (only w
 entry), else None; a list or generator of proteins gives one flat list. Fragment rows use the
 `Fragment` constructor names and take one peptide's list or the nested batch list (flattened);
 `position` is the ion number or an internal ion's start, `end_position` the internal ion's end
-(both int or None); `deltas`/`isotopes` are strings (water loss `"H-2O-1"`, water gain
-`"H-2O-1^-1"`, `"-17.0^2"`, `"13C^2"`, `""`); `sequence`/`parent_sequence` have no `/charge`;
-`mzpaf` is None only for an ion type mzPAF cannot write. A non-Fragment item raises
-PeptacularError.
+(both int or None); `deltas`/`isotopes` are strings. Each delta is a signed formula or mass
+added `count` times; named losses such as H2O are stored as negative formulas (water loss
+`"H-2O-1"`, water gain `"H-2O-1^-1"`), a plain formula like `"C2H2O"` is a gain, a mass keeps
+its sign (`"-17.0^2"`). `sequence`/`parent_sequence` have no `/charge`; `mzpaf` is None for an
+ion type mzPAF cannot write or a mixed-sign formula delta (`"CH-2"`). A non-Fragment item raises
+PeptacularError; a wrong top-level type (None, a number) raises TypeError, as `pt.digest` does.
 
 ```python
 import peptacular as pt
