@@ -8,7 +8,8 @@ All notable changes to this project will be documented in this file.
 Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 
 ### Removed
-- 74 names from the top-level `peptacular` namespace that belong to tacular or were internal. The tacular lookups, `*Info`/`*Lookup` classes and literal types (`AA_LOOKUP`, `ELEMENT_LOOKUP`, `UNIMOD_LOOKUP`, `PSIMOD_LOOKUP`, `PROTEASE_LOOKUP`, `FRAGMENT_ION_LOOKUP`, `ElementInfo`, `FragmentIonInfo`, `IonTypeProperty`, `parse_composition`, ...) must be imported from tacular. `IonType`, `NeutralDelta` and `Proteases` are still re-exported. Also removed: `Any`, `SEQUENCE_TYPE`, `MODIFICATION_*_TYPE`, `GLOBAL_CHARGE_TYPE`, `ModLocation`, `MassPropertyMixin`, `OboEntity`, `OntologyLookup`.
+- 82 names from the top-level `peptacular` namespace: 52 that belong to tacular and 30 that were internal or moved (the full list is in `docs/migration.rst`). The tacular lookups, `*Info`/`*Lookup` classes and literal types (`AA_LOOKUP`, `ELEMENT_LOOKUP`, `UNIMOD_LOOKUP`, `PSIMOD_LOOKUP`, `PROTEASE_LOOKUP`, `FRAGMENT_ION_LOOKUP`, `ElementInfo`, `FragmentIonInfo`, `IonTypeProperty`, `parse_composition`, ...) must be imported from tacular. `IonType`, `NeutralDelta` and `Protease` are still re-exported. Also removed: `Any`, `SEQUENCE_TYPE`, `MODIFICATION_*_TYPE`, `GLOBAL_CHARGE_TYPE`, `ModLocation`, `MassPropertyMixin`, `OboEntity`, `OntologyLookup`.
+- The FASTA module: `peptacular.fasta`, `parse_fasta`, `parse_fasta_text`, `iter_fasta`, `FastaSequence`, `FASTA_INPUT_TYPE` and `FastaFormatError`. Read FASTA with fastatacular (`read_fasta`, `FastaReader`); its entries can be passed straight to peptacular's sequence functions (see `HasSequence` below).
 - `peptacular.regex_utils`, `get_regex_match_indices` and `get_regex_match_range` (now private `peptacular._regex_utils`).
 - `CV_TO_NAME_PREFIX`, `CV_TO_ACCESSION_PREFIX`, `CV_TO_MASS_PREFIX` (now private).
 - `ReadableProtocol`, `SupportsStr`, `handle_number_and_intern_mod` and `utils.get_mods`.
@@ -27,6 +28,23 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 - `ProFormaAnnotation.digest`/`simple_digest`/`sequential_digest` are renamed `digest_spans`/`simple_digest_spans`/`sequential_digest_spans`, since they return spans while the functional `pt.digest` returns sequence/span pairs. The batch `"digest"` operation calls `digest_spans`.
 - `ProFormaAnnotation` is unhashable (`__hash__ = None`): it is mutable, so a hash could change while it sits in a set or dict. Key on `annot.serialize()`.
 - The library raises `PeptacularError` subclasses instead of bare `ValueError`, and `InvalidPositionError` (still an `IndexError` subclass) instead of a bare `IndexError`. The ProForma component parsers raise `ProFormaFormatError`. The MCP layer still raises `ValueError` for pydantic.
+- Optional parameters are keyword-only across the public API. Only the input, required arguments and a short list of natural second arguments (`charge` for `mass`/`mz`/`comp`/`isotopic_distribution`, ion type(s) and charge(s) for `frag`/`fragment`/`fast_fragment`, `mods`, `size`, `pH`, ...) stay positional. Every parallel option and every `inplace`/`validate` flag is keyword-only.
+- Typo renames in `peptacular.property.data`: `AMIGUOUS_AMINO_ACID_MAP` -> `AMBIGUOUS_AMINO_ACID_MAP`, `surface_accessiblility_janin` -> `surface_accessibility_janin`, `hphob_agros` -> `hphob_argos` (enum member `AGROS` -> `ARGOS`), `hphob_adoberin` -> `hphob_aboderin` (`ADOBERIN` -> `ABODERIN`).
+- `get_mod_type` and `_resolve_mod_types` raise `TypeError` (not `ValueError`) for an argument of the wrong type. A string naming no mod type still raises `PeptacularError`.
+- `enzyme=""` no longer means a nonspecific digest; it raises `UnknownEnzymeError`. Use `enzyme="unspecific"` or `pt.nonspecific_digest`.
+- `calculate_composition=` is renamed `calculate_with_composition=` wherever it appears (`mass`, `mz`, `fragment`, ...).
+- `brain_isotopic_distribution(chemical_formula, ..., charge_state=)` is now `brain_isotopic_distribution(formula, *, ..., charge=)`.
+- `coverage`, `percent_coverage` and `modification_coverage` methods take `subsequences=` instead of `annotations=`.
+- `annot[int]` raises `UnsupportedOperationError` with a hint (`annot[i:i+1]` or `annot.stripped_sequence[i]`) instead of a bare `TypeError`.
+- Bare `KeyError`/`ValueError`/`TypeError` from user input at entry points are `PeptacularError` subclasses. `Mods` snapshots its mapping so its hash stays stable. `BatchResult` is compared by value and is not hashable when it holds an annotation, list or dict.
+- `Fragment` is immutable (`__slots__`; assignment raises `dataclasses.FrozenInstanceError`). Build a changed copy with `Fragment._replace(...)`. Pickle and copy still work.
+- `fast_fragment` uses H - e as the charge carrier, as `fragment()` does, so its m/z values move by -1.4e-8 Da per charge and now match `fragment()` to within 1e-9 Da. `fragment()` and `mass()` values are unchanged.
+- Faster: `fragment()` terminal series sum a per-residue mass vector instead of slicing the annotation per ion (about 20x on modified peptides); digest functions return substrings for plain sequences and skip parsing plain strings; `comp` counts residues once and scales each residue composition. Composition mode, formula deltas, isotope swaps and static/isotope/charged mods still take the slicing path; results are equal to within 1e-9 Da.
+- `multiprocessing` and `concurrent.futures` are imported lazily, which speeds up `import peptacular`.
+
+### Added
+- `PeptacularKeyError` (a `PeptacularError` and a `KeyError`) and its subclass `UnknownElementError`; `UnknownEnzymeError` now subclasses `PeptacularKeyError`.
+- `HasSequence`: a protocol for any object with a `.sequence` string. Sequence functions, `batch`, `iter_batch` and `diagnose` accept such objects (fastatacular and PEFF entries) directly, with no dependency on those packages.
 
 ## [4.2.0] (2026-09-23)
 

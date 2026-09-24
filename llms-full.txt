@@ -336,9 +336,9 @@ for span in protein.digest_spans(pt.Protease.TRYPSIN):
 isotopic_distribution(sequence: SEQS, ion_type: ION = "p", charge=None, isotopes=None, deltas=None,
                       max_isotopes: int | None = None, min_abundance_threshold: float = 0.001, *PAR)
                       -> list[IsotopicData] | list[list[IsotopicData]]
-brain_isotopic_distribution(chemical_formula: Mapping[str | ElementInfo, int | float], max_isotopes=None,
-                            min_abundance_threshold: float = 0.001, charge_state: int | None = None) -> list[IsotopicData]
-estimate_isotopic_distribution(neutral_mass: float, max_isotopes=None, min_abundance_threshold=0.001) -> list[IsotopicData]
+brain_isotopic_distribution(formula: Mapping[str | ElementInfo, int | float], *, max_isotopes=None,
+                            min_abundance_threshold: float = 0.001, charge: int | None = None) -> list[IsotopicData]
+estimate_isotopic_distribution(neutral_mass: float, *, max_isotopes=None, min_abundance_threshold=0.001) -> list[IsotopicData]
 merge_isotopic_distributions(*distributions: list[IsotopicData], merge_precision: int | None = None) -> list[IsotopicData]
 averagine_comp(neutral_mass: float) -> Counter[ElementInfo]              # nearest integer averagine
 estimate_averagine_comp(neutral_mass: float, ion_type: ION = "p") -> Mapping[ElementInfo, float]
