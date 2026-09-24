@@ -1,5 +1,5 @@
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import FrozenInstanceError
 from functools import cache
 from typing import TYPE_CHECKING, Any, Literal
@@ -193,6 +193,20 @@ def _mzpaf_mass(value: float) -> str:
     if text.endswith("."):
         text += "0"
     return "+0.0" if text == "-0.0" else text  # the caller drops a zero delta
+
+
+def _format_counts(items: Iterable[tuple[object, int]]) -> str:
+    """Delta or isotope counts as text, e.g. ``"H-2O-1,-17.0^2"`` (shared by records and arrays)."""
+    parts: list[str] = []
+    for key, count in items:
+        if isinstance(key, float):
+            label = f"{key:+}"
+        elif isinstance(key, ChargedFormula):  # from ``Fragment.deltas``
+            label = key.serialize().removeprefix("Formula:")
+        else:
+            label = str(key)
+        parts.append(label if count == 1 else f"{label}^{count}")
+    return ",".join(parts)
 
 
 def _delta_keys(deltas: Mapping[Any, int] | None) -> Mapping[str | float, int] | None:

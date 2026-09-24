@@ -25,6 +25,7 @@ Optional extras
    pip install "peptacular[psm-utils]"   # psm_utils adapter
    pip install "peptacular[alphabase]"   # AlphaBase adapter
    pip install "peptacular[interop]"     # all three interoperability adapters
+   pip install "peptacular[numpy]"       # fragment_arrays(): fragment ions as numpy columns
 
 See :doc:`interoperability` and :doc:`mcp` for details.
 

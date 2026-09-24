@@ -47,7 +47,7 @@ from .digestion import (
     simple_cleavage_sites,
     simple_digest,
 )
-from .fragmentation import fast_fragment, frag, fragment
+from .fragmentation import FRAGMENT_ARRAY_KEYS, fast_fragment, frag, fragment, fragment_arrays
 from .isotope import isotopic_distribution
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers, pairwise_site_determining_ions, site_determining_ions
 from .mass_funcs import comp, mass, mz
@@ -153,6 +153,8 @@ __all__ = [
     # fragmentation
     "fragment",
     "fast_fragment",
+    "fragment_arrays",
+    "FRAGMENT_ARRAY_KEYS",
     # localization
     "localization_isomers",
     "DEFAULT_MAX_ISOMERS",
