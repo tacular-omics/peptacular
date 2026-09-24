@@ -2265,21 +2265,11 @@ class ProFormaAnnotation:
     def __str__(self) -> str:
         return self.serialize()
 
-    def __hash__(self):
-        return hash(
-            (
-                self._sequence,
-                frozenset(self._isotope_mods.items()) if self._isotope_mods else None,
-                frozenset(self._static_mods.items()) if self._static_mods else None,
-                frozenset(self._labile_mods.items()) if self._labile_mods else None,
-                frozenset(self._unknown_mods.items()) if self._unknown_mods else None,
-                frozenset(self._nterm_mods.items()) if self._nterm_mods else None,
-                frozenset(self._cterm_mods.items()) if self._cterm_mods else None,
-                frozenset((pos, frozenset(mods.items())) for pos, mods in self._internal_mods.items()) if self._internal_mods else None,
-                tuple(self._intervals) if self._intervals else None,
-                self._charge,
-            )
-        )
+    # ProFormaAnnotation is mutable (set_charge, append_mods, inplace=True edits ...),
+    # and __eq__ compares that mutable state. A hash that changes while the object
+    # sits in a set or dict silently corrupts the container, so annotations are
+    # unhashable. Use ``annotation.serialize()`` (a str) as a set member or dict key.
+    __hash__ = None  # type: ignore[assignment]
 
     def copy(self) -> Self:
         """Return a deep copy of this annotation.

@@ -83,12 +83,20 @@ def test_is_subsequence_unordered_missing_residue():
     assert pt.is_subsequence("EP", "PEPTIDE", order=False) is True
 
 
-def test_annotation_hash_is_order_independent():
+def test_annotation_eq_is_order_independent():
     a = pt.parse("[Acetyl][Formula:C2]-PEPTIDE")
     b = pt.parse("[Formula:C2][Acetyl]-PEPTIDE")
     assert a == b
-    assert hash(a) == hash(b)
-    assert len({a, b}) == 1
+
+
+def test_annotation_is_unhashable():
+    # 5.0: mutable annotations are unhashable; key on serialize() instead.
+    annot = pt.parse("PEPTIDE")
+    with pytest.raises(TypeError, match="unhashable"):
+        hash(annot)
+    with pytest.raises(TypeError):
+        {annot}  # noqa: B018
+    assert len({pt.parse("PEPTIDE").serialize(), pt.parse("PEPTIDE").serialize()}) == 1
 
 
 def test_annotation_eq_with_other_type():
