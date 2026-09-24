@@ -265,7 +265,7 @@ ions), `mass`, `monoisotopic`, `charge_state`, `charge_adducts`, `isotopes`, `de
 `paftacular` can parse, and `asdict()`.
 
 `fast_fragment` skips `Fragment` objects and returns m/z lists keyed by
-`(IonType, charge)`. It agrees with `fragment` to about 1e-8 Da.
+`(IonType, charge)`. It returns the same ions as `fragment` (b1..bn, y1..yn) and agrees with it to within 1e-9 Da.
 
 ```python
 import peptacular as pt

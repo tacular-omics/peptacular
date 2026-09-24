@@ -1,5 +1,5 @@
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import overload
 
 from ..annotation import ProFormaAnnotation
@@ -7,7 +7,29 @@ from ..constants import ParallelMethod, ParallelMethodLiteral
 from ..digestion.core import generate_regex
 from ..spans import Span
 from .parallel import parallel_apply_internal
-from .util import HasSequence, get_annotation_input
+from .util import HasSequence, as_sequence_input, get_annotation_input
+
+_PLAIN_SEQUENCE = re.compile(r"[A-Z]+")
+
+
+def _digest_input(sequence: str | ProFormaAnnotation | HasSequence) -> tuple[ProFormaAnnotation, str | None]:
+    """Return the annotation to digest and, when it carries nothing but residues, its plain sequence.
+
+    A plain uppercase string skips the ProForma parser. When the plain sequence is returned,
+    every digest product is a substring of it, so no annotation needs slicing or serializing.
+    """
+    value = as_sequence_input(sequence)
+    if isinstance(value, str) and _PLAIN_SEQUENCE.fullmatch(value):
+        return ProFormaAnnotation(sequence=value), value
+    annot = get_annotation_input(sequence, copy=False)
+    return annot, (annot.stripped_sequence if annot.serialize() == annot.stripped_sequence else None)
+
+
+def _span_output(annot: ProFormaAnnotation, plain: str | None, spans: Iterable[Span]) -> list[tuple[str, Span]]:
+    if plain is not None:
+        return [(plain[span.start : span.end], span) for span in spans]
+    return [(annot[span].serialize(), span) for span in spans]
+
 
 __all__ = [
     "left_semi_digest",
@@ -26,14 +48,15 @@ def _left_semi_digest(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.left_semi_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.left_semi_spans(
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload
@@ -102,14 +125,15 @@ def _right_semi_digest(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.right_semi_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.right_semi_spans(
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload
@@ -178,14 +202,15 @@ def _semi_digest(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.semi_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.semi_spans(
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload
@@ -248,14 +273,15 @@ def _nonspecific_digest(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.nonspecific_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.nonspecific_spans(
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload
@@ -467,17 +493,18 @@ def _digest(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.digest_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.digest_spans(
             enzyme=enzyme,
             missed_cleavages=missed_cleavages,
             semi=semi,
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload
@@ -575,10 +602,11 @@ def _digest_single(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> list[tuple[str, Span]]:
-    annot = get_annotation_input(sequence, copy=False)
-    return [
-        (annot[span].serialize(), span)
-        for span in annot.simple_digest_spans(
+    annot, plain = _digest_input(sequence)
+    return _span_output(
+        annot,
+        plain,
+        annot.simple_digest_spans(
             cleave_on=cleave_on,
             restrict_before=restrict_before,
             restrict_after=restrict_after,
@@ -587,8 +615,8 @@ def _digest_single(
             semi=semi,
             min_len=min_len,
             max_len=max_len,
-        )
-    ]
+        ),
+    )
 
 
 @overload

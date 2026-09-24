@@ -67,7 +67,7 @@ src/peptacular/
     serializer.py        ProFormaAnnotation -> ProForma string
     mod.py               Mod (value + count) and Mods (one mod type's collection), Interval
     cached_comps.py      lru_cached isotope / delta / charge-carrier resolution
-    frag.py              Fragment dataclass (.mz, .to_mzpaf(), .composition)
+    frag.py              Fragment, frozen with __slots__ (.mz, .to_mzpaf(), .composition)
     slicing.py, manipulation.py, combinatorics.py, ambiguity.py, randomizer.py,
     mod_builder.py, positions.py, utils.py
   sequence/              the functional API: one wrapper per operation that accepts
@@ -200,7 +200,9 @@ which builds a `Fragment`.
   `CompositionError`, while `mass()` works. Isotope envelopes need a composition, so use
   `estimate_isotopic_distribution(mass)` for these.
 - **`fast_fragment` returns a dict** `{(IonType, charge): [mz, ...]}`, not `Fragment`
-  objects. Its values agree with `fragment()` to about 1e-8 Da, not bit for bit.
+  objects, the same ions as `fragment()` (full length included), equal to within 1e-9 Da.
+- **`Fragment` is immutable** (`__slots__`, assignment raises `FrozenInstanceError`). Build a
+  changed copy inside the package with the private `frag._replace(mass=...)`.
 - **Two digest styles.** The functional `pt.digest(seq, enzyme=...)` (and every `pt.*digest`)
   returns `[(sequence, Span), ...]`. `ProFormaAnnotation` methods ending in `_spans`
   (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)

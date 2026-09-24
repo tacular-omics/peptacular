@@ -1,5 +1,6 @@
 from collections import Counter
 from collections.abc import Mapping
+from dataclasses import FrozenInstanceError
 from typing import Any, Literal
 
 from tacular import (
@@ -77,7 +78,8 @@ class Fragment:
     Returned by :meth:`ProFormaAnnotation.frag`, :meth:`ProFormaAnnotation.fragment` and
     :func:`peptacular.fragment`. ``mass`` is the mass of the charged ion (adducts included), so
     ``mz`` is ``mass / abs(charge_state)`` and ``neutral_mass`` removes the charge carriers.
-    Use :meth:`to_mzpaf` for an mzPAF annotation string.
+    Use :meth:`to_mzpaf` for an mzPAF annotation string. Fragments are immutable: assigning
+    to an attribute raises :class:`dataclasses.FrozenInstanceError`.
 
     >>> import peptacular as pt
     >>> frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
@@ -115,6 +117,34 @@ class Fragment:
     :type parent_sequence_length: int | None
     """
 
+    __slots__ = (
+        "ion_type",
+        "position",
+        "mass",
+        "monoisotopic",
+        "charge_state",
+        "_charge_adducts",
+        "external_charge",
+        "_isotopes",
+        "_losses",
+        "_composition",
+        "parent_sequence",
+        "parent_sequence_length",
+    )
+
+    ion_type: IonType
+    position: int | tuple[int, int] | None
+    mass: int | float
+    monoisotopic: bool
+    charge_state: int
+    _charge_adducts: tuple[str, ...] | None
+    external_charge: int
+    _isotopes: Mapping[str, int] | int | None
+    _losses: Mapping[str | float, int] | None
+    _composition: Counter[ElementInfo] | None
+    parent_sequence: str | None
+    parent_sequence_length: int | None
+
     def __init__(
         self,
         ion_type: IonType,
@@ -130,27 +160,48 @@ class Fragment:
         parent_sequence: str | None = None,
         parent_sequence_length: int | None = None,
     ) -> None:
-        self.ion_type: IonType = ion_type
-        self.position: int | tuple[int, int] | None = position
-        self.mass: int | float = mass
-        self.monoisotopic: bool = monoisotopic
-        self.charge_state: int = charge_state
+        _set = object.__setattr__
+        _set(self, "ion_type", ion_type)
+        _set(self, "position", position)
+        _set(self, "mass", mass)
+        _set(self, "monoisotopic", monoisotopic)
+        _set(self, "charge_state", charge_state)
         # If None and charge_state != 0: means protonated
-        self._charge_adducts: tuple[str, ...] | None = charge_adducts
+        _set(self, "_charge_adducts", charge_adducts)
         # The portion of charge_state that comes from real external adducts/charge carriers,
         # as opposed to charge intrinsic to an internal formula modification (e.g. [Formula:...:z+N]).
         # Used to reconstruct the default proton adduct when charge_adducts is None, so that
         # internal charge is never mistaken for extra external protons. Defaults to charge_state
-        # (i.e. "assume it's all external protonation") when not given explicitly, matching direct
-        # construction of a Fragment outside the internal internal+external charge-splitting pipeline.
-        self.external_charge: int = external_charge if external_charge is not None else charge_state
+        # (i.e. "assume it's all external protonation") when not given explicitly.
+        _set(self, "external_charge", external_charge if external_charge is not None else charge_state)
         # int means 13C count
-        self._isotopes: Mapping[str, int] | int | None = isotopes
-        self._losses: Mapping[str | float, int] | None = deltas
+        _set(self, "_isotopes", isotopes)
+        _set(self, "_losses", deltas)
         # Optional composition cache
-        self._composition: Counter[ElementInfo] | None = composition
-        self.parent_sequence: str | None = parent_sequence
-        self.parent_sequence_length: int | None = parent_sequence_length
+        _set(self, "_composition", composition)
+        _set(self, "parent_sequence", parent_sequence)
+        _set(self, "parent_sequence_length", parent_sequence_length)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise FrozenInstanceError(f"cannot assign to field {name!r}: Fragment is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise FrozenInstanceError(f"cannot delete field {name!r}: Fragment is immutable")
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in self.__slots__}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        for name, value in state.items():
+            object.__setattr__(self, name, value)
+
+    def _replace(self, **changes: Any) -> "Fragment":
+        """Return a copy with the given slot values replaced (internal helper)."""
+        state = self.__getstate__()
+        state.update(changes)
+        new = Fragment.__new__(Fragment)
+        new.__setstate__(state)
+        return new
 
     @property
     def composition(self) -> Counter[ElementInfo] | None:
