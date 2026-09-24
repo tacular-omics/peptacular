@@ -89,7 +89,7 @@ def iter_fasta(input_data: FASTA_INPUT_TYPE, *, encoding: str | None = None) -> 
     :param input_data: FASTA text, a filesystem path, or an open stream.
     :param encoding: Optional file or binary-stream encoding override.
     :return: Iterator of header and uppercase sequence records.
-    :raises ValueError: Empty input or invalid record structure.
+    :raises PeptacularError: Empty input or invalid record structure.
     """
     if isinstance(input_data, str) and (not input_data.strip() or input_data.lstrip().startswith(">") or "\n" in input_data or "\r" in input_data):
         with io.StringIO(input_data, newline=None) as stream:

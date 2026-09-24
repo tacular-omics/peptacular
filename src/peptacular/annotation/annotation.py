@@ -259,9 +259,12 @@ class ProFormaAnnotation:
     ``mass()`` raises :class:`UnknownModificationError`.
 
     The ``set_*`` / ``append_*`` / ``extend_*`` / ``remove_*`` methods take ``inplace`` (default
-    ``True``) and return the annotation, so calls can be chained. Annotations are mutable but
-    hashable: the hash reflects the current contents, so do not modify an annotation while it is a
-    dict key or set member.
+    ``True``) and return the annotation, so calls can be chained. Because annotations are mutable
+    they are not hashable; use :meth:`serialize` as a dict key or set member. ``==`` compares
+    contents and ignores the order of modifications at one site.
+
+    Methods ending in ``_spans`` (:meth:`digest_spans`, :meth:`semi_spans`, ...) yield
+    :class:`~peptacular.spans.Span` objects; slice with ``annot[span]`` to get the peptide.
 
     >>> import peptacular as pt
     >>> annot = pt.ProFormaAnnotation.parse("PEM[Oxidation]TIDE/2")
@@ -380,7 +383,7 @@ class ProFormaAnnotation:
     def validate_sequence(self) -> None:
         """Check that every residue in the sequence is a recognised amino acid.
 
-        :raises ValueError: If an unrecognised amino acid code is found.
+        :raises PeptacularError: If an unrecognised amino acid code is found.
         """
         for aa in self.sequence:
             if aa not in AA_LOOKUP:
@@ -389,7 +392,7 @@ class ProFormaAnnotation:
     def validate_isotope_mods(self) -> None:
         """Check that all isotope modifications are structurally valid.
 
-        :raises ValueError: If any isotope modification is invalid.
+        :raises PeptacularError: If any isotope modification is invalid.
         """
         if errors := self.isotope_mods.validate():
             raise PeptacularError(f"Invalid isotope modifications: {errors}")
@@ -397,7 +400,7 @@ class ProFormaAnnotation:
     def validate_static_mods(self) -> None:
         """Check that all static (fixed) modifications are structurally valid.
 
-        :raises ValueError: If any static modification is invalid.
+        :raises PeptacularError: If any static modification is invalid.
         """
         if errors := self.static_mods.validate():
             raise PeptacularError(f"Invalid static modifications: {errors}")
@@ -405,7 +408,7 @@ class ProFormaAnnotation:
     def validate_labile_mods(self) -> None:
         """Check that all labile modifications are structurally valid.
 
-        :raises ValueError: If any labile modification is invalid.
+        :raises PeptacularError: If any labile modification is invalid.
         """
         if errors := self.labile_mods.validate():
             raise PeptacularError(f"Invalid labile modifications: {errors}")
@@ -413,7 +416,7 @@ class ProFormaAnnotation:
     def validate_unknown_mods(self) -> None:
         """Check that all unknown-localisation modifications are structurally valid.
 
-        :raises ValueError: If any unknown modification is invalid.
+        :raises PeptacularError: If any unknown modification is invalid.
         """
         if errors := self.unknown_mods.validate():
             raise PeptacularError(f"Invalid unknown modifications: {errors}")
@@ -421,7 +424,7 @@ class ProFormaAnnotation:
     def validate_nterm_mods(self) -> None:
         """Check that all N-terminal modifications are structurally valid.
 
-        :raises ValueError: If any N-terminal modification is invalid.
+        :raises PeptacularError: If any N-terminal modification is invalid.
         """
         if errors := self.nterm_mods.validate():
             raise PeptacularError(f"Invalid N-terminal modifications: {errors}")
@@ -429,7 +432,7 @@ class ProFormaAnnotation:
     def validate_cterm_mods(self) -> None:
         """Check that all C-terminal modifications are structurally valid.
 
-        :raises ValueError: If any C-terminal modification is invalid.
+        :raises PeptacularError: If any C-terminal modification is invalid.
         """
         if errors := self.cterm_mods.validate():
             raise PeptacularError(f"Invalid C-terminal modifications: {errors}")
@@ -437,7 +440,7 @@ class ProFormaAnnotation:
     def validate_internal_mods(self) -> None:
         """Check that all internal (per-position) modifications are structurally valid.
 
-        :raises ValueError: If any internal modification at any position is invalid.
+        :raises PeptacularError: If any internal modification at any position is invalid.
         """
         for pos, mods in self.internal_mods.items():
             if errors := mods.validate():
@@ -446,7 +449,7 @@ class ProFormaAnnotation:
     def validate_intervals(self) -> None:
         """Check that all intervals are valid, non-overlapping, and within sequence bounds.
 
-        :raises ValueError: If any interval is invalid, intervals overlap, or an interval
+        :raises PeptacularError: If any interval is invalid, intervals overlap, or an interval
             falls outside the sequence length.
         """
         intervals = self.intervals
@@ -471,7 +474,7 @@ class ProFormaAnnotation:
         concrete modification among its occurrences; the rest must be bare
         references (e.g. ``[#label]``).
 
-        :raises ValueError: If a label has more than one concrete occurrence.
+        :raises PeptacularError: If a label has more than one concrete occurrence.
         """
         concrete_label_counts: Counter[str] = Counter()
 
@@ -501,7 +504,7 @@ class ProFormaAnnotation:
     def validate_charge(self) -> None:
         """Check that the charge value is structurally valid.
 
-        :raises ValueError: If the charge adducts are invalid or the charge type is
+        :raises PeptacularError: If the charge adducts are invalid or the charge type is
             unrecognised.
         """
         charge_type = self.charge_type
@@ -520,7 +523,7 @@ class ProFormaAnnotation:
     def validate_annotation(self) -> None:
         """Run all individual validators in order; raises on the first error found.
 
-        :raises ValueError: If any component of the annotation is structurally invalid.
+        :raises PeptacularError: If any component of the annotation is structurally invalid.
         """
         self.validate_sequence()
         self.validate_isotope_mods()
@@ -952,7 +955,7 @@ class ProFormaAnnotation:
         """Numeric charge state derived from the stored charge; 0 when uncharged.
 
         :rtype: int
-        :raises ValueError: If the stored charge value has an unexpected type.
+        :raises PeptacularError: If the stored charge value has an unexpected type.
         """
         charge = self.charge
         if isinstance(charge, int):
@@ -1327,7 +1330,7 @@ class ProFormaAnnotation:
         :type validate: bool | None
         :return: The (possibly new) annotation.
         :rtype: Self
-        :raises ValueError: If the resolved charge value has an unsupported type.
+        :raises PeptacularError: If the resolved charge value has an unsupported type.
         """
         if validate is None:
             validate = self._validate
@@ -1771,7 +1774,7 @@ class ProFormaAnnotation:
         :type validate: bool | None
         :return: The (possibly new) annotation.
         :rtype: Self
-        :raises IndexError: If an integer key is out of range for the current sequence.
+        :raises InvalidPositionError: If an integer key is out of range for the current sequence.
         """
         if not inplace:
             return self.copy().append_mods(mods, inplace=True, validate=validate)
@@ -2017,7 +2020,7 @@ class ProFormaAnnotation:
         :type validate: bool | None
         :return: The (possibly new) annotation.
         :rtype: Self
-        :raises IndexError: If an integer key is out of range for the current sequence.
+        :raises InvalidPositionError: If an integer key is out of range for the current sequence.
         """
         if validate is None:
             validate = self._validate
@@ -2939,7 +2942,7 @@ class ProFormaAnnotation:
         :type monoisotopic: bool
         :return: List of per-residue masses, length == len(self).
         :rtype: list[float]
-        :raises ValueError: If the annotation contains unknown mods or interval mods.
+        :raises PeptacularError: If the annotation contains unknown mods or interval mods.
         """
         if self.has_unknown_mods or self.has_intervals:
             raise UnsupportedOperationError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(self)}")
@@ -3583,7 +3586,7 @@ class ProFormaAnnotation:
         :type monoisotopic: bool
         :return: Dict mapping ``(IonType, charge)`` to a list of m/z values.
         :rtype: dict[tuple[IonType, int], list[float]]
-        :raises ValueError: If the ion type is unsupported, a charge is invalid,
+        :raises PeptacularError: If the ion type is unsupported, a charge is invalid,
             or the annotation contains unknown mods or interval mods.
         """
         if charges is None:

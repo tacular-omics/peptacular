@@ -459,7 +459,7 @@ class Interval:
     :type mods: Any | None
     :param validate: If True, check that each modification string parses.
     :type validate: bool
-    :raises ValueError: If ``start`` is negative or ``end`` is not greater than ``start``.
+    :raises PeptacularError: If ``start`` is negative or ``end`` is not greater than ``start``.
     """
 
     __slots__ = ("_start", "_end", "_ambiguous", "_mods", "_validate")

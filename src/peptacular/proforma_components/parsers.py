@@ -560,7 +560,7 @@ def _parse_glycan_curly_component(content: str) -> "ChargedFormula | float":
     :type content: str
     :return: A parsed mass (``float``) or charged formula.
     :rtype: ChargedFormula | float
-    :raises ValueError: If the content is empty or cannot be parsed.
+    :raises ProFormaFormatError: If the content is empty or cannot be parsed.
     """
     if not content:
         raise ProFormaFormatError("Empty '{}' glycan component")

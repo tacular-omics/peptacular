@@ -204,7 +204,7 @@ def hydrophobicity(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -258,7 +258,7 @@ def flexibility(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -312,7 +312,7 @@ def hydrophilicity(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -366,7 +366,7 @@ def surface_accessibility(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -420,7 +420,7 @@ def polarity(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -474,7 +474,7 @@ def mutability(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -528,7 +528,7 @@ def codons(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -582,7 +582,7 @@ def bulkiness(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -636,7 +636,7 @@ def recognition_factors(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -690,7 +690,7 @@ def transmembrane_tendency(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -744,7 +744,7 @@ def average_buried_area(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -798,7 +798,7 @@ def hplc(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -852,7 +852,7 @@ def refractivity(
     :param chunksize: Items per worker task for list input.
     :param method: Parallel backend for list input (``process``, ``thread``, ``sequential``); ``None`` chooses automatically.
     :return: A float, or a list of floats for list input.
-    :raises ValueError: A residue has no value in the scale.
+    :raises PeptacularError: A residue has no value in the scale.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
