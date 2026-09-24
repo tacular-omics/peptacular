@@ -404,6 +404,22 @@ def convert_single_mod_input(mod: Any) -> tuple[str, int]:
         return sys.intern(str(mod).strip()), 1
 
 
+def is_mod_collection(mod: Any) -> bool:
+    """True if *mod* holds several modifications (a list, set, or a tuple other than ``(mod, count)``)."""
+    if isinstance(mod, (list, set, frozenset)):
+        return True
+    if isinstance(mod, tuple):
+        return not (len(mod) == 2 and isinstance(mod[1], int) and not isinstance(mod[1], bool))
+    return False
+
+
+def as_mod_iterable(mods: Any) -> Any:
+    """Wrap a single modification (str, number or :class:`Mod`) in a list so it is not iterated character by character."""
+    if isinstance(mods, (str, int, float, Mod)):
+        return [mods]
+    return mods
+
+
 EMPTYP_INTERVAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERVAL, _mods=None)
 
 

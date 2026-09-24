@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - `pt.shift("PEPTIDE", "a")` raised `TypeError: not all arguments converted during string formatting`. A non-integer `n` now raises `TypeError: n must be an int`.
 - `fragment(ion_types=["q"])`, `frag(ion_type="q")` and `mass(..., ion_type="q")` leaked the enum's `'q' is not a valid IonType`. They raise `UnsupportedOperationError` listing the valid ion types.
 - `pt.digest(seq, "notanenzyme")` silently used an unknown protease name as a regex and returned the sequence uncut. A string that is neither a known protease nor contains regex metacharacters now emits a `UserWarning`; behaviour is otherwise unchanged.
+- `append_mods` wrote a list or tuple value as one bracketed string (`pt.append_mods("PEMTIDE", {1: ["Oxidation"]})` gave `PE[['Oxidation']]MTIDE`, invalid ProForma), and `extend_mods` iterated a bare string character by character (`{1: "Oxidation"}` gave `PE[O][x][i]...`). `append_mods` now adds each item of a list/tuple (a `(mod, count)` pair is still one mod with a count), and `extend_mods` treats a string, number or `Mod` as one modification. The same applies to the `ProFormaAnnotation.append_*`/`extend_*` methods.
 - Bare `ValueError`s on main public paths are now typed (all still `ValueError` subclasses): `mass("")` raises `CompositionError`; out-of-range slices and `frag(position=...)` raise `InvalidPositionError`; invalid `parse_fasta_text`/`iter_fasta` input raises `FastaFormatError`.
 
 ### Added

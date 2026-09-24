@@ -97,8 +97,10 @@ from .mod import (
     Interval,
     Mod,
     Mods,
+    as_mod_iterable,
     convert_moddict_input,
     convert_single_mod_input,
+    is_mod_collection,
 )
 from .mod_builder import modify
 from .parser import ProFormaParser
@@ -1473,6 +1475,11 @@ class ProFormaAnnotation:
         if not inplace:
             return self.copy()._append_mod_generic(mod, attr_name, validator, inplace=True, validate=validate)
 
+        if is_mod_collection(mod):
+            for item in mod:
+                self._append_mod_generic(item, attr_name, validator, inplace=True, validate=validate)
+            return self
+
         mod_str, count = convert_single_mod_input(mod)
 
         if validate:
@@ -1617,6 +1624,11 @@ class ProFormaAnnotation:
         if not inplace:
             return self.copy().append_internal_mod_at_index(index, mod, inplace=True, validate=validate)
 
+        if is_mod_collection(mod):
+            for item in mod:
+                self.append_internal_mod_at_index(index, item, inplace=True, validate=validate)
+            return self
+
         mod_str, count = convert_single_mod_input(mod)
 
         if validate:
@@ -1727,7 +1739,7 @@ class ProFormaAnnotation:
     ) -> Self:
         """Append modifications of multiple types from a mapping of mod-type to value.
 
-        :param mods: Mapping of :class:`ModType` (or literal/index) to modification value.
+        :param mods: Mapping of :class:`ModType` (or literal/index) to a modification value, or a list/tuple of values to append each of.
         :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
         :type inplace: bool
@@ -1767,7 +1779,7 @@ class ProFormaAnnotation:
         if not inplace:
             return self.copy()._extend_generic(mods, append_method, inplace=True, validate=validate)
         if mods is not None:
-            for mod in mods:
+            for mod in as_mod_iterable(mods):
                 append_method(mod, inplace=True, validate=validate)  # type: ignore
         return self
 
@@ -1855,7 +1867,7 @@ class ProFormaAnnotation:
             if self.start_aa != start_aa:
                 return self
         if mods is not None:
-            for mod in mods:
+            for mod in as_mod_iterable(mods):
                 self.append_nterm_mod(mod, inplace=True, validate=validate, start_aa=start_aa)
         return self
 
@@ -1887,7 +1899,7 @@ class ProFormaAnnotation:
             if self.end_aa != end_aa:
                 return self
         if mods is not None:
-            for mod in mods:
+            for mod in as_mod_iterable(mods):
                 self.append_cterm_mod(mod, inplace=True, validate=validate, end_aa=end_aa)
         return self
 
@@ -1910,7 +1922,7 @@ class ProFormaAnnotation:
         if not inplace:
             return self.copy().extend_internal_mods_at_index(index, mods, inplace=True, validate=validate)
         if mods is not None:
-            for mod in mods:
+            for mod in as_mod_iterable(mods):
                 self.append_internal_mod_at_index(index, mod, inplace=True, validate=validate)
         return self
 
@@ -1973,7 +1985,7 @@ class ProFormaAnnotation:
     ) -> Self:
         """Extend modifications of multiple types by iterating through each mapped iterable.
 
-        :param mods: Mapping of :class:`ModType` (or literal/index) to iterable of modification values.
+        :param mods: Mapping of :class:`ModType` (or literal/index) to iterable of modification values. A bare string is one modification.
         :type mods: Mapping[ModType | ModTypeLiteral | int, Any]
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
         :type inplace: bool
