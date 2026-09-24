@@ -2,6 +2,7 @@ import sys
 from collections.abc import Generator
 from typing import NoReturn
 
+from ..diagnostics import ProFormaFormatError
 from .mod import VALID_AMINO_ACIDS, Interval
 
 _VALID_AA_SET = frozenset(VALID_AMINO_ACIDS)
@@ -374,12 +375,12 @@ class ProFormaParser:
         return f"{snippet}\n{pointer}"
 
     def _raise_parse_error(self, message: str, position: int | None = None) -> NoReturn:
-        """Raise a ValueError with position context"""
+        """Raise a ProFormaFormatError (a ValueError) with position context"""
         if position is None:
             position = self.cursor
 
         context = self._get_context_snippet(position)
-        raise ValueError(f"{message}\nPosition {position}:\n{context}")
+        raise ProFormaFormatError(f"{message}\nPosition {position}:\n{context}")
 
     def _parse_sequence_body(self, target: "ProFormaParser"):
         """Iterate over amino acids, intervals, and internal mods - optimized version"""

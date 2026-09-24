@@ -503,7 +503,7 @@ pk_nterminal: Final[dict[str, float]] = {
 }
 pk_cterminal: Final[dict[str, float]] = {
       _AA.A: 2.34, _AA.R: 2.17, _AA.N: 2.02, _AA.D: 2.09, _AA.C: 1.71,
-      _AA.Q: 2.19, _AA.E: 2.17, _AA.G: 2.34, _AA.H: 1.82, _AA.I: 2.36,
+      _AA.Q: 2.17, _AA.E: 2.19, _AA.G: 2.34, _AA.H: 1.82, _AA.I: 2.36,
       _AA.L: 2.36, _AA.K: 2.18, _AA.M: 2.28, _AA.F: 1.83, _AA.P: 1.99,
       _AA.S: 2.21, _AA.T: 2.09, _AA.W: 2.43, _AA.Y: 2.20, _AA.V: 2.32
 }

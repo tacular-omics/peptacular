@@ -26,7 +26,13 @@ from tacular import (
 )
 
 from ..constants import PROTON_MASS, ModType, ModTypeLiteral, Terminal
-from ..diagnostics import CompositionError, UnsupportedOperationError
+from ..diagnostics import (
+    CompositionError,
+    InvalidAdjustmentError,
+    ProFormaFormatError,
+    UnknownModificationError,
+    UnsupportedOperationError,
+)
 from ..digestion.core import (
     EnzymeConfig,
     digest_annotation_by_aa,
@@ -111,6 +117,8 @@ from .slicing import (
 )
 from .utils import (
     H_ELEMENT_INFO,
+    SATELLITE_TRIM_END,
+    SATELLITE_TRIM_START,
     Fragment,
     _adjust_mass_value,
     _ion_mass,
@@ -121,6 +129,10 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Errors that already say what went wrong; any other ValueError from the parser is a
+# notation error and is re-raised as ProFormaFormatError.
+_TYPED_ERRORS = (ProFormaFormatError, UnsupportedOperationError, UnknownModificationError, CompositionError, InvalidAdjustmentError)
 
 fe = FormulaElement(element=Element.H, occurance=1)
 H_CHARGE_FORMULA = ChargedFormula(formula=(fe,), charge=1)
@@ -2478,13 +2490,28 @@ class ProFormaAnnotation:
 
     @classmethod
     def parse_chimeric(cls, sequence: str, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
-        """Parse a ProForma string into multiple ProFormaAnnotation objects"""
+        """Parse a ProForma string into multiple ProFormaAnnotation objects.
+
+        :raises ProFormaFormatError: The string is not valid ProForma.
+        :raises UnsupportedOperationError: Cross-linked (``//``) peptidoforms.
+        """
+        try:
+            yield from cls._parse_chimeric(sequence, validate)
+        except _TYPED_ERRORS:
+            raise
+        except ValueError as e:
+            raise ProFormaFormatError(str(e)) from e
+
+    @classmethod
+    def _parse_chimeric(cls, sequence: str, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
         if validate is None:
             validate = False
         # Initialize the Generator
         parser_gen = ProFormaParser(sequence).parse()
 
-        for prof_parser, _ in parser_gen:
+        for prof_parser, connection in parser_gen:
+            if connection is True:
+                raise UnsupportedOperationError(f"Cross-linked peptidoforms joined by '//' are not supported (use '+' for chimeric ions): {sequence}")
             # Split Global Mods into Static (Fixed) vs Isotope (Global)
             # The parser groups all <...> tags together; we separate them by the '@' symbol.
             static_mods: dict[str, int] | None = None  # e.g., <[Oxidation]@C>
@@ -2530,7 +2557,21 @@ class ProFormaAnnotation:
 
     @classmethod
     def parse(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
-        """Parse a ProForma string into a ProFormaAnnotation object"""
+        """Parse a ProForma string into a ProFormaAnnotation object.
+
+        :raises ProFormaFormatError: The string is not valid ProForma.
+        :raises UnsupportedOperationError: Valid ProForma that one annotation cannot hold
+            (chimeric ``+`` or cross-linked ``//`` peptidoforms).
+        """
+        try:
+            return cls._parse_single(sequence, validate)
+        except _TYPED_ERRORS:
+            raise
+        except ValueError as e:
+            raise ProFormaFormatError(str(e)) from e
+
+    @classmethod
+    def _parse_single(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
         if validate is None:
             validate = False
         # Initialize the Generator
@@ -2544,7 +2585,7 @@ class ProFormaAnnotation:
 
         # Validate that this is a single peptide (not chimeric/crosslinked)
         if connection is not None:
-            raise ValueError(f"Chimeric and crosslinked peptides not supported in single annotation: {sequence}")
+            raise UnsupportedOperationError(f"Chimeric and crosslinked peptides not supported in single annotation: {sequence}")
 
         # Ensure there are no subsequent segments waiting in the generator
         try:
@@ -3038,6 +3079,35 @@ class ProFormaAnnotation:
         parent_sequence_length: int,
         position: int | tuple[int, int] | None,
     ) -> Fragment:
+        # Satellite ions: the residue whose side chain is cleaved is not in the residue sum;
+        # the ion offset carries its remnant (mzPAF 1.0.1). Its modifications leave with it.
+        annot = self
+        if ion_type in SATELLITE_TRIM_END:
+            annot = self.slice(0, len(self) - 1, inplace=False)
+        elif ion_type in SATELLITE_TRIM_START:
+            annot = self.slice(1, len(self), inplace=False)
+        return annot._frag_impl(
+            ion_type=ion_type,
+            monoisotopic=monoisotopic,
+            isotope=isotope,
+            delta=delta,
+            calculate_composition=calculate_composition,
+            parent_sequence=parent_sequence,
+            parent_sequence_length=parent_sequence_length,
+            position=position,
+        )
+
+    def _frag_impl(
+        self,
+        ion_type: IonType,
+        monoisotopic: bool,
+        isotope: IsotopeInfo,
+        delta: DeltaInfo,
+        calculate_composition: bool,
+        parent_sequence: str,
+        parent_sequence_length: int,
+        position: int | tuple[int, int] | None,
+    ) -> Fragment:
         # Dont include labile mods for fragment ions
         skip_labile = True
         if ion_type == IonType.NEUTRAL or ion_type == IonType.PRECURSOR:
@@ -3065,6 +3135,7 @@ class ProFormaAnnotation:
                 parent_sequence=parent_sequence,
                 parent_sequence_length=parent_sequence_length,
                 internal_charge=base_charge,
+                isotope_as_mass=not calculate_composition,
             )
             if not calculate_composition:
                 result.mass += delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
@@ -3102,7 +3173,6 @@ class ProFormaAnnotation:
     ) -> Fragment:
         """Calculate mass, preferring user charge over annotation charge."""
         ion_type = IonType(ion_type)
-        can_fragment_sequence(self.sequence, ion_type)
         delta_info = DeltaInfo.from_input(deltas)
 
         inplace = False
@@ -3146,6 +3216,9 @@ class ProFormaAnnotation:
             case _:
                 raise ValueError(f"Invalid position type: {type(position)}")
 
+        # Checked on the fragment itself: satellite ions depend on its terminal residue.
+        ion_type = can_fragment_sequence(frag_annot.sequence, ion_type)
+
         return frag_annot._frag(
             ion_type=ion_type,
             monoisotopic=monoisotopic,
@@ -3186,16 +3259,18 @@ class ProFormaAnnotation:
         max_deltas: int,
         min_length: int | None,
         max_length: int | None,
+        _expand: bool = True,
     ) -> Generator[Fragment, None, None]:
         if self.has_unknown_mods or self.has_intervals:
             raise ValueError(f"Fragmentation not supported for sequences with unknown modifications or intervals: {str(self)}")
 
-        # check for fragments wa/wb and da/db, then return both
-        match ion_type:
-            case IonType.W:
-                # yeild both wa and wb
+        # "d" and "w" cover the generic ion and the residue-specific a/b variants
+        # (d-valine, da-/db-threonine, ...); each variant only forms on its own residues.
+        if _expand and ion_type in (IonType.D, IonType.W):
+            family = (IonType.D, IonType.DA, IonType.DB) if ion_type == IonType.D else (IonType.W, IonType.WA, IonType.WB)
+            for member in family:
                 yield from self._fragment(
-                    IonType.WA,
+                    member,
                     monoisotopic,
                     isotopes=isotopes,
                     deltas=deltas,
@@ -3206,52 +3281,9 @@ class ProFormaAnnotation:
                     max_deltas=max_deltas,
                     min_length=min_length,
                     max_length=max_length,
+                    _expand=False,
                 )
-                yield from self._fragment(
-                    IonType.WB,
-                    monoisotopic,
-                    isotopes=isotopes,
-                    deltas=deltas,
-                    neutral_deltas=neutral_deltas,
-                    calculate_composition=calculate_composition,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    max_deltas=max_deltas,
-                    min_length=min_length,
-                    max_length=max_length,
-                )
-                return
-            case IonType.D:
-                # yeild both da and db
-                yield from self._fragment(
-                    IonType.DA,
-                    monoisotopic,
-                    isotopes=isotopes,
-                    deltas=deltas,
-                    neutral_deltas=neutral_deltas,
-                    calculate_composition=calculate_composition,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    max_deltas=max_deltas,
-                    min_length=min_length,
-                    max_length=max_length,
-                )
-                yield from self._fragment(
-                    IonType.DB,
-                    monoisotopic,
-                    isotopes=isotopes,
-                    deltas=deltas,
-                    neutral_deltas=neutral_deltas,
-                    calculate_composition=calculate_composition,
-                    parent_sequence=parent_sequence,
-                    parent_sequence_length=parent_sequence_length,
-                    max_deltas=max_deltas,
-                    min_length=min_length,
-                    max_length=max_length,
-                )
-                return
-            case _:
-                pass
+            return
 
         ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type]
 
@@ -3268,7 +3300,7 @@ class ProFormaAnnotation:
                 sub_annot = self.slice(0, i, inplace=False)
 
                 try:
-                    ion_type = can_fragment_sequence(sub_annot.sequence, ion_type)
+                    frag_type = can_fragment_sequence(sub_annot.sequence, ion_type)
                 except ValueError:
                     continue
 
@@ -3284,7 +3316,7 @@ class ProFormaAnnotation:
                         for ndelta in neutral_delta_combinations:
                             combined_delta = delta + ndelta
                             yield sub_annot._frag(
-                                ion_type=ion_type,
+                                ion_type=frag_type,
                                 monoisotopic=monoisotopic,
                                 isotope=isotope,
                                 delta=combined_delta,
@@ -3306,7 +3338,7 @@ class ProFormaAnnotation:
                 sub_annot = self[len(self) - i : len(self)]
 
                 try:
-                    ion_type = can_fragment_sequence(sub_annot.sequence, ion_type)
+                    frag_type = can_fragment_sequence(sub_annot.sequence, ion_type)
                 except ValueError:
                     continue
 
@@ -3323,7 +3355,7 @@ class ProFormaAnnotation:
                             combined_delta = delta + ndelta
 
                             yield sub_annot._frag(
-                                ion_type=ion_type,
+                                ion_type=frag_type,
                                 monoisotopic=monoisotopic,
                                 isotope=isotope,
                                 delta=combined_delta,

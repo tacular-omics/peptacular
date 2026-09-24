@@ -3,7 +3,11 @@
 from dataclasses import dataclass
 from typing import Literal
 
-__all__ = ["Diagnostic", "CompositionError", "InvalidAdjustmentError", "UnsupportedOperationError", "UnknownModificationError"]
+__all__ = ["Diagnostic", "ProFormaFormatError", "CompositionError", "InvalidAdjustmentError", "UnsupportedOperationError", "UnknownModificationError"]
+
+
+class ProFormaFormatError(ValueError):
+    """The input is not valid ProForma notation (raised by ``parse`` and ``parse_chimeric``)."""
 
 
 class UnknownModificationError(ValueError):
@@ -47,6 +51,8 @@ def diagnostic_from_exception(exc: Exception, stage: Literal["parse", "validate"
         code = "invalid_adjustment"
     elif isinstance(exc, UnsupportedOperationError):
         code = "unsupported_operation"
+    elif isinstance(exc, ProFormaFormatError):
+        code = "invalid_notation"
     elif stage == "parse":
         code = "invalid_notation"
     elif stage == "validate":

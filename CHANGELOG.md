@@ -12,6 +12,17 @@ All notable changes to this project will be documented in this file.
 - `sequential_digest` reported only the first enzyme's missed cleavages. The count is now the uncut sites of every enzyme inside the span.
 - `is_subsequence(..., order=False)` raised `KeyError` when the subsequence had a residue the sequence lacks; it returns `False`.
 - `ProFormaAnnotation.__hash__` depended on modification order while `==` did not, so equal annotations could hash differently. Comparing an annotation with a non-annotation now returns `False` instead of raising `NotImplementedError`.
+- Modification names ending in `(...)` lost that suffix: it was read as a localisation score. `K[U:Label:13C(6)]` raised `UnknownModificationError`, `N[HexNAc(2)]` weighed as one HexNAc, and `C[L-cystine (cross-link)#XL1]` did not resolve. Per ProForma 2.0 a score only follows a `#group` label, so `(n)` is now part of the name unless it follows one.
+- `isotopes=n` failed with `InvalidAdjustmentError` on ions with no light atoms left to swap (y1 of `K[Formula:[13C6]C-6]`) and was silently ignored under a global `<13C>` label. The offset is now added as a mass delta when no composition is requested; asking for more heavy atoms than the ion has still raises.
+- The C-terminal pKa values of Glu and Gln were swapped (E 2.17, Q 2.19). They now match the cited table (E 2.19, Q 2.17), which shifts `charge_at_ph` and `pi` slightly for peptides ending in E or Q.
+- `parse_chimeric` read cross-linked peptidoforms (`A//B`) as separate chimeric ions, so `serialize_chimeric` wrote them back as `A+B`, a different meaning. Cross-links are not supported, so it now raises `UnsupportedOperationError`.
+- Satellite ions (d, v, w and the residue-specific da/db/wa/wb variants) summed every residue of the fragment and then added the side-chain remnant, counting the cleaved residue twice. They now use the mzPAF 1.0.1 sum of the other residues (n-1 for d, c-1 for v and w) plus the remnant; the cleaved residue's modifications leave with its side chain. Requesting `d` or `w` now also yields the generic ion (it returned only da/db or wa/wb, so `fragment("SAMPLER", ion_types=["d"])` was empty), db now forms on the last residue like da and wb on the first like wa, a residue-specific match no longer stops later positions in `fragment()`, and `frag(position=...)` checks the fragment's own terminal residue. Masses also follow tacular's corrected d/v/w offsets (tacular 5ffebec).
+- `Fragment.to_mzpaf` wrote the Biemann z ion as mzPAF `z`, which mzPAF 1.0.1 defines as the z-dot radical, so the label parsed back 1.008 Da heavy; z-dot was written as `z.`, which is not mzPAF. z-dot is now `z`, and Biemann z, z+H and c-H are written as `z-H`, `z+H` and `c-H`, matching paftacular's `to_mzpaf`.
+- `C13_NEUTRON_MASS` was rounded to 1.003350; it is now the AME2020 13C-12C difference, 1.00335483507.
+- `parse` and `parse_chimeric` raised a bare `ValueError` for invalid ProForma, and `parse` raised `ValueError` for chimeric or cross-linked input. They now raise `ProFormaFormatError` (a `ValueError` subclass, so existing `except ValueError` still works) and `UnsupportedOperationError` respectively.
+
+### Added
+- `ProFormaFormatError`, raised for strings that are not valid ProForma.
 
 ## [4.1.0] (2026-09-23)
 

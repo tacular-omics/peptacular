@@ -124,8 +124,15 @@ def adjust_comp(
     inplace: bool = True,
     isotope_map: dict[ElementInfo, ElementInfo] | None = None,
     internal_charge: int = 0,
+    isotope_as_mass: bool = False,
 ) -> Fragment:
-    """Adjust base composition by charge carriers and ion type, returning a Fragment object."""
+    """Adjust base composition by charge carriers and ion type, returning a Fragment object.
+
+    With ``isotope_as_mass`` the isotope offset is added as a mass delta instead of
+    swapping atoms in the composition. An isotope peak (M+n) exists even when the ion
+    has no light atoms left to swap, e.g. a fully 13C-labelled residue or a ``<13C>``
+    global label, where the atom swap would go negative or be undone by the label.
+    """
 
     if not inplace:
         base_comp = base_comp.copy()
@@ -141,7 +148,7 @@ def adjust_comp(
 
     # User adjustments apply to the complete neutral ion composition, including
     # terminal atoms introduced by its ion offset.
-    if isotope.data:
+    if isotope.data and not isotope_as_mass:
         isotope.adjust_composition(base_comp)
     if delta.deltas:
         delta.adjust_composition(base_comp)
@@ -161,12 +168,23 @@ def adjust_comp(
     if any(count < 0 for count in base_comp.values()):
         raise InvalidAdjustmentError(f"Negative element counts after adjustments: {base_comp}")
 
+    if isotope_as_mass:
+        # An ion cannot carry more heavy atoms of an element than it has atoms of it.
+        for iso_elem, count in isotope.data:
+            available = sum(n for elem, n in base_comp.items() if elem.symbol == iso_elem.symbol)
+            if count > available:
+                raise InvalidAdjustmentError(
+                    f"Isotopic adjustment resulted in negative element counts: needs {count} {iso_elem}, ion has {available} {iso_elem.symbol}"
+                )
+
     total_charge = charge.get_charge() + internal_charge
 
     # Calculate mass from final composition
     base_mass = 0.0
     for elem, count in base_comp.items():
         base_mass += elem.get_mass(monoisotopic=monoisotopic) * count
+    if isotope_as_mass and isotope.data:
+        base_mass += isotope.get_mass_delta(monoisotopic)
 
     # Correct for electron mass based on charge
     if total_charge != 0:
@@ -296,6 +314,8 @@ def cumsum(numbers: Sequence[float] | Sequence[Counter[Any]], reverse: bool = Fa
 
 
 # Define rules: ion_type -> (position, required_aas, excluded_aas, specific_ion_map)
+# Satellite ions form by side-chain cleavage of one residue: the last residue of a d
+# fragment and the first residue of a v/w fragment (mzPAF 1.0.1, section 4.4.3).
 FRAGMENT_RULES: Any = {
     IonType.D: ("end", None, {"G", "A", "P", "I", "T"}, {"V": IonType.D_VALINE}),
     IonType.DA: (
@@ -305,7 +325,7 @@ FRAGMENT_RULES: Any = {
         {"I": IonType.DA_ISOLEUCINE, "T": IonType.DA_THREONINE},
     ),
     IonType.DB: (
-        "start",
+        "end",
         {"I", "T"},
         None,
         {"I": IonType.DB_ISOLEUCINE, "T": IonType.DB_THREONINE},
@@ -313,8 +333,8 @@ FRAGMENT_RULES: Any = {
     IonType.D_VALINE: ("end", {"V"}, None, None),
     IonType.DA_THREONINE: ("end", {"T"}, None, None),
     IonType.DA_ISOLEUCINE: ("end", {"I"}, None, None),
-    IonType.DB_THREONINE: ("start", {"T"}, None, None),
-    IonType.DB_ISOLEUCINE: ("start", {"I"}, None, None),
+    IonType.DB_THREONINE: ("end", {"T"}, None, None),
+    IonType.DB_ISOLEUCINE: ("end", {"I"}, None, None),
     IonType.W: ("start", None, {"G", "A", "P", "I", "T"}, {"V": IonType.W_VALINE}),
     IonType.WA: (
         "start",
@@ -323,7 +343,7 @@ FRAGMENT_RULES: Any = {
         {"I": IonType.WA_ISOLEUCINE, "T": IonType.WA_THREONINE},
     ),
     IonType.WB: (
-        "end",
+        "start",
         {"I", "T"},
         None,
         {"I": IonType.WB_ISOLEUCINE, "T": IonType.WB_THREONINE},
@@ -331,9 +351,15 @@ FRAGMENT_RULES: Any = {
     IonType.W_VALINE: ("start", {"V"}, None, None),
     IonType.WA_THREONINE: ("start", {"T"}, None, None),
     IonType.WA_ISOLEUCINE: ("start", {"I"}, None, None),
-    IonType.WB_THREONINE: ("end", {"T"}, None, None),
-    IonType.WB_ISOLEUCINE: ("end", {"I"}, None, None),
+    IonType.WB_THREONINE: ("start", {"T"}, None, None),
+    IonType.WB_ISOLEUCINE: ("start", {"I"}, None, None),
 }
+
+
+# Satellite ions whose residue sum excludes the residue whose side chain is cleaved:
+# d = sum(n-1 residues) + offset, v/w = sum(c-1 residues) + offset (mzPAF 1.0.1).
+SATELLITE_TRIM_END: frozenset[IonType] = frozenset(t for t, rule in FRAGMENT_RULES.items() if t.value.startswith("d") and rule[0] == "end")
+SATELLITE_TRIM_START: frozenset[IonType] = frozenset({IonType.V, *(t for t, rule in FRAGMENT_RULES.items() if t.value.startswith("w") and rule[0] == "start")})
 
 
 def can_fragment_sequence(sequence: str, ion_type: IonType | IonTypeLiteral) -> IonType:
