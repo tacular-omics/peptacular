@@ -17,6 +17,7 @@ from .constants import (
     ELECTRON_MASS,
     NEUTRON_MASS,
     PEPTIDE_AVERAGINE_NEUTRON_MASS,
+    PROTON_CARRIER_MASS,
     PROTON_MASS,
     ModType,
     ModTypeLiteral,
@@ -447,6 +448,7 @@ __all__ = [
     "PROTON_MASS",
     "ELECTRON_MASS",
     "NEUTRON_MASS",
+    "PROTON_CARRIER_MASS",
     "C13_NEUTRON_MASS",
     "PEPTIDE_AVERAGINE_NEUTRON_MASS",
 ]

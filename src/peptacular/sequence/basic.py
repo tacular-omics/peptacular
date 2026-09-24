@@ -150,13 +150,19 @@ def serialize_chimeric(
         return _serialize_chimeric_single(cast(Sequence[ProFormaAnnotation | str], sequence))
 
 
-def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation:
-    return ProFormaAnnotation.parse(s, validate=validate)
+def _parse_single(s: object, validate: bool = False) -> ProFormaAnnotation:
+    value = s if isinstance(s, str) else getattr(s, "sequence", None)
+    if not isinstance(value, str):
+        raise TypeError(
+            "parse() takes a ProForma str, an object with a str 'sequence' attribute (e.g. a FASTA entry), "
+            f"or a list of these; got {type(s).__name__}: {s!r:.80}"
+        )
+    return ProFormaAnnotation.parse(value, validate=validate)
 
 
 @overload
 def parse(
-    s: str,
+    s: str | HasSequence,
     *,
     validate: bool = False,
     n_workers: int | None = None,
@@ -168,7 +174,7 @@ def parse(
 
 @overload
 def parse(
-    s: Sequence[str],
+    s: Sequence[str | HasSequence],
     *,
     validate: bool = False,
     n_workers: int | None = None,
@@ -179,7 +185,7 @@ def parse(
 
 
 def parse(
-    s: str | Sequence[str],
+    s: str | HasSequence | Sequence[str | HasSequence],
     *,
     validate: bool = False,
     n_workers: int | None = None,
@@ -187,8 +193,19 @@ def parse(
     method: ParallelMethod | ParallelMethodLiteral | None = None,
     reuse_pool: bool = True,
 ) -> ProFormaAnnotation | list[ProFormaAnnotation]:
-    """Parse a ProForma string or list of strings into ProFormaAnnotation object(s)."""
-    if isinstance(s, Sequence) and not isinstance(s, str):
+    """Parse a ProForma string or list of strings into ProFormaAnnotation object(s).
+
+    An object with a str ``sequence`` attribute (a fastatacular or PEFF entry) is parsed from
+    that attribute. Anything else (bytes, None, a number) raises :class:`TypeError`.
+
+    >>> import peptacular as pt
+    >>> pt.parse("PEM[Oxidation]TIDE/2").charge
+    2
+
+    :raises TypeError: If the input is not a str, an object with a str ``sequence``, or a list of these.
+    :raises ProFormaFormatError: If the string is not valid ProForma.
+    """
+    if isinstance(s, Sequence) and not isinstance(s, (str, bytes, bytearray)):
         return parallel_apply_internal(
             _parse_single,
             s,

@@ -265,7 +265,7 @@ class TestAddMods(unittest.TestCase):
 
     def test_add_mod_by_type_intervals(self):
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        interval = pt.Interval(1, 3, False, [pt.Mod("Phospho", 1)])
+        interval = pt.Interval(1, 3, ambiguous=False, mods=[pt.Mod("Phospho", 1)])
         # set interval-style mods using a specific setter
         annotation.set_intervals(interval, inplace=True)
 

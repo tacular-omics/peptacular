@@ -99,6 +99,12 @@ Automatic execution uses a conservative 1,000-item threshold. Smaller batches ru
 sequentially. Explicit ``method="process"`` or ``method="thread"`` overrides this
 choice, as does setting ``n_workers``. Small ``batch_size`` values can therefore keep
 a large stream sequential. Benchmark your operation before selecting a backend.
+The same rule applies to the list form of every functional call (``pt.digest``,
+``pt.mass``, ``pt.fragment``, ...): a list of 1,000 or more items with neither
+``n_workers`` nor ``method`` fans out to a process pool with one worker per available
+CPU (``os.process_cpu_count()``), or a thread pool on free-threaded Python. On a
+shared machine, pass ``n_workers`` to cap it or ``method="sequential"`` to stay in
+the calling process.
 Pools are reused across batches and close on completion or failure. Closing waits
 for already running work. Process execution requires a guarded script entry point
 on spawn platforms. ``start_method="spawn"`` selects a local process context without

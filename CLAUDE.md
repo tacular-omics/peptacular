@@ -147,7 +147,7 @@ which builds a `Fragment`.
 - **Parallel**: `set_start_method`, `get_start_method`, `get_available_start_methods`,
   `ParallelMethod`.
 - **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS` (re-exported from
-  `tacular.constants`), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
+  `tacular.constants`), `PROTON_CARRIER_MASS` (H - e, the mass one charge adds), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
   `PEPTIDE_AVERAGINE_NEUTRON_MASS`, `AVERAGINE_RATIOS`, `PROFORMA_JSON_SCHEMA_ID`.
   Do not hard-code physical constants; import them from `tacular.constants`.
 - **Optional** `peptacular.interop` (not star-imported): `to/from_pyteomics`,
@@ -202,7 +202,8 @@ which builds a `Fragment`.
 - **`fast_fragment` returns a dict** `{(IonType, charge): [mz, ...]}`, not `Fragment`
   objects, the same ions as `fragment()` (full length included), equal to within 1e-9 Da.
 - **`Fragment` is immutable** (`__slots__`, assignment raises `FrozenInstanceError`). Build a
-  changed copy inside the package with the private `frag._replace(mass=...)`.
+  changed copy with `frag.replace(mass=...)` (constructor names). Fragments compare and
+  hash by value; the neutral losses/gains are `frag.deltas`.
 - **Two digest styles.** The functional `pt.digest(seq, enzyme=...)` (and every `pt.*digest`)
   returns `[(sequence, Span), ...]`. `ProFormaAnnotation` methods ending in `_spans`
   (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)

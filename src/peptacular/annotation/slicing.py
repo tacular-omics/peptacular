@@ -322,7 +322,7 @@ def shift_annotation(
                 new_end = (relative_end - middle_shift) % middle_len + keep_nterm
 
                 if new_start < new_end:
-                    new_intervals.append(Interval(new_start, new_end, interval.ambiguous, interval.mods))
+                    new_intervals.append(Interval(new_start, new_end, ambiguous=interval.ambiguous, mods=interval.mods))
                 else:
                     raise PeptacularError("Shifting intervals that wrap around the sequence end is not supported.")
             else:

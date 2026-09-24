@@ -298,6 +298,9 @@ Digestion
        unknown name raises ``UnknownEnzymeError``.
    * - ``EnzymeConfig(enzyme_regex=...)``
      - ``EnzymeConfig(enzyme=...)``. ``EnzymeConfig`` is now frozen.
+   * - ``EnzymeConfig("trypsin", 1, True)``, ``config.semi_enzymatic``
+     - ``EnzymeConfig("trypsin", missed_cleavages=1, semi=True)``, ``config.semi``
+       (the same name as ``digest(..., semi=)``). Options are keyword-only.
    * - ``annot.digest(...)``, ``annot.simple_digest(...)``,
        ``annot.sequential_digest(...)``
      - ``annot.digest_spans(...)``, ``annot.simple_digest_spans(...)``,
@@ -338,6 +341,41 @@ Behaviour changes
    * - ``hash(batch_result)``
      - ``BatchResult`` is compared by value and is not hashable when it holds an annotation, list or dict.
    * - ``fragment.mz = ...`` (mutating a ``Fragment``)
-     - ``Fragment`` is immutable and raises ``dataclasses.FrozenInstanceError``. Use ``fragment._replace(mz=...)``.
+     - ``Fragment`` is immutable and raises ``dataclasses.FrozenInstanceError``. Use ``fragment.replace(mass=...)`` (constructor names; ``mz`` is derived from ``mass``).
+   * - ``fragment.losses``, ``fragment.asdict()["losses"]``, MCP fragment ``losses``
+     - ``fragment.deltas``, ``asdict()["deltas"]``, MCP ``deltas``.
+   * - ``Fragment(ion_type, position, mass, mono, charge, adducts, ...)``
+     - Options after ``charge_state`` are keyword-only.
+   * - Fragments compared by identity
+     - Compared and hashed by value.
    * - ``fast_fragment`` m/z values
      - Move by -1.4e-8 Da per charge (charge carrier is now H - e, as in ``fragment()``). ``fragment()`` and ``mass()`` are unchanged.
+   * - ``ProFormaAnnotation("PEPTIDE", None, None, ...)``, ``Interval(1, 3, True, mods)``
+     - Every option after ``sequence`` (and after ``start``, ``end``) is keyword-only:
+       ``Interval(1, 3, ambiguous=True, mods=mods)``.
+   * - ``interval.set_mods(m, True)``, ``append_mod(m, True, False)``, ``extend_mods(m, True)``
+     - ``validate=`` and ``inplace=`` are keyword-only. ``append_mod`` returns the interval
+       (the copy when ``inplace=False``; 4.x returned None).
+   * - ``frag.to_mzpaf(False)``, ``frag.serialize("mzpaf")``
+     - ``frag.to_mzpaf(include_sequence=False)``, ``frag.serialize(format="mzpaf")``
+   * - ``annot.prop.calc_property(scale, "avg", ...)`` and ``property_windows`` /
+       ``property_partitions`` options
+     - Keyword-only after ``scale``: ``calc_property(scale, normalize=True)``
+   * - ``mod.get_mass(False)``, ``formula.get_mass(False)`` (any component)
+     - ``get_mass(monoisotopic=False)``, as in tacular 2.0. Also keyword-only:
+       ``ChargedFormula.from_string``/``serialize``/``from_composition`` and
+       ``FormulaElement.from_string`` options, ``ModificationTags.validate(all_tags=)``.
+   * - ``PeptidoformIon.get_mass()`` / ``get_composition()`` (always raised
+       ``NotImplementedError``)
+     - ``get_mass`` raises ``UnsupportedOperationError`` with a hint; ``get_composition``
+       is removed. Use ``pt.parse`` / ``pt.parse_chimeric`` and the annotation methods.
+   * - mzPAF neutral-loss labels ``-H3CON``, ``-H2CO2``, ``-H3N``
+     - Canonical names: ``-HCONH2``, ``-HCOOH``, ``-NH3``. Other formulas are written in
+       Hill order (``+NaS``, not ``+SNa``). Every other 4.2.0 label is unchanged.
+   * - ``fragment(..., neutral_deltas=["H3PO4"])`` on a peptide with an unmodified S/T/Y
+       raised ``InvalidAdjustmentError``
+     - The impossible loss is skipped for that ion; possible losses are still produced.
+       A delta passed explicitly in ``deltas=`` still raises.
+   * - ``pt.parse(b"PEPTIDE")``, ``pt.parse(None)`` (``TypeError: ... has no len()``)
+     - ``TypeError`` naming the accepted inputs. An object with a str ``sequence``
+       (a FASTA entry) is now accepted.

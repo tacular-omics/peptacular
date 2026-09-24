@@ -25,7 +25,7 @@ from tacular import (
     NeutralDeltaLiteral,
 )
 
-from ..constants import ELECTRON_MASS, ModType, ModTypeLiteral, Terminal
+from ..constants import ELECTRON_MASS, PROTON_CARRIER_MASS, ModType, ModTypeLiteral, Terminal
 from ..diagnostics import (
     CompositionError,
     InvalidAdjustmentError,
@@ -212,6 +212,36 @@ class ChargeType(StrEnum):
     NONE = "none"
 
 
+def _as_options(value: Any) -> Any:
+    """Wrap a single str/int option (an ion type, charge, isotope or loss name) in a tuple."""
+    if isinstance(value, str | int):
+        return (value,)
+    return value
+
+
+def _carrier_mass(monoisotopic: bool) -> float:
+    """Mass one default (protonated) charge adds: :data:`PROTON_CARRIER_MASS`, or average H minus an electron."""
+    if monoisotopic:
+        return PROTON_CARRIER_MASS
+    return H_ELEMENT_INFO.get_mass(monoisotopic=False) - ELECTRON_MASS
+
+
+def _unless_impossible_loss(ndelta: DeltaInfo, make: Callable[..., "Fragment"], **kwargs: Any) -> "Fragment | None":
+    """Build one ion, or None when a neutral loss in ``ndelta`` needs atoms the ion lacks.
+
+    ``neutral_deltas`` offers a loss wherever one of its residues occurs (H3PO4 on any S/T), so
+    a loss can ask for more of an element than the fragment has (no phosphorus on an
+    unmodified S). That ion cannot exist and is skipped. The error still propagates when no
+    neutral loss is involved: then the caller's own ``deltas`` are at fault.
+    """
+    try:
+        return make(**kwargs)
+    except InvalidAdjustmentError:
+        if ndelta._items:
+            return None
+        raise
+
+
 def get_loss_combinations(losses: dict[NeutralDeltaInfo, int], max_losses: int) -> list[DeltaInfo]:
     """Generate all combinations of losses up to max_losses."""
     if not losses:
@@ -281,6 +311,7 @@ class ProFormaAnnotation:
     def __init__(
         self,
         sequence: str | None = None,
+        *,
         compound_name: str | None = None,  # (>>>Name)
         ion_name: str | None = None,  # (>>Name)
         peptide_name: str | None = None,  # (>Name)
@@ -2711,28 +2742,28 @@ class ProFormaAnnotation:
 
         if self.has_unknown_mods:
             unknown_mods = self.unknown_mods
-            composition, delta_mass, charge = unknown_mods.get_composition_with_delta_mass_charge(monoisotopic)
+            composition, delta_mass, charge = unknown_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
             self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if not skip_labile and self.has_labile_mods:
             labile_mods = self.labile_mods
-            composition, delta_mass, charge = labile_mods.get_composition_with_delta_mass_charge(monoisotopic)
+            composition, delta_mass, charge = labile_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
             self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if self.has_nterm_mods:
             nterm_mods = self.nterm_mods
-            composition, delta_mass, charge = nterm_mods.get_composition_with_delta_mass_charge(monoisotopic)
+            composition, delta_mass, charge = nterm_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
             self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
 
         if self.has_cterm_mods:
             cterm_mods = self.cterm_mods
-            composition, delta_mass, charge = cterm_mods.get_composition_with_delta_mass_charge(monoisotopic)
+            composition, delta_mass, charge = cterm_mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
             self._merge_comp(total_composition, composition)
             total_delta_mass += delta_mass
             total_charge += charge
@@ -2746,7 +2777,7 @@ class ProFormaAnnotation:
                     except ValueError as e:
                         if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
                             # MassTag does not have composition, only delta mass
-                            total_delta_mass += mod.get_mass(monoisotopic)
+                            total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
                         else:
                             raise e
                     total_charge += mod.get_charge()
@@ -2754,7 +2785,7 @@ class ProFormaAnnotation:
         # Internal mods
         if self.has_internal_mods:
             for mods in self.internal_mods.values():
-                composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge(monoisotopic)
+                composition, delta_mass, charge = mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
                 self._merge_comp(total_composition, composition)
                 total_delta_mass += delta_mass
                 total_charge += charge
@@ -2762,7 +2793,7 @@ class ProFormaAnnotation:
         # Intervals
         if self.has_intervals:
             for interval in self.intervals:
-                composition, delta_mass, charge = interval.mods.get_composition_with_delta_mass_charge(monoisotopic)
+                composition, delta_mass, charge = interval.mods.get_composition_with_delta_mass_charge(monoisotopic=monoisotopic)
                 self._merge_comp(total_composition, composition)
                 total_delta_mass += delta_mass
                 total_charge += charge
@@ -2985,7 +3016,7 @@ class ProFormaAnnotation:
             total_charge = external_charge + internal_charge
             mass = _adjust_mass_value(
                 base_mass,
-                H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) * external_charge,
+                H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) * external_charge,  # the electrons come off below
                 total_charge,
                 ion_type,
                 monoisotopic,
@@ -3108,9 +3139,9 @@ class ProFormaAnnotation:
             )
             if not calculate_with_composition:
                 mass = result.mass + delta_mass + sum(key * count for key, count in delta.deltas.items() if isinstance(key, float))
-                result = result._replace(mass=mass, _composition=None, _losses=delta.to_fragment_mapping)
+                result = result._replace(mass=mass, _composition=None, _deltas=delta.to_fragment_mapping)
             else:
-                result = result._replace(_losses=delta.to_fragment_mapping)
+                result = result._replace(_deltas=delta.to_fragment_mapping)
             validate_mass(result.mass)
             return result
 
@@ -3295,7 +3326,7 @@ class ProFormaAnnotation:
                 total += m
                 cumulative.append(total)
             charge_carriers = self.charge_adducts
-            charge_mass = charge_carriers.get_mass(monoisotopic)
+            charge_mass = charge_carriers.get_mass(monoisotopic=monoisotopic)
             external_charge = charge_carriers.get_charge()
             if not all(m.value.is_protonated for m in charge_carriers.mods):
                 adducts = tuple(key for key, count in charge_carriers._mods.items() for _ in range(count)) if charge_carriers._mods else None
@@ -3303,7 +3334,7 @@ class ProFormaAnnotation:
         # Per-ion work that does not depend on the position is done once per series:
         # the (isotope, delta, loss) products are cached per loss-site count, and the
         # ion-type lookup per (possibly residue-specific) ion type.
-        combo_cache: dict[tuple[tuple[NeutralDeltaInfo, int], ...], list[tuple[IsotopeInfo, DeltaInfo, bool, float, float]]] = {}
+        combo_cache: dict[tuple[tuple[NeutralDeltaInfo, int], ...], list[tuple[IsotopeInfo, DeltaInfo, DeltaInfo, bool, float, float]]] = {}
         ion_cache: dict[IonType, tuple[IonType, bool, float]] = {}
         loss_dict: dict[NeutralDeltaInfo, int] = {}
         for i in range(1, n + 1):
@@ -3333,7 +3364,7 @@ class ProFormaAnnotation:
                             plain = not isotope.data and not any(isinstance(k, ChargedFormula) for k in combined_delta.deltas)
                             iso_mass = isotope.get_mass_delta(monoisotopic) if plain else 0.0
                             delta_mass = combined_delta.get_mass_delta(monoisotopic) if plain else 0.0
-                            products.append((isotope, combined_delta, plain, iso_mass, delta_mass))
+                            products.append((isotope, combined_delta, ndelta, plain, iso_mass, delta_mass))
                 combo_cache[loss_key] = products
 
             ion_entry = ion_cache.get(frag_type)
@@ -3345,7 +3376,7 @@ class ProFormaAnnotation:
             frag_ion_type, fast_type, ion_mass = ion_entry
             sub_annot: ProFormaAnnotation | None = None
 
-            for isotope, combined_delta, plain, iso_mass, delta_mass in products:
+            for isotope, combined_delta, ndelta, plain, iso_mass, delta_mass in products:
                 if fast_type and plain:
                     # Same arithmetic order as adjust_mass_mz / _adjust_mass_value.
                     mass = cumulative[i]
@@ -3372,7 +3403,9 @@ class ProFormaAnnotation:
                     continue
                 if sub_annot is None:
                     sub_annot = self.slice(0, i, inplace=False) if forward else self[n - i : n]
-                yield sub_annot._frag(
+                fragment = _unless_impossible_loss(
+                    ndelta,
+                    sub_annot._frag,
                     ion_type=frag_type,
                     monoisotopic=monoisotopic,
                     isotope=isotope,
@@ -3382,6 +3415,8 @@ class ProFormaAnnotation:
                     parent_sequence_length=parent_sequence_length,
                     position=i,
                 )
+                if fragment is not None:
+                    yield fragment
 
     def _fragment(
         self,
@@ -3462,7 +3497,9 @@ class ProFormaAnnotation:
                 for delta in deltas:
                     for ndelta in neutral_delta_combinations:
                         combined_delta = delta + ndelta
-                        yield self._frag(
+                        fragment = _unless_impossible_loss(
+                            ndelta,
+                            self._frag,
                             ion_type=ion_type,
                             monoisotopic=monoisotopic,
                             isotope=isotope,
@@ -3475,6 +3512,8 @@ class ProFormaAnnotation:
                             # try to validate an integer cleavage position for a non-series ion.
                             position=None,
                         )
+                        if fragment is not None:
+                            yield fragment
         elif ion_info.is_internal:
             if ion_info.ion_type == IonType.IMMONIUM:
                 # Immonium ions are single residue fragments
@@ -3492,7 +3531,9 @@ class ProFormaAnnotation:
                         for delta in deltas:
                             for ndelta in neutral_delta_combinations:
                                 combined_delta = delta + ndelta
-                                yield sub_annot._frag(
+                                fragment = _unless_impossible_loss(
+                                    ndelta,
+                                    sub_annot._frag,
                                     ion_type=ion_type,
                                     monoisotopic=monoisotopic,
                                     isotope=isotope,
@@ -3502,6 +3543,8 @@ class ProFormaAnnotation:
                                     parent_sequence_length=parent_sequence_length,
                                     position=i,  # Position is the residue index
                                 )
+                                if fragment is not None:
+                                    yield fragment
             else:
                 # gen all internal fragmetns from 1 to n-1
                 for start in range(2, len(self)):  # Start from position 1 to len-1
@@ -3524,7 +3567,9 @@ class ProFormaAnnotation:
                             for delta in deltas:
                                 for ndelta in neutral_delta_combinations:
                                     combined_delta = delta + ndelta
-                                    yield sub_annot._frag(
+                                    fragment = _unless_impossible_loss(
+                                        ndelta,
+                                        sub_annot._frag,
                                         ion_type=ion_type,
                                         monoisotopic=monoisotopic,
                                         isotope=isotope,
@@ -3537,6 +3582,8 @@ class ProFormaAnnotation:
                                             end,
                                         ),
                                     )
+                                    if fragment is not None:
+                                        yield fragment
 
     @staticmethod
     def _default_fragment_charges(charge_state: int) -> tuple[int, ...]:
@@ -3555,10 +3602,10 @@ class ProFormaAnnotation:
     def fragment(
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-        charges: Sequence[CHARGE_TYPE] | None = None,
+        charges: CHARGE_TYPE | Sequence[CHARGE_TYPE] | None = None,
         *,
         monoisotopic: bool = True,
-        isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
+        isotopes: ISOTOPE_TYPE | Sequence[ISOTOPE_TYPE | None] = (0,),
         deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
         neutral_deltas: Sequence[LOSS_TYPE | None] = (),
         calculate_with_composition: bool = False,
@@ -3566,10 +3613,17 @@ class ProFormaAnnotation:
         min_length: int | None = None,
         max_length: int | None = None,
     ) -> list[Fragment]:
-        """Generate fragment annotation for given ion type."""
+        """Generate fragment ions for each ion type and charge.
 
+        A single ion type, charge, isotope or neutral delta may be passed without a list
+        (``fragment("by", 2)`` is ``fragment(["by"], [2])``).
+        """
+        ion_types = _as_options(ion_types)
+        isotopes = _as_options(isotopes)
+        neutral_deltas = _as_options(neutral_deltas)
         if charges is None:
             charges = self._default_fragment_charges(self.charge_state)
+        charges = _as_options(charges)
 
         # charge_infos: list[ChargeCarrierInfo] = [ChargeCarrierInfo.from_input(charge) for charge in charges]
 
@@ -3613,7 +3667,7 @@ class ProFormaAnnotation:
         return fragments
 
     def fast_fragment(
-        self, ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y), charges: Sequence[int] | None = None, *, monoisotopic: bool = True
+        self, ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y), charges: int | Sequence[int] | None = None, *, monoisotopic: bool = True
     ) -> dict[tuple[IonType, int], list[float]]:
         """Compute fragment ion m/z values using a fast prefix/suffix-sum approach.
 
@@ -3636,8 +3690,10 @@ class ProFormaAnnotation:
         :raises PeptacularError: If the ion type is unsupported, a charge is invalid,
             or the annotation contains unknown mods or interval mods.
         """
+        ion_types = _as_options(ion_types)
         if charges is None:
             charges = self._default_fragment_charges(self.charge_state)
+        charges = _as_options(charges)
         for charge in charges:
             if isinstance(charge, bool) or not isinstance(charge, int) or charge == 0:
                 raise PeptacularError("fast_fragment charges must be nonzero integers")
@@ -3669,7 +3725,7 @@ class ProFormaAnnotation:
         result: dict[tuple[IonType, int], list[float]] = {}
 
         # A charge carrier is a hydrogen atom minus one electron, the same arithmetic fragment() uses.
-        proton_offset = H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) - ELECTRON_MASS
+        proton_offset = _carrier_mass(monoisotopic)
         for charge in charges:
             charge_offset = charge * proton_offset
             for ion_type_input in ion_types:

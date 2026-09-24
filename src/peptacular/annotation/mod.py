@@ -44,7 +44,7 @@ ModValue = IsotopeReplacement | FixedModification | GlobalChargeCarrier | Modifi
 class ModificationProtocol(Protocol):
     """Protocol defining the interface all modifications must implement."""
 
-    def get_mass(self, monoisotopic: bool = True) -> float: ...
+    def get_mass(self, *, monoisotopic: bool = True) -> float: ...
 
     def get_composition(self) -> Counter[ElementInfo]: ...
 
@@ -80,9 +80,9 @@ class Mod[T: ModificationProtocol]:
 
         return None
 
-    def get_mass(self, monoisotopic: bool = True) -> float:
+    def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get total mass for this modification occurrence."""
-        mass: int | float = self.value.get_mass(monoisotopic)
+        mass: int | float = self.value.get_mass(monoisotopic=monoisotopic)
         return mass * self.count
 
     def get_composition(self) -> Counter[ElementInfo]:
@@ -197,15 +197,15 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
 
         return tuple(Mod(value=self._parse_mod(mod_str), count=count) for mod_str, count in self._mods.items())
 
-    def get_mass(self, monoisotopic: bool = True) -> float:
+    def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get total mass for all modifications."""
-        return sum(mod.get_mass(monoisotopic) for mod in self.mods)
+        return sum(mod.get_mass(monoisotopic=monoisotopic) for mod in self.mods)
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get total composition for all modifications (negative-count safe)."""
         return merge_compositions(self.mods)
 
-    def get_composition_with_delta_mass_charge(self, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float, int]:
+    def get_composition_with_delta_mass_charge(self, *, monoisotopic: bool = True) -> tuple[Counter[ElementInfo], float, int]:
         """Get total composition and when not possible fall back to delta mass for MassTags."""
 
         total_composition = Counter[ElementInfo]()
@@ -242,14 +242,14 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         """Get total charge for all modifications."""
         return sum(mod.get_charge() for mod in self.mods)
 
-    def get_mass_charge(self, monoisotopic: bool = True) -> tuple[float, int]:
+    def get_mass_charge(self, *, monoisotopic: bool = True) -> tuple[float, int]:
         """Get total mass and charge for all modifications."""
         mods = self.mods
 
         if len(mods) == 1:
-            return mods[0].get_mass(monoisotopic), mods[0].get_charge()
+            return mods[0].get_mass(monoisotopic=monoisotopic), mods[0].get_charge()
 
-        total_mass = sum(mod.get_mass(monoisotopic) for mod in mods)
+        total_mass = sum(mod.get_mass(monoisotopic=monoisotopic) for mod in mods)
         total_charge = sum(mod.get_charge() for mod in mods)
         return total_mass, total_charge
 
@@ -476,6 +476,7 @@ class Interval:
         self,
         start: int,
         end: int,
+        *,
         ambiguous: bool = False,
         mods: Any | None = None,
         validate: bool = False,
@@ -515,6 +516,7 @@ class Interval:
     def set_mods(
         self,
         mods: Mapping[Any, int] | Mods[ModificationTags] | None,
+        *,
         validate: bool | None = None,
     ) -> None:
         if validate is None:
@@ -548,7 +550,21 @@ class Interval:
             validate=self._validate,
         )
 
-    def append_mod(self, mod: Any, validate: bool | None = None, inplace: bool = True) -> None:
+    def append_mod(self, mod: Any, *, validate: bool | None = None, inplace: bool = True) -> Self:
+        """Add one modification to the interval.
+
+        >>> import peptacular as pt
+        >>> interval = pt.Interval(1, 3)
+        >>> new = interval.append_mod("Oxidation", inplace=False)
+        >>> new.has_mods, interval.has_mods
+        (True, False)
+
+        :param mod: The modification (string, mass, or ``(mod, count)`` pair).
+        :param validate: Check that the modification parses. None uses the interval's setting.
+        :param inplace: If True, change this interval; if False, change and return a copy.
+        :return: This interval, or the changed copy when ``inplace=False``.
+        :rtype: Interval
+        """
         if not inplace:
             return self.copy().append_mod(mod, validate=validate, inplace=True)
 
@@ -564,8 +580,9 @@ class Interval:
             ModificationTags.from_string(mod_str)
 
         self._mods[mod_str] = self._mods.get(mod_str, 0) + count
+        return self
 
-    def extend_mods(self, mods: Any, validate: bool | None = None) -> None:
+    def extend_mods(self, mods: Any, *, validate: bool | None = None) -> None:
         if validate is None:
             validate = self._validate
 

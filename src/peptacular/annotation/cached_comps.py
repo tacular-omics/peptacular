@@ -119,7 +119,7 @@ class ChargeCarrierInfo:
     def charge(self) -> int:
         return sum(adduct.get_charge() for adduct in self.adducts)
 
-    def get_mass(self, monoisotopic: bool = False) -> float:
+    def get_mass(self, *, monoisotopic: bool = False) -> float:
         if monoisotopic:
             return self.monoisotopic_mass
         return self.average_mass

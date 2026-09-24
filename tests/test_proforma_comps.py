@@ -11,6 +11,7 @@ from collections import Counter
 import pytest
 from tacular import AA_LOOKUP, ELEMENT_LOOKUP, AminoAcid, Element, Monosaccharide
 
+import peptacular as pt
 from peptacular.constants import CV, Terminal
 from peptacular.proforma_components.comps import (
     ChargedFormula,
@@ -1007,13 +1008,14 @@ class TestPeptidoformIon:
         pf = Peptidoform(sequence=(SequenceElement(amino_acid=AminoAcid.P), SequenceElement(amino_acid=AminoAcid.E)))
         return PeptidoformIon(peptidoforms=(pf,))
 
-    def test_get_mass_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
+    def test_get_mass_is_unsupported_with_a_hint(self) -> None:
+        with pytest.raises(pt.UnsupportedOperationError, match="parse"):
             self._make().get_mass()
+        with pytest.raises(TypeError):
+            self._make().get_mass(True)  # type: ignore[misc]
 
-    def test_get_composition_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            self._make().get_composition()
+    def test_no_dead_get_composition(self) -> None:
+        assert not hasattr(self._make(), "get_composition")
 
     def test_from_string_not_implemented(self) -> None:
         with pytest.raises(NotImplementedError):
@@ -1031,13 +1033,14 @@ class TestCompoundPeptidoformIon:
         pfi = PeptidoformIon(peptidoforms=(pf,))
         return CompoundPeptidoformIon(peptidoform_ions=(pfi,))
 
-    def test_get_mass_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
+    def test_get_mass_is_unsupported_with_a_hint(self) -> None:
+        with pytest.raises(pt.UnsupportedOperationError, match="parse"):
             self._make().get_mass()
+        with pytest.raises(TypeError):
+            self._make().get_mass(True)  # type: ignore[misc]
 
-    def test_get_composition_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError):
-            self._make().get_composition()
+    def test_no_dead_get_composition(self) -> None:
+        assert not hasattr(self._make(), "get_composition")
 
     def test_from_string_not_implemented(self) -> None:
         with pytest.raises(NotImplementedError):

@@ -74,13 +74,13 @@ class TestFragmentClass(unittest.TestCase):
     def test_losses(self):
         # Loss of water
         f = Fragment(ion_type=IonType.Y, position=1, mass=150.0, monoisotopic=True, charge_state=1, deltas={"H2O": 1})
-        losses = f.losses
+        losses = f.deltas
         self.assertEqual(len(losses), 1)
         # Key should be ChargedFormula for H2O
 
         # Loss by mass
         f2 = Fragment(ion_type=IonType.Y, position=1, mass=150.0, monoisotopic=True, charge_state=1, deltas={18.01: 1})
-        losses2 = f2.losses
+        losses2 = f2.deltas
         self.assertEqual(losses2[18.01], 1)
 
     def test_position(self):

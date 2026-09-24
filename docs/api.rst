@@ -175,6 +175,13 @@ These are available from the top-level ``peptacular`` namespace, except the
 
    Proton mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
+.. py:data:: peptacular.constants.PROTON_CARRIER_MASS
+   :type: float
+   :value: 1.007276452320935
+
+   ``HYDROGEN_MASS - ELECTRON_MASS``: the monoisotopic mass one default (protonated) charge
+   adds. See :doc:`mass_calculation` for why this, not ``PROTON_MASS``.
+
 .. py:data:: peptacular.constants.ELECTRON_MASS
    :type: float
    :value: 0.000548579909065

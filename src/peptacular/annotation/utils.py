@@ -96,7 +96,7 @@ def adjust_mass_mz(
     ion_info: FragmentIonInfo = FRAGMENT_ION_LOOKUP[ion_type] if not isinstance(ion_type, FragmentIonInfo) else ion_type
     base_mass = _adjust_mass_value(
         base_mass,
-        charge.get_mass(monoisotopic),
+        charge.get_mass(monoisotopic=monoisotopic),
         total_charge,
         ion_info.ion_type,
         monoisotopic,

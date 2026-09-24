@@ -35,14 +35,14 @@ def test_fast_fragment_matches_frag_with_static_mods(sequence, ion, charge):
 def test_immonium_neutral_loss_sites_use_the_residue():
     # Only T can lose water; P immonium ions must not raise or get a water loss.
     frags = pt.parse("PPPPTPP").fragment(ion_types=["i"], charges=[1], neutral_deltas=["H2O"])
-    lossy = [f for f in frags if f.losses]
+    lossy = [f for f in frags if f.deltas]
     assert {f.position for f in lossy} == {5}
 
 
 def test_internal_neutral_loss_sites_use_the_subsequence():
     frags = pt.parse("APPPPPPT").fragment(ion_types=["by"], charges=[1], neutral_deltas=["H2O"])
     assert frags
-    assert not [f for f in frags if f.losses]
+    assert not [f for f in frags if f.deltas]
 
 
 @pytest.mark.parametrize(
@@ -62,7 +62,7 @@ def test_generate_regex_restrictions_at_sequence_ends(sequence, kwargs, expected
 
 
 def _config(regex, mc):
-    return pt.EnzymeConfig(enzyme=re.compile(regex), missed_cleavages=mc, semi_enzymatic=False, complete_digestion=True)
+    return pt.EnzymeConfig(enzyme=re.compile(regex), missed_cleavages=mc, semi=False, complete_digestion=True)
 
 
 def test_sequential_digest_counts_second_enzyme_missed_cleavages():

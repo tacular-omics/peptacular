@@ -48,7 +48,7 @@ class FragmentRow(AnalysisRow):
     end: int | None = None
     label: str | None = None
     isotopes: dict[str, int] | None = None
-    losses: list[dict[str, Any]] | None = None
+    deltas: list[dict[str, Any]] | None = None
     monoisotopic: bool | None = None
 
 

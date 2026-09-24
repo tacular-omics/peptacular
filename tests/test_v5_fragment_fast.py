@@ -35,7 +35,7 @@ def _fields(frag: Fragment) -> tuple:
         frag._charge_adducts,
         frag.external_charge,
         frag._isotopes,
-        frag._losses,
+        frag._deltas,
         frag.parent_sequence,
         frag.parent_sequence_length,
     )
@@ -114,20 +114,51 @@ class TestFragmentFrozen:
         assert frag.mass != 10.0
         assert other.position == frag.position
 
-    def test_identity_equality_and_hash(self):
-        a = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
-        b = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
-        assert a == a
-        assert a != b
-        assert len({a, b}) == 2
+    def test_value_equality_and_hash(self):
+        a = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2, deltas={"H2O": -1})
+        b = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2, deltas={"H2O": -1})
+        assert a == b and hash(a) == hash(b)
+        assert len({a, b}) == 1
+        assert a != a.replace(mass=a.mass + 1)
+        assert a != pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
+        assert a != "b2"
+        # the composition cache is not part of the value
+        assert a == a.replace(composition=a.composition)
 
-    def test_composition_path_still_sets_losses(self):
+    def test_public_replace(self):
+        frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"H2O": -1})
+        other = frag.replace(mass=10.0, deltas={"H-3N-1": 1})
+        assert other.mass == 10.0 and frag.mass != 10.0
+        assert other._deltas == {"H-3N-1": 1} and other.to_mzpaf(include_sequence=False) == "b3-NH3"
+        with pytest.raises(TypeError, match="losses"):
+            frag.replace(losses={})
+        with pytest.raises(TypeError, match="_deltas"):
+            frag.replace(_deltas={})
+
+    def test_replace_charge_moves_external_charge(self):
+        frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3)
+        two = frag.replace(charge_state=2)
+        assert two.external_charge == 2 and two.charge_adducts.serialize() == frag.replace(charge_state=2, external_charge=None).charge_adducts.serialize()
+        assert frag.replace(charge_state=2, external_charge=1).external_charge == 1
+
+    def test_replace_drops_stale_composition(self):
+        frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, calculate_with_composition=True)
+        assert frag._composition is not None
+        assert frag.replace(mass=1.0)._composition is frag._composition
+        assert frag.replace(position=2)._composition is None
+        assert frag.replace(position=2).composition == pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2).composition
+
+    def test_constructor_options_are_keyword_only(self):
+        with pytest.raises(TypeError):
+            pt.Fragment(pt.IonType.B, 1, 100.0, True, 1, None)  # type: ignore[misc]
+
+    def test_composition_path_still_sets_deltas(self):
         # The composition branch of _frag_impl rebuilds the fragment instead of mutating it.
         mass_mode = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"H2O": -1})
-        assert mass_mode._losses
+        assert mass_mode._deltas
         assert mass_mode._composition is None
         comp_mode = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=3, deltas={"H2O": -1}, calculate_with_composition=True)
-        assert comp_mode._losses == mass_mode._losses
+        assert comp_mode._deltas == mass_mode._deltas
         assert comp_mode.mass == pytest.approx(mass_mode.mass, abs=1e-9)
 
 
@@ -144,7 +175,7 @@ class TestFragmentFastPath:
         _assert_same(*_series_both(sequence, IonType.Y, 1, monoisotopic=False))
 
     @pytest.mark.parametrize("sequence", PEPTIDES)
-    def test_isotopes_deltas_and_neutral_losses(self, sequence):
+    def test_isotopes_deltas_and_neutral_deltas(self, sequence):
         # Mixed: mass-only items take the fast path, formula deltas and isotope swaps slice.
         fast, slow = _series_both(
             sequence,

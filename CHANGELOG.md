@@ -37,12 +37,24 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 - `coverage`, `percent_coverage` and `modification_coverage` methods take `subsequences=` instead of `annotations=`.
 - `annot[int]` raises `UnsupportedOperationError` with a hint (`annot[i:i+1]` or `annot.stripped_sequence[i]`) instead of a bare `TypeError`.
 - Bare `KeyError`/`ValueError`/`TypeError` from user input at entry points are `PeptacularError` subclasses. `Mods` snapshots its mapping so its hash stays stable. `BatchResult` is compared by value and is not hashable when it holds an annotation, list or dict.
-- `Fragment` is immutable (`__slots__`; assignment raises `dataclasses.FrozenInstanceError`). Build a changed copy with `Fragment._replace(...)`. Pickle and copy still work.
+- `Fragment` is immutable (`__slots__`; assignment raises `dataclasses.FrozenInstanceError`). Build a changed copy with `fragment.replace(mass=...)`, which takes the constructor names and rejects unknown keys. Fragments compare and hash by value (the cached composition is not part of the value). Pickle and copy still work.
+- `Fragment.losses` is renamed `Fragment.deltas`, to match the constructor argument: the property, `asdict()`, the string form and the MCP fragment rows (`losses` -> `deltas`) all use `deltas`. `Fragment` options after `charge_state` are keyword-only.
 - `fast_fragment` uses H - e as the charge carrier, as `fragment()` does, so its m/z values move by -1.4e-8 Da per charge and now match `fragment()` to within 1e-9 Da. `fragment()` and `mass()` values are unchanged.
 - Faster: `fragment()` terminal series sum a per-residue mass vector instead of slicing the annotation per ion, and build the isotope/delta/loss products and ion-type lookups once per series instead of once per ion (49 -> 1,298 peptides/s for modified peptides, b/y at charges 1 and 2: indicative, direct run on one core); digest functions return substrings for plain sequences and skip parsing plain strings; `comp` counts residues once and scales each residue composition. Composition mode, formula deltas, isotope swaps and static/isotope/charged mods still take the slicing path; results are equal to within 1e-9 Da.
 - `multiprocessing` and `concurrent.futures` are imported lazily, which speeds up `import peptacular`.
 
+- mzPAF neutral-loss labels use the canonical mzPAF names for the known losses (`-NH3`, `-H2O`, `-H3PO4`, `-HPO3`, `-HCONH2`, `-HCOOH`, ...) and write any other formula in Hill order (`+NaS`, `+[13C2]H2`). 4.2.0 wrote `-H3CON` and `-H2CO2`, and tacular 2.0 would have given `-H3N`; every other label equals 4.2.0 on a 400-peptide x 10-loss differential (`tests/reference/mzpaf_neutral_losses_4_2_0.json`).
+- A `neutral_deltas=` loss that is impossible for an ion (H3PO4, HPO3 or SO3 from an unmodified S/T/Y) skips that ion instead of aborting the whole `fragment()` call with `InvalidAdjustmentError`. An explicit `deltas=` entry still raises.
+- More keyword-only options: every `ProFormaAnnotation` constructor option after `sequence`; `Interval(ambiguous=, mods=, validate=)`; `validate`/`inplace` on `Interval.set_mods`/`append_mod`/`extend_mods`; `Fragment.to_mzpaf(include_sequence=)` and `serialize(format=, include_sequence=)`; the options of `AnnotationProperties.calc_property`/`property_windows`/`property_partitions`; `get_mass(*, monoisotopic=)` on `Mod`, `Mods` and every ProForma component class (as in tacular 2.0), and the options of `ChargedFormula.from_string`/`serialize`/`from_composition`, `FormulaElement.from_string` and `ModificationTags.validate`. `tests/test_v5_signatures.py` now walks every public class.
+- `EnzymeConfig.semi_enzymatic` is renamed `semi` (the name `digest()` uses) and its options are keyword-only.
+- `Interval.append_mod` returns the interval, or the new copy when `inplace=False` (it returned None).
+- `pt.parse` raises a `TypeError` naming the accepted inputs for bytes, None or a number, and accepts an object with a str `sequence` (a FASTA entry).
+- `fragment()` and `fast_fragment()` accept a single ion type, charge, isotope or neutral delta without a list. A multi-letter ion type string such as `"by"` is one ion type; 4.x iterated it letter by letter.
+- `PeptidoformIon.get_mass` and `CompoundPeptidoformIon.get_mass` raise `UnsupportedOperationError` with a hint instead of a bare `NotImplementedError`; their dead `get_composition` methods are removed.
+
 ### Added
+- `PROTON_CARRIER_MASS` (`HYDROGEN_MASS - ELECTRON_MASS`), the monoisotopic mass one default charge adds; `fast_fragment` uses it. It is 1.4e-8 Da below CODATA `PROTON_MASS` so that charged masses agree with the ion's composition (see `docs/mass_calculation.rst`).
+- `Fragment.replace(**changes)`, `Fragment.__eq__` and `__hash__` (by value).
 - `PeptacularKeyError` (a `PeptacularError` and a `KeyError`) and its subclass `UnknownElementError`; `UnknownEnzymeError` now subclasses `PeptacularKeyError`.
 - `HasSequence`: a protocol for any object with a `.sequence` string. Sequence functions, `batch`, `iter_batch` and `diagnose` accept such objects (fastatacular and PEFF entries) directly, with no dependency on those packages.
 

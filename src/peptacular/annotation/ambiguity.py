@@ -93,7 +93,7 @@ def annotate_ambiguity(
     reverse_intervals = _construct_ambiguity_intervals(reverse_coverage, reverse=True)
     ambiguity_intervals = _combine_ambiguity_intervals(forward_intervals, reverse_intervals)
 
-    intervals = [Interval(start, end + 1, True, None, validate=annotation._validate) for start, end in ambiguity_intervals]
+    intervals = [Interval(start, end + 1, ambiguous=True, validate=annotation._validate) for start, end in ambiguity_intervals]
 
     annotation.extend_intervals(intervals)
 
@@ -355,8 +355,6 @@ def _apply_mass_shift(
         mod_interval = Interval(
             mass_shift_interval[0],
             mass_shift_interval[1] + 1,
-            False,
-            None,
             validate=annotation._validate,
         )
         mod_interval.append_mod(mass_shift)

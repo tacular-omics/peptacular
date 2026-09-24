@@ -6,6 +6,7 @@ positional, because they read naturally in second place (``pt.mz(seq, 2)``). Eve
 option, including all parallel options and every ``inplace``/``validate`` flag, is keyword-only.
 """
 
+import enum
 import inspect
 
 import pytest
@@ -113,3 +114,82 @@ def test_charge_is_the_natural_second_argument():
     assert pt.mass("PEPTIDE", 2) == pt.mass("PEPTIDE", charge=2)
     assert pt.parse("PEPTIDE").mz(2) == pt.mz("PEPTIDE", 2)
     assert pt.mass(["PEPTIDE"], n_workers=1) == [pt.mass("PEPTIDE")]
+
+
+# Public classes: every method (and the constructor) follows the same rule. The ProForma
+# component dataclasses (proforma_components) are a syntax tree whose constructor fields mirror
+# the ProForma grammar, so their constructors keep positional fields; their methods do not.
+CLASS_POSITIONAL_OPTIONS = {
+    "AnnotationProperties.charge_at_ph": {"pH"},
+    "AnnotationProperties.secondary_structure": {"scale"},
+    "BatchResult.__init__": {"value", "error"},
+    "ProFormaAnnotation.__init__": {"sequence"},
+}
+
+
+def _public_classes() -> list[type]:
+    from peptacular import proforma_components
+
+    names = [getattr(pt, n) for n in pt.__all__] + [getattr(proforma_components, n) for n in proforma_components.__all__]
+    seen: dict[str, type] = {}
+    for obj in names:
+        if inspect.isclass(obj) and obj.__module__.startswith("peptacular") and not issubclass(obj, (BaseException, enum.Enum)):
+            seen[obj.__qualname__] = obj
+    return [seen[name] for name in sorted(seen)]
+
+
+def _is_component(cls: type) -> bool:
+    return cls.__module__.startswith("peptacular.proforma_components")
+
+
+CLASS_METHODS = [
+    (cls, name)
+    for cls in _public_classes()
+    for name, obj in vars(cls).items()
+    if (not name.startswith("_") or name == "__init__") and inspect.isfunction(getattr(obj, "__func__", obj))
+]
+# ProFormaAnnotation methods are covered above; component constructors mirror the grammar.
+CHECKED_METHODS = [
+    (cls, name) for cls, name in CLASS_METHODS if not (name == "__init__" and _is_component(cls)) and not (cls is pt.ProFormaAnnotation and name != "__init__")
+]
+
+
+def test_class_walk_covers_the_public_classes():
+    walked = {cls.__qualname__ for cls, _ in CLASS_METHODS}
+    assert {"Fragment", "Interval", "Mod", "Mods", "EnzymeConfig", "AnnotationProperties", "ChargedFormula", "FormulaElement", "GlycanTag"} <= walked
+
+
+@pytest.mark.parametrize(("cls", "name"), CHECKED_METHODS, ids=[f"{c.__qualname__}.{n}" for c, n in CHECKED_METHODS])
+def test_public_class_options_are_keyword_only(cls, name):
+    obj = vars(cls)[name]
+    allowed = CLASS_POSITIONAL_OPTIONS.get(f"{cls.__qualname__}.{name}", set())
+    assert _positional_options(getattr(obj, "__func__", obj)) <= allowed
+
+
+def test_get_mass_monoisotopic_is_keyword_only_everywhere():
+    checked = 0
+    for cls, name in CLASS_METHODS:
+        if name.startswith("get_") and "monoisotopic" in inspect.signature(vars(cls)[name]).parameters:
+            assert inspect.signature(vars(cls)[name]).parameters["monoisotopic"].kind is inspect.Parameter.KEYWORD_ONLY, cls
+            checked += 1
+    assert checked >= 25
+    with pytest.raises(TypeError):
+        pt.Mod("Oxidation", 1).get_mass(True)  # ty: ignore[too-many-positional-arguments]
+
+
+def test_class_options_raise_type_error_when_positional():
+    with pytest.raises(TypeError):
+        pt.ProFormaAnnotation("PEPTIDE", "name")  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(TypeError):
+        pt.Interval(1, 3, True)  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(TypeError):
+        pt.Interval(1, 3).append_mod("Oxidation", True)  # ty: ignore[too-many-positional-arguments]
+    frag = pt.parse("PEPTIDE").frag(ion_type="b", charge=1, position=2)
+    with pytest.raises(TypeError):
+        frag.to_mzpaf(False)  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(TypeError):
+        frag.serialize("mzpaf")  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(TypeError):
+        pt.parse("PEPTIDE").prop.calc_property("kyte_doolittle", "error")  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(TypeError):
+        pt.EnzymeConfig("trypsin", 1)  # ty: ignore[too-many-positional-arguments]

@@ -172,7 +172,7 @@ def fragment_one(a, request):
                 "ion_mass_da": f.mass,
                 "neutral_mass_da": f.neutral_mass,
                 "monoisotopic": request.monoisotopic,
-                "losses": [{"value": str(k), "count": v} for k, v in f.losses.items()],
+                "deltas": [{"value": str(k), "count": v} for k, v in f.deltas.items()],
                 "isotopes": {str(k): v for k, v in f.isotopes.items()},
                 "diagnostics": [],
             }

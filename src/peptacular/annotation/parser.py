@@ -475,7 +475,7 @@ class ProFormaParser:
             is_ambiguous = True
             self.cursor += 1
 
-        target.intervals.append(Interval(start_pos, end_pos, is_ambiguous, interval_mods))
+        target.intervals.append(Interval(start_pos, end_pos, ambiguous=is_ambiguous, mods=interval_mods))
 
     def _parse_inline_mods(self, target: "ProFormaParser", aa_index: int):
         """Checks for [Mod] immediately following an AA"""

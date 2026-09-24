@@ -410,14 +410,14 @@ class TestDigest(unittest.TestCase):
         trypsin = pt.EnzymeConfig(
             enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
 
         asp_n = pt.EnzymeConfig(
             enzyme=re.compile("(?<=\\w)(?=D)"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
 
@@ -433,14 +433,14 @@ class TestDigest(unittest.TestCase):
         partial_trypsin = pt.EnzymeConfig(
             enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=False,
         )
 
         partial_asp_n = pt.EnzymeConfig(
             enzyme=re.compile("(?<=\\w)(?=D)"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=False,
         )
 
@@ -456,14 +456,14 @@ class TestDigest(unittest.TestCase):
         trypsin = pt.EnzymeConfig(
             enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
 
         asp_n = pt.EnzymeConfig(
             enzyme=re.compile("\\w(?=D)"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
 
@@ -668,13 +668,13 @@ class TestDigest(unittest.TestCase):
         trypsin = pt.EnzymeConfig(
             enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
         asp_n = pt.EnzymeConfig(
             enzyme=re.compile("(?<=[D])"),
             missed_cleavages=0,
-            semi_enzymatic=False,
+            semi=False,
             complete_digestion=True,
         )
 
@@ -690,13 +690,13 @@ class TestDigest(unittest.TestCase):
             pt.EnzymeConfig(
                 enzyme=re.compile("(?<=[KR])"),
                 missed_cleavages=0,
-                semi_enzymatic=False,
+                semi=False,
                 complete_digestion=False,
             ),
             pt.EnzymeConfig(
                 enzyme=re.compile("(?<=[D])"),
                 missed_cleavages=0,
-                semi_enzymatic=False,
+                semi=False,
                 complete_digestion=False,
             ),
         ]

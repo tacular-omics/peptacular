@@ -261,8 +261,10 @@ deltas. `charges=None` uses the peptide's own charge, or 1 if it has none.
 `Fragment` fields: `ion_type`, `position` (an int, or a `(start, end)` tuple for internal
 ions), `mass`, `monoisotopic`, `charge_state`, `charge_adducts`, `isotopes`, `deltas`,
 `composition`, `parent_sequence`. Properties: `mz`, `neutral_mass`, `sequence`,
-`losses`, `is_c13`, `is_protonated`. Methods: `to_mzpaf()` returns an mzPAF string that
-`paftacular` can parse, and `asdict()`.
+`deltas` (neutral losses/gains as `{ChargedFormula or mass: count}`), `is_c13`,
+`is_protonated`. Methods: `to_mzpaf(*, include_sequence=True)` returns an mzPAF string that
+`paftacular` can parse, `asdict()`, and `replace(**changes)` (constructor names) for a
+changed copy. Fragments are immutable and compare/hash by value.
 
 `fast_fragment` skips `Fragment` objects and returns m/z lists keyed by
 `(IonType, charge)`. It returns the same ions as `fragment` (b1..bn, y1..yn) and agrees with it to within 1e-9 Da.
@@ -299,7 +301,7 @@ cleavage_sites(sequence: SEQS, enzyme: str | re.Pattern, *PAR) -> list[int] | li
 simple_cleavage_sites(sequence: SEQS, cleave_on: str, restrict_before="", restrict_after="", cterminal=True, *PAR)
 span_to_sequence(sequence: SEQS, span: Span | tuple[int, int, int], *PAR) -> str | list[str]
 Span(start: int, end: int, missed_cleavages: int)                         # NamedTuple, end exclusive
-EnzymeConfig(enzyme: str | re.Pattern, missed_cleavages: int = 0, semi_enzymatic: bool = False, complete_digestion: bool = True)  # frozen
+EnzymeConfig(enzyme: str | re.Pattern, *, missed_cleavages: int = 0, semi: bool = False, complete_digestion: bool = True)  # frozen
 build_spans / build_enzymatic_spans(max_index, enzyme_sites, missed_cleavages, min_len=None, max_len=None, semi=False)
 build_semi_spans / build_left_semi_spans / build_right_semi_spans / build_non_enzymatic_spans(span, min_len=None, max_len=None)
 calculate_span_coverage(spans, max_index: int, accumulate: bool = False) -> list[int]
@@ -597,7 +599,7 @@ print(pt.from_proforma_json(s).serialize())          # PEM[Oxidation]TIDE/2
 ## ProForma component classes
 
 These are frozen dataclasses from `peptacular.proforma_components`. Most have
-`from_string()`, `serialize()`, `get_mass()`, `get_composition()`, and
+`from_string()`, `serialize()`, `get_mass(*, monoisotopic=True)`, `get_composition()`, and
 `to_dict()`/`from_dict()`.
 
 - Modification tags: `ModificationTags(tags)` and the tag types `TagName(name, cv=None)`,
@@ -677,6 +679,8 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
 ## Constants
 
 - `PROTON_MASS` = 1.007276466621 (CODATA 2018, from `tacular.constants`)
+- `PROTON_CARRIER_MASS` = `HYDROGEN_MASS - ELECTRON_MASS` = 1.007276452, the mass one default
+  charge adds in `mass()`, `mz()`, `fragment()` and `fast_fragment()` (1.4e-8 Da below `PROTON_MASS`)
 - `ELECTRON_MASS` = 0.000548579909065 (CODATA 2018, from `tacular.constants`)
 - `NEUTRON_MASS` = 1.00866491595 (CODATA 2018, from `tacular.constants`)
 - `C13_NEUTRON_MASS` = 1.00335483507 (`tacular.constants.C13_C12_MASS_DIFF`)

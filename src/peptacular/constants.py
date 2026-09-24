@@ -1,12 +1,13 @@
 from enum import StrEnum
 from typing import Final, Literal
 
-from tacular.constants import C13_C12_MASS_DIFF, ELECTRON_MASS, NEUTRON_MASS, PROTON_MASS
+from tacular.constants import C13_C12_MASS_DIFF, ELECTRON_MASS, HYDROGEN_MASS, NEUTRON_MASS, PROTON_MASS
 
 from .diagnostics import PeptacularError
 
 __all__ = [
     "PROTON_MASS",
+    "PROTON_CARRIER_MASS",
     "ELECTRON_MASS",
     "NEUTRON_MASS",
     "C13_NEUTRON_MASS",
@@ -23,6 +24,12 @@ __all__ = [
 # Physical constants come from tacular.constants (CODATA 2018; 13C-12C from tacular's
 # isotope table) so every tacular-omics package uses the same values.
 C13_NEUTRON_MASS: Final[float] = C13_C12_MASS_DIFF  # 13C - 12C, the isotope-peak spacing
+
+# The monoisotopic mass one default (protonated) charge adds: a hydrogen atom minus an electron.
+# This is 1.4e-8 Da below CODATA PROTON_MASS (the H 1s binding energy). peptacular uses the
+# hydrogen-atom form so a charged mass agrees with the ion's elemental composition, which counts
+# one H atom per charge. Average masses use the average H mass minus an electron instead.
+PROTON_CARRIER_MASS: Final[float] = HYDROGEN_MASS - ELECTRON_MASS
 PEPTIDE_AVERAGINE_NEUTRON_MASS: Final[float] = 1.002856
 
 
