@@ -42,7 +42,6 @@ html_extra_path = [
 # Autodoc settings
 autodoc_default_options = {
     "members": True,
-    "inherited-members": False,
     "show-inheritance": True,
 }
 
@@ -66,3 +65,27 @@ try:
 except ImportError:
     np = None
 """
+
+
+def _hide_private_bases(app, name, obj, options, bases):
+    """Drop private base classes (``ProFormaAnnotation``'s ``_ModAccessMixin``) from "Bases:"."""
+    bases[:] = [base for base in bases if not base.__name__.startswith("_")] or [object]
+
+
+def _mixin_source(app, modname):
+    """Let viewcode link ``ProFormaAnnotation.<method>`` to methods defined on ``_ModAccessMixin``."""
+    if modname != "peptacular.annotation._mod_access":
+        return None
+    from sphinx.pycode import ModuleAnalyzer
+
+    analyzer = ModuleAnalyzer.for_module(modname)
+    analyzer.find_tags()
+    tags = dict(analyzer.tags)
+    prefix = "_ModAccessMixin."
+    tags.update({"ProFormaAnnotation." + name[len(prefix) :]: tag for name, tag in analyzer.tags.items() if name.startswith(prefix)})
+    return analyzer.code, tags
+
+
+def setup(app):
+    app.connect("autodoc-process-bases", _hide_private_bases)
+    app.connect("viewcode-find-source", _mixin_source)
