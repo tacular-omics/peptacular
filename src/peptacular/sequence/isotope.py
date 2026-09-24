@@ -43,13 +43,13 @@ def _isotopic_distribution_single(
 @overload
 def isotopic_distribution(
     sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -59,13 +59,13 @@ def isotopic_distribution(
 @overload
 def isotopic_distribution(
     sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -74,13 +74,13 @@ def isotopic_distribution(
 
 def isotopic_distribution(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     max_isotopes: int | None = None,
     min_abundance_threshold: float = 0.001,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,

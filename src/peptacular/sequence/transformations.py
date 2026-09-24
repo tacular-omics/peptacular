@@ -31,9 +31,9 @@ def _reverse_single(
 @overload
 def reverse(
     sequence: str | ProFormaAnnotation,
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -43,9 +43,9 @@ def reverse(
 @overload
 def reverse(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -54,9 +54,9 @@ def reverse(
 
 def reverse(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -106,10 +106,10 @@ def _shuffle_single(
 @overload
 def shuffle(
     sequence: str | ProFormaAnnotation,
+    *,
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -119,10 +119,10 @@ def shuffle(
 @overload
 def shuffle(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -131,10 +131,10 @@ def shuffle(
 
 def shuffle(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     seed: int | None = None,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -185,9 +185,9 @@ def _shift_single(
 def shift(
     sequence: str | ProFormaAnnotation,
     n: int,
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -198,9 +198,9 @@ def shift(
 def shift(
     sequence: Sequence[str | ProFormaAnnotation],
     n: int,
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -210,9 +210,9 @@ def shift(
 def shift(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     n: int,
+    *,
     keep_nterm: int = 0,
     keep_cterm: int = 0,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -377,9 +377,9 @@ def _sort_single(
 @overload
 def sort(
     sequence: str | ProFormaAnnotation,
+    *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -389,9 +389,9 @@ def sort(
 @overload
 def sort(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -400,9 +400,9 @@ def sort(
 
 def sort(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     key: Callable[[str], Any] | None = None,
     reverse: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,

@@ -38,6 +38,7 @@ class DigestProtocol(Protocol):
         self,
         start: int | None,
         stop: int | None,
+        *,
         inplace: bool = False,
     ) -> Self: ...
 

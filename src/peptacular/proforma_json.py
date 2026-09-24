@@ -301,7 +301,7 @@ def to_proforma_dict(value: Any) -> dict[str, Any]:
     }
 
 
-def from_proforma_dict(data: Mapping[str, Any], expected_type: type[Any] | None = None) -> Any:
+def from_proforma_dict(data: Mapping[str, Any], *, expected_type: type[Any] | None = None) -> Any:
     """Decode a versioned ProForma mapping, optionally enforcing its root type."""
     if not isinstance(data, Mapping):
         raise TypeError("ProForma JSON data must be a mapping")
@@ -328,7 +328,7 @@ def to_proforma_json(value: Any, *, indent: int | None = None) -> str:
     return json.dumps(to_proforma_dict(value), allow_nan=False, ensure_ascii=False, indent=indent, sort_keys=True)
 
 
-def from_proforma_json(data: str | bytes | bytearray, expected_type: type[Any] | None = None) -> Any:
+def from_proforma_json(data: str | bytes | bytearray, *, expected_type: type[Any] | None = None) -> Any:
     """Decode JSON text produced by :func:`to_proforma_json`."""
     parsed = json.loads(data, object_pairs_hook=_unique_object, parse_constant=_invalid_constant)
     if not isinstance(parsed, Mapping):

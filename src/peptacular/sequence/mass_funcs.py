@@ -48,13 +48,13 @@ def _mass_single(
 @overload
 def mass(
     sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -64,13 +64,13 @@ def mass(
 @overload
 def mass(
     sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -79,13 +79,13 @@ def mass(
 
 def mass(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -142,13 +142,13 @@ def _mz_single(
 @overload
 def mz(
     sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -158,13 +158,13 @@ def mz(
 @overload
 def mz(
     sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -173,13 +173,13 @@ def mz(
 
 def mz(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     monoisotopic: bool = True,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
     calculate_with_composition: bool = False,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -233,11 +233,11 @@ def _comp_single(
 @overload
 def comp(
     sequence: str | ProFormaAnnotation,
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -247,11 +247,11 @@ def comp(
 @overload
 def comp(
     sequence: Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -260,11 +260,11 @@ def comp(
 
 def comp(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    ion_type: ION_TYPE = IonType.PRECURSOR,
     charge: CHARGE_TYPE | None = None,
+    *,
+    ion_type: ION_TYPE = IonType.PRECURSOR,
     isotopes: ISOTOPE_TYPE | None = None,
     deltas: CUSTOM_LOSS_TYPE | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,

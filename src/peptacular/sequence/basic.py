@@ -32,8 +32,8 @@ def _parse_chimeric_single(s: str, validate: bool = False) -> list[ProFormaAnnot
 @overload
 def parse_chimeric(
     s: str,
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -44,8 +44,8 @@ def parse_chimeric(
 @overload
 def parse_chimeric(
     s: Sequence[str],
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -55,8 +55,8 @@ def parse_chimeric(
 
 def parse_chimeric(
     s: str | Sequence[str],
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -157,8 +157,8 @@ def _parse_single(s: str, validate: bool = False) -> ProFormaAnnotation:
 @overload
 def parse(
     s: str,
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -169,8 +169,8 @@ def parse(
 @overload
 def parse(
     s: Sequence[str],
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -180,8 +180,8 @@ def parse(
 
 def parse(
     s: str | Sequence[str],
-    validate: bool = False,
     *,
+    validate: bool = False,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -389,8 +389,8 @@ def _count_residues_single(sequence: str | ProFormaAnnotation, include_mods: boo
 @overload
 def count_residues(
     sequence: str | ProFormaAnnotation,
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -400,8 +400,8 @@ def count_residues(
 @overload
 def count_residues(
     sequence: Sequence[str | ProFormaAnnotation],
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -410,8 +410,8 @@ def count_residues(
 
 def count_residues(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -458,8 +458,8 @@ def _percent_residues_single(
 @overload
 def percent_residues(
     sequence: str | ProFormaAnnotation,
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -469,8 +469,8 @@ def percent_residues(
 @overload
 def percent_residues(
     sequence: Sequence[str | ProFormaAnnotation],
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -479,8 +479,8 @@ def percent_residues(
 
 def percent_residues(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    include_mods: bool = True,
     *,
+    include_mods: bool = True,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -521,6 +521,7 @@ def annotate_ambiguity(
     sequence: str | ProFormaAnnotation,
     forward_coverage: list[int],
     reverse_coverage: list[int],
+    *,
     mass_shift: Any | None = None,
     add_mods_to_intervals: bool = False,
     sort_mods: bool = True,
@@ -545,7 +546,7 @@ def annotate_ambiguity(
         '(?PE)PTI(?DE)'
 
         # With a phosphorylation mass shift (note the '+' sign)
-        >>> annotate_ambiguity('PEPTIDE', [1,1,1,0,0,0,0], [0,0,0,0,1,1,1], 79.966)
+        >>> annotate_ambiguity('PEPTIDE', [1,1,1,0,0,0,0], [0,0,0,0,1,1,1], mass_shift=79.966)
         'PEPT[+79.966]IDE'
 
         # Handling existing modifications
@@ -553,17 +554,17 @@ def annotate_ambiguity(
         'P[+10]EP(?TI)DE'
 
         # When mass shift can't be localized to a specific residue
-        >>> annotate_ambiguity('PEPTIDE', [0,1,1,0,0,0,0], [0,0,0,0,0,1,0], 120)
+        >>> annotate_ambiguity('PEPTIDE', [0,1,1,0,0,0,0], [0,0,0,0,0,1,0], mass_shift=120)
         '(?PE)P(?TI)[+120](?DE)'
 
         # When mass shift is completely unlocalized, it becomes a labile modification
-        >>> annotate_ambiguity('PEPTIDE', [0,1,1,1,1,0,0], [0,0,1,1,1,1,0], 120)
+        >>> annotate_ambiguity('PEPTIDE', [0,1,1,1,1,0,0], [0,0,1,1,1,1,0], mass_shift=120)
         '{+120}(?PE)PTI(?DE)'
 
         # Complex example with multiple intervals
         >>> for_ions = list(map(int, '00011101001000000000000000000000000000'))
         >>> rev_ions = list(map(int, '00000000000110000000101111111111010100'))
-        >>> annotate_ambiguity('SSGSIASSYVQWYQQRPGSAPTTVIYEDDERPSGVPDR', for_ions, rev_ions, 120)
+        >>> annotate_ambiguity('SSGSIASSYVQWYQQRPGSAPTTVIYEDDERPSGVPDR', for_ions, rev_ions, mass_shift=120)
         '(?SSGS)IA(?SS)(?YVQ)W[+120](?YQQRPGSA)(?PT)TVIYEDDER(?PS)(?GV)(?PDR)'
     """
     annot = get_annotation_input(sequence=sequence, copy=True).annotate_ambiguity(
@@ -669,6 +670,7 @@ def _generate_random_single(
 @overload
 def generate_random(
     count: None = None,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -682,7 +684,6 @@ def generate_random(
     include_intervals: bool = True,
     include_charge: bool = True,
     require_composition: bool = True,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -692,6 +693,7 @@ def generate_random(
 @overload
 def generate_random(
     count: int,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -705,7 +707,6 @@ def generate_random(
     include_intervals: bool = True,
     include_charge: bool = True,
     require_composition: bool = True,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -714,6 +715,7 @@ def generate_random(
 
 def generate_random(
     count: int | None = None,
+    *,
     min_length: int = 6,
     max_length: int = 20,
     mod_probability: float = 0.05,
@@ -727,7 +729,6 @@ def generate_random(
     include_intervals: bool = True,
     include_charge: bool = True,
     require_composition: bool = True,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,

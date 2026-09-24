@@ -994,7 +994,7 @@ class ProFormaAnnotation:
     Set Methods - Replace existing modifications
     """
 
-    def set_sequence(self, sequence: str | None, inplace: bool = True, validate: bool | None = None) -> Self:
+    def set_sequence(self, sequence: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Set the amino-acid sequence.
 
         :param sequence: New sequence, or ``None`` to clear.
@@ -1015,7 +1015,7 @@ class ProFormaAnnotation:
             self.validate_sequence()
         return self
 
-    def set_compound_name(self, name: str | None, inplace: bool = True, validate: bool | None = None) -> Self:
+    def set_compound_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Set the compound-level name.
 
         :param name: New name, or ``None`` to clear.
@@ -1029,7 +1029,7 @@ class ProFormaAnnotation:
         """
         return self._set_name_generic(name, "_compound_name", inplace, validate)
 
-    def set_ion_name(self, name: str | None, inplace: bool = True, validate: bool | None = None) -> Self:
+    def set_ion_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Set the ion-level name.
 
         :param name: New name, or ``None`` to clear.
@@ -1043,7 +1043,7 @@ class ProFormaAnnotation:
         """
         return self._set_name_generic(name, "_ion_name", inplace, validate)
 
-    def set_peptide_name(self, name: str | None, inplace: bool = True, validate: bool | None = None) -> Self:
+    def set_peptide_name(self, name: str | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Set the peptide-level name.
 
         :param name: New name, or ``None`` to clear.
@@ -1057,12 +1057,7 @@ class ProFormaAnnotation:
         """
         return self._set_name_generic(name, "_peptide_name", inplace, validate)
 
-    def set_isotope_mods(
-        self,
-        mods: dict[str, int] | Mods[IsotopeReplacement] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def set_isotope_mods(self, mods: dict[str, int] | Mods[IsotopeReplacement] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace all isotope modifications.
 
         :param mods: New isotope modifications, or ``None`` to clear.
@@ -1076,12 +1071,7 @@ class ProFormaAnnotation:
         """
         return self._set_mod_generic(mods, "_isotope_mods", "validate_isotope_mods", inplace, validate)
 
-    def set_static_mods(
-        self,
-        mods: dict[str, int] | Mods[FixedModification] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def set_static_mods(self, mods: dict[str, int] | Mods[FixedModification] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace all static (fixed) modifications.
 
         :param mods: New static modifications, or ``None`` to clear.
@@ -1095,12 +1085,7 @@ class ProFormaAnnotation:
         """
         return self._set_mod_generic(mods, "_static_mods", "validate_static_mods", inplace, validate)
 
-    def set_labile_mods(
-        self,
-        mods: dict[str, int] | Mods[ModificationTags] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def set_labile_mods(self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace all labile modifications.
 
         :param mods: New labile modifications, or ``None`` to clear.
@@ -1114,12 +1099,7 @@ class ProFormaAnnotation:
         """
         return self._set_mod_generic(mods, "_labile_mods", "validate_labile_mods", inplace, validate)
 
-    def set_unknown_mods(
-        self,
-        mods: dict[str, int] | Mods[ModificationTags] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def set_unknown_mods(self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace all unknown-localisation modifications.
 
         :param mods: New unknown modifications, or ``None`` to clear.
@@ -1134,11 +1114,7 @@ class ProFormaAnnotation:
         return self._set_mod_generic(mods, "_unknown_mods", "validate_unknown_mods", inplace, validate)
 
     def set_nterm_mods(
-        self,
-        mods: dict[str, int] | Mods[ModificationTags] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-        start_aa: str | None = None,
+        self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None
     ) -> Self:
         """Replace all N-terminal modifications.
 
@@ -1159,11 +1135,7 @@ class ProFormaAnnotation:
         return self._set_mod_generic(mods, "_nterm_mods", "validate_nterm_mods", inplace, validate)
 
     def set_cterm_mods(
-        self,
-        mods: dict[str, int] | Mods[ModificationTags] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-        end_aa: str | None = None,
+        self, mods: dict[str, int] | Mods[ModificationTags] | None, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None
     ) -> Self:
         """Replace all C-terminal modifications.
 
@@ -1184,10 +1156,7 @@ class ProFormaAnnotation:
         return self._set_mod_generic(mods, "_cterm_mods", "validate_cterm_mods", inplace, validate)
 
     def set_internal_mods(
-        self,
-        mods: dict[int, dict[str, int] | Mods[ModificationTags] | None] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
+        self, mods: dict[int, dict[str, int] | Mods[ModificationTags] | None] | None, *, inplace: bool = True, validate: bool | None = None
     ) -> Self:
         """Replace all internal (per-position) modifications.
 
@@ -1227,12 +1196,7 @@ class ProFormaAnnotation:
             self.validate_ambiguous_labels()
         return self
 
-    def set_intervals(
-        self,
-        intervals: list[Interval] | None,
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def set_intervals(self, intervals: list[Interval] | None, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace all ambiguous sequence intervals.
 
         :param intervals: New list of intervals, or ``None`` to clear.
@@ -1264,7 +1228,7 @@ class ProFormaAnnotation:
             self.validate_ambiguous_labels()
         return self
 
-    def set_internal_mods_at_index(self, index: int, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def set_internal_mods_at_index(self, index: int, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Replace internal modifications at a single 0-based sequence position.
 
         :param index: 0-based residue index.
@@ -1317,6 +1281,7 @@ class ProFormaAnnotation:
     def set_charge(
         self,
         charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None,
+        *,
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
@@ -1459,11 +1424,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def set_mods(
-        self,
-        mods: Mapping[ModType | ModTypeLiteral | int, Any] | None,
-        inplace: bool = True,
-    ) -> Self:
+    def set_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any] | None, *, inplace: bool = True) -> Self:
         """Set a modification by type, replacing any existing mods of that type"""
 
         if not inplace:
@@ -1525,7 +1486,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def append_isotope_mod(self, mod: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def append_isotope_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append an isotope modification.
 
         :param mod: Modification to append.
@@ -1539,7 +1500,7 @@ class ProFormaAnnotation:
         """
         return self._append_mod_generic(mod, "_isotope_mods", IsotopeReplacement.from_string, inplace, validate)
 
-    def append_static_mod(self, mod: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def append_static_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append a static (fixed) modification.
 
         :param mod: Modification to append.
@@ -1553,7 +1514,7 @@ class ProFormaAnnotation:
         """
         return self._append_mod_generic(mod, "_static_mods", FixedModification.from_string, inplace, validate)
 
-    def append_labile_mod(self, mod: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def append_labile_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append a labile modification.
 
         :param mod: Modification to append.
@@ -1567,7 +1528,7 @@ class ProFormaAnnotation:
         """
         return self._append_mod_generic(mod, "_labile_mods", ModificationTags.from_string, inplace, validate)
 
-    def append_unknown_mod(self, mod: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def append_unknown_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append an unknown-localisation modification.
 
         :param mod: Modification to append.
@@ -1581,13 +1542,7 @@ class ProFormaAnnotation:
         """
         return self._append_mod_generic(mod, "_unknown_mods", ModificationTags.from_string, inplace, validate)
 
-    def append_nterm_mod(
-        self,
-        mod: Any,
-        inplace: bool = True,
-        validate: bool | None = None,
-        start_aa: str | None = None,
-    ) -> Self:
+    def append_nterm_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None) -> Self:
         """Append an N-terminal modification.
 
         :param mod: Modification to append.
@@ -1606,13 +1561,7 @@ class ProFormaAnnotation:
                 return self if inplace else self.copy()
         return self._append_mod_generic(mod, "_nterm_mods", ModificationTags.from_string, inplace, validate)
 
-    def append_cterm_mod(
-        self,
-        mod: Any,
-        inplace: bool = True,
-        validate: bool | None = None,
-        end_aa: str | None = None,
-    ) -> Self:
+    def append_cterm_mod(self, mod: Any, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None) -> Self:
         """Append a C-terminal modification.
 
         :param mod: Modification to append.
@@ -1631,7 +1580,7 @@ class ProFormaAnnotation:
                 return self if inplace else self.copy()
         return self._append_mod_generic(mod, "_cterm_mods", ModificationTags.from_string, inplace, validate)
 
-    def append_internal_mod_at_index(self, index: int, mod: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def append_internal_mod_at_index(self, index: int, mod: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append an internal modification at a specific 0-based sequence position.
 
         :param index: 0-based residue index.
@@ -1675,12 +1624,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def append_interval(
-        self,
-        interval: Interval | tuple[int, int, bool, Any],
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def append_interval(self, interval: Interval | tuple[int, int, bool, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append an ambiguous sequence interval.
 
         :param interval: ``Interval`` object or a ``(start, end, ambiguous, mods)`` tuple.
@@ -1758,12 +1702,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def append_mods(
-        self,
-        mods: Mapping[ModType | ModTypeLiteral | int, Any],
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def append_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Append modifications of multiple types from a mapping of mod-type to value.
 
         :param mods: Mapping of :class:`ModType` (or literal/index) to a modification value, or a list/tuple of values to append each of.
@@ -1797,7 +1736,7 @@ class ProFormaAnnotation:
     def _extend_generic(
         self,
         mods: Any,
-        append_method: Callable[[Any, bool, bool | None], Self],
+        append_method: Callable[..., Self],
         inplace: bool = True,
         validate: bool | None = None,
     ) -> Self:
@@ -1810,7 +1749,7 @@ class ProFormaAnnotation:
                 append_method(mod, inplace=True, validate=validate)  # type: ignore
         return self
 
-    def extend_isotope_mods(self, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_isotope_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend isotope modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1824,7 +1763,7 @@ class ProFormaAnnotation:
         """
         return self._extend_generic(mods, self.append_isotope_mod, inplace, validate)
 
-    def extend_static_mods(self, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_static_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend static modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1838,7 +1777,7 @@ class ProFormaAnnotation:
         """
         return self._extend_generic(mods, self.append_static_mod, inplace, validate)
 
-    def extend_labile_mods(self, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_labile_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend labile modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1852,7 +1791,7 @@ class ProFormaAnnotation:
         """
         return self._extend_generic(mods, self.append_labile_mod, inplace, validate)
 
-    def extend_unknown_mods(self, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_unknown_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend unknown-localisation modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1866,13 +1805,7 @@ class ProFormaAnnotation:
         """
         return self._extend_generic(mods, self.append_unknown_mod, inplace, validate)
 
-    def extend_nterm_mods(
-        self,
-        mods: Any,
-        inplace: bool = True,
-        validate: bool | None = None,
-        start_aa: str | None = None,
-    ) -> Self:
+    def extend_nterm_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None, start_aa: str | None = None) -> Self:
         """Extend N-terminal modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1898,13 +1831,7 @@ class ProFormaAnnotation:
                 self.append_nterm_mod(mod, inplace=True, validate=validate, start_aa=start_aa)
         return self
 
-    def extend_cterm_mods(
-        self,
-        mods: Any,
-        inplace: bool = True,
-        validate: bool | None = None,
-        end_aa: str | None = None,
-    ) -> Self:
+    def extend_cterm_mods(self, mods: Any, *, inplace: bool = True, validate: bool | None = None, end_aa: str | None = None) -> Self:
         """Extend C-terminal modifications by appending each item in *mods*.
 
         :param mods: Iterable of modifications to append.
@@ -1930,7 +1857,7 @@ class ProFormaAnnotation:
                 self.append_cterm_mod(mod, inplace=True, validate=validate, end_aa=end_aa)
         return self
 
-    def extend_internal_mods_at_index(self, index: int, mods: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_internal_mods_at_index(self, index: int, mods: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend internal modifications at a single position by appending each item in *mods*.
 
         :param index: 0-based residue index.
@@ -1953,7 +1880,7 @@ class ProFormaAnnotation:
                 self.append_internal_mod_at_index(index, mod, inplace=True, validate=validate)
         return self
 
-    def extend_intervals(self, intervals: Any, inplace: bool = True, validate: bool | None = None) -> Self:
+    def extend_intervals(self, intervals: Any, *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend ambiguous sequence intervals by appending each item in *intervals*.
 
         :param intervals: Iterable of intervals to append.
@@ -2004,12 +1931,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def extend_mods(
-        self,
-        mods: Mapping[ModType | ModTypeLiteral | int, Any],
-        inplace: bool = True,
-        validate: bool | None = None,
-    ) -> Self:
+    def extend_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True, validate: bool | None = None) -> Self:
         """Extend modifications of multiple types by iterating through each mapped iterable.
 
         :param mods: Mapping of :class:`ModType` (or literal/index) to iterable of modification values. A bare string is one modification.
@@ -2041,7 +1963,7 @@ class ProFormaAnnotation:
     REMOVE Methods
     """
 
-    def remove_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], inplace: bool = True) -> Self:
+    def remove_mods(self, mods: Mapping[ModType | ModTypeLiteral | int, Any], *, inplace: bool = True) -> Self:
         """Remove modifications by decrementing their counts."""
         if not inplace:
             return self.copy().remove_mods(mods, inplace=True)
@@ -2109,35 +2031,35 @@ class ProFormaAnnotation:
 
         return self
 
-    def remove_isotope_mod(self, mod: Any, inplace: bool = True) -> Self:
+    def remove_isotope_mod(self, mod: Any, *, inplace: bool = True) -> Self:
         """Remove a specific isotope modification by decrementing its count."""
         return self._remove_mod_generic(mod, "_isotope_mods", inplace)
 
-    def remove_static_mod(self, mod: Any, inplace: bool = True) -> Self:
+    def remove_static_mod(self, mod: Any, *, inplace: bool = True) -> Self:
         """Remove a specific static modification by decrementing its count."""
         return self._remove_mod_generic(mod, "_static_mods", inplace)
 
-    def remove_labile_mod(self, mod: Any, inplace: bool = True) -> Self:
+    def remove_labile_mod(self, mod: Any, *, inplace: bool = True) -> Self:
         """Remove a specific labile modification by decrementing its count."""
         return self._remove_mod_generic(mod, "_labile_mods", inplace)
 
-    def remove_unknown_mod(self, mod: Any, inplace: bool = True) -> Self:
+    def remove_unknown_mod(self, mod: Any, *, inplace: bool = True) -> Self:
         """Remove a specific unknown modification by decrementing its count."""
         return self._remove_mod_generic(mod, "_unknown_mods", inplace)
 
-    def remove_nterm_mod(self, mod: Any, inplace: bool = True, start_aa: str | None = None) -> Self:
+    def remove_nterm_mod(self, mod: Any, *, inplace: bool = True, start_aa: str | None = None) -> Self:
         """Remove a specific N-terminal modification by decrementing its count."""
         if start_aa is not None and self.start_aa != start_aa:
             return self if inplace else self.copy()
         return self._remove_mod_generic(mod, "_nterm_mods", inplace)
 
-    def remove_cterm_mod(self, mod: Any, inplace: bool = True, end_aa: str | None = None) -> Self:
+    def remove_cterm_mod(self, mod: Any, *, inplace: bool = True, end_aa: str | None = None) -> Self:
         """Remove a specific C-terminal modification by decrementing its count."""
         if end_aa is not None and self.end_aa != end_aa:
             return self if inplace else self.copy()
         return self._remove_mod_generic(mod, "_cterm_mods", inplace)
 
-    def remove_internal_mod_at_index(self, index: int, mod: Any, inplace: bool = True) -> Self:
+    def remove_internal_mod_at_index(self, index: int, mod: Any, *, inplace: bool = True) -> Self:
         """Remove a specific internal modification at a position by decrementing its count."""
         if not inplace:
             return self.copy().remove_internal_mod_at_index(index, mod, inplace=True)
@@ -2167,7 +2089,7 @@ class ProFormaAnnotation:
 
         return self
 
-    def remove_interval(self, interval: Interval, inplace: bool = True) -> Self:
+    def remove_interval(self, interval: Interval, *, inplace: bool = True) -> Self:
         """Remove a specific interval from the intervals list."""
         if not inplace:
             return self.copy().remove_interval(interval, inplace=True)
@@ -2330,7 +2252,7 @@ class ProFormaAnnotation:
         elif isinstance(key, int):
             raise NotImplementedError("Single index access not supported for ProFormaAnnotation")
 
-    def sort_mods(self, inplace: bool = True) -> Self:
+    def sort_mods(self, *, inplace: bool = True) -> Self:
         """Sort all modification dictionaries and the intervals list deterministically.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -2518,7 +2440,7 @@ class ProFormaAnnotation:
         return {mod_enum: self._get_mods_by_type(mod_enum) for mod_enum in mod_enums if self._has_mods_by_type(mod_enum)}
 
     @classmethod
-    def parse_chimeric(cls, sequence: str, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
+    def parse_chimeric(cls, sequence: str, *, validate: bool | None = None) -> Generator["ProFormaAnnotation", None, None]:
         """Parse a ProForma string into multiple ProFormaAnnotation objects.
 
         :raises ProFormaFormatError: The string is not valid ProForma.
@@ -2585,7 +2507,7 @@ class ProFormaAnnotation:
             yield annot
 
     @classmethod
-    def parse(cls, sequence: str, validate: bool | None = None) -> "ProFormaAnnotation":
+    def parse(cls, sequence: str, *, validate: bool | None = None) -> "ProFormaAnnotation":
         """Parse a ProForma string into a ProFormaAnnotation object.
 
         :raises ProFormaFormatError: The string is not valid ProForma.
@@ -2676,7 +2598,7 @@ class ProFormaAnnotation:
 
         return annot
 
-    def serialize(self, exclude_charge: bool = False) -> str:
+    def serialize(self, *, exclude_charge: bool = False) -> str:
         """Serialise this annotation to a ProForma string.
 
         :param exclude_charge: If ``True``, omit the charge suffix from the output.
@@ -2831,9 +2753,9 @@ class ProFormaAnnotation:
 
     def comp(
         self,
-        ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
         *,
+        ion_type: ION_TYPE = IonType.PRECURSOR,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
     ) -> Counter[ElementInfo]:
@@ -3007,10 +2929,10 @@ class ProFormaAnnotation:
 
     def mass(
         self,
-        ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
-        monoisotopic: bool = True,
         *,
+        ion_type: ION_TYPE = IonType.PRECURSOR,
+        monoisotopic: bool = True,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
@@ -3065,9 +2987,9 @@ class ProFormaAnnotation:
 
     def neutral_mass(
         self,
+        *,
         ion_type: ION_TYPE = IonType.PRECURSOR,
         monoisotopic: bool = True,
-        *,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
@@ -3192,8 +3114,8 @@ class ProFormaAnnotation:
         self,
         ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
-        monoisotopic: bool = True,
         *,
+        monoisotopic: bool = True,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_composition: bool = False,
@@ -3261,10 +3183,10 @@ class ProFormaAnnotation:
 
     def mz(
         self,
-        ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
-        monoisotopic: bool = True,
         *,
+        ion_type: ION_TYPE = IonType.PRECURSOR,
+        monoisotopic: bool = True,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
@@ -3506,8 +3428,8 @@ class ProFormaAnnotation:
         self,
         ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
         charges: Sequence[CHARGE_TYPE] | None = None,
-        monoisotopic: bool = True,
         *,
+        monoisotopic: bool = True,
         isotopes: Sequence[ISOTOPE_TYPE | None] = (0,),
         deltas: Sequence[CUSTOM_LOSS_TYPE | None] = (None,),
         neutral_deltas: Sequence[LOSS_TYPE | None] = (),
@@ -3563,10 +3485,7 @@ class ProFormaAnnotation:
         return fragments
 
     def fast_fragment(
-        self,
-        ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y),
-        charges: Sequence[int] | None = None,
-        monoisotopic: bool = True,
+        self, ion_types: Sequence[ION_TYPE] = (IonType.B, IonType.Y), charges: Sequence[int] | None = None, *, monoisotopic: bool = True
     ) -> dict[tuple[IonType, int], list[float]]:
         """Compute fragment ion m/z values using a fast prefix/suffix-sum approach.
 
@@ -3662,7 +3581,7 @@ class ProFormaAnnotation:
     Pop Methods
     """
 
-    def pop_isotope_mods(self, inplace: bool = True) -> Mods[IsotopeReplacement]:
+    def pop_isotope_mods(self, *, inplace: bool = True) -> Mods[IsotopeReplacement]:
         """Pop and return isotope modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3680,7 +3599,7 @@ class ProFormaAnnotation:
         self._isotope_mods = None
         return value
 
-    def pop_static_mods(self, inplace: bool = True) -> Mods[FixedModification]:
+    def pop_static_mods(self, *, inplace: bool = True) -> Mods[FixedModification]:
         """Pop and return static modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3698,7 +3617,7 @@ class ProFormaAnnotation:
         self._static_mods = None
         return value
 
-    def pop_labile_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+    def pop_labile_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
         """Pop and return labile modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3716,7 +3635,7 @@ class ProFormaAnnotation:
         self._labile_mods = None
         return value
 
-    def pop_unknown_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+    def pop_unknown_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
         """Pop and return unknown-localisation modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3734,7 +3653,7 @@ class ProFormaAnnotation:
         self._unknown_mods = None
         return value
 
-    def pop_nterm_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+    def pop_nterm_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
         """Pop and return N-terminal modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3752,7 +3671,7 @@ class ProFormaAnnotation:
         self._nterm_mods = None
         return value
 
-    def pop_cterm_mods(self, inplace: bool = True) -> Mods[ModificationTags]:
+    def pop_cterm_mods(self, *, inplace: bool = True) -> Mods[ModificationTags]:
         """Pop and return C-terminal modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3770,7 +3689,7 @@ class ProFormaAnnotation:
         self._cterm_mods = None
         return value
 
-    def pop_internal_mods(self, inplace: bool = True) -> dict[int, Mods[ModificationTags]]:
+    def pop_internal_mods(self, *, inplace: bool = True) -> dict[int, Mods[ModificationTags]]:
         """Pop and return all internal modifications, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3788,7 +3707,7 @@ class ProFormaAnnotation:
         self._internal_mods = None
         return value
 
-    def pop_intervals(self, inplace: bool = True) -> list[Interval]:
+    def pop_intervals(self, *, inplace: bool = True) -> list[Interval]:
         """Pop and return all intervals, clearing them from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3806,7 +3725,7 @@ class ProFormaAnnotation:
         self._intervals = None
         return value
 
-    def pop_charge(self, inplace: bool = True) -> int | Mods[GlobalChargeCarrier] | None:
+    def pop_charge(self, *, inplace: bool = True) -> int | Mods[GlobalChargeCarrier] | None:
         """Pop and return the charge, clearing it from the annotation.
 
         :param inplace: Clear from this object when ``True``; operate on a copy when ``False``.
@@ -3824,7 +3743,7 @@ class ProFormaAnnotation:
         self._charge = None
         return value
 
-    def pop_internal_mod_at_index(self, index: int, inplace: bool = True) -> tuple[tuple[MODIFICATION_TYPE, int], ...]:
+    def pop_internal_mod_at_index(self, index: int, *, inplace: bool = True) -> tuple[tuple[MODIFICATION_TYPE, int], ...]:
         """Pop and return internal modifications at a single 0-based position.
 
         :param index: 0-based residue index.
@@ -3880,9 +3799,7 @@ class ProFormaAnnotation:
                 raise TypeError(f"Unknown mod type: {mod_type}")
 
     def pop_mods(
-        self,
-        mod_types: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None,
-        inplace: bool = True,
+        self, mod_types: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True
     ) -> dict[ModType, Any]:
         """Pop and return modifications of the specified types, clearing them from the annotation.
 
@@ -3905,10 +3822,7 @@ class ProFormaAnnotation:
         return d
 
     def filter_mods(
-        self,
-        mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None,
-        inplace: bool = True,
-        keep: bool = True,
+        self, mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True, keep: bool = True
     ) -> Self:
         """Filter modifications by type, either keeping or removing the specified types.
 
@@ -3950,7 +3864,7 @@ class ProFormaAnnotation:
         setattr(self, attr_name, None)
         return self
 
-    def clear_isotope_mods(self, inplace: bool = True) -> Self:
+    def clear_isotope_mods(self, *, inplace: bool = True) -> Self:
         """Clear all isotope modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -3960,7 +3874,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_isotope_mods", inplace)
 
-    def clear_static_mods(self, inplace: bool = True) -> Self:
+    def clear_static_mods(self, *, inplace: bool = True) -> Self:
         """Clear all static modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -3970,7 +3884,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_static_mods", inplace)
 
-    def clear_nterm_mods(self, inplace: bool = True) -> Self:
+    def clear_nterm_mods(self, *, inplace: bool = True) -> Self:
         """Clear all N-terminal modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -3980,7 +3894,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_nterm_mods", inplace)
 
-    def clear_cterm_mods(self, inplace: bool = True) -> Self:
+    def clear_cterm_mods(self, *, inplace: bool = True) -> Self:
         """Clear all C-terminal modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -3990,7 +3904,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_cterm_mods", inplace)
 
-    def clear_labile_mods(self, inplace: bool = True) -> Self:
+    def clear_labile_mods(self, *, inplace: bool = True) -> Self:
         """Clear all labile modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4000,7 +3914,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_labile_mods", inplace)
 
-    def clear_unknown_mods(self, inplace: bool = True) -> Self:
+    def clear_unknown_mods(self, *, inplace: bool = True) -> Self:
         """Clear all unknown-localisation modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4010,7 +3924,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_unknown_mods", inplace)
 
-    def clear_internal_mods(self, inplace: bool = True) -> Self:
+    def clear_internal_mods(self, *, inplace: bool = True) -> Self:
         """Clear all internal (per-position) modifications.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4020,7 +3934,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_internal_mods", inplace)
 
-    def clear_internal_mod_at_index(self, index: int, inplace: bool = True) -> Self:
+    def clear_internal_mod_at_index(self, index: int, *, inplace: bool = True) -> Self:
         """Clear internal modifications at a single 0-based sequence position.
 
         :param index: 0-based residue index.
@@ -4039,7 +3953,7 @@ class ProFormaAnnotation:
             self._internal_mods = None
         return self
 
-    def clear_intervals(self, inplace: bool = True) -> Self:
+    def clear_intervals(self, *, inplace: bool = True) -> Self:
         """Clear all ambiguous sequence intervals.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4049,7 +3963,7 @@ class ProFormaAnnotation:
         """
         return self._clear_mod_dict("_intervals", inplace)
 
-    def clear_charge(self, inplace: bool = True) -> Self:
+    def clear_charge(self, *, inplace: bool = True) -> Self:
         """Clear the charge value.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4082,11 +3996,7 @@ class ProFormaAnnotation:
             case _:
                 raise TypeError(f"Unknown mod type: {mod_type}")
 
-    def clear_mods(
-        self,
-        mods: (ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None) = None,
-        inplace: bool = True,
-    ) -> Self:
+    def clear_mods(self, mods: ModTypeLiteral | ModType | Iterable[ModTypeLiteral] | Iterable[ModType] | None = None, *, inplace: bool = True) -> Self:
         """Clear modifications of the specified types (all types when ``None``).
 
         :param mods: Types to clear; all types when ``None``.
@@ -4103,7 +4013,7 @@ class ProFormaAnnotation:
             self._clear_mod_by_type(mod_enum)
         return self
 
-    def strip_mods(self, inplace: bool = False) -> Self:
+    def strip_mods(self, *, inplace: bool = False) -> Self:
         """Remove all modifications of every type, leaving only the bare sequence.
 
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
@@ -4117,19 +4027,10 @@ class ProFormaAnnotation:
     Slicing Methods
     """
 
-    def slice_by_span(
-        self,
-        span: Span | tuple[int, int, int],
-        inplace: bool = False,
-    ) -> Self:
+    def slice_by_span(self, span: Span | tuple[int, int, int], *, inplace: bool = False) -> Self:
         return self.slice(span[0], span[1], inplace=inplace)
 
-    def slice(
-        self,
-        start: int | None,
-        stop: int | None,
-        inplace: bool = False,
-    ) -> Self:
+    def slice(self, start: int | None, stop: int | None, *, inplace: bool = False) -> Self:
         """Return a sub-annotation spanning ``sequence[start:stop]``, carrying over applicable mods.
 
         :param start: 0-based start index (inclusive); ``None`` means the beginning.
@@ -4163,13 +4064,7 @@ class ProFormaAnnotation:
     def join(annotations: Sequence["ProFormaAnnotation"]) -> "ProFormaAnnotation":
         return join_annotations(annotations)
 
-    def shift(
-        self,
-        n: int,
-        keep_nterm: int = 0,
-        keep_cterm: int = 0,
-        inplace: bool = False,
-    ) -> Self:
+    def shift(self, n: int, *, keep_nterm: int = 0, keep_cterm: int = 0, inplace: bool = False) -> Self:
         """Cyclically shift the sequence by *n* positions, optionally anchoring termini.
 
         :param n: Number of positions to shift (positive = rightward).
@@ -4185,13 +4080,7 @@ class ProFormaAnnotation:
         """
         return cast(Self, shift_annotation(self, n, keep_nterm, keep_cterm, inplace))
 
-    def shuffle(
-        self,
-        seed: Any = None,
-        keep_nterm: int = 0,
-        keep_cterm: int = 0,
-        inplace: bool = False,
-    ) -> Self:
+    def shuffle(self, *, seed: Any = None, keep_nterm: int = 0, keep_cterm: int = 0, inplace: bool = False) -> Self:
         """Randomly shuffle the sequence residues, optionally anchoring termini.
 
         :param seed: Random seed for reproducibility; ``None`` for a random shuffle.
@@ -4207,12 +4096,7 @@ class ProFormaAnnotation:
         """
         return cast(Self, shuffle_annotation(self, seed, keep_nterm, keep_cterm, inplace))
 
-    def reverse(
-        self,
-        keep_nterm: int = 0,
-        keep_cterm: int = 0,
-        inplace: bool = False,
-    ) -> Self:
+    def reverse(self, *, keep_nterm: int = 0, keep_cterm: int = 0, inplace: bool = False) -> Self:
         """Reverse the sequence residues, optionally anchoring termini.
 
         :param keep_nterm: Number of N-terminal residues to keep in place.
@@ -4226,12 +4110,7 @@ class ProFormaAnnotation:
         """
         return cast(Self, reverse_annotation(self, keep_nterm, keep_cterm, inplace))
 
-    def sort(
-        self,
-        inplace: bool = False,
-        key: Callable[[str], Any] | None = None,
-        reverse: bool = False,
-    ) -> Self:
+    def sort(self, *, inplace: bool = False, key: Callable[[str], Any] | None = None, reverse: bool = False) -> Self:
         """Sort the sequence residues, optionally with a custom key.
 
         :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
@@ -4245,11 +4124,7 @@ class ProFormaAnnotation:
         """
         return cast(Self, sort_annotation(self, inplace, key, reverse))
 
-    def sliding_windows(
-        self,
-        window_size: int,
-        reverse: bool = False,
-    ) -> Generator[Self, None, None]:
+    def sliding_windows(self, window_size: int, *, reverse: bool = False) -> Generator[Self, None, None]:
         """Yield overlapping sub-annotations of a fixed window size.
 
         :param window_size: Number of residues in each window.
@@ -4266,44 +4141,28 @@ class ProFormaAnnotation:
     Modification Methods
     """
 
-    def condense_static_mods(self, inplace: bool = True) -> Self:
+    def condense_static_mods(self, *, inplace: bool = True) -> Self:
         return cast(Self, condense_static_mods(self, inplace=inplace))
 
-    def condense_to_peptidoform(self, inplace: bool = True) -> Self:
+    def condense_to_peptidoform(self, *, inplace: bool = True) -> Self:
         return cast(Self, condense_to_peptidoform(self, inplace=inplace))
 
-    def count_residues(self, include_mods: bool = True) -> dict[str, int]:
+    def count_residues(self, *, include_mods: bool = True) -> dict[str, int]:
         return count_residues(self, include_mods=include_mods)
 
-    def percent_residues(self, include_mods: bool = True) -> dict[str, float]:
+    def percent_residues(self, *, include_mods: bool = True) -> dict[str, float]:
         return percent_residues(self, include_mods=include_mods)
 
-    def is_subsequence(
-        self,
-        other: Self,
-        ignore_mods: bool = False,
-        ignore_intervals: bool = True,
-    ) -> bool:
+    def is_subsequence(self, other: Self, *, ignore_mods: bool = False, ignore_intervals: bool = True) -> bool:
         return is_subsequence(self, other, ignore_mods=ignore_mods, ignore_intervals=ignore_intervals)
 
-    def find_indices(
-        self,
-        other: Self,
-        ignore_mods: bool = False,
-        ignore_intervals: bool = True,
-    ) -> list[int]:
+    def find_indices(self, other: Self, *, ignore_mods: bool = False, ignore_intervals: bool = True) -> list[int]:
         return find_indices(self, other, ignore_mods=ignore_mods, ignore_intervals=ignore_intervals)
 
-    def condense_mods_to_intervals(self, inplace: bool = True) -> Self:
+    def condense_mods_to_intervals(self, *, inplace: bool = True) -> Self:
         return cast(Self, condense_mods_to_intervals(self, inplace=inplace))
 
-    def coverage(
-        self,
-        annotations: Iterable[Self],
-        accumulate: bool = False,
-        ignore_mods: bool = False,
-        ignore_ambiguity: bool = False,
-    ) -> list[int]:
+    def coverage(self, annotations: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> list[int]:
         return coverage(
             annotation=self,
             annotations=annotations,
@@ -4312,13 +4171,7 @@ class ProFormaAnnotation:
             ignore_ambiguity=ignore_ambiguity,
         )
 
-    def percent_coverage(
-        self,
-        annotations: Iterable[Self],
-        accumulate: bool = False,
-        ignore_mods: bool = False,
-        ignore_ambiguity: bool = False,
-    ) -> float:
+    def percent_coverage(self, annotations: Iterable[Self], *, accumulate: bool = False, ignore_mods: bool = False, ignore_ambiguity: bool = False) -> float:
         return percent_coverage(
             annotation=self,
             annotations=annotations,
@@ -4327,12 +4180,7 @@ class ProFormaAnnotation:
             ignore_ambiguity=ignore_ambiguity,
         )
 
-    def modification_coverage(
-        self,
-        annotations: Iterable[Self],
-        ignore_ambiguity: bool = False,
-        accumulate: bool = False,
-    ) -> dict[int, int]:
+    def modification_coverage(self, annotations: Iterable[Self], *, ignore_ambiguity: bool = False, accumulate: bool = False) -> dict[int, int]:
         return modification_coverage(
             annotation=self,
             annotations=annotations,
@@ -4398,12 +4246,7 @@ class ProFormaAnnotation:
         ):
             yield cast(Self, annot)
 
-    def add_static_mod_by_residue(
-        self,
-        residue: str | Iterable[str],
-        mod: Any,
-        inplace: bool = True,
-    ) -> Self:
+    def add_static_mod_by_residue(self, residue: str | Iterable[str], mod: Any, *, inplace: bool = True) -> Self:
         if not inplace:
             return self.copy().add_static_mod_by_residue(residue, mod, inplace=True)
 
@@ -4453,6 +4296,7 @@ class ProFormaAnnotation:
         self,
         forward_coverage: list[int],
         reverse_coverage: list[int],
+        *,
         mass_shift: Any | None = None,
         add_mods_to_intervals: bool = False,
         sort_mods: bool = True,
@@ -4488,7 +4332,7 @@ class ProFormaAnnotation:
             ),
         )
 
-    def condense_ambiguity_to_xnotation(self, inplace: bool = True) -> Self:
+    def condense_ambiguity_to_xnotation(self, *, inplace: bool = True) -> Self:
         """Condense ambiguous interval regions to X-notation placeholders.
 
         :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
@@ -4499,7 +4343,7 @@ class ProFormaAnnotation:
         return cast(Self, condense_ambiguity_to_xnotation(self, inplace=inplace))
 
     @staticmethod
-    def group_by_ambiguity(annotations: Iterable["ProFormaAnnotation"], precision: int = 5) -> list[tuple["ProFormaAnnotation", ...]]:
+    def group_by_ambiguity(annotations: Iterable["ProFormaAnnotation"], *, precision: int = 5) -> list[tuple["ProFormaAnnotation", ...]]:
         """Group annotations that are ambiguous equivalents of each other.
 
         :param annotations: Annotations to group.
@@ -4512,7 +4356,7 @@ class ProFormaAnnotation:
         return group_by_ambiguity(annotations, precision=precision)
 
     @staticmethod
-    def unique_fragments(annotations: Iterable["ProFormaAnnotation"], precision: int = 4) -> list[int]:
+    def unique_fragments(annotations: Iterable["ProFormaAnnotation"], *, precision: int = 4) -> list[int]:
         """Return the indices of annotations that produce unique fragment masses.
 
         :param annotations: Annotations to compare.
@@ -4633,10 +4477,7 @@ class ProFormaAnnotation:
         sequence = "".join(new_sequence_comps)
         return ProFormaAnnotation.parse(sequence)
 
-    def to_ms2_pip(
-        self,
-        inplace: bool = False,
-    ) -> tuple[str, str]:
+    def to_ms2_pip(self, *, inplace: bool = False) -> tuple[str, str]:
         """Convert a single peptide sequence to MS2PIP format
 
         Returns:
@@ -4697,11 +4538,7 @@ class ProFormaAnnotation:
         return unmod_sequence, mod_str
 
     @staticmethod
-    def from_ms2_pip(
-        sequence: str,
-        mod_str: str,
-        static_mods: Mapping[str, float | int | str] | None = None,
-    ) -> "ProFormaAnnotation":
+    def from_ms2_pip(sequence: str, mod_str: str, *, static_mods: Mapping[str, float | int | str] | None = None) -> "ProFormaAnnotation":
         """Create ProFormaAnnotation from MS2PIP format"""
 
         # Create annotation with just the sequence
@@ -4749,12 +4586,13 @@ class ProFormaAnnotation:
 
     def isotopic_distribution(
         self,
-        ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
+        *,
+        ion_type: ION_TYPE = IonType.PRECURSOR,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         max_isotopes: int | None = None,
-        min_abundance_threshold: float = 0.001,  # based on the most abundant peak
+        min_abundance_threshold: float = 0.001,
     ) -> list[IsotopicData]:
         """Calculate the aggregated isotopic distribution from elemental composition.
 
@@ -4790,8 +4628,9 @@ class ProFormaAnnotation:
 
     def estimate_isotopic_distribution(
         self,
-        ion_type: ION_TYPE = IonType.PRECURSOR,
         charge: CHARGE_TYPE | None = None,
+        *,
+        ion_type: ION_TYPE = IonType.PRECURSOR,
         isotopes: ISOTOPE_TYPE | None = None,
         deltas: CUSTOM_LOSS_TYPE | None = None,
         max_isotopes: int | None = None,
@@ -4809,6 +4648,7 @@ class ProFormaAnnotation:
 
     @staticmethod
     def random(
+        *,
         min_length: int = 6,
         max_length: int = 20,
         mod_probability: float = 0.05,
@@ -4840,37 +4680,21 @@ class ProFormaAnnotation:
             require_composition=require_composition,
         )
 
-    def left_semi_spans(
-        self,
-        min_len: int | None = None,
-        max_len: int | None = None,
-    ) -> Generator[Span, None, None]:
+    def left_semi_spans(self, *, min_len: int | None = None, max_len: int | None = None) -> Generator[Span, None, None]:
         """Get left semi-enzymatic sequences (N-terminus fixed)."""
-        return left_semi_spans(self, min_len, max_len)
+        return left_semi_spans(self, min_len=min_len, max_len=max_len)
 
-    def right_semi_spans(
-        self,
-        min_len: int | None = None,
-        max_len: int | None = None,
-    ) -> Generator[Span, None, None]:
+    def right_semi_spans(self, *, min_len: int | None = None, max_len: int | None = None) -> Generator[Span, None, None]:
         """Get right semi-enzymatic sequences (C-terminus fixed)."""
-        return right_semi_spans(self, min_len, max_len)
+        return right_semi_spans(self, min_len=min_len, max_len=max_len)
 
-    def semi_spans(
-        self,
-        min_len: int | None = None,
-        max_len: int | None = None,
-    ) -> Generator[Span, None, None]:
+    def semi_spans(self, *, min_len: int | None = None, max_len: int | None = None) -> Generator[Span, None, None]:
         """Get all semi-enzymatic sequences."""
-        return semi_spans(self, min_len, max_len)
+        return semi_spans(self, min_len=min_len, max_len=max_len)
 
-    def nonspecific_spans(
-        self,
-        min_len: int | None = None,
-        max_len: int | None = None,
-    ) -> Generator[Span, None, None]:
+    def nonspecific_spans(self, *, min_len: int | None = None, max_len: int | None = None) -> Generator[Span, None, None]:
         """Get all non-enzymatic sequences (all possible subsequences)."""
-        return nonspecific_spans(self, min_len, max_len)
+        return nonspecific_spans(self, min_len=min_len, max_len=max_len)
 
     def cleavage_sites(
         self,
@@ -4889,11 +4713,7 @@ class ProFormaAnnotation:
         return get_cleavage_sites(self, enzyme)
 
     def simple_cleavage_sites(
-        self,
-        cleave_on: str,
-        restrict_before: str = "",
-        restrict_after: str = "",
-        cterminal: bool = True,
+        self, cleave_on: str, *, restrict_before: str = "", restrict_after: str = "", cterminal: bool = True
     ) -> Generator[int, None, None]:
         """Get cleavage sites using simple amino acid rules."""
         pattern = generate_regex(
@@ -4905,12 +4725,7 @@ class ProFormaAnnotation:
         return self.cleavage_sites(pattern)
 
     def digest_spans(
-        self,
-        enzyme: str | re.Pattern[str],
-        missed_cleavages: int = 0,
-        semi: bool = False,
-        min_len: int | None = None,
-        max_len: int | None = None,
+        self, enzyme: str | re.Pattern[str], *, missed_cleavages: int = 0, semi: bool = False, min_len: int | None = None, max_len: int | None = None
     ) -> Generator[Span, None, None]:
         """Digest this annotation and yield the :class:`Span` of each peptide.
 
@@ -4932,6 +4747,7 @@ class ProFormaAnnotation:
     def simple_digest_spans(
         self,
         cleave_on: str,
+        *,
         restrict_before: str = "",
         restrict_after: str = "",
         cterminal: bool = True,
@@ -4954,13 +4770,10 @@ class ProFormaAnnotation:
         )
 
     def sequential_digest_spans(
-        self,
-        enzyme_configs: list[EnzymeConfig],
-        min_len: int | None = None,
-        max_len: int | None = None,
+        self, enzyme_configs: list[EnzymeConfig], *, min_len: int | None = None, max_len: int | None = None
     ) -> Generator[Span, None, None]:
         """Digest with each :class:`EnzymeConfig` in turn and yield the :class:`Span` of each final peptide."""
-        return sequential_digest_annotation(self, enzyme_configs, min_len, max_len)
+        return sequential_digest_annotation(self, enzyme_configs, min_len=min_len, max_len=max_len)
 
     @property
     def prop(self) -> AnnotationProperties:

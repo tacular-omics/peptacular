@@ -449,8 +449,8 @@ def _from_ms2_pip_single(
 @overload
 def from_ms2_pip(
     sequence: tuple[str, str],
-    static_mods: Mapping[str, float] | None = None,
     *,
+    static_mods: Mapping[str, float] | None = None,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -460,8 +460,8 @@ def from_ms2_pip(
 @overload
 def from_ms2_pip(
     sequence: Sequence[tuple[str, str]],
-    static_mods: Mapping[str, float] | None = None,
     *,
+    static_mods: Mapping[str, float] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -470,8 +470,8 @@ def from_ms2_pip(
 
 def from_ms2_pip(
     sequence: tuple[str, str] | Sequence[tuple[str, str]],
-    static_mods: Mapping[str, float] | None = None,
     *,
+    static_mods: Mapping[str, float] | None = None,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,

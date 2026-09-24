@@ -57,7 +57,7 @@ type ElementPattern = tuple[tuple[int, float, float], ...]
 type CompositionSignature = tuple[tuple[str, int], ...]
 
 
-def estimate_averagine_comp(neutral_mass: float, ion_type: str | IonType | IonTypeLiteral = "p") -> Mapping[ElementInfo, float]:
+def estimate_averagine_comp(neutral_mass: float, *, ion_type: str | IonType | IonTypeLiteral = "p") -> Mapping[ElementInfo, float]:
     """Estimate an elemental composition from molecular mass.
 
     The fragment ion composition is treated as a fixed component. Its mass is
@@ -252,6 +252,7 @@ def _adaptive_length(
 
 def brain_isotopic_distribution(
     chemical_formula: Mapping[str | ElementInfo, int | float],
+    *,
     max_isotopes: int | None = None,
     min_abundance_threshold: float = DEFAULT_MIN_RELATIVE_ABUNDANCE,
     charge_state: int | None = None,
@@ -295,9 +296,7 @@ def brain_isotopic_distribution(
 
 
 def estimate_isotopic_distribution(
-    neutral_mass: float,
-    max_isotopes: int | None = None,
-    min_abundance_threshold: float = DEFAULT_MIN_RELATIVE_ABUNDANCE,
+    neutral_mass: float, *, max_isotopes: int | None = None, min_abundance_threshold: float = DEFAULT_MIN_RELATIVE_ABUNDANCE
 ) -> list[IsotopicData]:
     """Estimate an aggregated peptide isotope envelope with averagine."""
 

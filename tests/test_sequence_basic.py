@@ -216,7 +216,7 @@ class TestAnnotateAmbiguity:
         assert result == "(?PE)PTI(?DE)"
 
     def test_with_mass_shift(self):
-        result = annotate_ambiguity(SEQ, [1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 1, 1, 1], 79.966)
+        result = annotate_ambiguity(SEQ, [1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 1, 1, 1], mass_shift=79.966)
         assert result == "PEPT[+79.966]IDE"
 
     def test_condense_to_xnotation(self):

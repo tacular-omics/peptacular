@@ -63,13 +63,6 @@ class TestResolveEnzyme:
         assert diag.code == "unknown_enzyme"
 
 
-class TestKeywordOnlyParallelArgs:
-    def test_n_workers_is_keyword_only(self):
-        with pytest.raises(TypeError):
-            pt.mass(["PEPTIDE"], "p", 0, True, None, None, False, 2)  # ty: ignore[too-many-positional-arguments]
-        assert pt.mass(["PEPTIDE"], n_workers=1) == [pt.mass("PEPTIDE")]
-
-
 def test_isotopic_distribution_takes_sequence_keyword():
     assert pt.isotopic_distribution(sequence="PEPTIDE", max_isotopes=3) == pt.isotopic_distribution("PEPTIDE", max_isotopes=3)
     with pytest.raises(TypeError):

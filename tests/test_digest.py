@@ -227,7 +227,7 @@ class TestDigest(unittest.TestCase):
     def test_left_semi_enzymatic_sequences_no_limits(self):
         """Test left semi-enzymatic sequences with no length limits."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.left_semi_spans(None, None)
+        spans = annotation.left_semi_spans(min_len=None, max_len=None)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"P", "PE", "PEP", "PEPT", "PEPTI", "PEPTID"}
         self.assertEqual(sequences, expected)
@@ -235,7 +235,7 @@ class TestDigest(unittest.TestCase):
     def test_left_semi_enzymatic_sequences_min_3(self):
         """Test left semi-enzymatic sequences with min_len=3."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.left_semi_spans(3, None)
+        spans = annotation.left_semi_spans(min_len=3, max_len=None)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"PEP", "PEPT", "PEPTI", "PEPTID"}
         self.assertEqual(sequences, expected)
@@ -243,7 +243,7 @@ class TestDigest(unittest.TestCase):
     def test_left_semi_enzymatic_sequences_max_5(self):
         """Test left semi-enzymatic sequences with max_len=5."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.left_semi_spans(None, 5)
+        spans = annotation.left_semi_spans(min_len=None, max_len=5)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"P", "PE", "PEP", "PEPT", "PEPTI"}
         self.assertEqual(sequences, expected)
@@ -251,7 +251,7 @@ class TestDigest(unittest.TestCase):
     def test_left_semi_enzymatic_sequences_min_3_max_4(self):
         """Test left semi-enzymatic sequences with min_len=3, max_len=4."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.left_semi_spans(3, 4)
+        spans = annotation.left_semi_spans(min_len=3, max_len=4)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"PEP", "PEPT"}
         self.assertEqual(sequences, expected)
@@ -259,7 +259,7 @@ class TestDigest(unittest.TestCase):
     def test_right_semi_enzymatic_sequences_no_limits(self):
         """Test right semi-enzymatic sequences with no length limits."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.right_semi_spans(None, None)
+        spans = annotation.right_semi_spans(min_len=None, max_len=None)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"EPTIDE", "PTIDE", "TIDE", "IDE", "DE", "E"}
         self.assertEqual(sequences, expected)
@@ -267,7 +267,7 @@ class TestDigest(unittest.TestCase):
     def test_right_semi_enzymatic_sequences_min_3(self):
         """Test right semi-enzymatic sequences with min_len=3."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.right_semi_spans(3, None)
+        spans = annotation.right_semi_spans(min_len=3, max_len=None)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"EPTIDE", "PTIDE", "TIDE", "IDE"}
         self.assertEqual(sequences, expected)
@@ -275,7 +275,7 @@ class TestDigest(unittest.TestCase):
     def test_right_semi_enzymatic_sequences_max_5(self):
         """Test right semi-enzymatic sequences with max_len=5."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.right_semi_spans(None, 5)
+        spans = annotation.right_semi_spans(min_len=None, max_len=5)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"PTIDE", "TIDE", "IDE", "DE", "E"}
         self.assertEqual(sequences, expected)
@@ -283,7 +283,7 @@ class TestDigest(unittest.TestCase):
     def test_right_semi_enzymatic_sequences_min_3_max_4(self):
         """Test right semi-enzymatic sequences with min_len=3, max_len=4."""
         annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = annotation.right_semi_spans(3, 4)
+        spans = annotation.right_semi_spans(min_len=3, max_len=4)
         sequences = {annotation[span].serialize() for span in spans}
         expected = {"TIDE", "IDE"}
         self.assertEqual(sequences, expected)

@@ -39,9 +39,9 @@ def _left_semi_digest(
 @overload
 def left_semi_digest(
     sequence: str | ProFormaAnnotation,
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -51,9 +51,9 @@ def left_semi_digest(
 @overload
 def left_semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -62,9 +62,9 @@ def left_semi_digest(
 
 def left_semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -115,9 +115,9 @@ def _right_semi_digest(
 @overload
 def right_semi_digest(
     sequence: str | ProFormaAnnotation,
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -127,9 +127,9 @@ def right_semi_digest(
 @overload
 def right_semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -138,9 +138,9 @@ def right_semi_digest(
 
 def right_semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -191,9 +191,9 @@ def _semi_digest(
 @overload
 def semi_digest(
     sequence: str | ProFormaAnnotation,
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -203,9 +203,9 @@ def semi_digest(
 @overload
 def semi_digest(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -214,9 +214,9 @@ def semi_digest(
 
 def semi_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -261,9 +261,9 @@ def _nonspecific_digest(
 @overload
 def nonspecific_digest(
     sequence: str | ProFormaAnnotation,
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -273,9 +273,9 @@ def nonspecific_digest(
 @overload
 def nonspecific_digest(
     sequence: Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -284,9 +284,9 @@ def nonspecific_digest(
 
 def nonspecific_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
+    *,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -399,10 +399,10 @@ def _simple_cleavage_sites(
 def simple_cleavage_sites(
     sequence: str | ProFormaAnnotation,
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -413,10 +413,10 @@ def simple_cleavage_sites(
 def simple_cleavage_sites(
     sequence: Sequence[str | ProFormaAnnotation],
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -426,10 +426,10 @@ def simple_cleavage_sites(
 def simple_cleavage_sites(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -484,11 +484,11 @@ def _digest(
 def digest(
     sequence: str | ProFormaAnnotation,
     enzyme: str | re.Pattern[str],
+    *,
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -499,11 +499,11 @@ def digest(
 def digest(
     sequence: Sequence[str | ProFormaAnnotation],
     enzyme: str | re.Pattern[str],
+    *,
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -513,11 +513,11 @@ def digest(
 def digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     enzyme: str | re.Pattern[str],
+    *,
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -595,6 +595,7 @@ def _digest_single(
 def simple_digest(
     sequence: str | ProFormaAnnotation,
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
@@ -602,7 +603,6 @@ def simple_digest(
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: None = None,
     chunksize: None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -613,6 +613,7 @@ def simple_digest(
 def simple_digest(
     sequence: Sequence[str | ProFormaAnnotation],
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
@@ -620,7 +621,6 @@ def simple_digest(
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
@@ -630,6 +630,7 @@ def simple_digest(
 def simple_digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
     cleave_on: str,
+    *,
     restrict_before: str = "",
     restrict_after: str = "",
     cterminal: bool = True,
@@ -637,7 +638,6 @@ def simple_digest(
     semi: bool = False,
     min_len: int | None = None,
     max_len: int | None = None,
-    *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
