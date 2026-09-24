@@ -2,7 +2,7 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 from functools import cache
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from tacular import (
     ELEMENT_LOOKUP,
@@ -18,9 +18,13 @@ from ..diagnostics import PeptacularError
 from ..proforma_components import (
     ChargedFormula,
     GlobalChargeCarrier,
+    IsotopeReplacement,
 )
 from .mod import Mods
 from .positions import validate_position
+
+if TYPE_CHECKING:
+    from .annotation import ProFormaAnnotation
 
 __all__ = [
     "Fragment",
@@ -84,6 +88,32 @@ def _mzpaf_formula(formula: ChargedFormula) -> str:
 # (e.g. "-H2", as paftacular writes it), and the canonical group names the spec requires when they apply
 # (e.g. "NH3" per "do not write an ammonia loss (NH3) as H3N"; "HCONH2"/Formamide for the
 # combined CO+NH3 magnitude).
+def _immonium_isotope_tokens(annot: "ProFormaAnnotation") -> list[str]:
+    """mzPAF isotope tokens for the global isotope labels of a one-residue immonium annotation.
+
+    A label such as ``<13C>`` replaces every atom of that element in the neutral immonium ion
+    (residue and modifications, not the charging proton), so it is written as that many
+    isotope shifts: ``<13C>P`` -> ``+4i13C``, ``<D>P`` -> ``+7i2H``.
+    """
+    unlabelled = annot.copy()
+    unlabelled.set_isotope_mods(None, validate=False)
+    unlabelled.set_charge(None)
+    try:
+        comp = unlabelled.comp(ion_type=IonType.IMMONIUM)
+    except PeptacularError as error:
+        raise PeptacularError(f"Cannot write the isotope label of immonium ion {annot.serialize()} in mzPAF: {error}") from error
+    counts: Counter[str] = Counter()
+    for element, count in comp.items():
+        counts[element.symbol] += count
+    tokens: list[str] = []
+    for mod in annot.isotope_mods.mods:
+        replacement: IsotopeReplacement = mod.value
+        n = counts[replacement.element.value]
+        if n:
+            tokens.append(f"+{n if n > 1 else ''}i{replacement.isotope}{replacement.element.value}")
+    return tokens
+
+
 _INTERNAL_MASS_DIFFS: dict[tuple[str, str], str | None] = {
     ("a", "x"): "-H2",
     ("b", "x"): "+CO-H2",
@@ -534,16 +564,22 @@ class Fragment:
         A negative charge is written signed (``y3{IDE}^-1``) so the label parses back to the
         same m/z, as paftacular does. mzPAF 1.0.1 section 4.8 says the charge MUST NOT include
         the minus sign (negative mode is a property of the spectrum); pass
-        ``signed_charge=False`` to write only the magnitude.
+        ``signed_charge=False`` to write only the magnitude. The unsigned form is only valid
+        next to negative-mode spectrum metadata: at z=-1 it has no charge suffix
+        (``y3{IDE}``), so on its own it reads as a +1 ion.
 
         An immonium ion takes at most one modification (``IP[Oxidation]``). A terminal
-        modification on the residue is written there as well, so ``[Acetyl]-PEP`` at position
-        1 gives ``IP[Acetyl]``; more than one modification raises :class:`PeptacularError`.
+        modification on the residue, or a global fixed modification that applies to it, is
+        written there as well: ``[Acetyl]-PEP`` at position 1 gives ``IP[Acetyl]`` and
+        ``<[Oxidation]@P>PEP`` gives ``IP[Oxidation]``. More than one modification raises
+        :class:`PeptacularError`. A global isotope label is written as isotope shifts, one per
+        labelled atom of the neutral immonium ion: ``<13C>PEP`` gives ``IP+4i13C``. An isotope
+        label on a residue with a mass-only modification raises, since the atoms cannot be counted.
 
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
         :param signed_charge: If True (default), write a negative charge as ``^-n``;
-            if False, write ``^n``.
+            if False, write ``^n`` (valid only alongside negative-mode spectrum metadata).
         :type signed_charge: bool
         :return: The mzPAF label string (e.g. ``"y3{IDE}^2"``).
         :rtype: str
@@ -556,6 +592,7 @@ class Fragment:
 
         parts: list[str] = []
         internal_loss: str | None = None
+        immonium_isotopes: list[str] = []
         series_delta: str | None = None
 
         if self.ion_type is None:
@@ -586,7 +623,8 @@ class Fragment:
                             parts.append(f"I{annot.sequence}")
 
                             # mzPAF allows one modification on an immonium ion. A terminal
-                            # modification of the residue (e.g. an N-terminal acetyl) adds the
+                            # modification of the residue (e.g. an N-terminal acetyl) or a global
+                            # fixed modification that applies to it (<[Oxidation]@P>) adds the
                             # same mass, so it is written there too (matches paftacular 2.0).
                             tags: list[str] = []
                             for has_mods, get_mods in (
@@ -597,12 +635,17 @@ class Fragment:
                                 if has_mods:
                                     for mod in get_mods().mods:
                                         tags.extend([str(mod.value)] * mod.count)
+                            for static_mods in annot.map_static_mods_to_indexes().values():
+                                for mod in static_mods:
+                                    tags.extend([str(mod.value)] * mod.count)
                             if len(tags) > 1:
                                 raise PeptacularError(f"mzPAF allows one modification on an immonium ion, got {', '.join(tags)}")
                             if tags:
                                 if tags[0] == "":
                                     raise PeptacularError("Empty modification string for immonium ion is not valid in mzPAF.")
                                 parts.append(f"[{tags[0]}]")
+                            if annot.has_isotope_mods:
+                                immonium_isotopes = _immonium_isotope_tokens(annot)
                         else:
                             raise PeptacularError("Immonium ion must have a sequence annotation.")
                     else:
@@ -666,7 +709,9 @@ class Fragment:
         if internal_loss is not None:
             parts.append(internal_loss)
 
-        # Isotopes
+        # Isotopes: a global isotope label on an immonium residue first (+4i13C), then the
+        # fragment's own isotope peaks
+        parts.extend(immonium_isotopes)
         if self._isotopes is not None:
             if isinstance(self._isotopes, int):
                 count_str = str(self._isotopes) if self._isotopes > 1 else ""

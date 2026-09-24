@@ -115,6 +115,12 @@ class TestMzPAFLabelMass:
         ("[Acetyl]-TIV", "v", 1, 3),
         ("[Acetyl]-VIT", "w", 1, 3),
         ("TIV-[Amidated]", "d", 1, 3),
+        ("<[Oxidation]@P>PEPTIDE", "i", 1, 1),
+        ("<13C>PEPTIDE", "i", 1, 1),
+        ("<13C><15N>PEPTIDE", "i", 2, 1),
+        ("<D>PEPTIDE", "i", 1, 1),
+        ("<13C>[Acetyl]-PEPTIDE", "i", 1, 1),
+        ("<[Oxidation]@P><13C>PEPTIDE", "i", -1, 1),
     )
 
     def test_immonium_terminal_mod_mass_matches_residue_mod(self):
@@ -230,3 +236,33 @@ class TestMzPAFHydrogenLoss:
         bx = pt.parse("PEPTIDE").frag(ion_type="bx", charge=1, position=(2, 5))
         assert ax.to_mzpaf() == "m2:5{EPTI}-H2"
         assert bx.to_mzpaf() == "m2:5{EPTI}+CO-H2"
+
+
+class TestImmoniumGlobalMods:
+    """Global fixed mods and isotope labels on the immonium residue are part of its label."""
+
+    @pytest.mark.parametrize(
+        ("seq", "pos", "label"),
+        [
+            ("<[Oxidation]@P>PEPTIDE", 1, "IP[Oxidation]"),
+            ("<[Oxidation]@E>PEPTIDE", 1, "IP"),
+            ("<[Acetyl]@N-term>PEPTIDE", 1, "IP[Acetyl]"),
+            ("<[Acetyl]@N-term>PEPTIDE", 3, "IP"),
+            ("<[+15.995]@P>PEPTIDE", 1, "IP[+15.995]"),
+            ("<13C>PEPTIDE", 1, "IP+4i13C"),
+            ("<15N>PEPTIDE", 1, "IP+i15N"),
+            ("<13C><15N>PEPTIDE", 1, "IP+4i13C+i15N"),
+            ("<D>PEPTIDE", 1, "IP+7i2H"),
+            ("<13C>[Acetyl]-PEPTIDE", 1, "IP[Acetyl]+6i13C"),
+            ("<[Oxidation]@P><13C>PEPTIDE", 1, "IP[Oxidation]+4i13C"),
+            ("P[U:Oxidation]EPTIDE", 1, "IP[Oxidation]"),
+        ],
+    )
+    def test_label(self, seq, pos, label):
+        assert pt.parse(seq).frag(ion_type="i", charge=1, position=pos).to_mzpaf() == label
+
+    @pytest.mark.parametrize("seq", ["<[Oxidation]@P>P[Phospho]EPTIDE", "<[Oxidation]@P>[Acetyl]-PEPTIDE", "<13C>P[+15.995]EPTIDE"])
+    def test_unwritable_raises(self, seq):
+        frag = pt.parse(seq).frag(ion_type="i", charge=1, position=1)
+        with pytest.raises(pt.PeptacularError):
+            frag.to_mzpaf()

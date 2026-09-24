@@ -371,7 +371,8 @@ Behaviour changes
        is removed. Use ``pt.parse`` / ``pt.parse_chimeric`` and the annotation methods.
    * - mzPAF neutral-loss labels ``-H3CON``, ``-H2CO2``
      - Canonical names: ``-HCONH2``, ``-HCOOH``. Other formulas are written in Hill order
-       (``+NaS``, not ``+SNa``). Every other 4.2.0 label, including ``-NH3``, is unchanged.
+       (``+NaS``, not ``+SNa``). ``-NH3`` is unchanged. The other 5.0 label changes are
+       in the rows below.
    * - ``fragment(..., ion_types="by")`` (a string of letters meant b and y)
      - A string is one ion type. Write ``ion_types=("b", "y")``.
    * - ``fragment(..., neutral_deltas=["H3PO4"])`` on a peptide with an unmodified S/T/Y
@@ -383,3 +384,22 @@ Behaviour changes
        (a FASTA entry) is now accepted.
    * - ``fragment.to_mzpaf()`` with a gain (``deltas={"H2O": -1}``) or a numeric delta
      - A gain is written ``+H2O`` (4.x wrote ``-H2O``). A numeric delta is written as a signed mass (``b2-34.0``) instead of raising.
+   * - ``fragment.to_mzpaf()`` at a negative charge: ``y3{IDE}^1`` for z=-1, ``^2`` for z=-2
+     - Signed: ``y3{IDE}^-1``, ``^-2``, so the label reads back to the same m/z.
+       ``to_mzpaf(signed_charge=False)`` restores the magnitude-only form. That form is
+       mzPAF 1.0.1 section 4.8 and is only valid next to negative-mode spectrum metadata.
+       At z=-1 it has no charge suffix, so on its own it reads as +1.
+   * - ``fragment.to_mzpaf()`` for an immonium ion wrote only the residue's own mod
+       (``IP`` for ``[Acetyl]-PEP``, ``<[Oxidation]@P>PEP`` or ``<13C>PEP``)
+     - A terminal mod or a global fixed mod on the residue is written as the immonium
+       mod: ``IP[Acetyl]``, ``IP[Oxidation]``. A global isotope label is written as isotope
+       shifts: ``IP+4i13C``. Two or more mods raise ``PeptacularError``. The mod tag is the
+       plain name: ``P[U:Oxidation]`` gives ``IP[Oxidation]`` (4.x wrote ``IP[U:Oxidation]``).
+   * - ``fragment.to_mzpaf()`` for ax/bx internal ions: ``-2H``, ``+CO-2H``
+     - Hill order, like every other delta: ``-H2``, ``+CO-H2``.
+   * - ``charge="H:z-1"`` (hydride): ``is_protonated`` True, mzPAF ``y3{IDE}^-1``
+     - A hydride is an adduct, not a proton: ``is_protonated`` is False, and the mzPAF is
+       ``y3{IDE}[M+H]^-1``. The mass is unchanged.
+   * - Full-length d/da/db ions ignored the C-terminal mod, v/w/wa/wb ions the N-terminal mod
+     - Every full-length ion type carries both terminal mods, as a/b/c/x/y/z already did.
+       Only those ions' masses change.
