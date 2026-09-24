@@ -1,4 +1,28 @@
-# Manuscript audit, 13 September 2026
+# Manuscript audit, 13 September 2026 (verification refreshed 24 September 2026)
+
+## Update for the 5.0 release, 24 September 2026
+
+The paper was changed only where 5.0 made it wrong or stale. No new features were
+added to the text.
+
+- The FASTA sentence was replaced. 5.0 removed `peptacular.fasta`; FASTA is read by
+  fastatacular, and any object with a `sequence` attribute (the `HasSequence`
+  protocol, which covers fastatacular and pefftacular entries) passes directly to
+  sequence functions. Checked by digesting a fastatacular `SequenceEntry` and a
+  pefftacular entry from `tests/fixtures/minimal.peff`.
+- The Tacular citation now uses the Zenodo concept DOI 10.5281/zenodo.18475556
+  (from tacular's CITATION.cff; resolves, record title "tacular: Proteomics
+  ontology and reference-data lookups in Python") instead of the v1.0.1 version DOI.
+- The composition-path clause now says that composition is used for global isotope
+  labels or on request (`calculate_with_composition=True`), that neutral losses are
+  added to the listed modification masses, and that protons use the CODATA mass
+  (CHANGELOG 5.0, `src/peptacular/constants.py`).
+- The date is 24 September 2026. `paper.pdf` and `jats/paper.jats` were rebuilt.
+  The orphaned `jats/fig1.png` (the paper has no figure) was removed.
+
+The sections below "Verification performed" record the 13 September revision and
+describe the 4.0.0 branch at that time. Their "streaming FASTA" and "20 entries"
+statements are superseded by this update.
 
 The manuscript has been revised against the current source, changes since the
 v3.0.0 submission, the finalized ProForma 2.1 specification, current competing
@@ -51,48 +75,43 @@ fixes, and the complete API inventory belong in the changelog and documentation.
 
 ## Verification performed
 
-The source checked was HEAD `c81f282` plus the current working-tree changes on
-`codex/release/4.0.0`. Example execution used Python 3.12.3, Tacular 1.1.0,
-pandas 3.0.0, and the local Peptacular source.
+Refreshed 24 September 2026 against peptacular `origin/main` `fe76a8a` (the
+unreleased 5.0) in a clean worktree, with the paper edits above applied. Examples
+ran with Python 3.13.7, pandas 3.0.6 and Tacular from its local `origin/main`
+checkout `4a10a5f` (the upcoming 2.0; its version string still reads 1.2.0 because
+the bump has not been applied).
 
 | Check | Result |
 | --- | --- |
-| Three Python code blocks | Executed successfully. Checked the displayed rounded mass and m/z values, serialized string, and DataFrame assignment. |
-| Table examples | 42 examples total. All 39 marked supported or preserved passed `validate=True` and serialization round trips. The chimeric example was checked through `parse_chimeric()`. |
-| Table mass behavior | Calculated masses for the supported/preserved examples. The `BZJX` example raised the expected ambiguity error. Three linked-chain examples were excluded in accordance with the stated limitation. |
-| Citation integrity | 20 entries, no missing citation keys and no unused entries. |
-| Manuscript length | Approximately 1,058 prose words, excluding headings, table, code blocks, bibliography, and YAML. Approximately 1,444 words including headings, table, and code, still excluding bibliography and YAML. Counts were extracted from Pandoc's document structure. |
-| JOSS build | PDF and JATS generated successfully with the installed `openjournals/inara:latest` image, with networking disabled for the render. |
-| Visual proof | All six pages inspected. Corrected overlapping table headers and literal escape characters in ProForma examples. |
-| Author metadata | Both names and ORCIDs checked in JATS. John R. Yates III has separate given-name, surname, and suffix fields. |
+| Three Python code blocks | All executed. `PEM[Oxidation]TIDE` gives 849.343 Da and charge-2 m/z 425.679; the chained edit serializes as `(>Peptacular)PEM[Oxidation]TIDE/2`; the batch gives [928.4026, 388.2384, 451.2454] and m/z [465.2086, 195.1265, 225.6227]; the DataFrame assignment works. The CODATA proton change does not show at the printed precision. |
+| Table examples | 42 examples in 40 rows. All 39 marked Y or P passed `validate=True` and exact serialization round trips; `NEEYN+SEQUEN` was checked through `parse_chimeric()`. |
+| Table mass behavior | 38 of the 39 Y/P examples return a mass. `BZJX` raises `PeptacularError`, as expected. The two `//` linked examples raise `UnsupportedOperationError`. The intrachain cross-link `EVTK[X:DSS#XL1]LEK[#XL1]SEFD` returns a mass (1461.7239 Da, the DSS mass counted once, equal to `EVTK[X:DSS]LEKSEFD`) and fragments without error, ignoring the link. |
+| Citation integrity | 26 entries, all cited, no missing keys. The build reported no citation warnings. |
+| Manuscript length | About 1,113 prose words, excluding headings, table, code blocks, bibliography and YAML; about 1,505 words including headings, table and code. Counted from Pandoc's plain-text output. |
+| JOSS build | `openjournals/inara` (`sha256:a0414b8b72fd8923917ede614d340d98dc7aa3102aabc2e955e9c02a6100fd62`), `-o pdf,jats`, networking disabled: exit 0, no warnings, 7 pages (as before). |
+| Visual proof | Pages 1 and 2 inspected; the changed sentences and the Tacular reference render correctly. |
+| Author metadata | Both names and ORCIDs present in JATS; John R. Yates III has separate given-name, surname and suffix fields. |
 
-The image used for the build was
-`sha256:2415076f0ef85d98dca68707ec3b1263f913487f55aa59e3448704ab7087789d`.
-The regenerated files are `paper/paper.pdf` and `paper/jats/paper.jats`.
-The PDF remains a local JOSS draft, including journal-generated placeholder
-publication metadata. Its front-page author names and JATS metadata are correct.
-The journal-generated footer citation should also be checked in the official proof.
+The regenerated files are `paper/paper.pdf` and `paper/jats/paper.jats`. The PDF
+remains a local JOSS draft with journal-generated placeholder publication metadata.
 
 These checks establish the behavior of the displayed examples. They are not a
-complete ProForma conformance certification, a new full-suite test run, or an
+complete ProForma conformance certification, a full-suite test run, or an
 independent validation of all scientific algorithms.
 
 ## Items to resolve before the final submission update
 
 1. **Release and review version.** The [public review](https://github.com/openjournals/joss-reviews/issues/11277)
-   identified v3.0.0 at audit time. Release preparation now aligns the package,
-   citation metadata, and dated changelog to 4.0.0. After publication, update the
-   JOSS review version and its software archive through the editorial workflow.
-   The archive was still pending in the review record when checked.
+   identified v3.0.0 at audit time. 4.0.0 and 4.2.0 have since been released and
+   `origin/main` is heading to 5.0.0. After the 5.0 release, update the JOSS review
+   version and its software archive through the editorial workflow.
 2. **Human review, resolved.** The author confirmed that human authors reviewed,
    edited, and validated all AI-assisted work and made the core design decisions.
    The manuscript now states this explicitly. Opus 5, Fable 5.1, Sol, and Astra
    are recorded as supplied by the author.
-3. **Tacular archive citation.** The retained citation points to historical
-   v1.0.1, while the tested dependency is 1.1.0. A historical software citation is
-   distinct from the tested environment, but the preferred archive should be
-   confirmed. The Zenodo record could not be independently fetched during this
-   audit, so its existing metadata was retained rather than guessed.
+3. **Tacular archive citation, resolved.** The paper now cites Tacular's Zenodo
+   concept DOI (10.5281/zenodo.18475556), which always resolves to the latest
+   archived version.
 4. **Author-controlled statements, resolved.** Funding is disclosed through the
    NIH grant list in Acknowledgements. The author confirmed that the funders
    provided financial support only and that the authors have no competing

@@ -45,9 +45,9 @@ analysis with ProForma 2.1</article-title>
 </institution-wrap>
 </aff>
 </contrib-group>
-<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-02-07">
-<day>7</day>
-<month>2</month>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-09-24">
+<day>24</day>
+<month>9</month>
 <year>2026</year>
 </pub-date>
 <volume>¿VOL?</volume>
@@ -176,10 +176,12 @@ a Creative Commons Attribution 4.0 International License (CC BY
   <p>Lazy modification parsing and bounded caches reduce repeated work.
   Direct residue mass lookups and a scalar path for ordinary precursor
   mass and m/z avoid unnecessary fragment objects and annotation copies.
-  A composition-based path handles isotope labels and elemental
-  adjustments. Both paths account for intrinsic modification charge and
-  electron mass. BRAIN recurrences generate aggregated isotope envelopes
-  with a probability-weighted center mass per nominal isotope peak
+  A composition-based path is used for global isotope labels or on
+  request, while neutral losses are added to the listed modification
+  masses and protons use the CODATA mass. Both paths account for
+  intrinsic modification charge and electron mass. BRAIN recurrences
+  generate aggregated isotope envelopes with a probability-weighted
+  center mass per nominal isotope peak
   (<xref alt="Claesen et al., 2012" rid="ref-claesen-2012" ref-type="bibr">Claesen
   et al., 2012</xref>;
   <xref alt="Dittwald &amp; Valkenborg, 2014" rid="ref-dittwald-2014" ref-type="bibr">Dittwald
@@ -205,15 +207,16 @@ a Creative Commons Attribution 4.0 International License (CC BY
   while diagnostics distinguish parsing, validation, and analysis
   failures.</p>
   <p>Versioned JSON serialization preserves annotation structure and
-  validates input against a closed set of supported types. Streaming
-  FASTA input supports plain and gzip files. An optional local Model
-  Context Protocol interface exposes the same sequence operations to
-  agent clients. The core package requires Python 3.12 or later and
-  Tacular, with additional dependencies installed only for optional
-  integrations. Type annotations support static analysis. Continuous
-  integration runs tests, linting, type checks, and package builds
-  across Python 3.12-3.14 and Linux, macOS, and Windows
-  configurations.</p>
+  validates input against a closed set of supported types. FASTA files
+  are read by the separate fastatacular package, whose entry objects,
+  like any object with a <monospace>sequence</monospace> attribute, pass
+  directly to sequence functions. An optional local Model Context
+  Protocol interface exposes the same sequence operations to agent
+  clients. The core package requires Python 3.12 or later and Tacular,
+  with additional dependencies installed only for optional integrations.
+  Type annotations support static analysis. Continuous integration runs
+  tests, linting, type checks, and package builds across Python
+  3.12-3.14 and Linux, macOS, and Windows configurations.</p>
 </sec>
 <sec id="research-impact-statement">
   <title>Research impact statement</title>
@@ -799,11 +802,11 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
       <person-group person-group-type="author">
         <name><surname>Garrett</surname><given-names>Patrick</given-names></name>
       </person-group>
-      <article-title>tacular-omics/tacular: v1.0.1 - Zenodo + Docs</article-title>
+      <article-title>tacular: Proteomics ontology and reference-data lookups in Python</article-title>
       <publisher-name>Zenodo</publisher-name>
       <year iso-8601-date="2026">2026</year>
-      <uri>https://doi.org/10.5281/zenodo.18475557</uri>
-      <pub-id pub-id-type="doi">10.5281/zenodo.18475557</pub-id>
+      <uri>https://doi.org/10.5281/zenodo.18475556</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.18475556</pub-id>
     </element-citation>
   </ref>
   <ref id="ref-creasy-2004">
