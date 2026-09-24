@@ -32,6 +32,15 @@ where:
 Labile modifications are included only for precursor and neutral ion types, since they are
 lost during fragmentation.
 
+**Modification masses.** A named modification (a Unimod, PSI-MOD, RESID, XLMOD or GNO
+name or accession, e.g. ``[Oxidation]`` or ``[UNIMOD:35]``) contributes its listed
+database mass (tacular's ``monoisotopic_mass`` / ``average_mass``, e.g. 15.994915 for
+Oxidation). The elemental composition is used only when there is no listed mass
+(``Formula:`` mods, glycans, unlisted entries). Because listed masses are rounded (Unimod
+gives 6 decimals), the mass of a named mod's ``composition`` can differ from ``mass()`` by
+up to about 1e-6 Da. ProForma text is never rewritten: names stay names and numbers stay
+as written.
+
 Neutral Mass
 ------------
 

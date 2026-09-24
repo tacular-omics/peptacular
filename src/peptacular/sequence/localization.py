@@ -3,7 +3,8 @@
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from tacular import IonType, IonTypeLiteral, ToleranceUnit
+from tacular import IonType, IonTypeLiteral
+from tacular.types import ToleranceUnit
 
 from ..annotation import Fragment, ProFormaAnnotation
 from ..annotation.localization import DEFAULT_MAX_ISOMERS
@@ -76,7 +77,7 @@ def site_determining_ions(
     ion_types: Sequence[IonType | IonTypeLiteral] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
     tolerance: float | None = None,
-    unit: ToleranceUnit = "da",
+    tolerance_unit: ToleranceUnit = "da",
 ) -> list[list[Fragment]]:
     """Per isomer, the fragment ions whose m/z no other isomer can explain.
 
@@ -90,7 +91,7 @@ def site_determining_ions(
     :param ion_types: Ion types to generate (default b and y).
     :param charges: Fragment charges (default 1).
     :param tolerance: Match tolerance; None compares m/z exactly (within 1e-6 Da). Window edges count as a match.
-    :param unit: ``"da"`` or ``"ppm"``.
+    :param tolerance_unit: ``"da"`` or ``"ppm"``.
     :return: One list of fragments per isomer, in input order.
 
     >>> import peptacular as pt
@@ -99,7 +100,7 @@ def site_determining_ions(
     [['b4', 'y4'], ['b4', 'y4']]
     """
     annotations = [get_annotation_input(isomer, copy=False) for isomer in isomers]
-    return _site_determining_ions(annotations, ion_types=ion_types, charges=charges, tolerance=tolerance, unit=unit)
+    return _site_determining_ions(annotations, ion_types=ion_types, charges=charges, tolerance=tolerance, tolerance_unit=tolerance_unit)
 
 
 def pairwise_site_determining_ions(
@@ -108,7 +109,7 @@ def pairwise_site_determining_ions(
     ion_types: Sequence[IonType | IonTypeLiteral] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
     tolerance: float | None = None,
-    unit: ToleranceUnit = "da",
+    tolerance_unit: ToleranceUnit = "da",
 ) -> dict[tuple[int, int], list[Fragment]]:
     """For each ordered pair of isomers ``(i, j)``, the ions of ``i`` that ``j`` cannot explain.
 
@@ -120,7 +121,7 @@ def pairwise_site_determining_ions(
     :param ion_types: Ion types to generate (default b and y).
     :param charges: Fragment charges (default 1).
     :param tolerance: Match tolerance; None compares m/z exactly (within 1e-6 Da). Window edges count as a match.
-    :param unit: ``"da"`` or ``"ppm"``.
+    :param tolerance_unit: ``"da"`` or ``"ppm"``.
     :return: ``{(i, j): [Fragment, ...]}``, indices in input order.
 
     >>> import peptacular as pt
@@ -130,4 +131,4 @@ def pairwise_site_determining_ions(
     (['b4', 'y6'], ['b5', 'y5'])
     """
     annotations = [get_annotation_input(isomer, copy=False) for isomer in isomers]
-    return _pairwise_site_determining_ions(annotations, ion_types=ion_types, charges=charges, tolerance=tolerance, unit=unit)
+    return _pairwise_site_determining_ions(annotations, ion_types=ion_types, charges=charges, tolerance=tolerance, tolerance_unit=tolerance_unit)

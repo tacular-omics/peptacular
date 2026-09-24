@@ -125,7 +125,7 @@ evidence for that isomer alone. The ions are the :class:`~peptacular.Fragment` o
 .. testcode::
 
    isomers = pt.localization_isomers("PEP(ST)[Phospho]IDE")
-   ions = pt.site_determining_ions(isomers, ion_types=("b", "y"), charges=(1, 2), tolerance=10, unit="ppm")
+   ions = pt.site_determining_ions(isomers, ion_types=("b", "y"), charges=(1, 2), tolerance=10, tolerance_unit="ppm")
    for isomer, frags in zip(isomers, ions):
        print(isomer.serialize(), [f"{f.ion_type}{f.position}+{f.charge_state} {f.mz:.3f}" for f in frags])
 
@@ -134,7 +134,7 @@ evidence for that isomer alone. The ions are the :class:`~peptacular.Fragment` o
    PEPS[Phospho]TIDE ['b4+1 491.154', 'y4+1 477.219', 'b4+2 246.081', 'y4+2 239.113']
    PEPST[Phospho]IDE ['b4+1 411.187', 'y4+1 557.185', 'b4+2 206.097', 'y4+2 279.096']
 
-``tolerance=None`` (the default) compares m/z values exactly, within 1e-6 Da. ``unit`` is
+``tolerance=None`` (the default) compares m/z values exactly, within 1e-6 Da. ``tolerance_unit`` is
 ``"da"`` or ``"ppm"``. The window is :func:`tacular.tolerance_window` and an ion exactly at
 its edge counts as a match. With one isomer every ion is returned.
 
@@ -165,4 +165,4 @@ pair ``(i, j)``, the ions of isomer ``i`` that isomer ``j`` cannot explain:
    2 0 ['b4', 'b5', 'y5', 'y6']
    2 1 ['b5', 'y5']
 
-It takes the same ``ion_types``, ``charges``, ``tolerance`` and ``unit`` keywords.
+It takes the same ``ion_types``, ``charges``, ``tolerance`` and ``tolerance_unit`` keywords.

@@ -293,7 +293,7 @@ print([round(x, 3) for x in fast[(pt.IonType.B, 1)]][:3])  # [98.06, 227.103, 32
 localization_isomers(peptide: str | ProFormaAnnotation | HasSequence, *, max_isomers: int | None = 10_000) -> list[ProFormaAnnotation]
 candidate_sites(peptide, mod: str, *, residues: str) -> list[tuple[int, ProFormaAnnotation]]
 site_determining_ions(isomers: Sequence[str | ProFormaAnnotation], *, ion_types=("b", "y"), charges=(1,),
-                      tolerance: float | None = None, unit: Literal["da", "ppm"] = "da") -> list[list[Fragment]]
+                      tolerance: float | None = None, tolerance_unit: ToleranceUnit = "da") -> list[list[Fragment]]
 pairwise_site_determining_ions(isomers, *, same keywords) -> dict[tuple[int, int], list[Fragment]]
 annotation.localization_isomers(*, max_isomers=10_000); annotation.candidate_sites(mod, *, residues)
 ```

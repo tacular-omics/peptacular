@@ -3,6 +3,7 @@
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from tacular.types import ToleranceUnit
 
 Count = Annotated[int, Field(strict=True, ge=1, le=5000)]
 Index = Annotated[int, Field(strict=True, ge=0, le=1000000)]
@@ -179,7 +180,7 @@ class FindModifications(Contract):
     vocabularies: Annotated[list[Literal["unimod", "psimod", "xlmod"]], Field(min_length=1, max_length=3)] = ["unimod"]
     name_mode: Literal["exact", "prefix", "contains"] = "contains"
     tolerance: Annotated[float, Field(strict=True, gt=0, le=100)] | None = None
-    tolerance_unit: Literal["da", "ppm"] = "da"
+    tolerance_unit: ToleranceUnit = "da"
     monoisotopic: bool = True
     limit: Annotated[int, Field(strict=True, ge=1, le=500)] = 50
     offset: Index = 0
