@@ -58,8 +58,10 @@ ANNOTATION_POSITIONAL_OPTIONS = {
 PARALLEL_OPTIONS = {"n_workers", "chunksize", "method", "reuse_pool"}
 
 PT_FUNCTIONS = sorted(name for name in pt.__all__ if inspect.isfunction(getattr(pt, name)))
+# Class namespace including base classes (the mod accessors live on a private mixin).
+ANNOTATION_NAMESPACE = {name: obj for cls in reversed(pt.ProFormaAnnotation.__mro__[:-1]) for name, obj in vars(cls).items()}
 ANNOTATION_METHODS = sorted(
-    name for name, obj in vars(pt.ProFormaAnnotation).items() if not name.startswith("_") and inspect.isfunction(getattr(obj, "__func__", obj))
+    name for name, obj in ANNOTATION_NAMESPACE.items() if not name.startswith("_") and inspect.isfunction(getattr(obj, "__func__", obj))
 )
 PARALLEL_FUNCTIONS = [name for name in PT_FUNCTIONS if "n_workers" in inspect.signature(getattr(pt, name)).parameters]
 
@@ -76,13 +78,13 @@ def test_pt_function_options_are_keyword_only(name):
 
 @pytest.mark.parametrize("name", ANNOTATION_METHODS)
 def test_annotation_method_options_are_keyword_only(name):
-    obj = vars(pt.ProFormaAnnotation)[name]
+    obj = ANNOTATION_NAMESPACE[name]
     assert _positional_options(getattr(obj, "__func__", obj)) <= ANNOTATION_POSITIONAL_OPTIONS.get(name, set())
 
 
 @pytest.mark.parametrize("name", ANNOTATION_METHODS)
 def test_inplace_and_validate_are_keyword_only(name):
-    obj = vars(pt.ProFormaAnnotation)[name]
+    obj = ANNOTATION_NAMESPACE[name]
     params = inspect.signature(getattr(obj, "__func__", obj)).parameters
     for flag in ("inplace", "validate"):
         if flag in params:
