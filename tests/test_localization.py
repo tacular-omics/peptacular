@@ -445,10 +445,10 @@ def test_site_determining_ions_tolerance_da_and_ppm():
     isomers = pt.localization_isomers("PEP(ST)[Phospho]IDE")
     exact = _labels(pt.site_determining_ions(isomers))
     assert _labels(pt.site_determining_ions(isomers, tolerance=0.02)) == exact
-    assert _labels(pt.site_determining_ions(isomers, tolerance=10, unit="ppm")) == exact
+    assert _labels(pt.site_determining_ions(isomers, tolerance=10, tolerance_unit="ppm")) == exact
     # A tolerance wider than the whole spectrum leaves nothing site-determining.
     assert pt.site_determining_ions(isomers, tolerance=5000.0) == [[], []]
-    assert pt.site_determining_ions(isomers, tolerance=1e7, unit="ppm") == [[], []]
+    assert pt.site_determining_ions(isomers, tolerance=1e7, tolerance_unit="ppm") == [[], []]
 
 
 def test_site_determining_ions_single_isomer_returns_everything():
@@ -465,7 +465,7 @@ def test_site_determining_ions_empty_input():
     assert pt.site_determining_ions([]) == []
 
 
-@pytest.mark.parametrize("kwargs", [{"unit": "mz"}, {"tolerance": -1.0}, {"tolerance": True}, {"tolerance": float("nan")}])
+@pytest.mark.parametrize("kwargs", [{"tolerance_unit": "mz"}, {"tolerance": -1.0}, {"tolerance": True}, {"tolerance": float("nan")}])
 def test_site_determining_ions_rejects_bad_options(kwargs):
     with pytest.raises(pt.PeptacularError):
         pt.site_determining_ions(["PEPTIDE"], **kwargs)
@@ -500,7 +500,7 @@ def test_pairwise_single_and_empty_input():
     assert pt.pairwise_site_determining_ions([]) == {}
 
 
-@pytest.mark.parametrize("kwargs", [{"unit": "mz"}, {"tolerance": -1.0}])
+@pytest.mark.parametrize("kwargs", [{"tolerance_unit": "mz"}, {"tolerance": -1.0}])
 def test_pairwise_rejects_bad_options(kwargs):
     with pytest.raises(pt.PeptacularError):
         pt.pairwise_site_determining_ions(["PEPTIDE"], **kwargs)

@@ -14,7 +14,8 @@ from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from tacular import IonType, IonTypeLiteral, ToleranceUnit, tolerance_window
+from tacular import IonType, IonTypeLiteral, tolerance_window
+from tacular.types import ToleranceUnit
 
 from ..diagnostics import PeptacularError, UnsupportedOperationError
 
@@ -339,22 +340,22 @@ def candidate_sites(annotation: ProFormaAnnotation, mod: Any, *, residues: str) 
     return sites
 
 
-def _check_tolerance(tolerance: float | None, unit: str) -> None:
-    if unit not in ("da", "ppm"):
-        raise PeptacularError(f"unit must be 'da' or 'ppm', got {unit!r}")
+def _check_tolerance(tolerance: float | None, tolerance_unit: str) -> None:
+    if tolerance_unit not in ("da", "ppm"):
+        raise PeptacularError(f"tolerance_unit must be 'da' or 'ppm', got {tolerance_unit!r}")
     if tolerance is not None and (isinstance(tolerance, bool) or not tolerance >= 0):
         raise PeptacularError(f"tolerance must be a non-negative number or None, got {tolerance!r}")
 
 
-def _window(mz: float, tolerance: float | None, unit: ToleranceUnit) -> tuple[float, float]:
+def _window(mz: float, tolerance: float | None, tolerance_unit: ToleranceUnit) -> tuple[float, float]:
     if tolerance is None:
-        return tolerance_window(mz, _EXACT_TOLERANCE_DA, unit="da")
-    return tolerance_window(mz, tolerance, unit=unit)
+        return tolerance_window(mz, _EXACT_TOLERANCE_DA, tolerance_unit="da")
+    return tolerance_window(mz, tolerance, tolerance_unit=tolerance_unit)
 
 
-def _explained(mz: float, sorted_mz: Sequence[float], tolerance: float | None, unit: ToleranceUnit) -> bool:
+def _explained(mz: float, sorted_mz: Sequence[float], tolerance: float | None, tolerance_unit: ToleranceUnit) -> bool:
     """Whether any value of ``sorted_mz`` lies in the tolerance window around ``mz`` (edges included)."""
-    lo, hi = _window(mz, tolerance, unit)
+    lo, hi = _window(mz, tolerance, tolerance_unit)
     index = bisect.bisect_left(sorted_mz, lo)
     return index < len(sorted_mz) and sorted_mz[index] <= hi
 
@@ -369,7 +370,7 @@ def site_determining_ions(
     ion_types: Sequence[IonType | IonTypeLiteral] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
     tolerance: float | None = None,
-    unit: ToleranceUnit = "da",
+    tolerance_unit: ToleranceUnit = "da",
 ) -> list[list[Fragment]]:
     """Per isomer, the fragment ions **no other isomer** can explain.
 
@@ -389,11 +390,11 @@ def site_determining_ions(
     :param charges: Fragment charges.
     :param tolerance: Match tolerance. None compares m/z values exactly (within 1e-6 Da). The
         window is :func:`tacular.tolerance_window` and its edges count as a match.
-    :param unit: ``"da"`` or ``"ppm"`` (relative to the ion's own m/z).
+    :param tolerance_unit: ``"da"`` or ``"ppm"`` (relative to the ion's own m/z).
     :return: One list per isomer, in input order. With a single isomer every ion is returned.
-    :raises PeptacularError: If ``tolerance`` is negative or ``unit`` is not ``"da"``/``"ppm"``.
+    :raises PeptacularError: If ``tolerance`` is negative or ``tolerance_unit`` is not ``"da"``/``"ppm"``.
     """
-    _check_tolerance(tolerance, unit)
+    _check_tolerance(tolerance, tolerance_unit)
     fragments = _isomer_fragments(isomers, ion_types, charges)
     pool = sorted((fragment.mz, owner) for owner, frags in enumerate(fragments) for fragment in frags)
     pool_mz = [mz for mz, _ in pool]
@@ -402,7 +403,7 @@ def site_determining_ions(
     for owner, frags in enumerate(fragments):
         determining: list[Fragment] = []
         for fragment in frags:
-            lo, hi = _window(fragment.mz, tolerance, unit)
+            lo, hi = _window(fragment.mz, tolerance, tolerance_unit)
             index = bisect.bisect_left(pool_mz, lo)
             shared = False
             while index < len(pool) and pool_mz[index] <= hi:
@@ -422,7 +423,7 @@ def pairwise_site_determining_ions(
     ion_types: Sequence[IonType | IonTypeLiteral] = (IonType.B, IonType.Y),
     charges: Sequence[int] = (1,),
     tolerance: float | None = None,
-    unit: ToleranceUnit = "da",
+    tolerance_unit: ToleranceUnit = "da",
 ) -> dict[tuple[int, int], list[Fragment]]:
     """For each ordered pair of isomers ``(i, j)``, the ions of ``i`` that ``j`` cannot explain.
 
@@ -436,17 +437,17 @@ def pairwise_site_determining_ions(
     :param ion_types: Ion types to generate.
     :param charges: Fragment charges.
     :param tolerance: Match tolerance. None compares m/z values exactly (within 1e-6 Da).
-    :param unit: ``"da"`` or ``"ppm"`` (relative to the ion's own m/z).
+    :param tolerance_unit: ``"da"`` or ``"ppm"`` (relative to the ion's own m/z).
     :return: A dict with a key for every ordered pair ``(i, j)``, ``i != j``, indices in input
         order, each value in ``fragment()`` order. One isomer gives an empty dict.
-    :raises PeptacularError: If ``tolerance`` is negative or ``unit`` is not ``"da"``/``"ppm"``.
+    :raises PeptacularError: If ``tolerance`` is negative or ``tolerance_unit`` is not ``"da"``/``"ppm"``.
     """
-    _check_tolerance(tolerance, unit)
+    _check_tolerance(tolerance, tolerance_unit)
     fragments = _isomer_fragments(isomers, ion_types, charges)
     sorted_mz = [sorted(fragment.mz for fragment in frags) for frags in fragments]
     result: dict[tuple[int, int], list[Fragment]] = {}
     for i, frags in enumerate(fragments):
         for j, other in enumerate(sorted_mz):
             if i != j:
-                result[(i, j)] = [fragment for fragment in frags if not _explained(fragment.mz, other, tolerance, unit)]
+                result[(i, j)] = [fragment for fragment in frags if not _explained(fragment.mz, other, tolerance, tolerance_unit)]
     return result
