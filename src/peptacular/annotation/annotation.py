@@ -47,8 +47,8 @@ from ..digestion.core import (
 )
 from ..isotope import (
     IsotopicData,
+    brain_isotopic_distribution,
     estimate_isotopic_distribution,
-    isotopic_distribution,
 )
 from ..proforma_components import (
     MODIFICATION_TYPE,
@@ -4776,7 +4776,7 @@ class ProFormaAnnotation:
         composition = fragment.composition
         assert composition is not None
 
-        return isotopic_distribution(
+        return brain_isotopic_distribution(
             chemical_formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,

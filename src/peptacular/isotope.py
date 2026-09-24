@@ -293,22 +293,6 @@ def brain_isotopic_distribution(
     ]
 
 
-def isotopic_distribution(
-    chemical_formula: Mapping[str | ElementInfo, int | float],
-    max_isotopes: int | None = None,
-    min_abundance_threshold: float = DEFAULT_MIN_RELATIVE_ABUNDANCE,
-    charge_state: int | None = None,
-) -> list[IsotopicData]:
-    """Calculate an aggregated nominal isotope distribution with BRAIN."""
-
-    return brain_isotopic_distribution(
-        chemical_formula,
-        max_isotopes=max_isotopes,
-        min_abundance_threshold=min_abundance_threshold,
-        charge_state=charge_state,
-    )
-
-
 def estimate_isotopic_distribution(
     neutral_mass: float,
     max_isotopes: int | None = None,
@@ -320,7 +304,7 @@ def estimate_isotopic_distribution(
     if not isfinite(mass) or mass < 0.0:
         raise ValueError(f"neutral_mass must be finite and non-negative, got {neutral_mass!r}")
     composition = averagine_comp(mass)
-    distribution = isotopic_distribution(
+    distribution = brain_isotopic_distribution(
         cast(Mapping[str | ElementInfo, int | float], composition),
         max_isotopes=max_isotopes,
         min_abundance_threshold=min_abundance_threshold,
@@ -352,6 +336,5 @@ __all__ = [
     "brain_isotopic_distribution",
     "estimate_averagine_comp",
     "estimate_isotopic_distribution",
-    "isotopic_distribution",
     "merge_isotopic_distributions",
 ]

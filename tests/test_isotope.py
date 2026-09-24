@@ -11,7 +11,6 @@ from peptacular.isotope import (
     _brain_coefficients,
     brain_isotopic_distribution,
     estimate_isotopic_distribution,
-    isotopic_distribution,
 )
 
 
@@ -67,24 +66,24 @@ def test_brain_matches_direct_convolution(composition):
 
 
 def test_aggregates_fine_structure_into_nominal_peaks():
-    distribution = isotopic_distribution({"C": 12, "H": 6, "N": 3}, max_isotopes=3, min_abundance_threshold=0.0)
+    distribution = brain_isotopic_distribution({"C": 12, "H": 6, "N": 3}, max_isotopes=3, min_abundance_threshold=0.0)
     assert [peak.neutron_count for peak in distribution] == [0, 1, 2]
     assert len(distribution) == 3
 
 
 def test_sulfur_36_uses_four_neutron_offset():
-    distribution = isotopic_distribution({"S": 1}, max_isotopes=5, min_abundance_threshold=0.0)
+    distribution = brain_isotopic_distribution({"S": 1}, max_isotopes=5, min_abundance_threshold=0.0)
     assert [peak.neutron_count for peak in distribution] == [0, 1, 2, 4]
     assert distribution[-1].mass == pytest.approx(ELEMENT_LOOKUP["36S"].mass)
 
 
 def test_elements_with_isotope_gaps_remain_sparse():
-    distribution = isotopic_distribution({"Cl": 2}, max_isotopes=5, min_abundance_threshold=0.0)
+    distribution = brain_isotopic_distribution({"Cl": 2}, max_isotopes=5, min_abundance_threshold=0.0)
     assert [peak.neutron_count for peak in distribution] == [0, 2, 4]
 
 
 def test_fixed_isotope_labels_do_not_convolve():
-    distribution = isotopic_distribution({"13C": 2}, max_isotopes=10, min_abundance_threshold=0.0)
+    distribution = brain_isotopic_distribution({"13C": 2}, max_isotopes=10, min_abundance_threshold=0.0)
     assert distribution == [pt.IsotopicData(ELEMENT_LOOKUP["13C"].mass * 2, 0, 1.0)]
 
 
@@ -102,8 +101,8 @@ def test_adaptive_envelope_keeps_weak_leading_peaks():
 
 
 def test_formula_cache_is_bounded_and_public_results_are_distinct():
-    first = isotopic_distribution({"C": 100}, max_isotopes=10)
-    second = isotopic_distribution({"C": 100}, max_isotopes=10)
+    first = brain_isotopic_distribution({"C": 100}, max_isotopes=10)
+    second = brain_isotopic_distribution({"C": 100}, max_isotopes=10)
     assert first == second
     assert first is not second
     assert _brain_coefficients.cache_info().maxsize == 4096
@@ -126,9 +125,9 @@ class TestAveragineAnchoring:
 class TestIsotopeChargeState:
     def test_charge_state_shifts_mass_by_electron(self):
         formula = {"C": 12, "H": 6, "N": 3}
-        neutral = isotopic_distribution(formula)
-        charged1 = isotopic_distribution(formula, charge_state=1)
-        charged2 = isotopic_distribution(formula, charge_state=2)
+        neutral = brain_isotopic_distribution(formula)
+        charged1 = brain_isotopic_distribution(formula, charge_state=1)
+        charged2 = brain_isotopic_distribution(formula, charge_state=2)
         assert neutral[0].mass - charged1[0].mass == pytest.approx(ELECTRON_MASS)
         assert neutral[0].mass - charged2[0].mass == pytest.approx(2 * ELECTRON_MASS)
 
@@ -144,14 +143,14 @@ def test_annotation_isotopes_use_total_intrinsic_and_external_charge():
     annotation = pt.parse("PEP[Formula:CH2:z+1]TIDE/2")
     fragment = annotation.frag(calculate_composition=True)
     assert fragment.charge_state == 3
-    expected = isotopic_distribution(fragment.composition, charge_state=3)
+    expected = brain_isotopic_distribution(fragment.composition, charge_state=3)
     assert annotation.isotopic_distribution() == expected
 
 
 @pytest.mark.parametrize("formula", [{"C": -1}, {"C": float("nan")}, {"C": True}])
 def test_invalid_compositions_are_rejected(formula):
     with pytest.raises(ValueError):
-        isotopic_distribution(formula)
+        brain_isotopic_distribution(formula)
 
 
 @pytest.mark.parametrize("mass", [-1, float("inf"), float("nan")])
@@ -164,32 +163,32 @@ def test_averagine_rejects_invalid_target_mass(estimate, mass):
 @pytest.mark.parametrize("limit", [0, -1, True, 2.5])
 def test_isotope_window_requires_a_positive_integer(limit):
     with pytest.raises(ValueError, match="max_isotopes"):
-        isotopic_distribution({"C": 6}, max_isotopes=limit)
+        brain_isotopic_distribution({"C": 6}, max_isotopes=limit)
 
 
 @pytest.mark.parametrize("threshold", [-0.1, 1.1, True, float("nan"), float("inf")])
 def test_relative_abundance_threshold_is_validated(threshold):
     with pytest.raises(ValueError, match="min_abundance_threshold"):
-        isotopic_distribution({"C": 6}, min_abundance_threshold=threshold)
+        brain_isotopic_distribution({"C": 6}, min_abundance_threshold=threshold)
 
 
 @pytest.mark.parametrize("charge", [True, 1.5, "2"])
 def test_isotope_charge_requires_an_integer(charge):
     with pytest.raises(ValueError, match="charge_state"):
-        isotopic_distribution({"C": 6}, charge_state=charge)
+        brain_isotopic_distribution({"C": 6}, charge_state=charge)
 
 
 def test_zero_threshold_returns_complete_small_envelope_with_isotope_gaps():
-    complete = isotopic_distribution({"Cl": 2}, min_abundance_threshold=0)
-    bounded = isotopic_distribution({"Cl": 2}, max_isotopes=5, min_abundance_threshold=0)
+    complete = brain_isotopic_distribution({"Cl": 2}, min_abundance_threshold=0)
+    bounded = brain_isotopic_distribution({"Cl": 2}, max_isotopes=5, min_abundance_threshold=0)
     assert complete == bounded
     assert [peak.neutron_count for peak in complete] == [0, 2, 4]
 
 
 def test_zero_threshold_large_envelope_requires_an_explicit_bound():
     with pytest.raises(ValueError, match="max_isotopes is required"):
-        isotopic_distribution({"C": 5000}, min_abundance_threshold=0)
-    bounded = isotopic_distribution({"C": 5000}, max_isotopes=8, min_abundance_threshold=0)
+        brain_isotopic_distribution({"C": 5000}, min_abundance_threshold=0)
+    bounded = brain_isotopic_distribution({"C": 5000}, max_isotopes=8, min_abundance_threshold=0)
     assert len(bounded) == 8
     assert bounded[0].mass == pytest.approx(60_000)
 
@@ -212,3 +211,11 @@ def test_merging_isotope_envelopes_preserves_total_abundance(precision):
 def test_merging_empty_envelopes_returns_no_peaks():
     assert pt.merge_isotopic_distributions() == []
     assert pt.merge_isotopic_distributions([], []) == []
+
+
+def test_formula_isotopic_distribution_alias_removed():
+    # 5.0: peptacular.isotope.isotopic_distribution duplicated brain_isotopic_distribution.
+    import peptacular.isotope as iso
+
+    assert not hasattr(iso, "isotopic_distribution")
+    assert "isotopic_distribution" not in iso.__all__
