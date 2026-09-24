@@ -312,3 +312,21 @@ class TestLabelledDeprotonation:
         comp = pt.parse("<13C>PEK").frag("y", charge=-1, calculate_with_composition=True).composition
         assert {e.mass_number for e in comp if e.symbol == "H"} == {None}
         assert {e.mass_number for e in comp if e.symbol == "C"} == {13}
+
+
+class TestChargedIsotopePeaks:
+    """A charged envelope's monoisotopic peak sits on the ion's mass (PROTON_MASS per proton)."""
+
+    @pytest.mark.parametrize("charge", [1, 2, 3, -1, -2, "Na:z+1", None])
+    def test_monoisotopic_peak_matches_fragment(self, charge):
+        annot = pt.parse("PEPTIDEK")
+        peak = annot.isotopic_distribution(charge=charge)[0]
+        exact = annot.frag(charge=charge, calculate_with_composition=True)
+        assert peak.neutron_count == 0
+        assert peak.mass == pytest.approx(exact.mass, abs=1e-11)
+        assert peak.mass / max(abs(exact.charge_state), 1) == pytest.approx(annot.mz(charge=charge), abs=1e-9)
+
+    def test_neutral_distribution_unchanged(self):
+        annot = pt.parse("PEPTIDEK")
+        neutral = annot.isotopic_distribution(charge=0)
+        assert neutral == pt.brain_isotopic_distribution(annot.comp(), charge=0)

@@ -4845,12 +4845,17 @@ class ProFormaAnnotation:
         composition = fragment.composition
         assert composition is not None
 
-        return brain_isotopic_distribution(
+        peaks = brain_isotopic_distribution(
             formula=cast(Mapping[str | ElementInfo, int | float], composition),
             max_isotopes=max_isotopes,
             min_abundance_threshold=min_abundance_threshold,
             charge=fragment.charge_state,
         )
+        # The composition counts an H atom per proton; lift each to PROTON_MASS, as frag() does.
+        binding = proton_binding_offset(frag_annot.charge_adducts, True)
+        if binding:
+            peaks = [IsotopicData(mass=peak.mass + binding, neutron_count=peak.neutron_count, abundance=peak.abundance) for peak in peaks]
+        return peaks
 
     def estimate_isotopic_distribution(
         self,
