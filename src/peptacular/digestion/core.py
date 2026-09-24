@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Generator, Sequence
 
-from tacular import PROTEASE_LOOKUP, Proteases
+from tacular import PROTEASE_LOOKUP, Protease
 
 from .._regex_utils import get_regex_match_indices
 from ..diagnostics import PeptacularError, UnknownEnzymeError
@@ -77,7 +77,7 @@ def resolve_enzyme(enzyme: str | re.Pattern[str]) -> re.Pattern[str]:
     """Turn an ``enzyme`` argument into a compiled cleavage pattern.
 
     A string is looked up in tacular's ``PROTEASE_LOOKUP`` (names, ids and
-    :class:`~tacular.Proteases` members). A compiled pattern is returned as is.
+    :class:`~tacular.Protease` members). A compiled pattern is returned as is.
 
     :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
     :raises TypeError: If ``enzyme`` is neither a string nor a compiled pattern.
@@ -88,7 +88,7 @@ def resolve_enzyme(enzyme: str | re.Pattern[str]) -> re.Pattern[str]:
         raise TypeError(f"enzyme must be a protease name or a compiled re.Pattern, got {type(enzyme).__name__}")
     protease_info = PROTEASE_LOOKUP.get(enzyme)
     if protease_info is None:
-        known = ", ".join(sorted(p.value for p in Proteases))
+        known = ", ".join(sorted(p.value for p in Protease))
         raise UnknownEnzymeError(f"Unknown enzyme {enzyme!r}. Known names: {known}. To cleave with a custom regex, pass re.compile({enzyme!r}).")
     return protease_info.pattern
 

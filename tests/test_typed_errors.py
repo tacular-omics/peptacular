@@ -111,7 +111,7 @@ def test_digest_enzyme_regex_keyword_is_gone():
         pt.digest("PEPTIDEK", enzyme_regex="trypsin")  # ty: ignore[unknown-argument]
 
 
-@pytest.mark.parametrize("enzyme", ["trypsin", "Trypsin", pt.Proteases.TRYPSIN, re.compile("(?<=[KR])")])
+@pytest.mark.parametrize("enzyme", ["trypsin", "Trypsin", pt.Protease.TRYPSIN, re.compile("(?<=[KR])")])
 def test_digest_accepts_names_members_and_patterns(enzyme):
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)

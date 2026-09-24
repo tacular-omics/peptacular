@@ -3,10 +3,10 @@
 Everything listed in ``__all__`` is the public API and is importable from the top-level
 package (``import peptacular as pt``). Reference data (modification, element, amino-acid
 and protease lookups) belongs to :mod:`tacular`; only the tacular enums that peptacular
-functions take as arguments (``IonType``, ``Proteases``, ``NeutralDelta``) are re-exported.
+functions take as arguments (``IonType``, ``Protease``, ``NeutralDelta``) are re-exported.
 """
 
-from tacular import IonType, NeutralDelta, Proteases
+from tacular import IonType, NeutralDelta, Protease
 
 from .annotation import AnnotationProperties, Fragment, Interval, Mod, Mods, ProFormaAnnotation
 from .batch import BatchOperation, BatchResult, batch, diagnose, iter_batch
@@ -224,7 +224,7 @@ __all__ = [
     # tacular enums used as arguments
     "IonType",
     "NeutralDelta",
-    "Proteases",
+    "Protease",
     # annotation (OOP API)
     "ProFormaAnnotation",
     "AnnotationProperties",

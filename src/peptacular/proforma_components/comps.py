@@ -30,7 +30,7 @@ from tacular import (
     PsimodInfo,
     ResidInfo,
     UnimodInfo,
-    XlModInfo,
+    XlmodInfo,
 )
 
 from ..constants import CV, Terminal
@@ -523,7 +523,7 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
 
     def _get_mod_info_by_accession(
         self,
-    ) -> UnimodInfo | PsimodInfo | ResidInfo | GnoInfo | XlModInfo | None:
+    ) -> UnimodInfo | PsimodInfo | ResidInfo | GnoInfo | XlmodInfo | None:
         match self.cv:
             case CV.UNIMOD:
                 return UNIMOD_LOOKUP.query_id(self.accession)
@@ -694,7 +694,7 @@ class TagName(MassPropertyMixin, PositionScoreMixin):
 
     def _get_mod_info_by_name(
         self,
-    ) -> UnimodInfo | PsimodInfo | ResidInfo | GnoInfo | XlModInfo | None:
+    ) -> UnimodInfo | PsimodInfo | ResidInfo | GnoInfo | XlmodInfo | None:
         match self.cv:
             case CV.UNIMOD:
                 return UNIMOD_LOOKUP.query_name(self.name)
@@ -877,8 +877,8 @@ class GlycanComponent(MassPropertyMixin):
         elif isinstance(value, ChargedFormula):
             return value.get_mass(monoisotopic=monoisotopic) * self.occurance
         else:
-            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
-            mass = monosaccharide.mass(monoisotopic=monoisotopic)
+            monosaccharide = MONOSACCHARIDE_LOOKUP[value]
+            mass = monosaccharide.get_mass(monoisotopic=monoisotopic)
             if mass is None:
                 raise PeptacularError(f"Unknown mass for monosaccharide: {value}")
             return mass * self.occurance
@@ -893,7 +893,7 @@ class GlycanComponent(MassPropertyMixin):
         elif isinstance(value, ChargedFormula):
             composition = value.get_composition()
         else:
-            monosaccharide = MONOSACCHARIDE_LOOKUP.proforma(value)
+            monosaccharide = MONOSACCHARIDE_LOOKUP[value]
             comp = monosaccharide.composition
             if comp is None:
                 raise PeptacularError(f"Unknown composition for monosaccharide: {value}")
@@ -1530,7 +1530,7 @@ class SequenceElement(MassPropertyMixin):
     modifications: tuple[MODIFICATION_TYPE, ...] = ()
 
     def get_mass(self, monoisotopic: bool = True) -> float:
-        aa = AA_LOOKUP.one_letter(self.amino_acid)
+        aa = AA_LOOKUP[self.amino_acid]
         aa_mass = aa.monoisotopic_mass if monoisotopic else aa.average_mass
         if aa_mass is None:
             raise PeptacularError(f"Unknown mass for amino acid: {self.amino_acid}")
@@ -1538,7 +1538,7 @@ class SequenceElement(MassPropertyMixin):
         return aa_mass + mod_mass
 
     def get_composition(self) -> Counter[ElementInfo]:
-        aa = AA_LOOKUP.one_letter(self.amino_acid)
+        aa = AA_LOOKUP[self.amino_acid]
         composition = aa.composition
         if composition is None:
             raise PeptacularError(f"Unknown composition for amino acid: {self.amino_acid}")

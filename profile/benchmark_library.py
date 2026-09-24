@@ -14,7 +14,7 @@ if __name__ == "__main__":
     for i, peptide_spans in enumerate(
         pt.digest(
             proteins,
-            enzyme=pt.Proteases.TRYPSIN,
+            enzyme=pt.Protease.TRYPSIN,
             missed_cleavages=2,
             semi=False,
             min_len=6,

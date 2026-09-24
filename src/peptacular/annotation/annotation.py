@@ -182,8 +182,8 @@ EMPTY_CHARGE_MODS = Mods[GlobalChargeCarrier](mod_type=ModType.CHARGE, _mods=Non
 EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=None)
 
 # Residue masses are fixed reference data, independent of mutable annotations.
-_MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.one_letter_to_info.items()}
-_AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.one_letter_to_info.items()}
+_MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.items()}
+_AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.items()}
 
 
 def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
@@ -2718,7 +2718,7 @@ class ProFormaAnnotation:
     def get_sequence_composition(self) -> Counter[ElementInfo]:
         sequence_composition: Counter[ElementInfo] = Counter()
         for aa in self.stripped_sequence:
-            aa_info = AA_LOOKUP.one_letter(aa)
+            aa_info = AA_LOOKUP[aa]
             if aa_info.composition is None:
                 raise CompositionError(f"Composition not available for amino acid: {aa}")
             for element, count in aa_info.composition.items():
@@ -3045,7 +3045,7 @@ class ProFormaAnnotation:
             total_charge = external_charge + internal_charge
             mass = _adjust_mass_value(
                 base_mass,
-                H_ELEMENT_INFO.get_mass(monoisotopic) * external_charge,
+                H_ELEMENT_INFO.get_mass(monoisotopic=monoisotopic) * external_charge,
                 total_charge,
                 ion_type,
                 monoisotopic,

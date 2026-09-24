@@ -43,8 +43,8 @@ def run():
     print("=" * 60)
 
     # Using predefined enzyme enum
-    print("\nUsing Proteases enum:")
-    for span in protein.digest_spans(pt.Proteases.TRYPSIN):
+    print("\nUsing Protease enum:")
+    for span in protein.digest_spans(pt.Protease.TRYPSIN):
         print(f"  {protein[span].serialize()}")
 
     # Using enzyme string
@@ -79,7 +79,7 @@ def run():
     print(f"            {''.join('^' if i in sites else ' ' for i in range(len(protein.sequence)))}")
 
     print("\nCleavage positions for included trypsin regex:")
-    # can also use Proteases.TRYPSIN or custom regex
+    # can also use Protease.TRYPSIN or custom regex
     sites_regex = list(protein.cleavage_sites("trypsin"))
     print(f"  Sites: {sites_regex}")
 

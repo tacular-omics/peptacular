@@ -75,7 +75,7 @@ class TestDigestion:
     def test_pyteomics_own_trypsin_example(self):
         # tests/test_parser.py::test_cleave in pyteomics
         assert pparser.xcleave("PEPTIDEKS", pparser.expasy_rules["trypsin"]) == [(0, "PEPTIDEK"), (8, "S")]
-        result = pt.digest("PEPTIDEKS", pt.Proteases.TRYPSIN, missed_cleavages=0)
+        result = pt.digest("PEPTIDEKS", pt.Protease.TRYPSIN, missed_cleavages=0)
         assert result == [("PEPTIDEK", pt.Span(0, 8, 0)), ("S", pt.Span(8, 9, 0))]
 
     def test_pyteomics_own_semi_tryptic_example(self):
@@ -98,7 +98,7 @@ class TestDigestion:
             "K",
             "S",
         }
-        result = {p for p, _ in pt.digest("PEPTIDEKS", pt.Proteases.TRYPSIN, missed_cleavages=0, semi=True)}
+        result = {p for p, _ in pt.digest("PEPTIDEKS", pt.Protease.TRYPSIN, missed_cleavages=0, semi=True)}
         assert result == expected
 
     @pytest.mark.parametrize(

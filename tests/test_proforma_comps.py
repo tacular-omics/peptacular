@@ -904,7 +904,7 @@ class TestFixedModification:
 class TestSequenceElement:
     def test_get_mass_adds_amino_acid_and_modification_mass(self) -> None:
         se = SequenceElement(amino_acid=AminoAcid.A)
-        aa = AA_LOOKUP.one_letter(AminoAcid.A)
+        aa = AA_LOOKUP[AminoAcid.A]
         assert se.get_mass() == aa.monoisotopic_mass
 
     def test_get_mass_raises_for_amino_acid_with_no_defined_mass(self) -> None:
@@ -915,7 +915,7 @@ class TestSequenceElement:
 
     def test_get_composition_returns_amino_acid_composition(self) -> None:
         se = SequenceElement(amino_acid=AminoAcid.A)
-        aa = AA_LOOKUP.one_letter(AminoAcid.A)
+        aa = AA_LOOKUP[AminoAcid.A]
         assert se.get_composition() == Counter(aa.composition)
 
     def test_get_composition_raises_for_amino_acid_with_no_defined_composition(self) -> None:

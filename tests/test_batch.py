@@ -117,7 +117,7 @@ def test_batch_parse_and_other_operations():
     assert pt.batch("comp", ["PEPTIDE"])[0].value == pt.comp("PEPTIDE")
     assert pt.batch("mz", ["PEPTIDE"], charge=2)[0].value == pt.mz("PEPTIDE", charge=2)
     assert pt.batch("fragment", ["PEPTIDE"], ion_types=["b"], charges=[1])[0].value
-    assert pt.batch("digest", ["PEPTIDEK"], enzyme=pt.Proteases.TRYPSIN)[0].value
+    assert pt.batch("digest", ["PEPTIDEK"], enzyme=pt.Protease.TRYPSIN)[0].value
 
 
 def test_collect_does_not_catch_unexpected_type_errors():

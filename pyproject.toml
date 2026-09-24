@@ -4,7 +4,7 @@ dynamic = ["version"]
 description = "Parse, annotate, and analyze ProForma 2.1 peptide and protein sequences."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["tacular>=1.2,<2"]
+dependencies = ["tacular>=2.0,<3"]
 authors = [
     { name = "Patrick T. Garrett", email = "pgarrett@scripps.edu" },
     { name = "John R. Yates III", email = "jyates@scripps.edu" },

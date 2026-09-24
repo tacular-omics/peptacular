@@ -49,7 +49,7 @@ def test_stdlib_and_tacular_internals_do_not_leak(name):
     assert not hasattr(pt, name)
 
 
-@pytest.mark.parametrize("name", ["IonType", "Proteases", "NeutralDelta"])
+@pytest.mark.parametrize("name", ["IonType", "Protease", "NeutralDelta"])
 def test_tacular_argument_enums_are_reexported(name):
     import tacular
 

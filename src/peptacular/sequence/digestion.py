@@ -350,7 +350,7 @@ def cleavage_sites(
 
     :param sequence: A ProForma string or annotation, or a sequence of them for batch mode.
     :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` (``"trypsin"``,
-        ``"Trypsin"``, ``Proteases.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``).
+        ``"Trypsin"``, ``Protease.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``).
         A plain string is never treated as a regex.
     :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
     :return: Cleavage positions, or one list per input in batch mode.
@@ -526,7 +526,7 @@ def digest(
 
     :param sequence: A ProForma string or annotation, or a sequence of them for batch mode.
     :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` (``"trypsin"``,
-        ``Proteases.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``). A plain
+        ``Protease.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``). A plain
         string is never treated as a regex. ``"unspecific"`` cleaves at every position.
     :param missed_cleavages: Maximum number of missed cleavages per peptide.
     :param semi: Also return semi-enzymatic peptides.
