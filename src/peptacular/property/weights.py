@@ -274,7 +274,7 @@ def get_weights(
                 return _get_cosine_weights(length, min_weight, max_weight, kwargs.get("cycles", 1.0))
             case WeightingMethods.SINUSOIDAL:
                 return _get_sinusoidal_weights(length, min_weight, max_weight, kwargs.get("phase", 0.0))
-            case _:
+            case _:  # pragma: no cover - from_str already rejects unknown names
                 raise PeptacularError(f"Unsupported weights type: {weights}")
     else:
         if not isinstance(weights, Sequence):

@@ -490,7 +490,7 @@ class Interval:
         if self._start < 0:
             raise PeptacularError(f"Start position must be non-negative, got {self.start}")
         if self._end <= self.start:
-            raise PeptacularError(f"End position must be >= start position, got {self.end} <= {self.start}")
+            raise PeptacularError(f"End position must be greater than start position, got end={self.end}, start={self.start}")
 
     @property
     def is_valid(self) -> bool:
