@@ -44,7 +44,7 @@ def is_subsequence(
 
     subsequence_counts = count_residues(subsequence, include_mods=not ignore_mods)
     sequence_counts = count_residues(sequence, include_mods=not ignore_mods)
-    return all(subsequence_counts[aa] <= sequence_counts[aa] for aa in subsequence_counts)
+    return all(count <= sequence_counts.get(aa, 0) for aa, count in subsequence_counts.items())
 
 
 def find_subsequence_indices(

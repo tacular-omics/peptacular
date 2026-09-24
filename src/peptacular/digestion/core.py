@@ -143,10 +143,8 @@ def generate_regex(
         # Restrict before: what precedes cleavage residue
         if restrict_before:
             escaped_restrict = "".join(re.escape(char) for char in _convert_to_aa_set(restrict_before))
-            # Need to check what comes before the cleavage residue
-            parts.insert(0, f"(?<=[^{escaped_restrict}][{escaped_cleave}])")
-            # Remove the simple lookbehind since we now have the combined one
-            parts = [parts[0]] + parts[2:]
+            # Negative lookbehind so a cleavage residue at the sequence start still matches
+            parts.insert(1, f"(?<![{escaped_restrict}][{escaped_cleave}])")
     else:
         # Cleave before residue: lookahead for cleavage residue
         parts.append(f"(?=[{escaped_cleave}])")
@@ -159,8 +157,8 @@ def generate_regex(
         # Restrict after: what follows cleavage residue
         if restrict_after:
             escaped_restrict = "".join(re.escape(char) for char in _convert_to_aa_set(restrict_after))
-            # Replace simple lookahead with one that checks after the residue
-            parts[-1] = f"(?=[{escaped_cleave}][^{escaped_restrict}])"
+            # Negative lookahead so a cleavage residue at the sequence end still matches
+            parts[-1] = f"(?=[{escaped_cleave}](?![{escaped_restrict}]))"
 
     regex_str = "".join(parts)
 
@@ -239,8 +237,15 @@ def sequential_digest_annotation(
     min_len: int | None = None,
     max_len: int | None = None,
 ) -> Generator[Span]:
-    """Perform sequential digestion with multiple enzymes."""
+    """Perform sequential digestion with multiple enzymes.
+
+    Each enzyme digests the spans produced by the previous one. The missed-cleavage
+    count of a final span is the number of cleavage sites, from any of the enzymes,
+    that lie inside it and were not cut.
+    """
     digested_spans: list[Span] = []
+    # Cleavage sites of earlier enzymes (absolute positions) strictly inside each span, parallel to digested_spans.
+    span_sites: list[tuple[int, ...]] = []
 
     for i, enzyme_config in enumerate(enzyme_configs):
         if i == 0:
@@ -256,13 +261,16 @@ def sequential_digest_annotation(
                     complete_digestion=enzyme_config.complete_digestion,
                 )
             )
+            sites = list(get_cleavage_sites(annotation, enzyme=enzyme_config.enzyme_regex))
+            span_sites = [tuple(s for s in sites if span[0] < s < span[1]) for span in digested_spans]
         else:
             if len(digested_spans) == 0:
                 break
 
             sequential_digested_spans: list[Span] = []
+            sequential_span_sites: list[tuple[int, ...]] = []
 
-            for span in digested_spans:
+            for span, parent_sites in zip(digested_spans, span_sites, strict=True):
                 sub_annotation = annotation.slice(span[0], span[1], inplace=False)
 
                 _digested_spans = list(
@@ -277,17 +285,21 @@ def sequential_digest_annotation(
                         complete_digestion=enzyme_config.complete_digestion,
                     )
                 )
+                sub_sites = [span[0] + s for s in get_cleavage_sites(sub_annotation, enzyme=enzyme_config.enzyme_regex)]
 
                 # Adjust spans to be relative to original annotation
                 for digested_span in _digested_spans:
-                    fixed_span = Span(
-                        span[0] + digested_span[0],
-                        span[0] + digested_span[1],
-                        span[2],
-                    )
+                    start = span[0] + digested_span[0]
+                    end = span[0] + digested_span[1]
+                    prior_sites = tuple(s for s in parent_sites if start < s < end)
+                    # Earlier enzymes' missed cleavages inside this sub-span, never more than the parent had
+                    prior_missed = min(len(prior_sites), span[2])
+                    fixed_span = Span(start, end, digested_span[2] + prior_missed)
                     sequential_digested_spans.append(fixed_span)
+                    sequential_span_sites.append(prior_sites + tuple(s for s in sub_sites if start < s < end))
 
             digested_spans = sequential_digested_spans
+            span_sites = sequential_span_sites
 
     if max_len is not None:
         digested_spans = [span for span in digested_spans if span[1] - span[0] <= max_len]

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `fast_fragment` put static N-terminal mods (`<[Carbamidomethyl]@N-term>`) on the last residue and C-terminal ones on the second-to-last. It now matches `frag()`.
+- Immonium and internal fragments counted neutral-loss sites on the whole parent sequence instead of the fragment, so they got losses the fragment cannot have (or raised `InvalidAdjustmentError`).
+- `simple_digest`/`generate_regex` dropped a site at the sequence ends when `restrict_before` (C-terminal cleavage) or `restrict_after` (N-terminal cleavage) was set: `KAAAKAAA` with K not after P now cleaves at 1 and 5.
+- `sequential_digest` reported only the first enzyme's missed cleavages. The count is now the uncut sites of every enzyme inside the span.
+- `is_subsequence(..., order=False)` raised `KeyError` when the subsequence had a residue the sequence lacks; it returns `False`.
+- `ProFormaAnnotation.__hash__` depended on modification order while `==` did not, so equal annotations could hash differently. Comparing an annotation with a non-annotation now returns `False` instead of raising `NotImplementedError`.
+
 ## [4.1.0] (2026-09-23)
 
 ### Fixed
