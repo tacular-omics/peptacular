@@ -369,9 +369,11 @@ Behaviour changes
        ``NotImplementedError``)
      - ``get_mass`` raises ``UnsupportedOperationError`` with a hint; ``get_composition``
        is removed. Use ``pt.parse`` / ``pt.parse_chimeric`` and the annotation methods.
-   * - mzPAF neutral-loss labels ``-H3CON``, ``-H2CO2``, ``-H3N``
-     - Canonical names: ``-HCONH2``, ``-HCOOH``, ``-NH3``. Other formulas are written in
-       Hill order (``+NaS``, not ``+SNa``). Every other 4.2.0 label is unchanged.
+   * - mzPAF neutral-loss labels ``-H3CON``, ``-H2CO2``
+     - Canonical names: ``-HCONH2``, ``-HCOOH``. Other formulas are written in Hill order
+       (``+NaS``, not ``+SNa``). Every other 4.2.0 label, including ``-NH3``, is unchanged.
+   * - ``fragment(..., ion_types="by")`` (a string of letters meant b and y)
+     - A string is one ion type. Write ``ion_types=("b", "y")``.
    * - ``fragment(..., neutral_deltas=["H3PO4"])`` on a peptide with an unmodified S/T/Y
        raised ``InvalidAdjustmentError``
      - The impossible loss is skipped for that ion; possible losses are still produced.
