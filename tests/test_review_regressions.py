@@ -1,5 +1,7 @@
 """Regressions for bugs found in the post-4.1.0 code review."""
 
+import re
+
 import pytest
 
 import peptacular as pt
@@ -60,18 +62,18 @@ def test_generate_regex_restrictions_at_sequence_ends(sequence, kwargs, expected
 
 
 def _config(regex, mc):
-    return pt.EnzymeConfig(enzyme_regex=regex, missed_cleavages=mc, semi_enzymatic=False, complete_digestion=True)
+    return pt.EnzymeConfig(enzyme=re.compile(regex), missed_cleavages=mc, semi_enzymatic=False, complete_digestion=True)
 
 
 def test_sequential_digest_counts_second_enzyme_missed_cleavages():
     annot = pt.parse("AAKAADAA")
-    spans = set(annot.sequential_digest([_config("(?<=K)", 0), _config("(?=D)", 1)]))
+    spans = set(annot.sequential_digest_spans([_config("(?<=K)", 0), _config("(?=D)", 1)]))
     assert spans == {(0, 3, 0), (3, 5, 0), (3, 8, 1), (5, 8, 0)}
 
 
 def test_sequential_digest_counts_only_first_enzyme_sites_inside_span():
     annot = pt.parse("AAKAADAA")
-    spans = set(annot.sequential_digest([_config("(?<=K)", 1), _config("(?=D)", 0)]))
+    spans = set(annot.sequential_digest_spans([_config("(?<=K)", 1), _config("(?=D)", 0)]))
     # (5, 8) comes from both the (0, 8) and (3, 8) parents; neither contains the K site
     assert spans == {(0, 3, 0), (0, 5, 1), (5, 8, 0), (3, 5, 0)}
 

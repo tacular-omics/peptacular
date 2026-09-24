@@ -177,7 +177,7 @@ def test_digest_batch_materializes_process_safe_spans(method, start_method):
     result = batch("digest", ["AKPEPTIDERAAK"], enzyme="trypsin", method=method, start_method=start_method, n_workers=1)[0]
     assert result.ok
     assert isinstance(result.value, list)
-    assert result.value == list(parse("AKPEPTIDERAAK").digest(enzyme="trypsin"))
+    assert result.value == list(parse("AKPEPTIDERAAK").digest_spans(enzyme="trypsin"))
     assert pickle.loads(pickle.dumps(result)).value == result.value
 
 
@@ -188,7 +188,7 @@ def test_digest_batch_collects_lazy_iterator_failure(monkeypatch):
         yield (0, 1, 0)
         raise ValueError("lazy digestion failure")
 
-    monkeypatch.setattr(ProFormaAnnotation, "digest", failing_digest)
+    monkeypatch.setattr(ProFormaAnnotation, "digest_spans", failing_digest)
     result = batch("digest", ["PEPTIDE"], enzyme="trypsin", errors="collect", method="sequential")[0]
     assert result.error.code == "calculation_error"
     assert "lazy digestion failure" in result.error.message

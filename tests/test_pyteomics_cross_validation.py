@@ -4,6 +4,8 @@ library (a peptacular dev dependency), to catch mass/digestion regressions
 that peptacular's own tests might not surface.
 """
 
+import re
+
 import pytest
 import tacular
 from pyteomics import mass as pmass
@@ -122,14 +124,14 @@ class TestDigestion:
         # isolates agreement on cleavage-site/cut-position semantics, independent of
         # any differences between the two libraries' enzyme-name-to-regex tables.
         regex = tacular.PROTEASE_LOOKUP.get(protease_id).regex
-        pt_result = {p for p, _ in pt.digest(self.PROTEIN, regex, missed_cleavages=missed_cleavages, semi=semi)}
+        pt_result = {p for p, _ in pt.digest(self.PROTEIN, re.compile(regex), missed_cleavages=missed_cleavages, semi=semi)}
         py_result = set(pparser.cleave(self.PROTEIN, regex, missed_cleavages=missed_cleavages, semi=semi))
         assert pt_result == py_result
 
     @pytest.mark.parametrize("min_len,max_len", [(None, None), (5, 20), (7, 15)])
     def test_semi_digest_length_filters_agree_with_pyteomics(self, min_len, max_len):
         regex = tacular.PROTEASE_LOOKUP.get("trypsin").regex
-        pt_result = {p for p, _ in pt.digest(self.PROTEIN, regex, missed_cleavages=2, semi=True, min_len=min_len, max_len=max_len)}
+        pt_result = {p for p, _ in pt.digest(self.PROTEIN, re.compile(regex), missed_cleavages=2, semi=True, min_len=min_len, max_len=max_len)}
         py_result = set(pparser.cleave(self.PROTEIN, regex, missed_cleavages=2, semi=True, min_length=min_len))
         if max_len is not None:
             py_result = {p for p in py_result if len(p) <= max_len}

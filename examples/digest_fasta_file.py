@@ -30,7 +30,7 @@ def run():
         for record in records:
             protein = pt.parse(record.sequence)
             print(f"\n{record.header} ({record.sequence})")
-            for span in protein.digest(pt.Proteases.TRYPSIN, missed_cleavages=1, min_len=4):
+            for span in protein.digest_spans(pt.Proteases.TRYPSIN, missed_cleavages=1, min_len=4):
                 peptide = protein[span]
                 print(f"  {peptide.serialize()}  mass={peptide.mass():.4f}")
 

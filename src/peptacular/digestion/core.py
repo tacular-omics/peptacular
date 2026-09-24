@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Generator, Sequence
 
-from tacular import PROTEASE_LOOKUP
+from tacular import PROTEASE_LOOKUP, Proteases
 
 from .._regex_utils import get_regex_match_indices
+from ..diagnostics import UnknownEnzymeError
 from ..spans import (
     Span,
     build_left_semi_spans,
@@ -24,6 +24,7 @@ __all__ = [
     "right_semi_spans",
     "semi_spans",
     "nonspecific_spans",
+    "resolve_enzyme",
     "get_cleavage_sites",
     "generate_regex",
     "digest_annotation_by_aa",
@@ -72,26 +73,29 @@ def nonspecific_spans(
     return build_non_enzymatic_spans(span=span, min_len=min_len, max_len=max_len)
 
 
-_REGEX_METACHARACTERS = frozenset(".^$*+?{}[]\\|()")
+def resolve_enzyme(enzyme: str | re.Pattern[str]) -> re.Pattern[str]:
+    """Turn an ``enzyme`` argument into a compiled cleavage pattern.
+
+    A string is looked up in tacular's ``PROTEASE_LOOKUP`` (names, ids and
+    :class:`~tacular.Proteases` members). A compiled pattern is returned as is.
+
+    :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
+    :raises TypeError: If ``enzyme`` is neither a string nor a compiled pattern.
+    """
+    if isinstance(enzyme, re.Pattern):
+        return enzyme
+    if not isinstance(enzyme, str):
+        raise TypeError(f"enzyme must be a protease name or a compiled re.Pattern, got {type(enzyme).__name__}")
+    protease_info = PROTEASE_LOOKUP.get(enzyme)
+    if protease_info is None:
+        known = ", ".join(sorted(p.value for p in Proteases))
+        raise UnknownEnzymeError(f"Unknown enzyme {enzyme!r}. Known names: {known}. To cleave with a custom regex, pass re.compile({enzyme!r}).")
+    return protease_info.pattern
 
 
 def get_cleavage_sites(annotation: DigestProtocol, enzyme: str | re.Pattern[str]) -> Generator[int]:
-    """Get cleavage sites for a given enzyme (name, regex string, or compiled pattern)."""
-
-    # Normalize to compiled pattern
-    if isinstance(enzyme, str):
-        # Try to look up by name first
-        protease_info = PROTEASE_LOOKUP.get(enzyme)
-        if protease_info is None and enzyme and not _REGEX_METACHARACTERS.intersection(enzyme):
-            warnings.warn(
-                f"{enzyme!r} is not a known protease name and contains no regex metacharacters, so it is used as a literal "
-                "regex pattern. Check the name against PROTEASE_LOOKUP, or pass re.compile(...) to use it as a regex.",
-                UserWarning,
-                stacklevel=2,
-            )
-        pattern = protease_info.pattern if protease_info else re.compile(enzyme)
-    else:
-        pattern = enzyme
+    """Get cleavage sites for ``enzyme`` (a protease name or a compiled pattern)."""
+    pattern = resolve_enzyme(enzyme)
 
     # Handle non-specific cleavage. An empty pattern (from an empty/None cleave_on)
     # is treated the same as the explicit non-specific sentinel "()".
@@ -204,7 +208,7 @@ def digest_annotation_by_aa(
     """Digest annotation by amino acid cleavage rules."""
     return digest_annotation_by_regex(
         annotation=annotation,
-        enzyme_regex=generate_regex(
+        enzyme=generate_regex(
             cleave_on=cleave_on,
             restrict_before=restrict_before,
             restrict_after=restrict_after,
@@ -221,7 +225,7 @@ def digest_annotation_by_aa(
 
 def digest_annotation_by_regex(
     annotation: DigestProtocol,
-    enzyme_regex: str | re.Pattern[str],
+    enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
@@ -230,12 +234,12 @@ def digest_annotation_by_regex(
     complete_digestion: bool = True,
     sort_output: bool = True,
 ) -> Generator[Span]:
-    """Digest annotation using a regex pattern."""
+    """Digest annotation with ``enzyme`` (a protease name or a compiled pattern)."""
     all_spans: set[Span] = set()
     if not complete_digestion:
         all_spans.add(Span(0, len(annotation), 0))
 
-    cleavage_sites_list: list[int] = list(get_cleavage_sites(annotation, enzyme=enzyme_regex))
+    cleavage_sites_list: list[int] = list(get_cleavage_sites(annotation, enzyme=enzyme))
 
     spans = build_spans(
         max_index=len(annotation),
@@ -275,7 +279,7 @@ def sequential_digest_annotation(
             digested_spans = list(
                 digest_annotation_by_regex(
                     annotation=annotation,
-                    enzyme_regex=enzyme_config.enzyme_regex,
+                    enzyme=enzyme_config.enzyme,
                     missed_cleavages=enzyme_config.missed_cleavages,
                     semi=enzyme_config.semi_enzymatic,
                     min_len=min_len,
@@ -284,7 +288,7 @@ def sequential_digest_annotation(
                     complete_digestion=enzyme_config.complete_digestion,
                 )
             )
-            sites = list(get_cleavage_sites(annotation, enzyme=enzyme_config.enzyme_regex))
+            sites = list(get_cleavage_sites(annotation, enzyme=enzyme_config.enzyme))
             span_sites = [tuple(s for s in sites if span[0] < s < span[1]) for span in digested_spans]
         else:
             if len(digested_spans) == 0:
@@ -299,7 +303,7 @@ def sequential_digest_annotation(
                 _digested_spans = list(
                     digest_annotation_by_regex(
                         annotation=sub_annotation,
-                        enzyme_regex=enzyme_config.enzyme_regex,
+                        enzyme=enzyme_config.enzyme,
                         missed_cleavages=enzyme_config.missed_cleavages,
                         semi=enzyme_config.semi_enzymatic,
                         min_len=min_len,
@@ -308,7 +312,7 @@ def sequential_digest_annotation(
                         complete_digestion=enzyme_config.complete_digestion,
                     )
                 )
-                sub_sites = [span[0] + s for s in get_cleavage_sites(sub_annotation, enzyme=enzyme_config.enzyme_regex)]
+                sub_sites = [span[0] + s for s in get_cleavage_sites(sub_annotation, enzyme=enzyme_config.enzyme)]
 
                 # Adjust spans to be relative to original annotation
                 for digested_span in _digested_spans:

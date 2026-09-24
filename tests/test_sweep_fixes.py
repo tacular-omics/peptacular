@@ -58,7 +58,7 @@ class TestNonSpecificDigestion:
     def test_consistent_with_enzymatic_full_length(self):
         a = pt.parse("PEPTIDEK")
         non = {a[sp].serialize() for sp in a.nonspecific_spans(min_len=1, max_len=100)}
-        enz = {a[sp].serialize() for sp in a.simple_digest(cleave_on="K", missed_cleavages=10, min_len=1, max_len=100)}
+        enz = {a[sp].serialize() for sp in a.simple_digest_spans(cleave_on="K", missed_cleavages=10, min_len=1, max_len=100)}
         assert enz <= non  # every enzymatic product (incl. full length) is a non-specific product
 
 
@@ -67,12 +67,12 @@ class TestSemiEnzymaticMaxLen:
 
     def test_in_range_semi_peptides_present(self):
         a = pt.parse("AAKAAA")
-        p5 = {a[sp].serialize() for sp in a.simple_digest(cleave_on="K", missed_cleavages=1, semi=True, min_len=1, max_len=5)}
+        p5 = {a[sp].serialize() for sp in a.simple_digest_spans(cleave_on="K", missed_cleavages=1, semi=True, min_len=1, max_len=5)}
         # These are all length <= 5 and valid semi-tryptic peptides of the mc=1 parent AAKAAA
         for expected in ("AKAAA", "AAKAA", "AAKA", "KAAA"):
             assert expected in p5
 
     def test_all_within_length_bounds(self):
         a = pt.parse("AAKAAA")
-        for sp in a.simple_digest(cleave_on="K", missed_cleavages=1, semi=True, min_len=2, max_len=4):
+        for sp in a.simple_digest_spans(cleave_on="K", missed_cleavages=1, semi=True, min_len=2, max_len=4):
             assert 2 <= (sp.end - sp.start) <= 4

@@ -18,6 +18,12 @@ __all__ = ["BatchResult", "BatchOperation", "iter_batch", "batch", "diagnose"]
 
 BatchOperation = Literal["parse", "mass", "mz", "comp", "fragment", "fast_fragment", "digest", "isotopic_distribution"]
 _OPERATIONS = frozenset({"parse", "mass", "mz", "comp", "fragment", "fast_fragment", "digest", "isotopic_distribution"})
+# Batch operation name -> ProFormaAnnotation method, where they differ.
+_METHOD_NAMES = {"digest": "digest_spans"}
+
+
+def _method_name(operation: str) -> str:
+    return _METHOD_NAMES.get(operation, operation)
 
 
 @dataclass(frozen=True)
@@ -46,7 +52,7 @@ def _validate_operation(operation: BatchOperation, kwargs: dict[str, Any]) -> No
         raise ValueError(f"Unknown batch operation {operation!r}. Choose from {', '.join(sorted(_OPERATIONS))}.")
     # Bad keywords and missing required arguments are configuration errors,
     # not failures to repeat for every sequence in a database.
-    inspect.signature(getattr(ProFormaAnnotation, operation)).bind(None, **kwargs)
+    inspect.signature(getattr(ProFormaAnnotation, _method_name(operation))).bind(None, **kwargs)
 
 
 def _run_item(
@@ -74,7 +80,7 @@ def _run_item(
             value = annotation
         else:
             stage = "calculate"
-            value = getattr(annotation, operation)(**kwargs)
+            value = getattr(annotation, _method_name(operation))(**kwargs)
             if operation == "digest":
                 # Consume lazy failures here and return a process-safe value.
                 value = list(value)

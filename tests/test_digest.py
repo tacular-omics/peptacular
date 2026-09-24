@@ -1,3 +1,4 @@
+import re
 import unittest
 import warnings
 
@@ -58,7 +59,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_missed_cleavages_2(self):
         """Test protein digestion with 2 missed cleavages."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=2,
             min_len=0,
@@ -79,7 +80,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_missed_cleavages_1(self):
         """Test protein digestion with 1 missed cleavage."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=1,
             min_len=0,
@@ -93,7 +94,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_with_k_at_beginning(self):
         """Test protein digestion with K at the beginning."""
         annotation = pt.ProFormaAnnotation.parse("KTIDERTIDEKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=1,
             min_len=0,
@@ -107,7 +108,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_with_k_at_end(self):
         """Test protein digestion with K at the end."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDEK")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=1,
             min_len=0,
@@ -121,7 +122,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_with_double_k(self):
         """Test protein digestion with consecutive K residues."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=1,
             min_len=0,
@@ -135,7 +136,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_no_missed_cleavages(self):
         """Test protein digestion with no missed cleavages."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=0,
             min_len=0,
@@ -149,7 +150,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_protein_high_missed_cleavages(self):
         """Test protein digestion with very high missed cleavages."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
-        spans = annotation.digest(
+        spans = annotation.digest_spans(
             enzyme=pt.Proteases.TRYPSIN,
             missed_cleavages=10,
             min_len=0,
@@ -316,7 +317,7 @@ class TestDigest(unittest.TestCase):
         modified_seq = "[Acetyl]-PEPTIDER[Phospho]TIDEM[Oxidation]K"
         annotation = pt.ProFormaAnnotation.parse(modified_seq)
 
-        spans = annotation.digest(enzyme="(?<=[KR])", missed_cleavages=1)
+        spans = annotation.digest_spans(enzyme=re.compile("(?<=[KR])"), missed_cleavages=1)
         peptides = {annotation[span].serialize() for span in spans}
         expected = {
             "[Acetyl]-PEPTIDER[Phospho]",
@@ -330,7 +331,7 @@ class TestDigest(unittest.TestCase):
         modified_seq = "[Acetyl]-PEPTIDER[Phospho]TIDEM[Oxidation]K"
         annotation = pt.ProFormaAnnotation.parse(modified_seq)
 
-        spans = annotation.digest(enzyme="(?<=[KR])", missed_cleavages=0)
+        spans = annotation.digest_spans(enzyme=re.compile("(?<=[KR])"), missed_cleavages=0)
         peptides = {annotation[span].serialize() for span in spans}
         expected = {"[Acetyl]-PEPTIDER[Phospho]", "TIDEM[Oxidation]K"}
         self.assertEqual(peptides, expected)
@@ -338,7 +339,7 @@ class TestDigest(unittest.TestCase):
     def test_empty_sequence_regex_digest(self):
         """Test regex digestion with empty sequence."""
         empty_annotation = pt.ProFormaAnnotation.parse("")
-        result = list(empty_annotation.digest(enzyme="(?<=[KR])"))
+        result = list(empty_annotation.digest_spans(enzyme=re.compile("(?<=[KR])")))
         self.assertEqual(result, [])
 
     def test_empty_sequence_semi_enzymatic(self):
@@ -368,7 +369,7 @@ class TestDigest(unittest.TestCase):
     def test_single_letter_sequence_regex_digest(self):
         """Test regex digestion with single letter sequence."""
         single_annotation = pt.ProFormaAnnotation.parse("K")
-        spans = single_annotation.digest(enzyme="(?<=[KR])")
+        spans = single_annotation.digest_spans(enzyme=re.compile("(?<=[KR])"))
         result = list(single_annotation[span].serialize() for span in spans)
         self.assertEqual(result, ["K"])
 
@@ -400,28 +401,28 @@ class TestDigest(unittest.TestCase):
     def test_no_cleavage_sites_sequence(self):
         """Test digestion with sequence that has no cleavage sites."""
         peptide_annotation = pt.ProFormaAnnotation.parse("PEPTIDE")
-        spans = peptide_annotation.digest(enzyme=pt.Proteases.TRYPSIN)
+        spans = peptide_annotation.digest_spans(enzyme=pt.Proteases.TRYPSIN)
         result = list(peptide_annotation[span].serialize() for span in spans)
         self.assertEqual(result, ["PEPTIDE"])
 
     def test_sequential_digest_basic(self):
         """Test basic sequential digestion with trypsin and asp-n."""
         trypsin = pt.EnzymeConfig(
-            enzyme_regex="(?<=[KR])",
+            enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
 
         asp_n = pt.EnzymeConfig(
-            enzyme_regex="(?<=\\w)(?=D)",
+            enzyme=re.compile("(?<=\\w)(?=D)"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
 
         annotation = pt.ProFormaAnnotation.parse("PDEREKPKP")
-        spans = annotation.sequential_digest(enzyme_configs=[trypsin, asp_n])
+        spans = annotation.sequential_digest_spans(enzyme_configs=[trypsin, asp_n])
         peptides = {annotation[span].serialize() for span in spans}
 
         expected = {"P", "DER", "EK", "PK"}
@@ -430,21 +431,21 @@ class TestDigest(unittest.TestCase):
     def test_sequential_digest_partial_digestion(self):
         """Test sequential digestion with partial digestion enabled."""
         partial_trypsin = pt.EnzymeConfig(
-            enzyme_regex="(?<=[KR])",
+            enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=False,
         )
 
         partial_asp_n = pt.EnzymeConfig(
-            enzyme_regex="(?<=\\w)(?=D)",
+            enzyme=re.compile("(?<=\\w)(?=D)"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=False,
         )
 
         annotation = pt.ProFormaAnnotation.parse("PEPRDK")
-        spans = annotation.sequential_digest(enzyme_configs=[partial_trypsin, partial_asp_n])
+        spans = annotation.sequential_digest_spans(enzyme_configs=[partial_trypsin, partial_asp_n])
         peptides = {annotation[span].serialize() for span in spans}
 
         expected = {"PEPR", "DK", "PEPRDK"}
@@ -453,21 +454,21 @@ class TestDigest(unittest.TestCase):
     def test_sequential_digest_modified_sequence(self):
         """Test sequential digestion with modified sequence."""
         trypsin = pt.EnzymeConfig(
-            enzyme_regex="(?<=[KR])",
+            enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
 
         asp_n = pt.EnzymeConfig(
-            enzyme_regex="\\w(?=D)",
+            enzyme=re.compile("\\w(?=D)"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
 
         annotation = pt.ProFormaAnnotation.parse("PEP[Phospho]RDK")
-        spans = annotation.sequential_digest(enzyme_configs=[trypsin, asp_n])
+        spans = annotation.sequential_digest_spans(enzyme_configs=[trypsin, asp_n])
         peptides = {annotation[span].serialize() for span in spans}
         expected = {"PEP[Phospho]R", "DK"}
         self.assertEqual(peptides, expected)
@@ -477,7 +478,7 @@ class TestDigest(unittest.TestCase):
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
 
         spans = list(
-            annotation.digest(
+            annotation.digest_spans(
                 enzyme=pt.Proteases.TRYPSIN,
                 missed_cleavages=0,
             )
@@ -609,21 +610,21 @@ class TestDigest(unittest.TestCase):
     def test_cleavage_sites_overlapping_pattern(self):
         """Test cleavage sites with overlapping pattern."""
         annotation = pt.ProFormaAnnotation.parse("PPPP")
-        sites = list(annotation.cleavage_sites("(?=PP)"))
+        sites = list(annotation.cleavage_sites(re.compile("(?=PP)")))
         expected = [0, 1, 2]
         self.assertEqual(sites, expected)
 
     def test_cleavage_sites_lookahead_pattern(self):
         """Test cleavage sites with lookahead pattern."""
         annotation = pt.ProFormaAnnotation.parse("PEPCTIDE")
-        sites = list(annotation.cleavage_sites("(?=C)"))
+        sites = list(annotation.cleavage_sites(re.compile("(?=C)")))
         expected = [3]
         self.assertEqual(sites, expected)
 
     def test_digest_with_string_span_return_type(self):
         """Test digest with string-span return type."""
         annotation = pt.ProFormaAnnotation.parse("TIDERTIDEKTIDE")
-        spans = list(annotation.digest(enzyme=pt.Proteases.TRYPSIN))
+        spans = list(annotation.digest_spans(enzyme=pt.Proteases.TRYPSIN))
         expected = [(0, 5, 0), (5, 10, 0), (10, 14, 0)]
         self.assertEqual(spans, expected)
 
@@ -631,7 +632,7 @@ class TestDigest(unittest.TestCase):
         """Test digest with complex modified sequence and length filters."""
         seq = "<13C>T[1][2]IDERTIDEKTIDE"
         annotation = pt.ProFormaAnnotation.parse(seq)
-        spans = annotation.digest(enzyme="(?<=[KR])", missed_cleavages=2, min_len=6)
+        spans = annotation.digest_spans(enzyme=re.compile("(?<=[KR])"), missed_cleavages=2, min_len=6)
         result = [annotation[span].serialize() for span in spans]
         expected = [
             "<13C>T[1][2]IDERTIDEK",
@@ -644,8 +645,8 @@ class TestDigest(unittest.TestCase):
         """Test digest with semi-enzymatic and modified sequence."""
         seq = "TIDERTIDEK[1]TIDE-[2]"
         annotation = pt.ProFormaAnnotation.parse(seq)
-        spans = annotation.digest(
-            enzyme="(?<=[KR])",
+        spans = annotation.digest_spans(
+            enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=1,
             min_len=9,
             semi=True,
@@ -657,7 +658,7 @@ class TestDigest(unittest.TestCase):
     def test_digest_non_specific_enzyme(self):
         """Test digest with non-specific enzyme."""
         annotation = pt.ProFormaAnnotation.parse("PEPT")
-        spans = annotation.digest(enzyme=pt.Proteases.UNSPECIFIC)
+        spans = annotation.digest_spans(enzyme=pt.Proteases.UNSPECIFIC)
         result = [annotation[span].serialize() for span in spans]
         expected = ["P", "PE", "PEP", "PEPT", "E", "EP", "EPT", "P", "PT", "T"]
         self.assertEqual(result, expected)
@@ -665,20 +666,20 @@ class TestDigest(unittest.TestCase):
     def test_sequential_digest_example_xxxkxxxdxxx(self):
         """Test sequential digest with example from docstring."""
         trypsin = pt.EnzymeConfig(
-            enzyme_regex="(?<=[KR])",
+            enzyme=re.compile("(?<=[KR])"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
         asp_n = pt.EnzymeConfig(
-            enzyme_regex="(?<=[D])",
+            enzyme=re.compile("(?<=[D])"),
             missed_cleavages=0,
             semi_enzymatic=False,
             complete_digestion=True,
         )
 
         annotation = pt.ProFormaAnnotation.parse("XXXKXXXDXXX")
-        spans = annotation.sequential_digest(enzyme_configs=[trypsin, asp_n])
+        spans = annotation.sequential_digest_spans(enzyme_configs=[trypsin, asp_n])
         result = [annotation[span].serialize() for span in spans]
         expected = ["XXXK", "XXXD", "XXX"]
         self.assertEqual(result, expected)
@@ -687,13 +688,13 @@ class TestDigest(unittest.TestCase):
         """Test sequential digest with partial digestion example."""
         partial_digest = [
             pt.EnzymeConfig(
-                enzyme_regex="(?<=[KR])",
+                enzyme=re.compile("(?<=[KR])"),
                 missed_cleavages=0,
                 semi_enzymatic=False,
                 complete_digestion=False,
             ),
             pt.EnzymeConfig(
-                enzyme_regex="(?<=[D])",
+                enzyme=re.compile("(?<=[D])"),
                 missed_cleavages=0,
                 semi_enzymatic=False,
                 complete_digestion=False,
@@ -701,7 +702,7 @@ class TestDigest(unittest.TestCase):
         ]
 
         annotation = pt.ProFormaAnnotation.parse("XXXKXXXDXXX")
-        spans = annotation.sequential_digest(enzyme_configs=partial_digest)
+        spans = annotation.sequential_digest_spans(enzyme_configs=partial_digest)
         result = [annotation[span].serialize() for span in spans]
         expected = ["XXXK", "XXXKXXXD", "XXXKXXXDXXX", "XXX", "XXXD", "XXXDXXX", "XXX"]
         self.assertEqual(result, expected)

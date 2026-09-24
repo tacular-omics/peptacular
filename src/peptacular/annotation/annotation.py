@@ -4881,10 +4881,12 @@ class ProFormaAnnotation:
         self,
         enzyme: str | re.Pattern[str],
     ) -> Generator[int, None, None]:
-        """Yield 0-based cleavage positions matching the given enzyme regex.
+        """Yield 0-based cleavage positions for ``enzyme``.
 
-        :param enzyme: Regex pattern (or pre-compiled pattern) defining cleavage sites.
+        :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` or a compiled pattern.
+            A plain string is never treated as a regex.
         :type enzyme: str | re.Pattern[str]
+        :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
         :return: Generator of 0-based indices where cleavage occurs.
         :rtype: Generator[int, None, None]
         """
@@ -4907,25 +4909,32 @@ class ProFormaAnnotation:
         )
         return self.cleavage_sites(enzyme_regex)
 
-    def digest(
+    def digest_spans(
         self,
-        enzyme: str,
+        enzyme: str | re.Pattern[str],
         missed_cleavages: int = 0,
         semi: bool = False,
         min_len: int | None = None,
         max_len: int | None = None,
     ) -> Generator[Span, None, None]:
-        """Digest this annotation using a regex pattern."""
+        """Digest this annotation and yield the :class:`Span` of each peptide.
+
+        :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` or a compiled pattern.
+        :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
+
+        Use ``annotation[span]`` to get a peptide, or :func:`peptacular.digest` for
+        ``(peptide, span)`` pairs.
+        """
         return digest_annotation_by_regex(
             annotation=self,
-            enzyme_regex=enzyme,
+            enzyme=enzyme,
             missed_cleavages=missed_cleavages,
             semi=semi,
             min_len=min_len,
             max_len=max_len,
         )
 
-    def simple_digest(
+    def simple_digest_spans(
         self,
         cleave_on: str,
         restrict_before: str = "",
@@ -4936,7 +4945,7 @@ class ProFormaAnnotation:
         min_len: int | None = None,
         max_len: int | None = None,
     ) -> Generator[Span, None, None]:
-        """Digest this annotation with specified enzyme parameters."""
+        """Digest this annotation with amino-acid cleavage rules and yield the :class:`Span` of each peptide."""
         return digest_annotation_by_aa(
             annotation=self,
             cleave_on=cleave_on,
@@ -4949,13 +4958,13 @@ class ProFormaAnnotation:
             max_len=max_len,
         )
 
-    def sequential_digest(
+    def sequential_digest_spans(
         self,
         enzyme_configs: list[EnzymeConfig],
         min_len: int | None = None,
         max_len: int | None = None,
     ) -> Generator[Span, None, None]:
-        """Perform sequential digestion with multiple enzymes."""
+        """Digest with each :class:`EnzymeConfig` in turn and yield the :class:`Span` of each final peptide."""
         return sequential_digest_annotation(self, enzyme_configs, min_len, max_len)
 
     @property

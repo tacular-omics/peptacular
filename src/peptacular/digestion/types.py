@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Protocol, Self
 
@@ -9,11 +10,17 @@ __all__ = [
 ]
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EnzymeConfig:
-    """Configuration for a single enzyme in a digestion process."""
+    """One enzyme step of a sequential digestion.
 
-    enzyme_regex: str
+    :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` or a compiled pattern.
+    :param missed_cleavages: Maximum missed cleavages for this step.
+    :param semi_enzymatic: Also produce semi-enzymatic peptides in this step.
+    :param complete_digestion: If False, the undigested input is kept as well.
+    """
+
+    enzyme: str | re.Pattern[str]
     missed_cleavages: int = 0
     semi_enzymatic: bool = False
     complete_digestion: bool = True

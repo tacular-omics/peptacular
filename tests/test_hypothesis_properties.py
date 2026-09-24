@@ -159,7 +159,7 @@ ENZYMES = ["trypsin", "lys_c", "arg_c", "glu_c", "asp_n", "chymotrypsin", "lys_n
 @given(st.text(alphabet=AAS, min_size=1, max_size=60), st.sampled_from(ENZYMES))
 def test_digest_spans_reassemble_protein(protein, enzyme):
     annot = pt.parse(protein)
-    spans = sorted(annot.digest(enzyme, missed_cleavages=0))
+    spans = sorted(annot.digest_spans(enzyme, missed_cleavages=0))
     assert spans, "a digest with no length filter returns at least the whole protein"
     assert spans[0].start == 0
     assert spans[-1].end == len(protein)
@@ -171,9 +171,9 @@ def test_digest_spans_reassemble_protein(protein, enzyme):
 @given(st.text(alphabet=AAS, min_size=1, max_size=40), st.sampled_from(ENZYMES), st.integers(0, 2))
 def test_missed_cleavage_spans_join_zero_mc_spans(protein, enzyme, mc):
     annot = pt.parse(protein)
-    base = sorted(annot.digest(enzyme, missed_cleavages=0))
+    base = sorted(annot.digest_spans(enzyme, missed_cleavages=0))
     cuts = {sp.start for sp in base} | {sp.end for sp in base}
-    for sp in annot.digest(enzyme, missed_cleavages=mc):
+    for sp in annot.digest_spans(enzyme, missed_cleavages=mc):
         assert sp.start in cuts and sp.end in cuts
         inner = sum(1 for c in cuts if sp.start < c < sp.end)
         assert inner == sp.missed_cleavages <= mc

@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 from typing import overload
 
@@ -311,14 +312,14 @@ def nonspecific_digest(
         )
 
 
-def _cleavage_sites(sequence: str | ProFormaAnnotation, enzyme_regex: str) -> list[int]:
-    return list(get_annotation_input(sequence, copy=False).cleavage_sites(enzyme=enzyme_regex))
+def _cleavage_sites(sequence: str | ProFormaAnnotation, enzyme: str | re.Pattern[str]) -> list[int]:
+    return list(get_annotation_input(sequence, copy=False).cleavage_sites(enzyme=enzyme))
 
 
 @overload
 def cleavage_sites(
     sequence: str | ProFormaAnnotation,
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     *,
     n_workers: None = None,
     chunksize: None = None,
@@ -329,7 +330,7 @@ def cleavage_sites(
 @overload
 def cleavage_sites(
     sequence: Sequence[str | ProFormaAnnotation],
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
@@ -339,14 +340,28 @@ def cleavage_sites(
 
 def cleavage_sites(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     *,
     n_workers: int | None = None,
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[int] | list[list[int]]:
-    """
-    Return positions where cleavage occurs in input `sequence` based on the provided enzyme regex.
+    """Return the 0-based positions where ``enzyme`` cleaves ``sequence``.
+
+    :param sequence: A ProForma string or annotation, or a sequence of them for batch mode.
+    :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` (``"trypsin"``,
+        ``"Trypsin"``, ``Proteases.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``).
+        A plain string is never treated as a regex.
+    :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
+    :return: Cleavage positions, or one list per input in batch mode.
+
+    .. code-block:: python
+
+        >>> cleavage_sites("TIDERTIDEKTIDE", "trypsin")
+        [5, 10]
+        >>> import re
+        >>> cleavage_sites("TIDERTIDEKTIDE", re.compile("(?<=R)"))
+        [5]
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -355,12 +370,12 @@ def cleavage_sites(
             n_workers=n_workers,
             chunksize=chunksize,
             method=method,
-            enzyme_regex=enzyme_regex,
+            enzyme=enzyme,
         )
     else:
         return _cleavage_sites(
             sequence=sequence,
-            enzyme_regex=enzyme_regex,
+            enzyme=enzyme,
         )
 
 
@@ -446,7 +461,7 @@ def simple_cleavage_sites(
 
 def _digest(
     sequence: str | ProFormaAnnotation,
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
@@ -455,8 +470,8 @@ def _digest(
     annot = get_annotation_input(sequence, copy=False)
     return [
         (annot[span].serialize(), span)
-        for span in annot.digest(
-            enzyme=enzyme_regex,
+        for span in annot.digest_spans(
+            enzyme=enzyme,
             missed_cleavages=missed_cleavages,
             semi=semi,
             min_len=min_len,
@@ -468,7 +483,7 @@ def _digest(
 @overload
 def digest(
     sequence: str | ProFormaAnnotation,
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
@@ -483,7 +498,7 @@ def digest(
 @overload
 def digest(
     sequence: Sequence[str | ProFormaAnnotation],
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
@@ -497,7 +512,7 @@ def digest(
 
 def digest(
     sequence: str | ProFormaAnnotation | Sequence[str | ProFormaAnnotation],
-    enzyme_regex: str,
+    enzyme: str | re.Pattern[str],
     missed_cleavages: int = 0,
     semi: bool = False,
     min_len: int | None = None,
@@ -507,8 +522,23 @@ def digest(
     chunksize: int | None = None,
     method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> list[tuple[str, Span]] | list[list[tuple[str, Span]]]:
-    """
-    Returns digested sequences using a regular expression to define cleavage sites.
+    """Digest ``sequence`` with ``enzyme`` and return ``(peptide, span)`` pairs.
+
+    :param sequence: A ProForma string or annotation, or a sequence of them for batch mode.
+    :param enzyme: A protease name from tacular's ``PROTEASE_LOOKUP`` (``"trypsin"``,
+        ``Proteases.TRYPSIN`` ...) or a compiled pattern (``re.compile(...)``). A plain
+        string is never treated as a regex. ``"unspecific"`` cleaves at every position.
+    :param missed_cleavages: Maximum number of missed cleavages per peptide.
+    :param semi: Also return semi-enzymatic peptides.
+    :param min_len: Minimum peptide length.
+    :param max_len: Maximum peptide length.
+    :raises UnknownEnzymeError: If ``enzyme`` is a string that names no known protease.
+    :return: ``(peptide, Span)`` pairs, or one list per input in batch mode.
+
+    .. code-block:: python
+
+        >>> [p for p, _ in digest("TIDERTIDEKTIDE", "trypsin")]
+        ['TIDER', 'TIDEK', 'TIDE']
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
@@ -517,7 +547,7 @@ def digest(
             n_workers=n_workers,
             chunksize=chunksize,
             method=method,
-            enzyme_regex=enzyme_regex,
+            enzyme=enzyme,
             missed_cleavages=missed_cleavages,
             semi=semi,
             min_len=min_len,
@@ -526,7 +556,7 @@ def digest(
     else:
         return _digest(
             sequence=sequence,
-            enzyme_regex=enzyme_regex,
+            enzyme=enzyme,
             missed_cleavages=missed_cleavages,
             semi=semi,
             min_len=min_len,
@@ -548,7 +578,7 @@ def _digest_single(
     annot = get_annotation_input(sequence, copy=False)
     return [
         (annot[span].serialize(), span)
-        for span in annot.simple_digest(
+        for span in annot.simple_digest_spans(
             cleave_on=cleave_on,
             restrict_before=restrict_before,
             restrict_after=restrict_after,
