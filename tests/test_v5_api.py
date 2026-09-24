@@ -49,7 +49,7 @@ class TestResolveEnzyme:
         assert resolve_enzyme(pattern) is pattern
 
     def test_name_and_member(self):
-        assert resolve_enzyme("trypsin") is resolve_enzyme(pt.Proteases.TRYPSIN)
+        assert resolve_enzyme("trypsin") is resolve_enzyme(pt.Protease.TRYPSIN)
 
     def test_unknown_error_message_names_known_proteases(self):
         with pytest.raises(pt.UnknownEnzymeError) as info:
@@ -117,3 +117,20 @@ def test_annotation_simple_cleavage_sites_uses_generated_pattern():
     annot = pt.parse("PEPTIDEKAAR")
     assert list(annot.simple_cleavage_sites("KR")) == [8, 11]
     assert list(annot.simple_cleavage_sites("KR")) == pt.simple_cleavage_sites("PEPTIDEKAAR", "KR")
+
+
+def test_physical_constants_come_from_tacular():
+    import tacular.constants as tc
+
+    assert pt.PROTON_MASS is tc.PROTON_MASS
+    assert pt.ELECTRON_MASS is tc.ELECTRON_MASS
+    assert pt.NEUTRON_MASS is tc.NEUTRON_MASS
+    assert pt.C13_NEUTRON_MASS is tc.C13_C12_MASS_DIFF
+
+
+def test_protease_enum_is_reexported_under_its_tacular_name():
+    import tacular
+
+    assert pt.Protease is tacular.Protease
+    assert not hasattr(pt, "Proteases")
+    assert [p for p, _ in pt.digest("PEPTIDEKAAR", pt.Protease.TRYPSIN)] == ["PEPTIDEK", "AAR"]

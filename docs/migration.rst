@@ -1,7 +1,7 @@
 Migrating to 5.0
 ================
 
-peptacular 5.0 removes names that belonged to tacular or were internal, unifies the
+peptacular 5.0 requires tacular 2.0 (``tacular>=2.0,<3``). It removes names that belonged to tacular or were internal, unifies the
 digestion API and replaces bare ``ValueError``/``IndexError`` with typed errors. Every
 typed error still subclasses ``ValueError``, so ``except ValueError`` keeps working.
 
@@ -19,7 +19,13 @@ Renamed or removed names
        other tacular lookups, ``*Info``/``*Lookup`` classes and literal types
        (``pt.ElementInfo``, ``pt.FragmentIonInfo``, ``pt.IonTypeProperty``, ...)
      - Import from tacular: ``from tacular import AA_LOOKUP``. Only ``pt.IonType``,
-       ``pt.NeutralDelta`` and ``pt.Proteases`` are still re-exported.
+       ``pt.NeutralDelta`` and ``pt.Protease`` are still re-exported. The tacular lookups
+       themselves changed in tacular 2.0; see its migration guide.
+   * - ``pt.Proteases``
+     - ``pt.Protease`` (tacular 2.0 renamed the enum)
+   * - ``pt.PROTON_MASS``, ``pt.ELECTRON_MASS``, ``pt.NEUTRON_MASS``
+     - Same names, now re-exported from ``tacular.constants`` (CODATA 2018). The values
+       moved in the 10th decimal place or beyond; see the changelog.
    * - ``pt.parse_composition``
      - ``tacular.parse_composition``
    * - ``pt.parallelMethod``, ``pt.parallelMethodLiteral``

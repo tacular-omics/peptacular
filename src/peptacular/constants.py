@@ -1,6 +1,8 @@
 from enum import StrEnum
 from typing import Final, Literal
 
+from tacular.constants import C13_C12_MASS_DIFF, ELECTRON_MASS, NEUTRON_MASS, PROTON_MASS
+
 from .diagnostics import PeptacularError
 
 __all__ = [
@@ -18,10 +20,9 @@ __all__ = [
 ]
 
 
-PROTON_MASS: Final[float] = 1.00727646688
-ELECTRON_MASS: Final[float] = 0.00054857990946
-NEUTRON_MASS: Final[float] = 1.00866491597
-C13_NEUTRON_MASS: Final[float] = 1.00335483507  # 13C - 12C, AME2020
+# Physical constants come from tacular.constants (CODATA 2018; 13C-12C from tacular's
+# isotope table) so every tacular-omics package uses the same values.
+C13_NEUTRON_MASS: Final[float] = C13_C12_MASS_DIFF  # 13C - 12C, the isotope-peak spacing
 PEPTIDE_AVERAGINE_NEUTRON_MASS: Final[float] = 1.002856
 
 

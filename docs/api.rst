@@ -169,27 +169,27 @@ These are available from the top-level ``peptacular`` namespace, except the
 
 .. py:data:: peptacular.constants.PROTON_MASS
    :type: float
-   :value: 1.00727646688
+   :value: 1.007276466621
 
-   Proton mass.
+   Proton mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
 .. py:data:: peptacular.constants.ELECTRON_MASS
    :type: float
-   :value: 0.00054857990946
+   :value: 0.000548579909065
 
-   Electron mass.
+   Electron mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
 .. py:data:: peptacular.constants.NEUTRON_MASS
    :type: float
-   :value: 1.00866491597
+   :value: 1.00866491595
 
-   Neutron mass.
+   Neutron mass (CODATA 2018). Re-exported from ``tacular.constants``.
 
 .. py:data:: peptacular.constants.C13_NEUTRON_MASS
    :type: float
    :value: 1.00335483507
 
-   Mass difference between carbon-13 and carbon-12.
+   Mass difference between carbon-13 and carbon-12 (``tacular.constants.C13_C12_MASS_DIFF``).
 
 .. py:data:: peptacular.constants.PEPTIDE_AVERAGINE_NEUTRON_MASS
    :type: float
@@ -350,7 +350,7 @@ Amino acid, element, modification (UNIMOD, PSI-MOD, RESID, XLMOD, GNOme,
 UniProt-PTM), ion type, neutral delta, protease and reference molecule lookups
 come from `tacular <https://tacular.readthedocs.io/>`_. Import them from
 ``tacular`` (for example ``from tacular import UNIMOD_LOOKUP``). Only the enums
-``pt.IonType``, ``pt.NeutralDelta`` and ``pt.Proteases`` are re-exported by
+``pt.IonType``, ``pt.NeutralDelta`` and ``pt.Protease`` are re-exported by
 peptacular, because its own signatures take them. They are documented in the
 `tacular API reference <https://tacular.readthedocs.io/en/latest/api/index.html>`_.
 

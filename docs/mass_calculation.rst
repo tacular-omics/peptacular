@@ -64,7 +64,7 @@ where:
 - :math:`M_{\textrm{neutral}}` is the neutral fragment mass
 - :math:`M_{\textrm{adduct}}` is the total mass of charge carriers
 - :math:`z` is the total charge state (adduct charge plus any charge contributed by modifications), which may be negative for negative-mode ions
-- :math:`m_e = 0.00054857990946` Da (electron mass)
+- :math:`m_e = 0.000548579909065` Da (electron mass, CODATA 2018)
 
 The denominator uses :math:`|z|` so that negative charge states still produce a
 positive *m/z* value.

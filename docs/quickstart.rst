@@ -96,7 +96,7 @@ Protein Digestion
 You can readily create peptide annotations by slicing the protein annotation with the spans.
 The functional ``pt.digest`` returns ``(peptide, span)`` pairs instead.
 
-``enzyme`` is a protease name (``"trypsin"``) or a ``pt.Proteases`` member. For your own
+``enzyme`` is a protease name (``"trypsin"``) or a ``pt.Protease`` member. For your own
 cleavage rule pass a compiled regex, ``re.compile("(?<=[KR])")``. A plain string that is
 not a known protease raises ``pt.UnknownEnzymeError``; it is never treated as a regex.
 
@@ -104,7 +104,7 @@ not a known protease raises ``pt.UnknownEnzymeError``; it is never treated as a 
 
    # Digest a protein
    protein = pt.parse("PEM[Oxidation]TRPEPTIDEKPEPTIDEIDE/2")
-   for span in protein.digest_spans(pt.Proteases.TRYPSIN, missed_cleavages=1):
+   for span in protein.digest_spans(pt.Protease.TRYPSIN, missed_cleavages=1):
        print(f"  {protein[span].serialize()}")
 
 .. testoutput::

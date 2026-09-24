@@ -24,12 +24,12 @@ pip install "peptacular[mcp]"       # local MCP server (peptacular-mcp)
 pip install "peptacular[pyteomics]" # also: psm-utils, alphabase; "interop" installs all three
 ```
 
-Requires Python >= 3.12. The one runtime dependency is `tacular` (`>=1.2,<2`).
+Requires Python >= 3.12. The one runtime dependency is `tacular` (`>=2.0,<3`).
 Ships `py.typed`.
 
 Import it as `pt`. Everything public is on the top-level namespace and listed in
 `pt.__all__`. Of tacular, only the enums `pt.IonType`, `pt.NeutralDelta` and
-`pt.Proteases` are re-exported; import lookups (`UNIMOD_LOOKUP`, `PROTEASE_LOOKUP`,
+`pt.Protease` are re-exported; import lookups (`UNIMOD_LOOKUP`, `PROTEASE_LOOKUP`,
 `AA_LOOKUP`, ...) from `tacular` directly.
 
 ## Core idea
@@ -305,7 +305,7 @@ build_semi_spans / build_left_semi_spans / build_right_semi_spans / build_non_en
 calculate_span_coverage(spans, max_index: int, accumulate: bool = False) -> list[int]
 ```
 
-`enzyme` takes a tacular protease name (`"trypsin"`), a `pt.Proteases` member, or a
+`enzyme` takes a tacular protease name (`"trypsin"`), a `pt.Protease` member, or a
 compiled pattern (`re.compile("(?<=[KR])")`). A string is never used as a regex: an
 unknown name raises `pt.UnknownEnzymeError` (a `PeptacularError` and a `KeyError`).
 `"unspecific"` cuts at every position. Modified residues keep their mods in the
@@ -324,7 +324,7 @@ print([s for s, _ in pt.simple_digest("MKVLATSAGERTIDEK", cleave_on="KR")])  # [
 print(pt.cleavage_sites("MKVLATSAGERTIDEK", enzyme="trypsin"))           # [2, 11]
 
 protein = pt.parse("PEM[Oxidation]TREPTIDEK")
-for span in protein.digest_spans(pt.Proteases.TRYPSIN):
+for span in protein.digest_spans(pt.Protease.TRYPSIN):
     print(span, protein[span].serialize())
 # Span(start=0, end=5, missed_cleavages=0) PEM[Oxidation]TR
 # Span(start=5, end=12, missed_cleavages=0) EPTIDEK
@@ -674,10 +674,10 @@ https://peptacular.readthedocs.io/en/latest/mcp.html
 
 ## Constants
 
-- `PROTON_MASS` = 1.00727646688
-- `ELECTRON_MASS` = 0.00054857990946
-- `NEUTRON_MASS` = 1.00866491597
-- `C13_NEUTRON_MASS` = 1.00335483507
+- `PROTON_MASS` = 1.007276466621 (CODATA 2018, from `tacular.constants`)
+- `ELECTRON_MASS` = 0.000548579909065 (CODATA 2018, from `tacular.constants`)
+- `NEUTRON_MASS` = 1.00866491595 (CODATA 2018, from `tacular.constants`)
+- `C13_NEUTRON_MASS` = 1.00335483507 (`tacular.constants.C13_C12_MASS_DIFF`)
 - `PEPTIDE_AVERAGINE_NEUTRON_MASS` = 1.002856
 - `AVERAGINE_RATIOS`: elemental ratios per dalton
 - `ModType` and its string values: `nterm`, `cterm`, `isotope`, `static`, `labile`,

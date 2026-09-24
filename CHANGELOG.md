@@ -17,6 +17,8 @@ Breaking release (5.0). See `docs/migration.rst` for an old -> new table.
 - The `enzyme_regex=` keyword of `digest`, `cleavage_sites` and `EnzymeConfig` (used by `sequential_digest`).
 
 ### Changed
+- Requires `tacular>=2.0,<3` (was `>=1.2,<2`). The re-exported protease enum follows tacular's rename: `pt.Proteases` -> `pt.Protease`.
+- `PROTON_MASS`, `ELECTRON_MASS` and `NEUTRON_MASS` are re-exported from `tacular.constants` (CODATA 2018) instead of being defined here, and `C13_NEUTRON_MASS` is `tacular.constants.C13_C12_MASS_DIFF` (unchanged, 1.00335483507). The values move slightly: `PROTON_MASS` 1.00727646688 -> 1.007276466621 (-2.6e-10 Da), `ELECTRON_MASS` 0.00054857990946 -> 0.000548579909065 (-4.0e-13 Da), `NEUTRON_MASS` 1.00866491597 -> 1.00866491595 (-2.0e-11 Da). An m/z at charge z shifts by at most 2.6e-10 Da, far below any instrument's resolution.
 - Every public module declares `__all__`; `peptacular.__all__` is explicit and tested.
 - `parallelMethod`/`parallelMethodLiteral` are renamed `ParallelMethod`/`ParallelMethodLiteral`.
 - `n_workers`, `chunksize` and `method` are keyword-only on every parallel function.

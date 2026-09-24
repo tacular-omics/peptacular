@@ -7,12 +7,12 @@ serialize ProForma, edit modifications, and calculate mass, m/z, elemental compo
 fragment ions, isotopic envelopes, enzymatic digests and physicochemical properties. It
 is imported as `pt` and is under JOSS review (`paper/`).
 
-Place in the tacular-omics graph: tier 1. It depends on `tacular>=1.2,<2` (all
+Place in the tacular-omics graph: tier 1. It depends on `tacular>=2.0,<3` (all
 modification, amino-acid, element, ion-type, protease and neutral-loss data) and is used
 by `paftacular` (optional extra), `spxtacular`, `peff_digest` and `pepbit`. A breaking
 change here must be noted for those. `__init__` imports every public name explicitly and
 `pt.__all__` is the public API (a test checks `dir(pt)` against it). Of tacular only the
-enums `IonType`, `NeutralDelta` and `Proteases` are re-exported; import lookups such as
+enums `IonType`, `NeutralDelta` and `Protease` are re-exported; import lookups such as
 `UNIMOD_LOOKUP` or `PROTEASE_LOOKUP` from `tacular` directly.
 
 Key entry points:
@@ -146,8 +146,10 @@ which builds a `Fragment`.
   `InvalidAdjustmentError`, `UnsupportedOperationError` (all `ValueError`s).
 - **Parallel**: `set_start_method`, `get_start_method`, `get_available_start_methods`,
   `ParallelMethod`.
-- **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS`, `C13_NEUTRON_MASS`,
+- **Constants**: `PROTON_MASS`, `ELECTRON_MASS`, `NEUTRON_MASS` (re-exported from
+  `tacular.constants`), `C13_NEUTRON_MASS` (= `tacular.constants.C13_C12_MASS_DIFF`),
   `PEPTIDE_AVERAGINE_NEUTRON_MASS`, `AVERAGINE_RATIOS`, `PROFORMA_JSON_SCHEMA_ID`.
+  Do not hard-code physical constants; import them from `tacular.constants`.
 - **Optional** `peptacular.interop` (not star-imported): `to/from_pyteomics`,
   `to/from_psm_utils`, `to/from_alphabase_row`, `to/from_alphabase_dataframe`,
   `LossPolicy`.
@@ -204,7 +206,7 @@ which builds a `Fragment`.
   (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)
   yield `Span`s; slice the annotation with them (`annot[span]`).
 - **`enzyme` is a protease name or a compiled pattern.** A `str` is only looked up in
-  `PROTEASE_LOOKUP` (`"trypsin"`, `Proteases.TRYPSIN`); an unknown string raises
+  `PROTEASE_LOOKUP` (`"trypsin"`, `Protease.TRYPSIN`); an unknown string raises
   `UnknownEnzymeError`. For a custom rule pass `re.compile("(?<=[KR])")`.
 - **Lists under 1000 items run sequentially** unless you pass `n_workers` or `method`
   (`AUTO_PARALLEL_MIN_ITEMS`). Process pools use the platform default start method,
