@@ -178,10 +178,12 @@ a Creative Commons Attribution 4.0 International License (CC BY
   mass and m/z avoid unnecessary fragment objects and annotation copies.
   A composition-based path is used for global isotope labels or on
   request, while neutral losses are added to the listed modification
-  masses and protons use the CODATA mass. Both paths account for
-  intrinsic modification charge and electron mass. BRAIN recurrences
-  generate aggregated isotope envelopes with a probability-weighted
-  center mass per nominal isotope peak
+  masses and protons use the CODATA 2018 mass
+  (<xref alt="Tiesinga et al., 2021" rid="ref-tiesinga-2021" ref-type="bibr">Tiesinga
+  et al., 2021</xref>). Both paths account for intrinsic modification
+  charge and electron mass. BRAIN recurrences generate aggregated
+  isotope envelopes with a probability-weighted center mass per nominal
+  isotope peak
   (<xref alt="Claesen et al., 2012" rid="ref-claesen-2012" ref-type="bibr">Claesen
   et al., 2012</xref>;
   <xref alt="Dittwald &amp; Valkenborg, 2014" rid="ref-dittwald-2014" ref-type="bibr">Dittwald
@@ -1028,6 +1030,25 @@ df[&quot;mass&quot;] = pt.mass(df[&quot;seq&quot;].tolist())</code>
       <pub-id pub-id-type="doi">10.1016/1044-0305(95)00017-8</pub-id>
       <fpage>229</fpage>
       <lpage>233</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tiesinga-2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tiesinga</surname><given-names>Eite</given-names></name>
+        <name><surname>Mohr</surname><given-names>Peter J.</given-names></name>
+        <name><surname>Newell</surname><given-names>David B.</given-names></name>
+        <name><surname>Taylor</surname><given-names>Barry N.</given-names></name>
+      </person-group>
+      <article-title>CODATA recommended values of the fundamental physical constants: 2018</article-title>
+      <source>Reviews of Modern Physics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>93</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1103/RevModPhys.93.025010</uri>
+      <pub-id pub-id-type="doi">10.1103/RevModPhys.93.025010</pub-id>
+      <fpage>025010</fpage>
+      <lpage></lpage>
     </element-citation>
   </ref>
 </ref-list>
