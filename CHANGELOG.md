@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.
+
 ## [5.0.0] (2026-09-24)
 
 **Breaking:** major API cleanup (removed/renamed names, keyword-only options, `PeptacularError` exceptions, tacular 2.0). See `docs/migration.rst` for an old -> new table.
