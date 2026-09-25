@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 import peptacular as pt
@@ -113,7 +113,6 @@ def test_list_input_matches_single():
     assert pt.digest(seqs, "trypsin", missed_cleavages=1) == [pt.digest(s, "trypsin", missed_cleavages=1) for s in seqs]
 
 
-@settings(max_examples=80, deadline=None)
 @given(st.text(alphabet="ACDEFGHIKLMNPQRSTVWY", min_size=1, max_size=60))
 def test_property_plain_matches_slicing(sequence):
     for kind in ("digest", "semi", "simple"):

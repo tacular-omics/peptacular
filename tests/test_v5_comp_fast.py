@@ -3,7 +3,7 @@
 from collections import Counter
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from tacular import AA_LOOKUP
 
@@ -20,7 +20,6 @@ def _per_residue(sequence: str) -> Counter:
     return total
 
 
-@settings(max_examples=100, deadline=None)
 @given(st.text(alphabet=DEFINED, min_size=0, max_size=80))
 def test_matches_per_residue_sum(sequence):
     assert pt.ProFormaAnnotation(sequence=sequence).get_sequence_composition() == _per_residue(sequence)

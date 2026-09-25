@@ -250,7 +250,14 @@ def test_intrinsic_charge_mz_and_isotopes():
     assert peak["position"] == pytest.approx(pt.parse(text).isotopic_distribution()[0].mass / 3)
 
 
-@pytest.mark.parametrize("target,dependency", [("pyteomics", "pyteomics"), ("psm_utils", "psm_utils"), ("alphabase_row", "alphabase")])
+@pytest.mark.parametrize(
+    "target,dependency",
+    [
+        ("pyteomics", "pyteomics"),
+        ("psm_utils", "psm_utils"),
+        pytest.param("alphabase_row", "alphabase", marks=pytest.mark.slow),  # AlphaBase import JIT-compiles numba code
+    ],
+)
 def test_optional_conversion(target, dependency):
     pytest.importorskip(dependency)
     row = calculate("convert_annotations", ["M[Oxidation]PEPTIDE/2"], target=target)["records"][0]

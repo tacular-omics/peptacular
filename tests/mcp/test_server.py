@@ -44,6 +44,7 @@ async def test_sdk_schemas_resources_and_calculation(tmp_path, monkeypatch):
     assert not multiprocessing.active_children()
 
 
+@pytest.mark.slow  # launches a Python subprocess that imports the MCP SDK
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["auto", "legacy"])
 async def test_stdio_subprocess(mode):
@@ -56,6 +57,7 @@ async def test_stdio_subprocess(mode):
         assert not result.is_error
 
 
+@pytest.mark.slow  # launches a Python subprocess that imports the MCP SDK
 @pytest.mark.asyncio
 async def test_sdk_diverts_dependency_stdout():
     code = "\n".join(
@@ -134,6 +136,7 @@ def test_reference_lookup_pages():
     assert any(row["name"] == "Oxidation" for row in mods.records)
 
 
+@pytest.mark.slow  # launches a Python subprocess that imports the MCP SDK
 def test_cli_check_creates_no_files(tmp_path):
     result = subprocess.run(
         [sys.executable, "-m", "peptacular.mcp", "--check"],

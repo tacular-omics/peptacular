@@ -9,6 +9,12 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+# Full test coverage: tests marked slow (MCP subprocess launches, AlphaBase interop) are
+# skipped locally by default; CI runs them and uses the larger Hypothesis profile.
+env:
+  RUN_SLOW: "1"
+  HYPOTHESIS_PROFILE: ci
+
 permissions:
   contents: read
 

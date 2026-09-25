@@ -16,17 +16,21 @@ install-prod:
 sync:
     uv sync
 
-# Run tests
+# Run tests (fast default: skips tests marked slow, 25 Hypothesis examples)
 test:
-	uv run pytest tests/ 
+	uv run pytest tests/
 
-# Run tests with coverage
+# Run every test like CI: slow tests included, 150 Hypothesis examples
+test-all:
+    RUN_SLOW=1 HYPOTHESIS_PROFILE=ci uv run pytest tests/
+
+# Run all tests (slow included, like CI) with coverage
 test-cov:
-    uv run pytest tests --cov=src/peptacular --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json --junitxml=junit.xml -o junit_family=legacy
+    RUN_SLOW=1 HYPOTHESIS_PROFILE=ci uv run pytest tests --cov=src/peptacular --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml --cov-report=json --junitxml=junit.xml -o junit_family=legacy
     uv run python scripts/check_branch_coverage.py
 
 codecov-tests:
-    uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
+    RUN_SLOW=1 HYPOTHESIS_PROFILE=ci uv run pytest tests --cov --junitxml=junit.xml -o junit_family=legacy
 
 # Clean build artifacts and cache
 clean:

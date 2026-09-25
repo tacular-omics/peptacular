@@ -1,7 +1,7 @@
 """Localization isomers, candidate sites and site-determining ions."""
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 
 import peptacular as pt
@@ -330,7 +330,6 @@ def _ambiguous_peptides(draw):
     return prefix + body
 
 
-@settings(max_examples=150, deadline=None)
 @given(_ambiguous_peptides())
 def test_property_isomers_keep_composition_and_mass(sequence):
     annot = pt.parse(sequence)
