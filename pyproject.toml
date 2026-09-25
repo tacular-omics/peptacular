@@ -91,7 +91,10 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-v --strict-markers"
+addopts = "--strict-markers"
+markers = [
+    "slow: slower than ~2 s (subprocess launches, heavy optional imports); skipped unless --run-slow or RUN_SLOW=1",
+]
 
 [tool.ruff]
 target-version = "py312"

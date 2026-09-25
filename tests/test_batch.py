@@ -22,6 +22,7 @@ def test_collect_results_are_ordered_across_batches(method):
     assert results[4].value == pytest.approx(pt.mass("MKR"))
 
 
+@pytest.mark.slow  # starts a fresh interpreter per worker
 @pytest.mark.parametrize("method", ["spawn", "forkserver"])
 def test_process_context(method):
     if method not in mp.get_all_start_methods():

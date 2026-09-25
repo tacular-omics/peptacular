@@ -29,7 +29,8 @@ Key entry points:
 
 ```bash
 just install        # uv sync --all-extras (dev + all extras)
-just test           # uv run pytest tests/          (~2860 tests, ~15 s)
+just test           # uv run pytest tests/  fast default: skips `slow` tests, 25 Hypothesis examples
+just test-all       # RUN_SLOW=1 HYPOTHESIS_PROFILE=ci: everything CI runs (slow tests, 150 examples)
 just test-cov       # pytest with branch coverage + scripts/check_branch_coverage.py (min 79%)
 just lint           # ruff check src/ tests/ (same as CI)
 just format-check   # ruff format --check src/ tests/ (same as CI)

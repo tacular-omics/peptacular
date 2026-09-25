@@ -80,7 +80,8 @@ def mass(sequence: str, monoisotopic: bool = True) -> float:
 - CI enforces at least **79% branch coverage**, the measured baseline. Raise this toward 83% with tests of scientific invariants and option interactions. The combined percentage printed by coverage.py is a different metric.
 
 ```bash
-just test       # run tests
+just test       # run tests (fast: skips tests marked slow)
+just test-all   # run every test like CI (--run-slow, HYPOTHESIS_PROFILE=ci)
 just test-cov   # run tests with coverage report
 ```
 

@@ -1,23 +1,18 @@
 """Property-based tests (Hypothesis) for ProForma round-trips, fragmentation and digestion.
 
-The default profile (``ci``) keeps these fast. Run a longer sweep with::
+Example counts come from the Hypothesis profile loaded in ``tests/conftest.py``: 25 by
+default, 150 with ``HYPOTHESIS_PROFILE=ci`` (what CI runs). Run a longer sweep with::
 
     HYPOTHESIS_PROFILE=thorough uv run pytest tests/test_hypothesis_properties.py
 """
 
 from __future__ import annotations
 
-import os
-
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import assume, given
 from hypothesis import strategies as st
 
 import peptacular as pt
-
-settings.register_profile("ci", max_examples=100, deadline=None, suppress_health_check=[HealthCheck.too_slow])
-settings.register_profile("thorough", max_examples=2000, deadline=None, suppress_health_check=[HealthCheck.too_slow])
-settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
 
 PROTON = 1.007276466621
 TOL = 1e-6

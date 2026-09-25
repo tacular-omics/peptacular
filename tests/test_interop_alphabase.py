@@ -12,11 +12,22 @@ from peptacular.interop import (
     to_alphabase_row,
 )
 
-alphabase_modification = pytest.importorskip("alphabase.constants.modification")
-alphabase_spectral_library = pytest.importorskip("alphabase.spectral_library.base")
+# Importing AlphaBase JIT-compiles numba code (~15 s), so the whole module is opt-in via
+# --run-slow, and the import happens in a fixture rather than at collection time.
+pytestmark = [pytest.mark.slow, pytest.mark.usefixtures("alphabase_modification")]
 
 
-def test_alphabase_localized_modification_row_round_trip():
+@pytest.fixture(scope="module")
+def alphabase_modification():
+    return pytest.importorskip("alphabase.constants.modification")
+
+
+@pytest.fixture(scope="module")
+def alphabase_spectral_library():
+    return pytest.importorskip("alphabase.spectral_library.base")
+
+
+def test_alphabase_localized_modification_row_round_trip(alphabase_modification):
     annotation = ProFormaAnnotation.parse("[Acetyl]-PEM[Oxidation]TIDE-[Amidated]/2")
 
     row = to_alphabase_row(annotation)
@@ -39,7 +50,7 @@ def test_alphabase_localized_modification_row_round_trip():
     assert masses[-1] != 0
 
 
-def test_alphabase_dataframe_is_native_and_refined():
+def test_alphabase_dataframe_is_native_and_refined(alphabase_spectral_library):
     annotations = [
         ProFormaAnnotation.parse("PEPTIDE/2"),
         ProFormaAnnotation.parse("AC[Carbamidomethyl]DE/3"),

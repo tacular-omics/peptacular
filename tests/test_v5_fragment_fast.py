@@ -5,7 +5,7 @@ import pickle
 from dataclasses import FrozenInstanceError
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from tacular import NEUTRAL_DELTA_LOOKUP, IonType
 
@@ -234,7 +234,6 @@ class TestFragmentFastPath:
             assert frag.mass == pytest.approx(expected.mass, abs=1e-9)
             assert frag.to_mzpaf() == expected.to_mzpaf()
 
-    @settings(max_examples=60, deadline=None)
     @given(
         residues=st.text(alphabet="ACDEFGHIKLMNPQRSTVWY", min_size=1, max_size=12),
         mod_site=st.integers(min_value=0, max_value=11),
