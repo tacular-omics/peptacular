@@ -19,7 +19,7 @@ authors:
 affiliations:
   - name: The Scripps Research Institute, United States
     index: 1
-date: 07 February 2026
+date: 24 September 2026
 bibliography: paper.bib
 ---
 # Summary
@@ -44,11 +44,11 @@ Peptacular offers functional and object-oriented APIs. `ProFormaAnnotation` obje
 
 Execution can be sequential, threaded, or process-based. Automatic functional calls use sequential processing below 1,000 inputs, avoiding worker startup costs for small batches. Larger batches use process-based execution on conventional GIL-enabled Python builds and threads on free-threaded builds. Explicit settings override this selection. Functional calls create temporary pools, while `iter_batch()` reuses an executor across chunks within a call and returns ordered results with optional diagnostics.
 
-Lazy modification parsing and bounded caches reduce repeated work. Direct residue mass lookups and a scalar path for ordinary precursor mass and m/z avoid unnecessary fragment objects and annotation copies. A composition-based path handles isotope labels and elemental adjustments. Both paths account for intrinsic modification charge and electron mass. BRAIN recurrences generate aggregated isotope envelopes with a probability-weighted center mass per nominal isotope peak [@claesen-2012; @dittwald-2014]. Fine structure is not resolved. A separate averagine [@senko-1995] API estimates envelopes from mass alone.
+Lazy modification parsing and bounded caches reduce repeated work. Direct residue mass lookups and a scalar path for ordinary precursor mass and m/z avoid unnecessary fragment objects and annotation copies. A composition-based path is used for global isotope labels or on request, while neutral losses are added to the listed modification masses and protons use the CODATA 2018 mass [@tiesinga-2021]. Both paths account for intrinsic modification charge and electron mass. BRAIN recurrences generate aggregated isotope envelopes with a probability-weighted center mass per nominal isotope peak [@claesen-2012; @dittwald-2014]. Fine structure is not resolved. A separate averagine [@senko-1995] API estimates envelopes from mass alone.
 
 Shared reference data are supplied by **Tacular** [@garrett-2026-tacular], including Unimod [@creasy-2004], PSI-MOD [@hupo-psi-mod], RESID [@resid], XLMOD [@hupo-psi-xlmod], and GNOme [@gnome]. Embedded data avoid runtime ontology downloads. Chemical analyses require a resolvable mass or elemental composition, depending on the operation. Unresolved annotations can still be represented, while diagnostics distinguish parsing, validation, and analysis failures.
 
-Versioned JSON serialization preserves annotation structure and validates input against a closed set of supported types. Streaming FASTA input supports plain and gzip files. An optional local Model Context Protocol interface exposes the same sequence operations to agent clients. The core package requires Python 3.12 or later and Tacular, with additional dependencies installed only for optional integrations. Type annotations support static analysis. Continuous integration runs tests, linting, type checks, and package builds across Python 3.12-3.14 and Linux, macOS, and Windows configurations.
+Versioned JSON serialization preserves annotation structure and validates input against a closed set of supported types. FASTA files are read by the separate fastatacular package, whose entry objects, like any object with a `sequence` attribute, pass directly to sequence functions. An optional local Model Context Protocol interface exposes the same sequence operations to agent clients. The core package requires Python 3.12 or later and Tacular, with additional dependencies installed only for optional integrations. Type annotations support static analysis. Continuous integration runs tests, linting, type checks, and package builds across Python 3.12-3.14 and Linux, macOS, and Windows configurations.
 
 # Research impact statement
 
