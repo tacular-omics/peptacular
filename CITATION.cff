@@ -19,8 +19,8 @@ abstract: >-
   analysis pipelines, and research scripts that need one consistent sequence
   notation across parsing, annotation, calculation, and serialization. It
   requires Python 3.12 or later.
-version: "4.2.0"
-date-released: "2026-09-23"
+version: "5.0.0"
+date-released: "2026-09-24"
 authors:
   - family-names: Garrett
     given-names: Patrick T.
