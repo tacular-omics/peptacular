@@ -31,7 +31,7 @@ class TestSetStartMethod:
 
         monkeypatch.setattr(mp, "set_start_method", _raise)
         with caplog.at_level("WARNING"):
-            set_start_method("fork")
+            set_start_method("spawn")  # available on every platform
         assert "Could not set start method" in caplog.text
 
 
