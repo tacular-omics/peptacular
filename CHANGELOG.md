@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - `set_charge()` with a carrier string or list of strings now writes a negative occurrence as the negated carrier, the same text as passing the `GlobalChargeCarrier` object: `set_charge("H:z+1^-2")` wrote `PEPTIDEK/[H:z+1^-2]`, which `parse()` rejects, and now writes `PEPTIDEK/[H-1:z-1^2]`. Strings that already parsed keep their exact spelling.
 - `Mods.from_dict()` now raises `PeptacularError` for a modification count below 1. `{"mod_type": "charge", "modifications": {"H:z+1": -1}}` (or a count of 0) used to load, and `set_charge()` then wrote `PEPTIDEK/[]` with charge 0; a `Mods` whose carriers expand to nothing now clears the charge instead.
 - The `Mods.to_dict()` docstring now says `mod_type` is the `ModType` value (`nterm`, `static`, `unknown`, ...), not the section names `ProFormaAnnotation.to_dict()` uses (`n_terminal`, `fixed`, `unlocalized`). The output is unchanged.
+- `Fragment.to_mzpaf()` now raises `PeptacularError` when mzPAF would read the charge carriers with a different charge. A hydride carrier (`charge="H:z-1"`) was written `y3{IDE}[M+H]^-1`, which is invalid mzPAF (`[M+H]` is a proton, and section 4.7 requires the adducts to agree with the charge; mzPAF has no hydride notation). Carriers whose total differs from the fragment charge, such as `PEPT[Formula:Zn:z+2]IDE/[Na:z+1]` (written `[M+Na]^3`), raise too.
 
 ### Changed
 
