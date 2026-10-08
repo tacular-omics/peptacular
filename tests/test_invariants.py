@@ -173,12 +173,7 @@ def chain(draw, *, allow_globals: bool = True) -> str:
     cterm = draw(st.lists(st.sampled_from(CTERM_TAGS), max_size=2, unique=True))
     suffix = "-" + "".join(f"[{t}]" for t in cterm) if cterm else ""
 
-    options = list(CHARGES)
-    if "<D>" in isotope:
-        # Spec gap (see test_hypothesis_properties.py): with every H replaced by D a
-        # deprotonation removes a light proton that is not there.
-        options = [c for c in options if c not in NEGATIVE_CHARGES]
-    return prefix + body + suffix + draw(st.sampled_from(options))
+    return prefix + body + suffix + draw(st.sampled_from(CHARGES))
 
 
 def _mass_profile(annot: pt.ProFormaAnnotation):
@@ -256,6 +251,9 @@ GRID_PEPTIDES = [
     "<[Carbamidomethyl]@C>CGCPEPC-[Amidated]",
     "GN[Formula:C8H13NO5]GTR",
     "SEQ[+15.995]UENCEO",
+    # V, T and I away from the termini, so d/w-valine, da/db and wa/wb (threonine,
+    # isoleucine) satellite ions are generated.
+    "GVTIEKPIVTR",
 ]
 # (carrier for one positive charge, its mass delta) and the same for one negative charge.
 POS_CARRIERS = {
@@ -307,7 +305,9 @@ def test_fragment_mass_grid(seq):
     annot = pt.parse(seq)
     neutral = {ion: {f.position: f for f in annot.fragment([ion], [0])} for ion in ALL_IONS}
     for z in GRID_CHARGES:
-        for carriers, delta in [(z, None), *_carrier_specs(z)]:
+        # A bare integer charge means protons (z > 0) or deprotonation (z < 0).
+        proton_delta = (POS_CARRIERS["H:z+1"] if z > 0 else NEG_CARRIERS["H-1:z-1"]) * abs(z)
+        for carriers, delta in [(z, proton_delta), *_carrier_specs(z)]:
             for ion in ALL_IONS:
                 charged = {f.position: f for f in annot.fragment([ion], [carriers])}
                 assert set(charged) <= set(neutral[ion]), (ion, carriers)
@@ -320,9 +320,7 @@ def test_fragment_mass_grid(seq):
                 for pos, f in charged.items():
                     assert f.charge_state == z, (ion, carriers, pos)
                     assert math.isfinite(f.mz) and f.mz > 0, (ion, carriers, pos, f.mz)
-                    assert f.mz * abs(z) == pytest.approx(f.mass, abs=TOL)
-                    if delta is not None:
-                        assert f.mass == pytest.approx(neutral[ion][pos].mass + delta, abs=TOL), (ion, carriers, pos)
+                    assert f.mass == pytest.approx(neutral[ion][pos].mass + delta, abs=TOL), (ion, carriers, pos)
 
 
 @pytest.mark.parametrize("seq", GRID_PEPTIDES)
@@ -330,7 +328,15 @@ def test_fast_fragment_matches_fragment_all_charges(seq):
     # Extends test_fast_fragment_matches_frag (charges 1..3, a-z) to negative charges and
     # the p and n series.
     annot = pt.parse(seq)
-    fast = annot.fast_fragment(FAST_IONS, GRID_CHARGES)
+    # One call per charge: a negative charge anywhere in the list sends the whole call down
+    # the frag() fallback, so a single call over GRID_CHARGES never ran the fast path.
+    # Positive charges now exercise it; negative charges, and isotope-labelled peptides
+    # (<13C>) at every charge, still fall back (frag() per position vs fragment()).
+    for z in GRID_CHARGES:
+        _check_fast_vs_fragment(annot, annot.fast_fragment(FAST_IONS, [z]))
+
+
+def _check_fast_vs_fragment(annot, fast):
     for (ion, z), mzs in fast.items():
         series = annot.fragment([ion], [z])
         if ion in (IonType.PRECURSOR, IonType.NEUTRAL):
@@ -342,23 +348,31 @@ def test_fast_fragment_matches_fragment_all_charges(seq):
             assert mzs == pytest.approx([by_pos[p] for p in range(1, len(annot) + 1)], abs=TOL), (ion, z)
 
 
+# Neutral complementary pairs: left_i + right_(n-i) = precursor + offset, with offsets from
+# element masses (not from peptacular): a + x = M - 2H, c + z = M, c + z. = M + H.
+COMPLEMENTARY_OFFSETS = {
+    ("b", "y"): 0.0,
+    ("a", "x"): -2 * H,
+    ("c", "z"): 0.0,
+    ("c", "z."): H,
+}
+
+
 @pytest.mark.parametrize("seq", GRID_PEPTIDES)
-def test_complementary_ions_sum_is_constant_any_charge(seq):
-    # Neutralised, b_i + y_(n-i) is the precursor; a_i + x_(n-i) and c_i + z_(n-i) are each
-    # a constant (the precursor minus a fixed offset), whatever the cleavage site and charge.
+def test_complementary_ions_sum_any_charge(seq):
     annot = pt.parse(seq)
     n = len(annot)
     precursor = annot.mass(charge=0)
-    sums: dict[tuple[str, str], list[float]] = {}
     for z in GRID_CHARGES:
         proton = (POS_CARRIERS["H:z+1"] if z > 0 else NEG_CARRIERS["H-1:z-1"]) * abs(z)
-        for left, right in (("b", "y"), ("a", "x"), ("c", "z")):
-            fast = annot.fast_fragment([left, right], [z])
-            lm, rm = fast[(IonType(left), z)], fast[(IonType(right), z)]
-            sums.setdefault((left, right), []).extend((lm[i - 1] * abs(z) - proton) + (rm[n - i - 1] * abs(z) - proton) for i in range(1, n))
-    assert sums[("b", "y")] == pytest.approx([precursor] * len(sums[("b", "y")]), abs=1e-5)
-    for pair, values in sums.items():
-        assert values == pytest.approx([values[0]] * len(values), abs=1e-5), pair
+        for (left, right), offset in COMPLEMENTARY_OFFSETS.items():
+            lm = {f.position: f.mass - proton for f in annot.fragment([left], [z])}
+            rm = {f.position: f.mass - proton for f in annot.fragment([right], [z])}
+            pairs = [(i, lm[i] + rm[n - i]) for i in range(1, n) if i in lm and n - i in rm]
+            # Only the smallest ions can be skipped (too few H to deprotonate at -3).
+            assert len(pairs) >= n - 3, (left, right, z)
+            for i, total in pairs:
+                assert total == pytest.approx(precursor + offset, abs=1e-5), (left, right, z, i)
 
 
 # =========================================================================== 3. data loops
@@ -395,6 +409,10 @@ def test_every_residue_mass_paths(aa):
                     call()
                 continue
             value = call()
+            if name == "comp":
+                # The composition's own mass is the peptide mass (no charge).
+                comp_mass = sum(element.mass * count for element, count in value.items())
+                assert comp_mass == pytest.approx(pt.mass(seq), abs=TOL), seq
             if isinstance(value, float):
                 assert math.isfinite(value) and value > 0, (seq, name, value)
             elif isinstance(value, dict) and name == "fast_fragment":
