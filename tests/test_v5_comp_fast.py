@@ -9,7 +9,8 @@ from tacular import AA_LOOKUP
 
 import peptacular as pt
 
-DEFINED = "".join(aa for aa, info in AA_LOOKUP.items() if len(aa) == 1 and info.composition is not None)
+# X has no composition of its own (a bare X raises), so it is not a defined residue here.
+DEFINED = "".join(aa for aa, info in AA_LOOKUP.items() if len(aa) == 1 and aa != "X" and info.composition is not None)
 
 
 def _per_residue(sequence: str) -> Counter:
@@ -41,3 +42,5 @@ def test_comp_and_mass_still_agree(sequence):
 def test_undefined_residue_raises():
     with pytest.raises(pt.CompositionError):
         pt.ProFormaAnnotation(sequence="PEPBIDE").get_sequence_composition()
+    with pytest.raises(pt.CompositionError, match="Mass not available for amino acid: X"):
+        pt.ProFormaAnnotation(sequence="PEPXIDE").get_sequence_composition()

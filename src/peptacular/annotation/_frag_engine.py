@@ -28,7 +28,7 @@ from ..diagnostics import (
     UnsupportedOperationError,
 )
 from ..proforma_components import ChargedFormula
-from ._mass import _AVERAGE_AA_MASSES, _MONOISOTOPIC_AA_MASSES
+from ._mass import _AVERAGE_AA_MASSES, _MONOISOTOPIC_AA_MASSES, check_unknown_residues
 from ._mass import base_comp as _base_comp
 from ._mass import base_mass as _base_mass
 from .cached_comps import DeltaInfo, IsotopeInfo
@@ -154,6 +154,7 @@ def build_mass_vector(annot: ProFormaAnnotation, monoisotopic: bool = True) -> l
     if annot.has_unknown_mods or annot.has_intervals:
         raise UnsupportedOperationError(f"fast_fragment not supported for sequences with unknown modifications or intervals: {str(annot)}")
 
+    check_unknown_residues(annot)
     aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
     masses: list[float] = []
     for aa in annot.stripped_sequence:
@@ -424,6 +425,7 @@ def series_mass_vector(annot: ProFormaAnnotation, monoisotopic: bool, calculate_
         or any(count < 0 for mod in annot.charge_adducts for count in mod.get_composition().values())
     ):
         return None
+    check_unknown_residues(annot)
     aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
     masses: list[float] = []
     for aa in annot.stripped_sequence:
@@ -785,6 +787,7 @@ def fragment(
     max_length: int | None = None,
 ) -> list[Fragment]:
     """Body of :meth:`ProFormaAnnotation.fragment`: every ion of each ion type and charge."""
+    check_unknown_residues(annot)
     ion_types = _as_options(ion_types)
     isotopes = _as_options(isotopes)
     neutral_deltas = _as_options(neutral_deltas)

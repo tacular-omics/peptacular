@@ -6,6 +6,7 @@ module; use those methods, not these functions.
 """
 
 from collections import Counter
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from tacular import AA_LOOKUP, Element, ElementInfo, IonType
@@ -17,10 +18,13 @@ from ..proforma_components import (
     FormulaElement,
     GlobalChargeCarrier,
     ModificationTags,
+    PositionScore,
+    PositionTag,
+    TagInfo,
     TagMass,
     add_composition,
 )
-from .mod import Mods
+from .mod import Mod, Mods
 from .positions import to_ion_type
 from .utils import H_ELEMENT_INFO, _adjust_mass_value, can_fragment_sequence
 
@@ -39,6 +43,53 @@ _MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.
 # Per-residue compositions read once; get_sequence_composition only reads them.
 _AA_COMPOSITIONS: dict[str, Counter[ElementInfo] | None] = {aa: info.composition for aa, info in AA_LOOKUP.items()}
 _AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.items()}
+
+# Tags that carry no mass of their own: an X residue with only these is still a bare X.
+_MASSLESS_TAG_TYPES = (TagInfo, PositionTag, PositionScore)
+
+
+def _has_mass_mod(mods: "Iterable[Mod[ModificationTags]]") -> bool:
+    """True if any modification's mass comes from a mass-bearing tag (mass, formula, name, ...)."""
+    for mod in mods:
+        value = mod.value
+        tag = value.first_tag if isinstance(value, ModificationTags) else value
+        if not isinstance(tag, _MASSLESS_TAG_TYPES):
+            return True
+    return False
+
+
+def check_unknown_residues(annot: "ProFormaAnnotation", error: type[PeptacularError] = PeptacularError) -> None:
+    """Raise if an X (unknown residue) has no mass-bearing modification.
+
+    An X is covered by a mass-bearing modification on the residue itself, a static modification,
+    or a mass-bearing modification on an interval that contains it (``(XX)[+10]``).
+
+    X has no residue mass of its own. ProForma's ``X[+100]`` gives the residue its mass through
+    the modification, but a bare X would silently count as 0 Da.
+
+    :raises PeptacularError: ``Mass not available for amino acid: X`` for a bare X.
+    """
+    seq = annot.stripped_sequence
+    if "X" not in seq:
+        return
+    internal = annot.internal_mods if annot.has_internal_mods else {}
+    static = annot.map_static_mods_to_indexes() if annot.has_static_mods else {}
+    # A residue inside an interval whose modifications carry a mass is covered: the interval's
+    # mass is added to the total, so the total is defined even though its position is not.
+    covered: set[int] = set()
+    if annot.has_intervals:
+        for interval in annot.intervals:
+            if interval.has_mods and _has_mass_mod(interval.mods):
+                covered.update(range(interval.start, interval.end))
+    for i, aa in enumerate(seq):
+        if aa != "X" or i in covered:
+            continue
+        mods = internal.get(i)
+        if mods is not None and _has_mass_mod(mods):
+            continue
+        if _has_mass_mod(static.get(i, ())):
+            continue
+        raise error("Mass not available for amino acid: X")
 
 
 def charge_state(annot: "ProFormaAnnotation") -> int:
@@ -73,6 +124,7 @@ def charge_adducts(annot: "ProFormaAnnotation") -> Mods[GlobalChargeCarrier]:
 
 def sequence_composition(annot: "ProFormaAnnotation") -> Counter[ElementInfo]:
     """Body of :meth:`ProFormaAnnotation.get_sequence_composition`."""
+    check_unknown_residues(annot, CompositionError)
     sequence_composition: Counter[ElementInfo] = Counter()
     # Count residues once, then scale each residue's composition by its count.
     for aa, n in Counter(annot.stripped_sequence).items():
@@ -183,6 +235,7 @@ def base_mass(annot: "ProFormaAnnotation", monoisotopic: bool = True, skip_labil
 
     # Inline mass lookup to avoid function call overhead
     # Amino acids - hot path, optimize heavily
+    check_unknown_residues(annot)
     aa_lookup = _MONOISOTOPIC_AA_MASSES if monoisotopic else _AVERAGE_AA_MASSES
     for aa in annot.stripped_sequence:
         mass = aa_lookup[aa]

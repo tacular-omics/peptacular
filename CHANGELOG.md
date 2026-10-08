@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- A bare `X` (unknown residue with no mass-bearing modification) now raises `PeptacularError: Mass not available for amino acid: X` in `mass()`, `mz()`, `comp()`, `fragment()`, `fast_fragment()`, `fragment_arrays()` and `isotopic_distribution()`, as `B`, `J` and `Z` already did. It used to count as 0 Da, so `mass("PEPXTIDE")` came out about 110 Da light. `X[+100]`, `X[Formula:C2H3NO]`, `X[Phospho]` and static mods such as `<[+5]@X>` still give X its mass; an `INFO` or label tag alone does not. Digestion is unchanged.
+- An unknown-position modification on `X` (`[+100]?X`) no longer gives X a mass, so it now raises `Mass not available for amino acid: X`. A mass-bearing modification on an interval that contains X (`PEP(X)[+10]K`, `(XX)[+10]K`) still gives the total a mass.
+
 ### Changed
 
 - The source distribution now contains only the source, tests and the README, changelog, citation and license files: no paper, docs, lockfile or repository tooling.
