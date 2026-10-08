@@ -64,11 +64,37 @@ def composition(a):
     return {str(k): v for k, v in a.comp().items()}
 
 
+_PROTON = pt.GlobalChargeCarrier.from_string("H:z+1").charged_formula
+
+
+def _carriers(charge):
+    """The charge as an unordered multiset of carriers. A positive integer n is n protons; other integers have no carriers."""
+    if charge is None:
+        return Counter()
+    if isinstance(charge, int):
+        return Counter({_PROTON: charge}) if charge > 0 else None
+    if isinstance(charge, str):
+        charge = [charge]
+    found = Counter()
+    for carrier in charge:
+        if isinstance(carrier, str):
+            carrier = pt.GlobalChargeCarrier.from_string(carrier)
+        elif not isinstance(carrier, pt.GlobalChargeCarrier):  # a Mod from an encoded Mods collection
+            found[carrier.value.charged_formula] += carrier.value.occurance * carrier.count
+            continue
+        found[carrier.charged_formula] += carrier.occurance
+    return found
+
+
 def _agrees(a, charge):
-    """An integer request agrees with the encoded total; a carrier request must match the encoded carriers."""
+    """An integer request agrees with the encoded total; carriers must match the encoded carriers in any order.
+
+    Plain integer charge n and n ``H:z+1`` carriers are the same charge.
+    """
     if isinstance(charge, int):
         return charge == a.charge_state
-    return a.set_charge(charge, inplace=False).serialize() == a.serialize()
+    encoded = _carriers(a.charge)
+    return encoded is not None and encoded == _carriers(charge)
 
 
 def charged_annotations(a, settings):
@@ -77,7 +103,8 @@ def charged_annotations(a, settings):
     agrees = len(settings.charges) == 1 and _agrees(a, settings.charges[0])
     if a.has_charge and settings.charge_policy == "require_agreement" and not agrees:
         raise ServiceError("charge_conflict", "Requested charges conflict with encoded charge. Select charge_policy='override' explicitly.")
-    return [a.set_charge(z, inplace=False) for z in settings.charges]
+    # A request that agrees with the encoding keeps the encoded carriers (PEPTIDE/[Na:z+1] at charge 1 stays sodiated).
+    return [a.copy() if a.has_charge and _agrees(a, z) else a.set_charge(z, inplace=False) for z in settings.charges]
 
 
 def require_charge(a):

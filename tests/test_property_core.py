@@ -269,11 +269,22 @@ class TestGeneratePartitionsUnevenSpacingEdgeCase:
 
 
 @pytest.mark.parametrize(
-    "sequence,proxy",
-    [("UPEPTIDE", "CPEPTIDE"), ("PEPTIDEU", "PEPTIDEC"), ("OPEPTIDE", "KPEPTIDE"), ("PEPTIDEO", "PEPTIDEK"), ("UPEPOTIDEU", "CPEPKTIDEC")],
+    "sequence,generic_terminus",
+    [("UPEPTIDE", "XPEPTIDE"), ("PEPTIDEU", "PEPTIDEX"), ("OPEPTIDE", "XPEPTIDE"), ("PEPTIDEO", "PEPTIDEX")],
 )
-def test_selenocysteine_and_pyrrolysine_use_c_and_k_pka(sequence, proxy):
-    # No pKa data exists for U or O; terminal U/O used to raise "Invalid amino acid".
-    assert pt.pi(sequence) == pytest.approx(pt.pi(proxy))
-    assert pt.charge_at_ph(sequence, pH=7.0) == pytest.approx(pt.charge_at_ph(proxy, pH=7.0))
-    assert pt.parse(sequence).prop.pi == pytest.approx(pt.pi(proxy))
+def test_terminal_selenocysteine_and_pyrrolysine(sequence, generic_terminus):
+    # Terminal U/O used to raise "Invalid amino acid"; their termini use the scale's generic (mean) pKa.
+    u_side_chain = sequence.count("U") / (10 ** (5.2 - 7.0) + 1.0)
+    assert pt.charge_at_ph(sequence, pH=7.0) == pytest.approx(pt.charge_at_ph(generic_terminus, pH=7.0) - u_side_chain)
+    assert pt.parse(sequence).prop.pi == pytest.approx(pt.pi(sequence))
+
+
+def test_selenocysteine_side_chain_is_acidic_at_pka_5_2():
+    # Selenol pKa 5.2 (Huber & Criddle 1967), far below cysteine's 8.3.
+    assert pt.pi("PEPUK") < 5.0 < pt.pi("PEPCK")
+    assert pt.charge_at_ph("PEPUK", pH=5.2) == pytest.approx(pt.charge_at_ph("PEPAK", pH=5.2) - 0.5)
+
+
+def test_pyrrolysine_side_chain_is_not_ionisable():
+    for ph in (3.0, 7.0, 11.0):
+        assert pt.charge_at_ph("PEPOTIDE", pH=ph) == pytest.approx(pt.charge_at_ph("PEPATIDE", pH=ph))

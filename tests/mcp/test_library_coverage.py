@@ -116,3 +116,26 @@ def test_enumerate_rules_accept_every_library_residue(server):
     rule = {"residues": "UO", "modification": "Oxidation"}
     rows = call(server, "enumerate_modifications", {"inputs": [{"annotation": "PEUTIOE"}], "rules": [rule], "max_variable_mods": 1})["records"]
     assert {row["proforma"] for row in rows} == {"PEUTIOE", "PEU[Oxidation]TIOE", "PEUTIO[Oxidation]E"}
+
+
+@pytest.mark.parametrize(
+    "annotation,charge",
+    [("PEPTIDE/1", "H:z+1"), ("PEPTIDE/2", ["H:z+1^2"]), ("PEPTIDE/[Na:z+1,H:z+1]", ["H:z+1", "Na:z+1"])],
+)
+def test_equivalent_carriers_agree(server, annotation, charge):
+    rows = call(server, "analyze_peptides", {"inputs": [{"annotation": annotation}], "charges": [charge], "measurements": ["mz"]})["records"]
+    assert rows[0]["status"] == "complete"
+    assert rows[0]["mz"] == pytest.approx(pt.parse(annotation).mz())
+
+
+def test_integer_charge_keeps_encoded_carriers(server):
+    request = {"inputs": [{"annotation": "PEPTIDE/[Na:z+1]"}], "charges": [1], "ion_types": ["b"], "max_rows": 1}
+    rows = call(server, "fragment_peptides", request)["records"]
+    assert rows[0]["proforma"] == "PEPTIDE/[Na:z+1]"
+    assert rows[0]["mzpaf"] == "b1[M+Na]"
+
+
+def test_different_carrier_still_conflicts(server):
+    request = {"inputs": [{"annotation": "PEPTIDE/[Na:z+1]"}], "charges": ["H:z+1"], "measurements": ["mz"]}
+    rows = call(server, "analyze_peptides", request)["records"]
+    assert rows[0]["diagnostics"][0]["code"] == "charge_conflict"

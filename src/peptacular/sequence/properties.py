@@ -949,8 +949,9 @@ def charge_at_ph(
     """Net charge at a given pH, from Henderson-Hasselbalch pKa values.
 
     Sums the N-terminal, C-terminal and ionisable side-chain contributions. Modifications are ignored.
-    Selenocysteine (U) and pyrrolysine (O) have no tabulated pKa values: U is scored as cysteine (C)
-    and O as lysine (K), at the termini and in the side chain.
+    Selenocysteine (U) and pyrrolysine (O) are not in the pKa scales: a U side chain is an acid with
+    pKa 5.2 (Huber & Criddle 1967), an O side chain (amide) is not ionisable, and a terminal U or O
+    uses the scale's generic (mean) terminal pKa.
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param pH: The pH.
@@ -1011,7 +1012,7 @@ def pi(
 ) -> float | list[float]:
     """Isoelectric point: the pH at which :func:`charge_at_ph` is zero, found by bisection.
 
-    Selenocysteine (U) is scored as cysteine (C) and pyrrolysine (O) as lysine (K); see :func:`charge_at_ph`.
+    Selenocysteine (U) and pyrrolysine (O) are handled as in :func:`charge_at_ph`.
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
