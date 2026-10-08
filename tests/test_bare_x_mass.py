@@ -95,3 +95,16 @@ def test_bare_x_fragment_arrays_raises() -> None:
     pytest.importorskip("numpy")
     with pytest.raises(PeptacularError, match=ERROR):
         pt.fragment_arrays(["PEPXTIDE"])
+
+
+@pytest.mark.parametrize(
+    ("seq", "expected"),
+    [("PEP(X)[+10]K", 479.2536), ("(XX)[+10]K", 156.1055)],
+)
+def test_x_in_interval_with_mass_mod(seq: str, expected: float) -> None:
+    assert pt.parse(seq).mass() == pytest.approx(expected, abs=1e-3)
+
+
+def test_x_in_interval_with_info_mod_raises() -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.parse("PEP(X)[INFO:unknown]K").mass()

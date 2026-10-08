@@ -61,6 +61,9 @@ def _has_mass_mod(mods: "Iterable[Mod[ModificationTags]]") -> bool:
 def check_unknown_residues(annot: "ProFormaAnnotation", error: type[PeptacularError] = PeptacularError) -> None:
     """Raise if an X (unknown residue) has no mass-bearing modification.
 
+    An X is covered by a mass-bearing modification on the residue itself, a static modification,
+    or a mass-bearing modification on an interval that contains it (``(XX)[+10]``).
+
     X has no residue mass of its own. ProForma's ``X[+100]`` gives the residue its mass through
     the modification, but a bare X would silently count as 0 Da.
 
@@ -71,8 +74,15 @@ def check_unknown_residues(annot: "ProFormaAnnotation", error: type[PeptacularEr
         return
     internal = annot.internal_mods if annot.has_internal_mods else {}
     static = annot.map_static_mods_to_indexes() if annot.has_static_mods else {}
+    # A residue inside an interval whose modifications carry a mass is covered: the interval's
+    # mass is added to the total, so the total is defined even though its position is not.
+    covered: set[int] = set()
+    if annot.has_intervals:
+        for interval in annot.intervals:
+            if interval.has_mods and _has_mass_mod(interval.mods):
+                covered.update(range(interval.start, interval.end))
     for i, aa in enumerate(seq):
-        if aa != "X":
+        if aa != "X" or i in covered:
             continue
         mods = internal.get(i)
         if mods is not None and _has_mass_mod(mods):
