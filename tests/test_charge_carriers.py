@@ -3,6 +3,7 @@
 import pytest
 
 import peptacular as pt
+from peptacular.diagnostics import InvalidAdjustmentError
 
 
 class TestSpecChargeExamples:
@@ -136,3 +137,61 @@ class TestChargeCarrierMzPaf:
         from peptacular.proforma_components.comps import GlobalChargeCarrier
 
         assert GlobalChargeCarrier.from_string("H:z+1^-1").occurance == -1
+
+
+class TestChimericChargeCarriers:
+    """parse_chimeric must accept the same charge notation as parse (regression)."""
+
+    @pytest.mark.parametrize("chains", [["PEPTIDE", "ELVIS/[Na:z+1]"], ["PEPTIDE/[H:z+1^2]", "ELVIS"], ["PEPTIDE/[Na:z+1,H:z+1]", "ELVIS/[Cl:z-1]"]])
+    def test_carriers_in_chimeric(self, chains):
+        seq = "+".join(chains)
+        parts = list(pt.parse_chimeric(seq))
+        assert pt.serialize_chimeric(parts) == seq
+        for part, single in zip(parts, chains, strict=True):
+            assert part == pt.parse(single)
+            assert part.mass() == pytest.approx(pt.parse(single).mass())
+
+
+ELECTRON = 0.000548579909065
+CARRIER_GRID = ["H:z+1", "Na:z+1", "K:z+1", "[15N1]H4:z+1", "H-1:z-1", "Cl:z-1"]
+
+
+class TestNegativeCarrierSerialization:
+    """A negative carrier occurrence is written as the negated carrier so the string re-parses (regression).
+
+    ``charged_proton(-2)`` is stored as ``H:z+1^-2``, which ProForma rejects; it is
+    serialized as the equal-mass ``H-1:z-1^2``. A bare ``/-2`` is left as written.
+    """
+
+    @pytest.mark.parametrize("z", [-3, -2, -1, 1, 2, 3])
+    def test_set_charge_from_fragment_adducts_reparses(self, z):
+        frag = pt.parse("PEPTIDEK").frag("p", z)
+        annot = pt.parse("PEPTIDEK").set_charge(frag.charge_adducts)
+        text = annot.serialize()
+        reparsed = pt.parse(text)
+        assert reparsed.serialize() == text
+        assert reparsed.mass() == pytest.approx(pt.parse(f"PEPTIDEK/{z}").mass(), abs=1e-9)
+
+    @pytest.mark.parametrize("carrier", CARRIER_GRID)
+    @pytest.mark.parametrize("occ", [-3, -2, -1, 1, 2, 3])
+    def test_carrier_grid_parse_serialize(self, carrier, occ):
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        gcc = GlobalChargeCarrier.from_string(f"{carrier}^{occ}")
+        text = f"PEPTIDEK/[{gcc}]"
+        annot = pt.parse(text)
+        assert annot.serialize() == text
+        assert GlobalChargeCarrier.from_string(str(gcc)).to_mz_paf() == gcc.to_mz_paf()
+        assert GlobalChargeCarrier.from_string(str(gcc)).get_mass() == pytest.approx(gcc.get_mass(), abs=1e-9)
+        try:
+            delta = annot.mass() - pt.parse("PEPTIDEK").mass()
+        except InvalidAdjustmentError:
+            # Removing atoms the peptide lacks (e.g. K-1:z-1^3) is a typed error, not a mass.
+            assert any(fe.occurance * occ < 0 for fe in gcc.charged_formula.formula)
+        else:
+            # occurrence x (carrier formula mass - its charge x electron mass)
+            expected = gcc.get_mass() - gcc.occurance * gcc.charged_formula.charge * ELECTRON
+            assert delta == pytest.approx(expected, abs=1e-6)
+
+    def test_bare_negative_charge_unchanged(self):
+        assert pt.parse("PEPTIDEK/-2").serialize() == "PEPTIDEK/-2"

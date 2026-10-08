@@ -972,48 +972,7 @@ class ProFormaAnnotation(_ModAccessMixin):
         for prof_parser, connection in parser_gen:
             if connection is True:
                 raise UnsupportedOperationError(f"Cross-linked peptidoforms joined by '//' are not supported (use '+' for chimeric ions): {sequence}")
-            # Split Global Mods into Static (Fixed) vs Isotope (Global)
-            # The parser groups all <...> tags together; we separate them by the '@' symbol.
-            static_mods: dict[str, int] | None = None  # e.g., <[Oxidation]@C>
-            isotope_mods: dict[str, int] | None = None  # e.g., <13C>
-
-            if prof_parser.global_mods:
-                for mod, count in prof_parser.global_mods.items():
-                    if "@" in mod:
-                        if static_mods is None:
-                            static_mods = {}
-                        static_mods[mod] = count
-                    else:
-                        if isotope_mods is None:
-                            isotope_mods = {}
-                        isotope_mods[mod] = count
-
-            charge = None
-            if prof_parser.charge is not None:
-                charge = prof_parser.charge
-            elif prof_parser.charge_adducts is not None:
-                charge = prof_parser.charge_adducts
-
-            # Construct the object
-            # We cast defaultdicts to standard dicts to prevent side effects
-            annot = ProFormaAnnotation(
-                sequence="".join(prof_parser.amino_acids),
-                compound_name=prof_parser.compound_name,
-                ion_name=prof_parser.ion_name,
-                peptide_name=prof_parser.peptide_name,
-                isotope_mods=isotope_mods,
-                static_mods=static_mods,
-                labile_mods=prof_parser.labile_mods,
-                unknown_mods=prof_parser.unknown_mods,
-                nterm_mods=prof_parser.nterm_mods,
-                cterm_mods=prof_parser.cterm_mods,
-                internal_mods=prof_parser.internal_mods,
-                intervals=prof_parser.intervals,
-                charge=charge,
-                validate=validate,
-            )
-
-            yield annot
+            yield cls._from_parser(prof_parser, validate)
 
     @classmethod
     def parse(cls, sequence: str, *, validate: bool | None = None) -> "ProFormaAnnotation":
@@ -1054,6 +1013,11 @@ class ProFormaAnnotation(_ModAccessMixin):
         except StopIteration:
             pass  # This is expected for a single annotation
 
+        return cls._from_parser(prof_parser, validate)
+
+    @classmethod
+    def _from_parser(cls, prof_parser: ProFormaParser, validate: bool) -> "ProFormaAnnotation":
+        """Build one annotation from one parsed peptidoform (shared by ``parse`` and ``parse_chimeric``)."""
         # Split Global Mods into Static (Fixed) vs Isotope (Global)
         # The parser groups all <...> tags together; we separate them by the '@' symbol.
         static_mods: dict[str, int] | None = None  # e.g., <[Oxidation]@C>

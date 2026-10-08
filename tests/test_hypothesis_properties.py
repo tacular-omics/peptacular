@@ -76,11 +76,6 @@ def proforma(draw, *, fragmentable: bool = False) -> str:
     if draw(st.booleans()):
         suffix += f"-[{draw(st.sampled_from(CTERM_MODS))}]"
     charges = ["", "/1", "/2", "/3"] + ([] if fragmentable else ["/[Na:z+1^2]", "/[Na:z+1,H:z+1]", "/-1"])
-    if "<D>" in prefix:
-        # Spec gap: with every H replaced by D, a negative charge removes a light proton
-        # that is no longer there (InvalidAdjustmentError). Whether it should remove a
-        # deuteron instead is not defined by ProForma; reported, not tested.
-        charges.remove("/-1") if "/-1" in charges else None
     return prefix + body + suffix + draw(st.sampled_from(charges))
 
 
