@@ -136,3 +136,16 @@ class TestChargeCarrierMzPaf:
         from peptacular.proforma_components.comps import GlobalChargeCarrier
 
         assert GlobalChargeCarrier.from_string("H:z+1^-1").occurance == -1
+
+
+class TestChimericChargeCarriers:
+    """parse_chimeric must accept the same charge notation as parse (regression)."""
+
+    @pytest.mark.parametrize("chains", [["PEPTIDE", "ELVIS/[Na:z+1]"], ["PEPTIDE/[H:z+1^2]", "ELVIS"], ["PEPTIDE/[Na:z+1,H:z+1]", "ELVIS/[Cl:z-1]"]])
+    def test_carriers_in_chimeric(self, chains):
+        seq = "+".join(chains)
+        parts = list(pt.parse_chimeric(seq))
+        assert pt.serialize_chimeric(parts) == seq
+        for part, single in zip(parts, chains, strict=True):
+            assert part == pt.parse(single)
+            assert part.mass() == pytest.approx(pt.parse(single).mass())
