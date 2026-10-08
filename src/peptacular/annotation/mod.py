@@ -1,3 +1,4 @@
+import json
 import sys
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -252,6 +253,46 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         total_mass = sum(mod.get_mass(monoisotopic=monoisotopic) for mod in mods)
         total_charge = sum(mod.get_charge() for mod in mods)
         return total_mass, total_charge
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-compatible mapping: the mod type and its modification counts.
+
+        ``Mods`` is a collection, not a ProForma component, so it is not part of the
+        versioned ProForma JSON schema. The counts use the same ``{modification: count}``
+        shape as the annotation's ``modifications`` entries in that schema.
+        """
+        return {
+            "mod_type": self.mod_type.value,
+            "modifications": dict(self._mods) if self._mods is not None else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Self:
+        """Restore a ``Mods`` from :meth:`to_dict` output."""
+        if not isinstance(data, Mapping) or set(data) != {"mod_type", "modifications"}:
+            raise PeptacularError("Mods data must be an object with exactly 'mod_type' and 'modifications'")
+        mod_type = data["mod_type"]
+        if mod_type not in {m.value for m in ModType}:
+            raise PeptacularError(f"Unsupported mod_type: {mod_type!r}")
+        counts = data["modifications"]
+        if counts is not None and (
+            not isinstance(counts, Mapping) or not all(isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool) for k, v in counts.items())
+        ):
+            raise PeptacularError("Mods modifications must map modification strings to integer counts, or be null")
+        return cls(mod_type=ModType(mod_type), _mods=dict(counts) if counts is not None else None)
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        """Return deterministic JSON text for :meth:`to_dict`."""
+        return json.dumps(self.to_dict(), allow_nan=False, ensure_ascii=False, indent=indent, sort_keys=True)
+
+    @classmethod
+    def from_json(cls, data: str | bytes | bytearray) -> Self:
+        """Restore a ``Mods`` from :meth:`to_json` output."""
+        try:
+            parsed = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise PeptacularError(f"Invalid Mods JSON: {exc}") from exc
+        return cls.from_dict(parsed)
 
     def __len__(self) -> int:
         return len(self._mods) if self._mods is not None else 0

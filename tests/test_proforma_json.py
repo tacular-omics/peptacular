@@ -3,6 +3,7 @@ import json
 import pytest
 from tacular import AminoAcid, Element
 
+import peptacular as pt
 from peptacular import (
     PROFORMA_JSON_SCHEMA_ID,
     PROFORMA_JSON_SCHEMA_VERSION,
@@ -24,6 +25,7 @@ from peptacular import (
     get_proforma_json_schema,
 )
 from peptacular.annotation import Interval
+from peptacular.diagnostics import PeptacularError
 
 
 def test_annotation_json_round_trip_preserves_all_state():
@@ -112,3 +114,40 @@ def test_bundled_schema_matches_encoder_metadata():
     schema = get_proforma_json_schema()
     assert schema["$id"] == PROFORMA_JSON_SCHEMA_ID
     assert schema["properties"]["schema_version"]["const"] == PROFORMA_JSON_SCHEMA_VERSION
+
+
+MODS_SEQUENCE = "<13C><[Oxidation]@M>{Hex}[Acetyl]-[MOD:1]?PEPM[Oxidation]K-[Amidated]/[Na:z+1]"
+
+
+@pytest.mark.parametrize("attr", ["unknown_mods", "nterm_mods", "cterm_mods", "labile_mods", "static_mods", "isotope_mods", "charge_adducts"])
+def test_mods_to_dict_round_trips(attr):
+    """Mods inherited the component to_dict and raised TypeError (regression: [MOD:1]?PEP)."""
+    from peptacular.annotation.mod import Mods
+
+    mods = getattr(pt.parse(MODS_SEQUENCE), attr)
+    data = mods.to_dict()
+    assert json.loads(json.dumps(data)) == data
+    assert Mods.from_dict(data) == mods
+    assert Mods.from_json(mods.to_json()) == mods
+
+
+def test_mods_to_dict_unknown_mod_example():
+    assert pt.parse("[MOD:1]?PEP").unknown_mods.to_dict() == {"mod_type": "unknown", "modifications": {"MOD:1": 1}}
+    assert pt.parse("PEP").unknown_mods.to_dict() == {"mod_type": "unknown", "modifications": None}
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"mod_type": "nope", "modifications": None},
+        {"mod_type": "unknown", "modifications": {"MOD:1": "1"}},
+        {"mod_type": "unknown", "modifications": {"MOD:1": True}},
+        {"mod_type": "unknown"},
+        {"mod_type": "unknown", "modifications": None, "extra": 1},
+    ],
+)
+def test_mods_from_dict_rejects_bad_data(bad):
+    from peptacular.annotation.mod import Mods
+
+    with pytest.raises(PeptacularError):
+        Mods.from_dict(bad)
