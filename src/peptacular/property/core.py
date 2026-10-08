@@ -319,8 +319,19 @@ def aa_property_percentage(
     return float(val)
 
 
+# The pKa tables have no values for selenocysteine (U) or pyrrolysine (O). They are scored
+# with the values of their closest standard analogues: U like C (thiol/selenol side chain)
+# and O like K (lysine derivative), at the termini and in the side chain.
+_PK_PROXY_RESIDUES = str.maketrans({"U": "C", "O": "K"})
+
+
 def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
-    """Calculate net charge at given pH"""
+    """Calculate net charge at given pH.
+
+    Selenocysteine (U) and pyrrolysine (O) have no pKa values in the tables, so U is scored
+    as cysteine (C) and O as lysine (K), both at the termini and in the side chain.
+    """
+    sequence = sequence.translate(_PK_PROXY_RESIDUES)
     # Count amino acids
     aa_counts = _count_residues(sequence=sequence)
 

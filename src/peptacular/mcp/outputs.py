@@ -3,6 +3,7 @@
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from tacular import IonTypeLiteral
 
 from .contracts import Diagnostic, Envelope
 
@@ -43,7 +44,7 @@ class AnalysisRow(Row):
 
 class FragmentRow(Row):
     # Keys follow the library's fragment records (FRAGMENT_RECORD_KEYS); start/end is the residue span.
-    ion_type: Literal["a", "b", "c", "x", "y", "z", "p"] | None = None
+    ion_type: IonTypeLiteral | None = None
     position: int | None = None
     start: int | None = None
     end: int | None = None

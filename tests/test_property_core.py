@@ -2,6 +2,7 @@
 
 import pytest
 
+import peptacular as pt
 from peptacular.property.core import (
     aa_property_percentage,
     calc_property,
@@ -265,3 +266,14 @@ class TestGeneratePartitionsUnevenSpacingEdgeCase:
         result = generate_partitions("ACDEAC", scale=scale, num_windows=5, aa_overlap=0)
         assert len(result) == 5
         assert result == pytest.approx([2.0, 3.93, 2.0, 2.0, 2.0])
+
+
+@pytest.mark.parametrize(
+    "sequence,proxy",
+    [("UPEPTIDE", "CPEPTIDE"), ("PEPTIDEU", "PEPTIDEC"), ("OPEPTIDE", "KPEPTIDE"), ("PEPTIDEO", "PEPTIDEK"), ("UPEPOTIDEU", "CPEPKTIDEC")],
+)
+def test_selenocysteine_and_pyrrolysine_use_c_and_k_pka(sequence, proxy):
+    # No pKa data exists for U or O; terminal U/O used to raise "Invalid amino acid".
+    assert pt.pi(sequence) == pytest.approx(pt.pi(proxy))
+    assert pt.charge_at_ph(sequence, pH=7.0) == pytest.approx(pt.charge_at_ph(proxy, pH=7.0))
+    assert pt.parse(sequence).prop.pi == pytest.approx(pt.pi(proxy))

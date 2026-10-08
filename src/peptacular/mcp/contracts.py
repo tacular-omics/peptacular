@@ -2,12 +2,48 @@
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from tacular import AA_LOOKUP, ELEMENT_LOOKUP, IonType, IonTypeLiteral
 from tacular.types import ToleranceUnit
+
+from peptacular.proforma_components.comps import CV_LOOKUPS
+
+# Every accepted value below is derived from the library, so the contracts cannot drift
+# narrower than what peptacular itself calculates with.
+VOCABULARIES = {cv.name.replace("_", "").lower(): lookup for cv, lookup in CV_LOOKUPS.items()}
+"""Modification vocabularies the library resolves, keyed by their request name (unimod, psimod, resid, gnome, xlmod)."""
+Vocabulary = Literal[*VOCABULARIES]  # ty: ignore[invalid-type-form]
+RESIDUES = "".join(sorted({str(aa.id) for aa in AA_LOOKUP}))
+"""One-letter residue codes the library knows, including U, O and the ambiguity codes."""
+
+
+def _check_adduct(value):
+    from peptacular import ProFormaAnnotation
+
+    try:
+        ProFormaAnnotation("G").set_charge(value).charge_state  # noqa: B018 - resolving the carrier validates it
+    except ValueError as exc:
+        raise ValueError(f"Charge carrier {value!r} is not valid ProForma, for example 'Na:z+1' or ['Na:z+1', 'H:z+1']: {exc}") from None
+    return value
+
+
+def _check_isotope_labels(value):
+    for label in value:
+        try:
+            ELEMENT_LOOKUP[label]
+        except KeyError:
+            raise ValueError(f"Unknown element or isotope {label!r}. Use a symbol such as '13C', '15N', '18O' or '2H'.") from None
+    return value
+
 
 Count = Annotated[int, Field(strict=True, ge=1, le=5000)]
 Index = Annotated[int, Field(strict=True, ge=0, le=1000000)]
-Charge = Annotated[int, Field(strict=True, ge=-20, le=20)]
+Adduct = Annotated[str, Field(min_length=1, max_length=200)]
+Charge = Annotated[
+    Annotated[int, Field(strict=True, ge=-20, le=20)]
+    | Annotated[Adduct | Annotated[list[Adduct], Field(min_length=1, max_length=20)], AfterValidator(_check_adduct)],
+    Field(description="Signed proton count, or ProForma charge carrier(s) such as 'Na:z+1' or ['Na:z+1', 'H:z+1']."),
+]
 Number = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 Text = Annotated[str, Field(min_length=1, max_length=10000)]
 
@@ -94,9 +130,18 @@ class Delta(Contract):
 
 
 class Fragment(Scientific, ChargeSettings):
-    ion_types: Annotated[list[Literal["a", "b", "c", "x", "y", "z", "p"]], Field(min_length=1, max_length=7)] = ["b", "y"]
+    ion_types: Annotated[list[IonTypeLiteral], Field(min_length=1, max_length=len(IonType))] = ["b", "y"]
     isotopes: Annotated[
-        list[Annotated[int, Field(strict=True, ge=0, le=10)]], Field(min_length=1, max_length=10, description="13C isotope offsets; 0 is monoisotopic.")
+        list[
+            Annotated[int, Field(strict=True, ge=0, le=10)]
+            | Annotated[dict[str, Annotated[int, Field(strict=True, ge=0, le=10)]], Field(min_length=1, max_length=10), AfterValidator(_check_isotope_labels)]
+        ],
+        Field(
+            min_length=1,
+            max_length=10,
+            description="Isotope variants: an integer is a count of 13C atoms (0 is monoisotopic); "
+            "an object maps isotope labels to atom counts, e.g. {'15N': 1, '13C': 2}.",
+        ),
     ] = [0]
     deltas: Annotated[
         list[Delta],
@@ -174,7 +219,7 @@ class Edit(Scientific):
 
 class Rule(Contract):
     location: Literal["internal", "nterm", "cterm", "labile"] = "internal"
-    residues: Annotated[str, Field(min_length=1, max_length=26, pattern="^[ACDEFGHIKLMNPQRSTVWY]+$")] | None = None
+    residues: Annotated[str, Field(min_length=1, max_length=len(RESIDUES), pattern=f"^[{RESIDUES}]+$")] | None = None
     modification: Annotated[str, Field(min_length=1, max_length=200)]
     variable: bool = True
 
@@ -204,7 +249,7 @@ class Convert(Scientific):
 class FindModifications(Contract):
     query_type: Literal["accession", "name", "mass"]
     query: Text | Number
-    vocabularies: Annotated[list[Literal["unimod", "psimod", "xlmod"]], Field(min_length=1, max_length=3)] = ["unimod"]
+    vocabularies: Annotated[list[Vocabulary], Field(min_length=1, max_length=len(VOCABULARIES))] = ["unimod"]
     name_mode: Literal["exact", "prefix", "contains"] = "contains"
     tolerance: Annotated[float, Field(strict=True, gt=0, le=100)] | None = None
     tolerance_unit: ToleranceUnit = "da"

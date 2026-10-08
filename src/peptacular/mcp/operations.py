@@ -8,6 +8,8 @@ from collections import Counter
 from dataclasses import asdict
 from typing import Any, Literal
 
+from tacular import FRAGMENT_ION_LOOKUP, IonType
+
 import peptacular as pt
 from peptacular.diagnostics import InvalidAdjustmentError, diagnostic_from_exception
 
@@ -62,10 +64,18 @@ def composition(a):
     return {str(k): v for k, v in a.comp().items()}
 
 
+def _agrees(a, charge):
+    """An integer request agrees with the encoded total; a carrier request must match the encoded carriers."""
+    if isinstance(charge, int):
+        return charge == a.charge_state
+    return a.set_charge(charge, inplace=False).serialize() == a.serialize()
+
+
 def charged_annotations(a, settings):
     if settings.charges is None:
         return [a]
-    if a.has_charge and settings.charge_policy == "require_agreement" and settings.charges != [a.charge_state]:
+    agrees = len(settings.charges) == 1 and _agrees(a, settings.charges[0])
+    if a.has_charge and settings.charge_policy == "require_agreement" and not agrees:
         raise ServiceError("charge_conflict", "Requested charges conflict with encoded charge. Select charge_policy='override' explicitly.")
     return [a.set_charge(z, inplace=False) for z in settings.charges]
 
@@ -138,7 +148,8 @@ def analyze_one(a, request):
 def _fragments(ion, request, ion_types, deltas, length=None):
     return ion.fragment(
         ion_types=ion_types,
-        charges=[ion.charge_state],
+        # The encoded carriers, not just their total, so sodiated precursors give sodiated fragments.
+        charges=[ion.charge],
         monoisotopic=request.monoisotopic,
         isotopes=request.isotopes,
         deltas=deltas,
@@ -155,7 +166,7 @@ def _possible_fragments(ion, request, delta):
     """
     kept, skipped = [], []
     for ion_type in request.ion_types:
-        for length in [None] if ion_type == "p" else range(1, len(ion) + 1):
+        for length in [None] if FRAGMENT_ION_LOOKUP[ion_type].is_intact else range(1, len(ion) + 1):
             try:
                 kept.extend(_fragments(ion, request, [ion_type], [delta], length))
             except InvalidAdjustmentError:
@@ -163,10 +174,36 @@ def _possible_fragments(ion, request, delta):
     return kept, skipped
 
 
+def _ions_per_type(ion_type, n):
+    info = FRAGMENT_ION_LOOKUP[ion_type]
+    if info.is_intact:
+        return 1
+    return n * (n + 1) // 2 if info.is_internal and ion_type != IonType.IMMONIUM else n
+
+
+def _span(ion_type, position, n):
+    """Zero-based, end-exclusive residue span and the reported position of one fragment.
+
+    Terminal ions keep their ion number. Internal ions (library position is a one-based
+    inclusive (first, last) pair) and intact ions report a null position; start/end carry the span.
+    """
+    info = FRAGMENT_ION_LOOKUP[ion_type]
+    if position is None or info.is_intact:
+        return None, 0, n
+    if isinstance(position, tuple):
+        return None, position[0] - 1, position[1]
+    if ion_type == IonType.IMMONIUM:
+        return position, position - 1, position
+    if info.is_forward:
+        return position, 0, position
+    return position, n - position, n
+
+
 def fragment_one(a, request):
     for ion in charged_annotations(a, request):
         require_charge(ion)
-        combinations = len(ion) * len(request.ion_types) * len(request.isotopes) * (len(request.deltas) + 1)
+        per_isotope = sum(_ions_per_type(ion_type, len(ion)) for ion_type in request.ion_types)
+        combinations = per_isotope * len(request.isotopes) * (len(request.deltas) + 1)
         if combinations > 50000:
             raise ServiceError("resource_limit", "Fragment expansion exceeds 50,000 fragments per charge. Reduce sequence length or settings.")
         variants = [None, *request.deltas]
@@ -205,9 +242,7 @@ def fragment_one(a, request):
                 continue
             if request.max_mz is not None and f.mz > request.max_mz:
                 continue
-            position = None if f.ion_type == "p" else f.position
-            start = 0 if f.ion_type in ("a", "b", "c", "p") else len(ion) - int(position or 0)
-            end = len(ion) if f.ion_type in ("x", "y", "z", "p") else position
+            position, start, end = _span(f.ion_type, f.position, len(ion))
             row: dict[str, Any] = {
                 "proforma": ion.serialize(),
                 "ion_type": str(f.ion_type),
@@ -540,11 +575,10 @@ def run_operation(name: str, payload: dict, records: list[dict], proteins: list[
 
 
 def find_modifications(request):
-    import tacular
 
     rows: list[dict[str, Any]] = []
     for vocabulary in request.vocabularies:
-        lookup = getattr(tacular, f"{vocabulary.upper()}_LOOKUP")
+        lookup = c.VOCABULARIES[vocabulary]
         for entry in lookup:
             mass = entry.monoisotopic_mass if request.monoisotopic else entry.average_mass
             if request.query_type == "mass":
@@ -583,9 +617,10 @@ def versions():
 
 
 CONVENTIONS = {
-    "coordinates": "start is zero-based, end is exclusive. Fragment position is the ion number, counted in residues from its terminus. "
-    "Precursor position is null.",
-    "charge": "Signed total, external carrier and intrinsic charges are separate. m/z requires nonzero charge. Conflicts require override.",
+    "coordinates": "start is zero-based, end is exclusive. Fragment position is the ion number, counted in residues from its terminus "
+    "(immonium: the residue number). Precursor, neutral and internal-ion positions are null; use start/end.",
+    "charge": "Signed total, external carrier and intrinsic charges are separate. A requested charge is a proton count or ProForma "
+    "carriers ('Na:z+1'). m/z requires nonzero charge. Conflicts require override.",
     "isotopes": "Theoretical approximate distributions. Relative maximum abundance is one. Retained probability is unavailable.",
     "deltas": "A fragment formula delta is a loss ('H3PO4' or '-H3PO4'); '+HPO3' is a gain. A mass delta is added as signed Da. "
     "Ions a delta cannot apply to are skipped and reported in diagnostics.",
@@ -593,6 +628,19 @@ CONVENTIONS = {
     "inputs": "Pass annotation records directly. IDs and source indexes identify records within this call. No server-side data is retained.",
     "limits": "Inspect computation.complete and stop_reason. For a truncated calculation, narrow the request or split the batch.",
 }
+
+
+def _ion_kind(ion):
+    info = FRAGMENT_ION_LOOKUP[ion]
+    if info.is_intact:
+        return "precursor" if ion == IonType.PRECURSOR else "intact"
+    if ion == IonType.IMMONIUM:
+        return "immonium"
+    if info.is_internal:
+        return "internal"
+    if info.is_aa_specific_forward or info.is_aa_specific_backward:
+        return "satellite"
+    return "backbone"
 
 
 def reference_rows(request, limits):
@@ -605,7 +653,7 @@ def reference_rows(request, limits):
     elif request.topic == "scales":
         rows = [{"id": str(key), "aggregation": ["avg", "sum"], "modification_treatment": "ignore"} for key in pt.PROPERTY_SCALES]
     elif request.topic == "ions":
-        rows = [{"ion_type": ion, "kind": "precursor" if ion == "p" else "backbone"} for ion in ("a", "b", "c", "x", "y", "z", "p")]
+        rows = [{"ion_type": str(ion), "kind": _ion_kind(ion)} for ion in IonType]
     elif request.topic == "schemas":
         rows = [{"tool": name, "schema": model.model_json_schema()} for name, model in c.REQUESTS.items()]
     elif request.topic == "notation":
