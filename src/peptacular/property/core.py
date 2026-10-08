@@ -319,8 +319,23 @@ def aa_property_percentage(
     return float(val)
 
 
+SELENOCYSTEINE_SIDECHAIN_PKA = 5.2
+"""Side-chain (selenol) pKa of selenocysteine (U), used with every pKa scale because the
+tacular scales have no U entry. Huber R.E., Criddle R.S. (1967) Arch. Biochem. Biophys.
+122:164-173. Pyrrolysine (O) needs no constant: its epsilon-N is an amide, so its side
+chain is not ionisable."""
+
+_NO_TERMINAL_PKA = frozenset("UO")
+"""Residues without terminal pKa values; their termini use the scale's generic value (the scale mean, as for X)."""
+
+
 def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
-    """Calculate net charge at given pH"""
+    """Calculate net charge at given pH.
+
+    Selenocysteine (U) and pyrrolysine (O) are not in the pKa scales. A U side chain is an
+    acid with pKa :data:`SELENOCYSTEINE_SIDECHAIN_PKA` (5.2); an O side chain (amide) is not
+    ionisable. A terminal U or O uses the scale's generic terminal pKa (the mean of the scale).
+    """
     # Count amino acids
     aa_counts = _count_residues(sequence=sequence)
 
@@ -329,6 +344,8 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
         return 0.0
 
     nterm, cterm = sequence[0], sequence[-1]
+    nterm = "X" if nterm in _NO_TERMINAL_PKA else nterm
+    cterm = "X" if cterm in _NO_TERMINAL_PKA else cterm
 
     # Calculate positive charge (basic groups)
     positive_charge = 0.0
@@ -394,6 +411,8 @@ def charge_at_ph(sequence: str, pH: float = 7.0) -> float:
             if pK > 0:  # Only calculate if pK exists (non-zero)
                 partial_charge = 1.0 / (10 ** (pK - pH) + 1.0)
                 negative_charge += count * partial_charge
+
+    negative_charge += aa_counts.get("U", 0) / (10 ** (SELENOCYSTEINE_SIDECHAIN_PKA - pH) + 1.0)
 
     net_charge = positive_charge - negative_charge
     return net_charge

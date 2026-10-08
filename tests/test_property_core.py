@@ -2,6 +2,7 @@
 
 import pytest
 
+import peptacular as pt
 from peptacular.property.core import (
     aa_property_percentage,
     calc_property,
@@ -265,3 +266,25 @@ class TestGeneratePartitionsUnevenSpacingEdgeCase:
         result = generate_partitions("ACDEAC", scale=scale, num_windows=5, aa_overlap=0)
         assert len(result) == 5
         assert result == pytest.approx([2.0, 3.93, 2.0, 2.0, 2.0])
+
+
+@pytest.mark.parametrize(
+    "sequence,generic_terminus",
+    [("UPEPTIDE", "XPEPTIDE"), ("PEPTIDEU", "PEPTIDEX"), ("OPEPTIDE", "XPEPTIDE"), ("PEPTIDEO", "PEPTIDEX")],
+)
+def test_terminal_selenocysteine_and_pyrrolysine(sequence, generic_terminus):
+    # Terminal U/O used to raise "Invalid amino acid"; their termini use the scale's generic (mean) pKa.
+    u_side_chain = sequence.count("U") / (10 ** (5.2 - 7.0) + 1.0)
+    assert pt.charge_at_ph(sequence, pH=7.0) == pytest.approx(pt.charge_at_ph(generic_terminus, pH=7.0) - u_side_chain)
+    assert pt.parse(sequence).prop.pi == pytest.approx(pt.pi(sequence))
+
+
+def test_selenocysteine_side_chain_is_acidic_at_pka_5_2():
+    # Selenol pKa 5.2 (Huber & Criddle 1967), far below cysteine's 8.3.
+    assert pt.pi("PEPUK") < 5.0 < pt.pi("PEPCK")
+    assert pt.charge_at_ph("PEPUK", pH=5.2) == pytest.approx(pt.charge_at_ph("PEPAK", pH=5.2) - 0.5)
+
+
+def test_pyrrolysine_side_chain_is_not_ionisable():
+    for ph in (3.0, 7.0, 11.0):
+        assert pt.charge_at_ph("PEPOTIDE", pH=ph) == pytest.approx(pt.charge_at_ph("PEPATIDE", pH=ph))

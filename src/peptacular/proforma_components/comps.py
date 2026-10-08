@@ -36,6 +36,15 @@ from tacular import (
 from ..constants import CV, Terminal
 from ..diagnostics import CompositionError, PeptacularError, ProFormaFormatError, UnknownModificationError, UnsupportedOperationError
 
+CV_LOOKUPS = {
+    CV.UNIMOD: UNIMOD_LOOKUP,
+    CV.PSI_MOD: PSIMOD_LOOKUP,
+    CV.RESID: RESID_LOOKUP,
+    CV.GNOME: GNO_LOOKUP,
+    CV.XL_MOD: XLMOD_LOOKUP,
+}
+"""Reference lookup for each controlled vocabulary whose modifications resolve by accession, name or mass."""
+
 __all__ = [
     "HasMassComp",
     "MassPropertyMixin",
@@ -531,21 +540,10 @@ class TagAccession(MassPropertyMixin, PositionScoreMixin):
     def _get_mod_info_by_accession(
         self,
     ) -> UnimodInfo | PsimodInfo | ResidInfo | GnoInfo | XlmodInfo | None:
-        match self.cv:
-            case CV.UNIMOD:
-                return UNIMOD_LOOKUP.query_id(self.accession)
-            case CV.PSI_MOD:
-                return PSIMOD_LOOKUP.query_id(self.accession)
-            case CV.RESID:
-                return RESID_LOOKUP.query_id(self.accession)
-            case CV.GNOME:
-                return GNO_LOOKUP.query_id(self.accession)
-            case CV.XL_MOD:
-                return XLMOD_LOOKUP.query_id(self.accession)
-            case _:
-                raise PeptacularError(f"Modification lookup by accession not implemented for CV: {self.cv}")
-
-        return None
+        lookup = CV_LOOKUPS.get(self.cv)
+        if lookup is None:
+            raise PeptacularError(f"Modification lookup by accession not implemented for CV: {self.cv}")
+        return lookup.query_id(self.accession)
 
     def get_mass(self, *, monoisotopic: bool = True) -> float:
         mod_info = self._get_mod_info_by_accession()
