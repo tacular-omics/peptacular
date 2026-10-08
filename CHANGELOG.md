@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.0.1] (2026-10-08)
+
+**Behaviour change:** `Fragment.to_mzpaf()` now raises `PeptacularError` when the charge carriers do not agree with the fragment charge (#49); it used to write invalid mzPAF.
+
 ### Fixed
 
 - A bare `X` (unknown residue with no mass-bearing modification) now raises `PeptacularError: Mass not available for amino acid: X` in `mass()`, `mz()`, `comp()`, `fragment()`, `fast_fragment()`, `fragment_arrays()` and `isotopic_distribution()`, as `B`, `J` and `Z` already did. It used to count as 0 Da, so `mass("PEPXTIDE")` came out about 110 Da light. `X[+100]`, `X[Formula:C2H3NO]`, `X[Phospho]` and static mods such as `<[+5]@X>` still give X its mass; an `INFO` or label tag alone does not. Digestion is unchanged.
