@@ -79,4 +79,5 @@ calculation rules, see [the companion notes](https://github.com/tacular-omics/pe
 - [x] **Fixed modifications** - `<[Oxidation]@M>ATPEMILTCMGCLK` (§11.3.2)
 - [x] **Chimeric spectra** - `NEEYN+SEQUEN` (§11.4)
 - [x] **Charges** - `SEQUEN/2`, `SEQUEN/[Na:z+1,H:z+1]` (§11.5)
+  - **Deviation: bare negative charges.** ProForma 2.1 §11.5 says: "Any positive charges are defined as addition of protons H+, any negative charges are defined as addition of electrons e-." peptacular instead reads a bare negative charge such as `SEQUEN/-2` as deprotonation, [M-2H]2-, which is the ProForma 2.0 meaning. This is on purpose: negative-mode ions form by losing protons, so deprotonation is the mass users expect. For an exact meaning that does not depend on the ProForma version, write the carrier explicitly: `SEQUEN/[H-1:z-1^2]` is deprotonation by two protons with the same mass as `/-2`. peptacular also serializes negative proton carriers this way. Positive bare charges (`/2`) are protons in both versions.
 - [x] **Ion notation** - `SEQUEN-[b-type-ion]` (§11.6)

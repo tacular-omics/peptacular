@@ -633,6 +633,12 @@ class _ModAccessMixin:
     ) -> Self:
         """Replace the charge value.
 
+        A positive integer charge adds protons. A negative integer charge removes protons
+        (``-2`` is [M-2H]2-), the ProForma 2.0 meaning; ProForma 2.1 section 11.5 defines a
+        bare negative charge as added electrons instead. peptacular keeps deprotonation on
+        purpose, because that is how negative-mode ions form. Pass an explicit carrier
+        (``"H-1:z-1^2"``) for a meaning that does not depend on the ProForma version.
+
         :param charge: New charge as an integer, adduct string(s), ``Mods``, or ``None`` to clear.
         :type charge: int | str | list[str] | tuple[str, ...] | Mods[GlobalChargeCarrier] | GlobalChargeCarrier | Mod[GlobalChargeCarrier] | None
         :param inplace: Modify this object when ``True``; return a modified copy when ``False``.
