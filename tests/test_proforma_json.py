@@ -144,6 +144,10 @@ def test_mods_to_dict_unknown_mod_example():
         {"mod_type": "unknown", "modifications": {"MOD:1": True}},
         {"mod_type": "unknown"},
         {"mod_type": "unknown", "modifications": None, "extra": 1},
+        # Counts below 1 used to load, then set_charge wrote "PEPTIDEK/[]" (regression).
+        {"mod_type": "charge", "modifications": {"H:z+1": -1}},
+        {"mod_type": "charge", "modifications": {"H:z+1": 0}},
+        {"mod_type": "unknown", "modifications": {"MOD:1": 1, "MOD:2": 0}},
     ],
 )
 def test_mods_from_dict_rejects_bad_data(bad):
@@ -151,3 +155,9 @@ def test_mods_from_dict_rejects_bad_data(bad):
 
     with pytest.raises(PeptacularError):
         Mods.from_dict(bad)
+
+
+def test_mods_to_dict_uses_mod_type_values():
+    """The docstring promises ModType values, not the annotation's section names."""
+    assert pt.parse("[Acetyl]-PEP").nterm_mods.to_dict()["mod_type"] == "nterm"
+    assert pt.parse("<[+5]@P>PEP").static_mods.to_dict()["mod_type"] == "static"

@@ -195,3 +195,50 @@ class TestNegativeCarrierSerialization:
 
     def test_bare_negative_charge_unchanged(self):
         assert pt.parse("PEPTIDEK/-2").serialize() == "PEPTIDEK/-2"
+
+
+class TestSetChargeStringNormalisation:
+    """set_charge stored carrier strings verbatim, so a negative occurrence skipped the
+    negated-carrier serialization and wrote text parse() rejects (regression)."""
+
+    @pytest.mark.parametrize(
+        "charge, expected",
+        [
+            ("H:z+1^-2", "PEPTIDEK/[H-1:z-1^2]"),
+            (["H:z+1^-2"], "PEPTIDEK/[H-1:z-1^2]"),
+            (("H:z+1^-2", "Na:z+1"), "PEPTIDEK/[H-1:z-1^2,Na:z+1]"),
+            (["[13C2]H4:z+1^-1"], "PEPTIDEK/[[13C-2]H-4:z-1]"),
+        ],
+    )
+    def test_negative_occurrence_string_matches_object(self, charge, expected):
+        from peptacular.proforma_components.comps import GlobalChargeCarrier
+
+        text = pt.parse("PEPTIDEK").set_charge(charge).serialize()
+        assert text == expected
+        assert pt.parse(text).serialize() == text
+        # Same text as serializing the carrier objects themselves.
+        items = [charge] if isinstance(charge, str) else list(charge)
+        assert text == "PEPTIDEK/[" + ",".join(str(GlobalChargeCarrier.from_string(c)) for c in items) + "]"
+
+    @pytest.mark.parametrize("carrier", ["Na:z+1", "Na1:z+1", "H:z+1^2", "H-1:z-1^2", "[15N1]H4:z+1", "C2H4:z+1"])
+    def test_valid_string_kept_verbatim(self, carrier):
+        text = pt.parse("PEPTIDEK").set_charge(carrier).serialize()
+        assert text == f"PEPTIDEK/[{carrier}]"
+        assert pt.parse(text).serialize() == text
+
+    def test_mods_with_non_positive_counts_clear_charge(self):
+        from peptacular.annotation.mod import Mods
+        from peptacular.constants import ModType
+
+        for count in (0, -1):
+            mods = Mods(mod_type=ModType.CHARGE, _mods={"H:z+1": count})
+            annot = pt.parse("PEPTIDEK").set_charge(mods, validate=False)
+            assert annot.serialize() == "PEPTIDEK"
+            assert annot.charge is None
+
+    def test_mods_negative_occurrence_key_normalised(self):
+        from peptacular.annotation.mod import Mods
+        from peptacular.constants import ModType
+
+        mods = Mods(mod_type=ModType.CHARGE, _mods={"H:z+1^-2": 1})
+        assert pt.parse("PEPTIDEK").set_charge(mods).serialize() == "PEPTIDEK/[H-1:z-1^2]"

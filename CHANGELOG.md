@@ -15,6 +15,9 @@ All notable changes to this project will be documented in this file.
 - `parse_chimeric()` no longer raises `Unsupported charge type: <class 'dict'>` when a chain carries charge carriers (`PEPTIDE+ELVIS/[Na:z+1]`, `PEPTIDE/[H:z+1^2]+ELVIS`). Only bare integer charges worked; each chain now gets the same charge as `parse()` gives it on its own, because both build the annotation through one code path.
 - A negative charge carrier occurrence is now serialized as the negated carrier, so it parses back: `parse("PEPTIDEK").set_charge(frag.charge_adducts)` for a -2 fragment wrote `PEPTIDEK/[H:z+1^-2]`, which `parse()` rejects. It is now written `PEPTIDEK/[H-1:z-1^2]` (valid ProForma 2.1, same mass and charge). A bare `/-2` is unchanged.
 - `Mods.to_dict()` (e.g. `parse("[MOD:1]?PEP").unknown_mods.to_dict()`) raised `TypeError: Unsupported ProForma JSON value: Mods`, as did `to_json`, `from_dict` and `from_json`. `Mods` now returns `{"mod_type": ..., "modifications": {modification: count}}` and restores from it.
+- `set_charge()` with a carrier string or list of strings now writes a negative occurrence as the negated carrier, the same text as passing the `GlobalChargeCarrier` object: `set_charge("H:z+1^-2")` wrote `PEPTIDEK/[H:z+1^-2]`, which `parse()` rejects, and now writes `PEPTIDEK/[H-1:z-1^2]`. Strings that already parsed keep their exact spelling.
+- `Mods.from_dict()` now raises `PeptacularError` for a modification count below 1. `{"mod_type": "charge", "modifications": {"H:z+1": -1}}` (or a count of 0) used to load, and `set_charge()` then wrote `PEPTIDEK/[]` with charge 0; a `Mods` whose carriers expand to nothing now clears the charge instead.
+- The `Mods.to_dict()` docstring now says `mod_type` is the `ModType` value (`nterm`, `static`, `unknown`, ...), not the section names `ProFormaAnnotation.to_dict()` uses (`n_terminal`, `fixed`, `unlocalized`). The output is unchanged.
 
 ### Changed
 
