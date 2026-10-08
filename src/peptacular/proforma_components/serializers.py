@@ -5,6 +5,7 @@ This module contains all serialization logic (ProForma notation output).
 """
 
 import sys
+from dataclasses import replace
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -347,16 +348,30 @@ def serialize_global_charge_carrier(gcc: "GlobalChargeCarrier") -> str:
     Returns:
         String representation like 'Na:z+1' or 'H:z+1^2'
     """
-    formula_str = serialize_charged_formula(gcc.charged_formula, include_formula_prefix=False)
+    charged_formula = gcc.charged_formula
+    occurance = gcc.occurance
+    if occurance < 0:
+        # A negative occurrence (e.g. ``H:z+1^-2`` from a negative ``charged_proton``)
+        # is not valid ProForma. Write the negated carrier instead: ``n * X`` with
+        # ``n < 0`` equals ``|n| * (-X)``, so ``H:z+1^-2`` becomes ``H-1:z-1^2``.
+        # The mass and charge are identical and the string parses back.
+        charged_formula = replace(
+            charged_formula,
+            formula=tuple(replace(fe, occurance=-fe.occurance) for fe in charged_formula.formula),
+            charge=None if charged_formula.charge is None else -charged_formula.charge,
+        )
+        occurance = -occurance
 
-    if gcc.occurance == 1.0:
+    formula_str = serialize_charged_formula(charged_formula, include_formula_prefix=False)
+
+    if occurance == 1.0:
         return sys.intern(formula_str)
     else:
         # Format occurance, remove trailing zeros for whole numbers
-        if gcc.occurance == int(gcc.occurance):
-            occ_str = f"^{int(gcc.occurance)}"
+        if occurance == int(occurance):
+            occ_str = f"^{int(occurance)}"
         else:
-            occ_str = f"^{gcc.occurance:g}"
+            occ_str = f"^{occurance:g}"
         return sys.intern(f"{formula_str}{occ_str}")
 
 
