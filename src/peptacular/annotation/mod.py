@@ -258,8 +258,12 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
         """Return a JSON-compatible mapping: the mod type and its modification counts.
 
         ``Mods`` is a collection, not a ProForma component, so it is not part of the
-        versioned ProForma JSON schema. The counts use the same ``{modification: count}``
-        shape as the annotation's ``modifications`` entries in that schema.
+        versioned ProForma JSON schema. The result is
+        ``{"mod_type": <ModType value>, "modifications": {modification: count} | None}``.
+        ``mod_type`` is the ``ModType`` enum value (``"nterm"``, ``"cterm"``,
+        ``"internal"``, ``"static"``, ``"unknown"``, ``"charge"``, ...), not the
+        section names that :meth:`ProFormaAnnotation.to_dict` uses (``n_terminal``,
+        ``fixed``, ``unlocalized``, ...). Each count is a positive integer.
         """
         return {
             "mod_type": self.mod_type.value,
@@ -276,9 +280,10 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
             raise PeptacularError(f"Unsupported mod_type: {mod_type!r}")
         counts = data["modifications"]
         if counts is not None and (
-            not isinstance(counts, Mapping) or not all(isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool) for k, v in counts.items())
+            not isinstance(counts, Mapping)
+            or not all(isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool) and v >= 1 for k, v in counts.items())
         ):
-            raise PeptacularError("Mods modifications must map modification strings to integer counts, or be null")
+            raise PeptacularError("Mods modifications must map modification strings to integer counts >= 1, or be null")
         return cls(mod_type=ModType(mod_type), _mods=dict(counts) if counts is not None else None)
 
     def to_json(self, *, indent: int | None = None) -> str:

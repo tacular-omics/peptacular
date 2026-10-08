@@ -61,6 +61,22 @@ def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
             yield position_id
 
 
+def _normalize_charge_carrier(carrier: str) -> str:
+    """Return a charge carrier string in a form that ``parse`` accepts.
+
+    A negative occurrence (``H:z+1^-2``) is not valid ProForma, so it is rewritten as the
+    negated carrier (``H-1:z-1^2``), exactly as passing the ``GlobalChargeCarrier`` object
+    would serialize. Every other string is kept verbatim, so text that already parsed
+    keeps its spelling; a string that does not parse is also kept, for ``validate_charge``
+    to report.
+    """
+    try:
+        gcc = GlobalChargeCarrier.from_string(carrier)
+    except ValueError:  # PeptacularError and its parse errors subclass ValueError
+        return carrier
+    return str(gcc) if gcc.occurance < 0 else carrier
+
+
 class ChargeType(StrEnum):
     INT = "int"
     ADDUCTS = "adducts"
@@ -664,21 +680,18 @@ class _ModAccessMixin:
             # section 11.5), so clear it to None rather than storing a literal 0.
             set_value = charge if charge != 0 else None
         elif isinstance(charge, str):
-            set_value = [charge]
+            set_value = [_normalize_charge_carrier(charge)]
         elif isinstance(charge, (list, tuple)):
-            if len(charge) == 0:
-                set_value = None
-            else:
-                set_value = [str(c) for c in charge]
-                if len(set_value) == 0:
-                    set_value = None
+            set_value = [_normalize_charge_carrier(str(c)) for c in charge] or None
         elif charge is None:
             set_value = None
         elif isinstance(charge, Mods):
             # Expand each carrier by its occurrence count so repeated adducts survive
             # the round-trip into the ``list[str]`` storage; iterating keys alone would
             # drop the count and silently reduce a multi-adduct charge to one carrier.
-            set_value = [str(c) for c, n in charge._mods.items() for _ in range(n)] if charge._mods else None
+            # An empty expansion (no carriers, or only non-positive counts) is a neutral
+            # peptidoform: clear to None rather than storing [] and writing "PEPTIDE/[]".
+            set_value = [_normalize_charge_carrier(str(c)) for c, n in (charge._mods or {}).items() for _ in range(n)] or None
         elif isinstance(charge, Mod):
             # A Mod wraps a charge carrier value; str(Mod) would emit the dataclass repr
             # (e.g. "Mod(value=GlobalChargeCarrier(...), count=1)"), which is not a valid

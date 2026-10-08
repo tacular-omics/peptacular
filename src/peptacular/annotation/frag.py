@@ -31,6 +31,39 @@ __all__ = [
 ]
 
 
+# Charge a reader infers for one unit of a written mzPAF adduct, keyed by element symbol counts
+# with isotopes ignored. mzPAF 1.0.1 section 4.4.10 reads what follows the M as charged ions:
+# [M+Na] adds Na+, [M+Cl] adds Cl-, [M+HCOO] adds formate. A carrier made of hydrogen only is
+# that many protons. Same table as paftacular; a carrier not listed has no implied charge.
+_MZPAF_CARRIER_UNIT_CHARGES: dict[frozenset[tuple[str, int]], int] = {
+    frozenset({(symbol, 1)}): unit
+    for symbol, unit in (("Li", 1), ("Na", 1), ("K", 1), ("Rb", 1), ("Cs", 1), ("Ag", 1), ("Mg", 2), ("Ca", 2), ("F", -1), ("Cl", -1), ("Br", -1), ("I", -1))
+} | {
+    frozenset({("N", 1), ("H", 4)}): 1,  # ammonium
+    frozenset({("C", 1), ("H", 1), ("O", 2)}): -1,  # formate
+    frozenset({("C", 2), ("H", 3), ("O", 2)}): -1,  # acetate
+    frozenset({("H", 2), ("O", 1)}): 0,  # water
+    frozenset({("N", 1), ("H", 3)}): 0,  # ammonia
+    frozenset({("C", 1), ("O", 2)}): 0,  # carbon dioxide
+}
+
+
+def _mzpaf_implied_carrier_charge(carrier: "GlobalChargeCarrier") -> int | None:
+    """The charge an mzPAF reader assigns to ``carrier`` as written in an adduct, or None.
+
+    The label keeps only the carrier's atoms and direction (``+H``, ``-2Na``), not its charge,
+    so a hydride (``H:z-1``) is written ``+H`` and read as a proton.
+    """
+    symbols: Counter[str] = Counter()
+    for fe in carrier.charged_formula.formula:
+        symbols[fe.element.value] += abs(fe.occurance)
+    direction = -1 if any(fe.occurance < 0 for fe in carrier.charged_formula.formula) else 1
+    if set(symbols) == {"H"}:
+        return direction * carrier.occurance * symbols["H"]
+    unit = _MZPAF_CARRIER_UNIT_CHARGES.get(frozenset(symbols.items()))
+    return None if unit is None else direction * carrier.occurance * unit
+
+
 _FormulaKey = frozenset[tuple[str, int | None, int]]
 
 
@@ -606,6 +639,12 @@ class Fragment:
         mzPAF has no uncharged ion (a label without a charge suffix reads as +1), so a
         fragment with charge 0 raises :class:`PeptacularError`; build it with ``charge=1``.
 
+        mzPAF section 4.7 requires the adducts to agree with the charge, and an adduct is
+        written by its atoms only (``[M+Na]`` is Na+). A carrier that mzPAF would read with a
+        different charge, such as a hydride (``H:z-1``, which would be written ``+H``, a
+        proton), raises :class:`PeptacularError`, as does a carrier set whose charge differs
+        from the fragment charge (a charge carried by a modification, ``Zn:z+2``).
+
         :param include_sequence: If True, include the peptide sequence in the label.
         :type include_sequence: bool
         :param signed_charge: If True (default), write a negative charge as ``^-n``;
@@ -762,6 +801,7 @@ class Fragment:
         # Adducts
         if self._charge_adducts is not None:
             adduct_parts: list[str] = []
+            carrier_charge = 0
             for mod in self.charge_adducts.mods:
                 carrier: GlobalChargeCarrier = mod.value
                 # A repeated carrier is tallied into mod.count (e.g. two 'Na:z+1' list
@@ -770,6 +810,16 @@ class Fragment:
                 # the mass/charge (which scale by mod.count) show all of them.
                 if mod.count != 1:
                     carrier = GlobalChargeCarrier(charged_formula=carrier.charged_formula, occurance=carrier.occurance * mod.count)
+                # mzPAF section 4.7: the adducts MUST agree with the charge. The label drops
+                # the carrier's own charge, so refuse a carrier a reader would take for a
+                # different charge (a hydride H:z-1 is written +H, read as a proton).
+                implied = _mzpaf_implied_carrier_charge(carrier)
+                if implied is not None and implied != carrier.get_charge():
+                    raise PeptacularError(
+                        f"Cannot write charge carrier {carrier} in mzPAF: it is written {carrier.to_mz_paf()[1:]}, "
+                        f"which mzPAF reads as charge {implied:+d}, not {carrier.get_charge():+d}"
+                    )
+                carrier_charge += carrier.get_charge()
                 # to_mz_paf() returns "M+Na", we strip the "M" prefix
                 paf_str = carrier.to_mz_paf()
                 adduct_parts.append(paf_str[1:])  # strip "M", keep "+Na"
@@ -782,6 +832,13 @@ class Fragment:
                 name = part[1:].lstrip("0123456789")
                 return name
 
+            if carrier_charge != self.charge_state:
+                # e.g. PEPT[Formula:Zn:z+2]IDE/[Na:z+1]: [M+Na]^3 is invalid mzPAF, and the
+                # charge a modification carries has no mzPAF notation.
+                raise PeptacularError(
+                    f"Cannot write charge carriers {self.charge_adducts} in mzPAF: they carry charge {carrier_charge:+d}, "
+                    f"but the fragment charge is {self.charge_state:+d}"
+                )
             adduct_parts.sort(key=_adduct_sort_key)
             parts.append(f"[M{''.join(adduct_parts)}]")
 

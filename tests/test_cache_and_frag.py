@@ -108,8 +108,8 @@ class TestMzPAFLabelMass:
         ("[Acetyl]-PEPTIDE", "i", -1, 1),
         ("PEPTIDE-[Amidated]", "i", 1, 7),
         ("PEP[+10]TIDE", "i", 2, 3),
-        ("PEPTIDE", "y", "H:z-1", 3),
-        ("PEPTIDE", "y", ["H:z-1", "H:z-1"], 3),
+        ("PEPTIDE", "y", "Cl:z-1", 3),
+        ("PEPTIDE", "y", ["H:z+1", "Na:z+1"], 3),
         ("PEPTIDE", "ax", 1, (2, 5)),
         ("PEPTIDE", "bx", 2, (2, 5)),
         ("[Acetyl]-TIV", "v", 1, 3),
@@ -137,6 +137,30 @@ class TestMzPAFLabelMass:
             parsed = paf.parse(frag.to_mzpaf())
             parsed = parsed[0] if isinstance(parsed, list) else parsed
             assert abs(parsed.mz() - frag.mz) < 1e-6, (seq, ion, z, pos, frag.to_mzpaf())
+
+    # mzPAF writes an adduct by its atoms only, so these have no valid label (regression:
+    # a hydride H:z-1 was written y3{IDE}[M+H]^-1, which reads as a proton).
+    UNWRITABLE = (
+        ("PEPTIDE", "y", "H:z-1", 3),
+        ("PEPTIDE", "y", ["H:z-1", "H:z-1"], 3),
+        ("PEPTIDE", "y", ["H:z-1", "Na:z+1", "Na:z+1"], 3),
+        ("PEPT[Formula:Zn:z+2]IDE/[Na:z+1]", "y", None, 4),
+    )
+
+    def test_carriers_mzpaf_cannot_express_raise(self):
+        from peptacular.diagnostics import PeptacularError
+
+        for seq, ion, z, pos in self.UNWRITABLE:
+            annot = pt.parse(seq)
+            frag = annot.frag(ion_type=ion, position=pos) if z is None else annot.frag(ion_type=ion, charge=z, position=pos)
+            with pytest.raises(PeptacularError, match="in mzPAF"):
+                frag.to_mzpaf()
+
+    def test_unwritable_carriers_also_rejected_by_paftacular(self):
+        paf = pytest.importorskip("paftacular")
+        for label in ("y3{IDE}[M+H]^-1", "y3{IDE}[M+2H]^-2", "y4{TIDE}[M+Na]^3"):
+            with pytest.raises(paf.PaftacularError):
+                paf.parse(label)
 
 
 # Every ion type whose full-length ion contains both termini, with a sequence it can be made from.
@@ -209,13 +233,16 @@ class TestHydrideCarrier:
         assert "H:z-1" in str(y3)
         # hydride adds H + e-; deprotonation removes a proton (H - e- plus the H binding energy)
         assert abs(y3.mass - deprot.mass - 2 * 1.00782503223 - pt.constants.HYDROGEN_BINDING_MASS) < 1e-9
-        assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
+        # mzPAF has no hydride: [M+H] is a proton, so the label would read as +1 carriers.
+        with pytest.raises(pt.PeptacularError, match="reads as charge"):
+            y3.to_mzpaf()
         assert deprot.to_mzpaf() == "y3{IDE}^-1"
 
     def test_two_hydrides(self):
         for charge in (["H:z-1", "H:z-1"], "H:z-1^2"):
             y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=charge, position=3)
-            assert y3.to_mzpaf() == "y3{IDE}[M+2H]^-2"
+            with pytest.raises(pt.PeptacularError, match="reads as charge"):
+                y3.to_mzpaf()
 
     def test_carriers_summing_to_zero_raise(self):
         y3 = pt.parse("PEPTIDE").frag(ion_type="y", charge=["H:z-1", "Na:z+1"], position=3)
@@ -227,7 +254,9 @@ class TestHydrideCarrier:
 
     def test_fragment_series_hydride(self):
         y3 = [f for f in pt.parse("PEPTIDE").fragment(ion_types=["y"], charges=["H:z-1"]) if f.position == 3][0]
-        assert y3.to_mzpaf() == "y3{IDE}[M+H]^-1"
+        assert y3.charge_state == -1
+        with pytest.raises(pt.PeptacularError, match="reads as charge"):
+            y3.to_mzpaf()
 
 
 class TestMzPAFHydrogenLoss:
