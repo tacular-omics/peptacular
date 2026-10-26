@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 from peptacular import __version__
@@ -67,9 +68,32 @@ except ImportError:
 """
 
 
+_BASE_XREF = re.compile(r"`([^`]+)`")
+
+
+def _base_class_name(base):
+    """Return the class name of one entry of an ``autodoc-process-bases`` list.
+
+    ``sphinx_autodoc_typehints`` rewrites every base into the reST it renders, so a base
+    arrives as ``:py:class:`~peptacular.annotation._mod_access._ModAccessMixin``` or, for a
+    parametrised generic, ``:py:class:`~typing.Generic`\\ \\[``T``]``. The class is the last
+    dotted part of the first cross-reference target, with the ``~`` abbreviation marker
+    dropped. Without that extension autodoc passes the class itself, so handle both.
+    """
+    if not isinstance(base, str):
+        return getattr(base, "__name__", "")
+    match = _BASE_XREF.search(base)
+    target = match.group(1) if match else base
+    return target.lstrip("~.").rsplit(".", 1)[-1]
+
+
 def _hide_private_bases(app, name, obj, options, bases):
-    """Drop private base classes (``ProFormaAnnotation``'s ``_ModAccessMixin``) from "Bases:"."""
-    bases[:] = [base for base in bases if not base.__name__.startswith("_")] or [object]
+    """Drop private base classes (``ProFormaAnnotation``'s ``_ModAccessMixin``) from "Bases:".
+
+    Keyed on the class name alone, never on the path: ``peptacular.interop._errors.InteropError``
+    is a public class in a private module and stays.
+    """
+    bases[:] = [base for base in bases if not _base_class_name(base).startswith("_")] or [object]
 
 
 def _mixin_source(app, modname):
