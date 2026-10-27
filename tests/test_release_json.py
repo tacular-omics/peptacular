@@ -55,6 +55,17 @@ def test_every_component_round_trips_and_validates(value):
     assert type(value).from_json(value.to_json()) == value
 
 
+def test_tag_info_label_survives_the_json_round_trip():
+    """TagInfo carries position_id/score like every other scored tag, so the lossless
+    JSON format has to keep them."""
+    tag = pt.TagInfo("note", position_id="g1", score=0.5)
+    document = tag.to_dict()
+    Draft202012Validator(pt.get_proforma_json_schema()).validate(document)
+    assert document["position_id"] == "g1"
+    assert document["score"] == 0.5
+    assert pt.TagInfo.from_json(tag.to_json()) == tag
+
+
 def test_schema_covers_registry_and_matches_generator():
     assert {type(value).__name__ for value in components()} == set(_component_types())
     generator = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/generate_json_schema.py"))

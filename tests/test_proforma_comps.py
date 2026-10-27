@@ -6,6 +6,8 @@ modification tags, sequence elements, peptidoforms, etc). Tests exercise real lo
 convention.
 """
 
+import dataclasses
+import typing
 from collections import Counter
 
 import pytest
@@ -14,6 +16,7 @@ from tacular import AA_LOOKUP, ELEMENT_LOOKUP, AminoAcid, Element, Monosaccharid
 import peptacular as pt
 from peptacular.constants import CV, Terminal
 from peptacular.proforma_components.comps import (
+    MODIFICATION_TAG_TYPE,
     ChargedFormula,
     ComkpTag,
     CompoundPeptidoformIon,
@@ -33,6 +36,7 @@ from peptacular.proforma_components.comps import (
     PeptidoformIon,
     PositionRule,
     PositionScore,
+    PositionScoreMixin,
     PositionTag,
     SequenceElement,
     SequenceRegion,
@@ -482,6 +486,90 @@ class TestTagInfo:
         tag = TagInfo.from_string("INFO:hello")
         assert tag.serialize() == "INFO:hello"
         assert str(tag) == "INFO:hello"
+
+    def test_position_and_score_default_to_none(self) -> None:
+        tag = TagInfo(info="hello")
+        assert tag.position_id is None
+        assert tag.score is None
+        assert tag.serialize_position_score() == ""
+
+    def test_serialize_appends_the_position_label(self) -> None:
+        """The ProForma grammar allows a label on any modSingle, INFO included.
+
+        ``modInternal = modSingle, [modLabel], ...`` and ``modSingle`` lists ``info``,
+        so ``INFO:hello#g1(0.5)`` is a valid tag, not free text containing a '#'
+        (``MODGRAPHICCHARACTER``, which spells out ``MODTEXT``, excludes '#').
+        """
+        assert TagInfo(info="hello", position_id="g1", score=0.5).serialize() == "INFO:hello#g1(0.5)"
+        assert TagInfo(info="hello", position_id="g1").serialize() == "INFO:hello#g1"
+        assert TagInfo(info="hello", score=0.5).serialize() == "INFO:hello(0.5)"
+
+
+# One minimal construction per scored tag type. Keyed by class so that a tag type added
+# to MODIFICATION_TAG_TYPE without an entry here fails the completeness test below
+# rather than being silently skipped.
+_SCORED_TAG_SAMPLES: dict[type, dict[str, object]] = {
+    ChargedFormula: {"formula": (FormulaElement(element=Element.C, occurance=2),)},
+    GlycanTag: {"components": (GlycanComponent(monosaccharide=Monosaccharide.Hex, occurance=2),)},
+    PositionScore: {"position_id": "g1"},
+    TagAccession: {"accession": "35", "cv": CV.UNIMOD},
+    TagCustom: {"name": "MyCustomMod"},
+    TagInfo: {"info": "hello"},
+    TagMass: {"mass_str": "+10.0"},
+    TagName: {"name": "Oxidation"},
+}
+
+
+def _scored_tag_types() -> list[type]:
+    """Every modification tag type that claims PositionScoreMixin."""
+    return [t for t in typing.get_args(MODIFICATION_TAG_TYPE) if isinstance(t, type) and issubclass(t, PositionScoreMixin)]
+
+
+class TestEveryScoredTagExposesPositionAndScore:
+    """A PositionScoreMixin subclass that forgets to declare the fields is broken.
+
+    The mixin only declares ``position_id``/``score`` under ``TYPE_CHECKING`` (a real
+    property object would be picked up as a dataclass field default), so a subclass that
+    does not declare them as fields type-checks but raises AttributeError at runtime.
+    TagInfo did exactly that. These tests read both attributes on every scored tag type
+    so the next one cannot regress the same way.
+    """
+
+    def test_sample_table_covers_every_scored_tag_type(self) -> None:
+        assert set(_SCORED_TAG_SAMPLES) == set(_scored_tag_types())
+
+    def test_the_union_still_holds_the_scored_tags(self) -> None:
+        """Floor, so the walk failing to find anything cannot pass vacuously."""
+        assert len(_scored_tag_types()) >= 8
+
+    @pytest.mark.parametrize("tag_type", _scored_tag_types(), ids=lambda t: t.__name__)
+    def test_declares_both_fields(self, tag_type: type) -> None:
+        names = {f.name for f in dataclasses.fields(tag_type)}
+        assert {"position_id", "score"} <= names
+
+    @pytest.mark.parametrize("tag_type", _scored_tag_types(), ids=lambda t: t.__name__)
+    def test_reads_both_attributes(self, tag_type: type) -> None:
+        tag = tag_type(**_SCORED_TAG_SAMPLES[tag_type])  # type: ignore[arg-type]
+        # PositionScore exists to carry a label, so position_id is required there.
+        expected = "g1" if tag_type is PositionScore else None
+        assert tag.position_id == expected
+        assert tag.score is None
+
+    @pytest.mark.parametrize("tag_type", _scored_tag_types(), ids=lambda t: t.__name__)
+    def test_serializes_the_label_it_was_given(self, tag_type: type) -> None:
+        tag = tag_type(**{**_SCORED_TAG_SAMPLES[tag_type], "position_id": "g1", "score": 0.5})  # type: ignore[arg-type]
+        assert tag.serialize_position_score() == "#g1(0.5)"
+        if tag_type is PositionScore:
+            # The label is the whole tag, so PositionScore has no serialize() of its
+            # own; the line above is the complete check for it.
+            assert not hasattr(tag, "serialize")
+        else:
+            assert tag.serialize().endswith("#g1(0.5)")
+
+    @pytest.mark.parametrize("tag_type", [PositionTag, LimitTag, ComkpTag, ComupTag], ids=lambda t: t.__name__)
+    def test_placement_tags_are_not_scored(self, tag_type: type) -> None:
+        """The placement tags carry no label, so they are out of scope above, not missed."""
+        assert not issubclass(tag_type, PositionScoreMixin)
 
 
 class TestTagCustom:

@@ -902,11 +902,33 @@
         },
         "info": {
           "type": "string"
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "$type",
-        "info"
+        "info",
+        "position_id",
+        "score"
       ]
     },
     "TagCustom": {
