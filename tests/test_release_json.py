@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import runpy
 from pathlib import Path
@@ -64,6 +65,53 @@ def test_tag_info_label_survives_the_json_round_trip():
     assert document["position_id"] == "g1"
     assert document["score"] == 0.5
     assert pt.TagInfo.from_json(tag.to_json()) == tag
+
+
+def test_a_pre_fix_tag_info_document_still_reads_back():
+    """peptacular 5.0.1 wrote TagInfo with only 'info'. Adding position_id/score must
+    not make those documents unreadable, so this is the literal old payload."""
+    document = {
+        "$schema": pt.PROFORMA_JSON_SCHEMA_ID,
+        "schema_version": "1.0",
+        "$type": "TagInfo",
+        "info": "hello",
+    }
+    Draft202012Validator(pt.get_proforma_json_schema()).validate(document)
+    assert pt.TagInfo.from_dict(document) == pt.TagInfo("hello")
+
+
+def test_a_defaulted_field_may_be_absent_on_another_component_type():
+    """The same leniency is a property of every defaulted field, not of TagInfo.
+
+    FormulaElement.isotope defaults to None and is unrelated to the position/score work.
+    """
+    document = {
+        "$schema": pt.PROFORMA_JSON_SCHEMA_ID,
+        "schema_version": "1.0",
+        "$type": "FormulaElement",
+        "element": {"$enum": "Element", "value": "C"},
+        "occurance": 2,
+    }
+    Draft202012Validator(pt.get_proforma_json_schema()).validate(document)
+    assert pt.FormulaElement.from_dict(document) == pt.FormulaElement(tacular.Element.C, 2)
+
+
+def test_a_field_without_a_default_is_still_required():
+    """Only defaulted fields became optional; a malformed document must still fail."""
+    document = {"$schema": pt.PROFORMA_JSON_SCHEMA_ID, "schema_version": "1.0", "$type": "TagInfo"}
+    with pytest.raises(pt.PeptacularError, match="Missing required JSON field"):
+        pt.TagInfo.from_dict(document)
+
+
+@pytest.mark.parametrize("name", sorted(_component_types()))
+def test_required_list_is_exactly_the_fields_without_a_default(name):
+    """Walk the dataclasses rather than hand-writing the lists, so no component can
+    quietly drop a non-defaulted field from 'required'."""
+    component_type = _component_types()[name]
+    expected = {"$type"} | {
+        field.name for field in dataclasses.fields(component_type) if field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
+    }
+    assert set(pt.get_proforma_json_schema()["$defs"][name]["required"]) == expected
 
 
 def test_schema_covers_registry_and_matches_generator():

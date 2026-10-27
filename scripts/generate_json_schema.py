@@ -9,13 +9,16 @@ from peptacular.proforma_json import (
     PROFORMA_JSON_SCHEMA_ID,
     PROFORMA_JSON_SCHEMA_VERSION,
     _component_types,
+    _defaulted_fields,
     _enum_types,
     _field_types,
 )
 
 
-def object_schema(properties: dict[str, Any], *, closed: bool = True) -> dict[str, Any]:
-    result = {"type": "object", "properties": properties, "required": list(properties)}
+def object_schema(properties: dict[str, Any], *, closed: bool = True, optional: frozenset[str] | None = None) -> dict[str, Any]:
+    """Build an object schema. Names in `optional` are described but not required."""
+    optional = optional or frozenset()
+    result = {"type": "object", "properties": properties, "required": [name for name in properties if name not in optional]}
     if closed:
         result["additionalProperties"] = False
     return result
@@ -71,7 +74,8 @@ def build_schema() -> dict[str, Any]:
     for name, component_type in _component_types().items():
         properties = {"$type": {"const": name}}
         properties.update({field: type_schema(expected) for field, expected in _field_types(component_type).items()})
-        definitions[name] = object_schema(properties, closed=False)
+        # A field with a dataclass default may be absent: see _defaulted_fields.
+        definitions[name] = object_schema(properties, closed=False, optional=_defaulted_fields(component_type))
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": PROFORMA_JSON_SCHEMA_ID,
