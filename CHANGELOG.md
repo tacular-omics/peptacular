@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.0.2] (2026-10-26)
+
+### Fixed
+
+- `TagInfo` declares the `position_id` and `score` fields of `PositionScoreMixin`, which it inherited but never defined: reading either attribute raised `AttributeError`, and a ProForma info tag could not carry a position label or score. ProForma attaches both to any single modification, including `info`.
+
+### Changed
+
+- Updated development and test dependencies.
+
 ## [5.0.1] (2026-10-08)
 
 **Behaviour change:** `Fragment.to_mzpaf()` now raises `PeptacularError` when the charge carriers do not agree with the fragment charge (#49); it used to write invalid mzPAF.
