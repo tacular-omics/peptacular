@@ -518,8 +518,7 @@
       "required": [
         "$type",
         "element",
-        "occurance",
-        "isotope"
+        "occurance"
       ]
     },
     "ChargedFormula": {
@@ -572,10 +571,7 @@
       },
       "required": [
         "$type",
-        "formula",
-        "charge",
-        "position_id",
-        "score"
+        "formula"
       ]
     },
     "PositionRule": {
@@ -657,8 +653,7 @@
       },
       "required": [
         "$type",
-        "terminal",
-        "amino_acid"
+        "terminal"
       ]
     },
     "TagAccession": {
@@ -718,9 +713,7 @@
       "required": [
         "$type",
         "accession",
-        "cv",
-        "position_id",
-        "score"
+        "cv"
       ]
     },
     "TagMass": {
@@ -793,10 +786,7 @@
       },
       "required": [
         "$type",
-        "mass_str",
-        "cv",
-        "position_id",
-        "score"
+        "mass_str"
       ]
     },
     "PositionScore": {
@@ -821,8 +811,7 @@
       },
       "required": [
         "$type",
-        "position_id",
-        "score"
+        "position_id"
       ]
     },
     "TagName": {
@@ -888,10 +877,7 @@
       },
       "required": [
         "$type",
-        "name",
-        "cv",
-        "position_id",
-        "score"
+        "name"
       ]
     },
     "TagInfo": {
@@ -902,6 +888,26 @@
         },
         "info": {
           "type": "string"
+        },
+        "position_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -941,9 +947,7 @@
       },
       "required": [
         "$type",
-        "name",
-        "position_id",
-        "score"
+        "name"
       ]
     },
     "GlycanComponent": {
@@ -1061,9 +1065,7 @@
       },
       "required": [
         "$type",
-        "components",
-        "position_id",
-        "score"
+        "components"
       ]
     },
     "PositionTag": {
@@ -1495,12 +1497,7 @@
       "required": [
         "$type",
         "label",
-        "tags",
-        "score",
-        "position",
-        "limit",
-        "comkp",
-        "comup"
+        "tags"
       ]
     },
     "ModificationAmbiguousSecondary": {
@@ -1525,8 +1522,7 @@
       },
       "required": [
         "$type",
-        "label",
-        "score"
+        "label"
       ]
     },
     "ModificationCrossLinker": {
@@ -1562,9 +1558,7 @@
         }
       },
       "required": [
-        "$type",
-        "label",
-        "tags"
+        "$type"
       ]
     },
     "FixedModification": {
@@ -1595,8 +1589,7 @@
       },
       "required": [
         "$type",
-        "modifications",
-        "position_rules"
+        "modifications"
       ]
     },
     "SequenceElement": {
@@ -1690,8 +1683,7 @@
       },
       "required": [
         "$type",
-        "amino_acid",
-        "modifications"
+        "amino_acid"
       ]
     },
     "SequenceRegion": {
@@ -1915,12 +1907,7 @@
       },
       "required": [
         "$type",
-        "sequence",
-        "name",
-        "n_term_modifications",
-        "c_term_modifications",
-        "labile_modifications",
-        "unlocalised_modifications"
+        "sequence"
       ]
     },
     "PeptidoformIon": {
@@ -1974,9 +1961,7 @@
       },
       "required": [
         "$type",
-        "peptidoforms",
-        "name",
-        "charge"
+        "peptidoforms"
       ]
     },
     "CompoundPeptidoformIon": {
@@ -2031,10 +2016,7 @@
       },
       "required": [
         "$type",
-        "peptidoform_ions",
-        "name",
-        "fixed_modifications",
-        "isotope_replacement"
+        "peptidoform_ions"
       ]
     }
   }

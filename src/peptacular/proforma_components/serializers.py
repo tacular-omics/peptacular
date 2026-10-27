@@ -255,9 +255,10 @@ def serialize_tag_info(ti: "TagInfo") -> str:
         ti: TagInfo to serialize
 
     Returns:
-        String representation like 'INFO:some text'
+        String representation like 'INFO:some text', with the position/score label
+        appended when one is set ('INFO:some text#g1(0.5)')
     """
-    return sys.intern(f"INFO:{ti.info}")
+    return sys.intern(f"INFO:{ti.info}{ti.serialize_position_score()}")
 
 
 @lru_cache(maxsize=256)

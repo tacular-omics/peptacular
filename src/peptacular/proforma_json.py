@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import fields, is_dataclass
+from dataclasses import MISSING, fields, is_dataclass
 from enum import Enum
 from functools import lru_cache
 from importlib.resources import files as resource_files
@@ -26,6 +26,24 @@ PROFORMA_JSON_SCHEMA_ID = "https://peptacular.readthedocs.io/en/latest/proforma-
 def _field_types(component_type: type[Any]) -> dict[str, Any]:
     hints = get_type_hints(component_type)
     return {field.name: hints[field.name] for field in fields(component_type)}
+
+
+@lru_cache(maxsize=32)
+def _defaulted_fields(component_type: type[Any]) -> frozenset[str]:
+    """Field names a document may leave out, because the dataclass has a default for them.
+
+    The schema keeps these out of ``required`` and the decoder omits them from the
+    constructor call, so the dataclass applies its own default. A document written
+    before the field existed therefore still reads back -- peptacular 5.0.1 wrote
+    TagInfo with only ``info``. A field with no default stays required, so a genuinely
+    malformed document still fails loudly.
+
+    :param component_type: The component dataclass to inspect.
+    :type component_type: type[Any]
+    :return: The names of its fields that have a default.
+    :rtype: frozenset[str]
+    """
+    return frozenset(field.name for field in fields(component_type) if field.default is not MISSING or field.default_factory is not MISSING)
 
 
 def _matches_type(value: Any, expected: Any) -> bool:
@@ -282,10 +300,14 @@ def _decode(value: Any) -> Any:
         raise PeptacularError(f"Unknown ProForma JSON object type: {object_name!r}")
     field_types = _field_types(component_type)
     field_names = set(field_types)
-    _require_keys(value, field_names | {"$type"})
-    decoded = {name: _decode(value[name]) for name in field_names}
-    for name, expected in field_types.items():
-        _check_type(decoded[name], expected, f"{object_name}.{name}")
+    defaulted = _defaulted_fields(component_type) & field_names
+    _require_keys(value, (field_names - defaulted) | {"$type"}, optional=set(defaulted))
+    # Absent defaulted fields are left out of the call so the dataclass supplies its own
+    # default, rather than this module keeping a second copy of it.
+    present = field_names & value.keys()
+    decoded = {name: _decode(value[name]) for name in present}
+    for name in present:
+        _check_type(decoded[name], field_types[name], f"{object_name}.{name}")
     return component_type(**decoded)
 
 

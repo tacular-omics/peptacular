@@ -777,6 +777,8 @@ class TagInfo(MassPropertyMixin, PositionScoreMixin):
     """An INFO tag modification"""
 
     info: str
+    position_id: str | None = None
+    score: float | None = None
 
     @property
     def is_valid(self) -> bool:

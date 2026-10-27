@@ -99,9 +99,18 @@ def test_decoder_rejects_unknown_versions_fields_and_types():
     with pytest.raises(ValueError, match="Unknown JSON field"):
         ProFormaAnnotation.from_dict(unknown_field)
 
+    # Relabelling an annotation payload as a Peptidoform is still rejected, on its
+    # extra keys: Peptidoform.sequence is its only field without a default, and the
+    # annotation payload happens to carry a "sequence" key, so nothing is missing.
     wrong_type = dict(encoded, **{"$type": "Peptidoform"})
-    with pytest.raises(ValueError, match="Missing required JSON field"):
+    with pytest.raises(ValueError, match="Unknown JSON field"):
         from_proforma_dict(wrong_type)
+
+    # A field with no default is still required, which is the other half of the check.
+    peptidoform = Peptidoform((SequenceElement(AminoAcid.C, ()),)).to_dict()
+    del peptidoform["sequence"]
+    with pytest.raises(ValueError, match="Missing required JSON field"):
+        from_proforma_dict(peptidoform)
 
 
 def test_classmethod_enforces_expected_root_type():
