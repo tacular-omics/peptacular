@@ -62,7 +62,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --resolution lowest-direct --all-extras --all-groups
-      - run: uv run pytest tests
+      # --no-sync is required: a plain `uv run` re-resolves to the default (highest)
+      # versions and silently undoes the lowest-direct sync above.
+      - run: uv run --no-sync pytest tests
 
   package:
     runs-on: ubuntu-latest
