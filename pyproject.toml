@@ -36,15 +36,42 @@ Changelog = "https://github.com/tacular-omics/peptacular/blob/main/CHANGELOG.md"
 DOI = "https://doi.org/10.5281/zenodo.15054278"
 
 [project.optional-dependencies]
-mcp = ["mcp>=2.1.1,<2.4", "pydantic>=2.13,<3"]
-pyteomics = ["pyteomics>=5.0"]
-psm-utils = ["psm-utils>=1.0"]
-alphabase = ["alphabase>=1.9"]
+# Every floor below is the lowest release that passes the tests exercising it on Python
+# 3.12, measured version by version rather than inherited. Caps are a major cap per the
+# workspace sibling-pin policy.
+# mcp 2.0.0 is the first release with `mcp.server.MCPServer`; 1.30.0 raises ImportError on
+# import. The pydantic floor is mcp's and not ours: mcp itself requires pydantic>=2.12.0.
+mcp = ["mcp>=2.0.0,<3", "pydantic>=2.12,<3"]
+# 5.0.1 rather than 5.0: pyteomics declares no unconditional dependencies at any version,
+# and 5.0's metadata is byte-identical to 5.0.1's, so 5.0 reaches the interop path only when
+# lxml and numpy happen to be installed already -- which a bare peptacular[pyteomics] does
+# not provide. The capability floor is higher than caution alone would suggest: 4.7.5 and
+# below cannot parse ProForma charge adducts such as PEPTIDE/[H:z+1,Na:z+1].
+pyteomics = ["pyteomics>=5.0.1"]
+# Our surface here is two API points, Peptidoform(proforma_str) and .proforma, and it works
+# back to 0.2.3 -- but on 4 tests. 0.9 is the last pre-1.0 line and the oldest range we
+# would actually fix if it broke, which is the floor worth declaring.
+psm-utils = ["psm-utils>=0.9"]
+# alphabase 1.0.1 and below have no Acetyl@Any_N-term or Amidated@Any_C-term key in the
+# modification table, so terminal mods cannot round-trip. Re-measure this number with
+# RUN_SLOW=1: tests/test_interop_alphabase.py is pytest.mark.slow, and without it 37 of 39
+# tests skip and every version looks fine.
+# pandas is declared here because the alphabase converters import it at run time, not only
+# for typing: interop/alphabase.py:253 and :281 call require_dependency("pandas",
+# "alphabase"). 2.1.1 is the first pandas with a cp312 wheel but installs broken on 3.12:
+# it requires numpy>=1.26.0 with no upper bound, so a fresh resolve pairs numpy 2.x with a
+# wheel built against the numpy 1.x C ABI and importing it raises "numpy.dtype size
+# changed". 2.1.2 added numpy<2 and passes. That cap sits inside our own numpy>=1.26, so
+# nothing conflicts; 2.2.2 is the first release that supports the numpy 2 ABI and drops it.
+alphabase = ["alphabase>=1.2.0", "pandas>=2.1.2"]
+# numpy 1.26.0 is the first release with cp312 wheels, and 1.25.2's sdist fails to build on
+# 3.12 (distutils was removed). Minimal and forced by CPython, not chosen by us.
 numpy = ["numpy>=1.26"]
 interop = [
-    "pyteomics>=5.0",
-    "psm-utils>=1.0",
-    "alphabase>=1.9",
+    "pyteomics>=5.0.1",
+    "psm-utils>=0.9",
+    "alphabase>=1.2.0",
+    "pandas>=2.1.2",
 ]
 
 [project.scripts]
@@ -91,7 +118,10 @@ dev = [
     "sphinx-rtd-theme>=2.0",
     "sphinx-autodoc-typehints>=1.25",
     "myst-parser",
-    "pandas>=3.0.0",
+    # Matches the alphabase extra's floor. A dev-group pin above a runtime floor shadows it,
+    # because lowest-direct resolution takes the highest of two direct requirements, and the
+    # floor then never gets tested.
+    "pandas>=2.1.2",
     "numpy>=1.26",
     "polars>=1.0",
     "pyarrow>=15",

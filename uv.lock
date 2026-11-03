@@ -1167,9 +1167,11 @@ dependencies = [
 [package.optional-dependencies]
 alphabase = [
     { name = "alphabase" },
+    { name = "pandas" },
 ]
 interop = [
     { name = "alphabase" },
+    { name = "pandas" },
     { name = "psm-utils" },
     { name = "pyteomics" },
 ]
@@ -1214,15 +1216,17 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alphabase", marker = "extra == 'alphabase'", specifier = ">=1.9" },
-    { name = "alphabase", marker = "extra == 'interop'", specifier = ">=1.9" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.1.1,<2.4" },
+    { name = "alphabase", marker = "extra == 'alphabase'", specifier = ">=1.2.0" },
+    { name = "alphabase", marker = "extra == 'interop'", specifier = ">=1.2.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "numpy", marker = "extra == 'numpy'", specifier = ">=1.26" },
-    { name = "psm-utils", marker = "extra == 'interop'", specifier = ">=1.0" },
-    { name = "psm-utils", marker = "extra == 'psm-utils'", specifier = ">=1.0" },
-    { name = "pydantic", marker = "extra == 'mcp'", specifier = ">=2.13,<3" },
-    { name = "pyteomics", marker = "extra == 'interop'", specifier = ">=5.0" },
-    { name = "pyteomics", marker = "extra == 'pyteomics'", specifier = ">=5.0" },
+    { name = "pandas", marker = "extra == 'alphabase'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "extra == 'interop'", specifier = ">=2.1.2" },
+    { name = "psm-utils", marker = "extra == 'interop'", specifier = ">=0.9" },
+    { name = "psm-utils", marker = "extra == 'psm-utils'", specifier = ">=0.9" },
+    { name = "pydantic", marker = "extra == 'mcp'", specifier = ">=2.12,<3" },
+    { name = "pyteomics", marker = "extra == 'interop'", specifier = ">=5.0.1" },
+    { name = "pyteomics", marker = "extra == 'pyteomics'", specifier = ">=5.0.1" },
     { name = "tacular", specifier = ">=2.0,<3" },
 ]
 provides-extras = ["alphabase", "interop", "mcp", "numpy", "psm-utils", "pyteomics"]
@@ -1235,7 +1239,7 @@ dev = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "myst-parser" },
     { name = "numpy", specifier = ">=1.26" },
-    { name = "pandas", specifier = ">=3.0.0" },
+    { name = "pandas", specifier = ">=2.1.2" },
     { name = "polars", specifier = ">=1.0" },
     { name = "pyarrow", specifier = ">=15" },
     { name = "pympler", specifier = ">=1.1" },
