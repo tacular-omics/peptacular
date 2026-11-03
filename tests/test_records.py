@@ -244,7 +244,16 @@ class TestNoDataFrameDependency:
 
         pyproject = tomllib.loads((Path(__file__).parent.parent / "pyproject.toml").read_text())
         declared = " ".join(pyproject["project"].get("dependencies", []))
-        for extra in pyproject["project"].get("optional-dependencies", {}).values():
+        # The alphabase and interop extras are exempt: alphabase's own API is DataFrame-based,
+        # interop/alphabase.py imports pandas at run time, and alphabase has always required
+        # pandas unconstrained, so installing that extra has always installed pandas -- this
+        # check just never saw it, because it reads the text of our specifiers rather than the
+        # resolved tree. Records are still plain dicts, which is what this class is about:
+        # the core requirements and every extra a records user would install stay free of both.
+        dataframe_extras = {"alphabase", "interop"}
+        for name, extra in pyproject["project"].get("optional-dependencies", {}).items():
+            if name in dataframe_extras:
+                continue
             declared += " " + " ".join(extra)
         assert "pandas" not in declared and "polars" not in declared
 

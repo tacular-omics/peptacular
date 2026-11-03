@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Optional-dependency floors are now the lowest release that actually passes the tests exercising them on Python 3.12, measured version by version instead of inherited. `mcp>=2.1.1,<2.4` becomes `mcp>=2.0.0,<3`: 2.0.0 is the first release with `mcp.server.MCPServer` (1.30.0 raises `ImportError`), and the old `<2.4` capped a version that has never been published. `pydantic>=2.13,<3` becomes `pydantic>=2.12,<3`, which is mcp's own minimum rather than ours. `alphabase>=1.9` becomes `alphabase>=1.2.0`: 1.0.1 and below have no `Acetyl@Any_N-term` or `Amidated@Any_C-term` key, so terminal modifications cannot round-trip, and 1.2.0 is the first that can. `psm-utils>=1.0` becomes `psm-utils>=0.9`: our surface is two API points and works back to 0.2.3, but 0.9 is the last pre-1.0 line and the oldest range we would actually fix. `numpy>=1.26` is unchanged and minimal, forced by cp312 wheel availability.
+- `pyteomics>=5.0` is tightened to `pyteomics>=5.0.1`. Nothing was broken: pyteomics declares no unconditional dependencies at any version and 5.0's metadata is byte-identical to 5.0.1's, so 5.0 only reaches the interop path when `lxml` and `numpy` are already installed, which `peptacular[pyteomics]` does not provide.
+- The `alphabase` and `interop` extras now declare `pandas>=2.1.2`. The alphabase converters already imported pandas at run time without declaring it. 2.1.2 is the floor rather than 2.1.1, the first release with a cp312 wheel, because 2.1.1 requires `numpy>=1.26.0` with no upper bound: numpy 2.x then loads against a wheel built for the numpy 1.x C ABI and importing pandas raises `numpy.dtype size changed`. 2.1.2 added `numpy<2`, which sits inside our own `numpy>=1.26`; 2.2.2 is the first release to support the numpy 2 ABI.
+
 ## [5.0.2] (2026-10-26)
 
 ### Fixed
