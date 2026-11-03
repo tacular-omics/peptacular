@@ -53,10 +53,11 @@ pyteomics = ["pyteomics>=5.0.1"]
 # back to 0.2.3 -- but on 4 tests. 0.9 is the last pre-1.0 line and the oldest range we
 # would actually fix if it broke, which is the floor worth declaring.
 psm-utils = ["psm-utils>=0.9"]
-# alphabase 1.0.2 and below leave Acetyl@Any_N-term and Amidated@Any_C-term unregistered in
-# the modification table, so terminal modifications cannot round-trip and to_alphabase_row
-# raises InteropConversionError. 1.0.3 is the first release that passes, and it passes
-# against pandas==2.1.2 as well as against pandas latest. Measured with RUN_SLOW=1:
+# All 19 alphabase releases below 1.0.3 install on Python 3.12 and all 19 fail the same
+# test, test_alphabase_localized_modification_row_round_trip: they leave Acetyl@Any_N-term
+# and Amidated@Any_C-term unregistered in the modification table, so to_alphabase_row
+# raises InteropConversionError. 1.0.3 is the first that passes, and it passes against
+# pandas==2.1.2 as well as against pandas latest. Measured with RUN_SLOW=1:
 # tests/test_interop_alphabase.py is pytest.mark.slow, and without it 37 of 39 tests skip
 # and every version looks fine.
 # pandas is declared here because the alphabase converters import it at run time, not only
