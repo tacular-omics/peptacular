@@ -1,8 +1,10 @@
 import json
 import multiprocessing
 import os
+import re
 import subprocess
 import sys
+from importlib.metadata import version
 
 import pytest
 from mcp import Client
@@ -12,6 +14,20 @@ from peptacular.mcp import contracts as c
 from peptacular.mcp.server import call_tool, create_server
 
 INPUT = [{"id": "example", "annotation": "PEPTIDE/2"}]
+
+_MCP_VERSION = tuple(int(part) for part in re.match(r"(\d+)\.(\d+)", version("mcp")).groups())
+
+# Driving mcp's own client over a subprocess stdio transport -- Client(StdioServerParameters(...))
+# and the mode= keyword -- is mcp 2.1 API; at 2.0.0 Client rejects the parameters object with
+# "does not support the asynchronous context manager protocol". The gate is about mcp's client,
+# not about what our server needs: what peptacular ships is a server, and the in-process tests
+# below, Client(create_server()), pass at the declared floor of 2.0.0. They stay ungated, so the
+# floor keeps being tested. Raising the floor to 2.1 to satisfy these three would lock out
+# installs that genuinely work.
+requires_stdio_client = pytest.mark.skipif(
+    _MCP_VERSION < (2, 1),
+    reason=f"Client(StdioServerParameters(...)) needs mcp>=2.1, installed {version('mcp')}; the server itself serves at 2.0.0",
+)
 
 
 @pytest.mark.asyncio
@@ -44,6 +60,7 @@ async def test_sdk_schemas_resources_and_calculation(tmp_path, monkeypatch):
     assert not multiprocessing.active_children()
 
 
+@requires_stdio_client
 @pytest.mark.slow  # launches a Python subprocess that imports the MCP SDK
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["auto", "legacy"])
@@ -57,6 +74,7 @@ async def test_stdio_subprocess(mode):
         assert not result.is_error
 
 
+@requires_stdio_client
 @pytest.mark.slow  # launches a Python subprocess that imports the MCP SDK
 @pytest.mark.asyncio
 async def test_sdk_diverts_dependency_stdout():
