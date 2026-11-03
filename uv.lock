@@ -1216,8 +1216,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alphabase", marker = "extra == 'alphabase'", specifier = ">=1.2.0" },
-    { name = "alphabase", marker = "extra == 'interop'", specifier = ">=1.2.0" },
+    { name = "alphabase", marker = "extra == 'alphabase'", specifier = ">=1.0.3" },
+    { name = "alphabase", marker = "extra == 'interop'", specifier = ">=1.0.3" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.0.0,<3" },
     { name = "numpy", marker = "extra == 'numpy'", specifier = ">=1.26" },
     { name = "pandas", marker = "extra == 'alphabase'", specifier = ">=2.1.2" },
