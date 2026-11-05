@@ -25,9 +25,35 @@ def _digest_input(sequence: str | ProFormaAnnotation | HasSequence) -> tuple[Pro
     return annot, (annot.stripped_sequence if annot.serialize() == annot.stripped_sequence else None)
 
 
+def _strip_analyte_annotations(product: ProFormaAnnotation) -> ProFormaAnnotation:
+    """Drop the annotations that belong to the parent analyte rather than to a digestion product.
+
+    A digestion product is a different molecule from the sequence it was cut out of, so it
+    does not inherit the parent's charge, and neither a labile nor an unlocalised
+    modification names the residue it sits on, so neither can be asserted of any one
+    product. Copying them onto every product adds the parent's charge carriers and
+    modification masses to each peptide a digest returns, and counts one labile or
+    unlocalised modification once per product.
+
+    Isotope labels and static modification rules are kept: a global label applies to every
+    residue, and a static rule applies to whichever products carry the residue it targets.
+
+    :param product: A freshly sliced digestion product, modified in place.
+    :type product: ProFormaAnnotation
+    :return: The same annotation, without the parent's analyte-level annotations.
+    :rtype: ProFormaAnnotation
+    """
+    product.clear_charge(inplace=True)
+    product.clear_labile_mods(inplace=True)
+    product.clear_unknown_mods(inplace=True)
+    return product
+
+
 def _span_output(annot: ProFormaAnnotation, plain: str | None, spans: Iterable[Span]) -> list[tuple[str, Span]]:
     if plain is not None:
         return [(plain[span.start : span.end], span) for span in spans]
+    if annot.has_charge or annot.has_labile_mods or annot.has_unknown_mods:
+        return [(_strip_analyte_annotations(annot[span]).serialize(), span) for span in spans]
     return [(annot[span].serialize(), span) for span in spans]
 
 

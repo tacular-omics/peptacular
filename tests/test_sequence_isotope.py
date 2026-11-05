@@ -1,6 +1,9 @@
 """Coverage for the functional isotopic-distribution API (peptacular.sequence.isotope)."""
 
+import pytest
+
 import peptacular as pt
+import peptacular.sequence
 from peptacular.sequence.isotope import estimate_isotopic_distribution, isotopic_distribution
 
 SEQ = "PEPTIDE"
@@ -54,3 +57,26 @@ class TestEstimateIsotopicDistribution:
     def test_batch_with_parallel_kwargs(self):
         result = estimate_isotopic_distribution([SEQ, SEQ], max_isotopes=2, n_workers=1, chunksize=1, method="sequential")
         assert len(result) == 2
+
+
+class TestEstimateIsotopicDistributionIsReachable:
+    """The two functions named ``estimate_isotopic_distribution`` are reachable and distinct.
+
+    ``peptacular.sequence`` holds the sequence-based estimate, documented in
+    ``docs/migration.rst`` and mirrored by ``ProFormaAnnotation.estimate_isotopic_distribution``.
+    ``pt.estimate_isotopic_distribution`` is the averagine estimate from a neutral mass,
+    which is what it has been since 4.x.
+    """
+
+    def test_imports_from_the_public_sequence_namespace(self):
+        from peptacular.sequence import estimate_isotopic_distribution as public
+
+        assert "estimate_isotopic_distribution" in peptacular.sequence.__all__
+        assert public is estimate_isotopic_distribution
+        assert public(SEQ, max_isotopes=2) == estimate_isotopic_distribution(SEQ, max_isotopes=2)
+
+    def test_pt_name_takes_a_neutral_mass(self):
+        mass = pt.parse(SEQ).neutral_mass()
+        from_mass = pt.estimate_isotopic_distribution(mass, max_isotopes=2)
+        from_sequence = estimate_isotopic_distribution(SEQ, max_isotopes=2)
+        assert [peak.mass for peak in from_mass] == pytest.approx([peak.mass for peak in from_sequence])

@@ -217,6 +217,12 @@ which builds a `Fragment`.
 - **`Fragment` is immutable** (`__slots__`, assignment raises `FrozenInstanceError`). Build a
   changed copy with `frag.replace(mass=...)` (constructor names). Fragments compare and
   hash by value; the neutral losses/gains are `frag.deltas`.
+- **Digest products drop the parent's analyte-level annotations.** Every `pt.*digest`
+  clears the parent's charge, labile mods and unlocalised (unknown) mods from each
+  product, because a product is a different molecule and neither mod type names a
+  residue. Isotope labels and static mod rules are kept. `ProFormaAnnotation.slice`
+  keeps all of them: slicing is not digesting. The one choke point is `_span_output` in
+  `sequence/digestion.py`.
 - **Two digest styles.** The functional `pt.digest(seq, enzyme=...)` (and every `pt.*digest`)
   returns `[(sequence, Span), ...]`. `ProFormaAnnotation` methods ending in `_spans`
   (`digest_spans`, `simple_digest_spans`, `sequential_digest_spans`, `semi_spans`, ...)

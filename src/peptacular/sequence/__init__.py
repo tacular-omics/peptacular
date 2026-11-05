@@ -48,7 +48,7 @@ from .digestion import (
     simple_digest,
 )
 from .fragmentation import FRAGMENT_ARRAY_KEYS, fast_fragment, frag, fragment, fragment_arrays
-from .isotope import isotopic_distribution
+from .isotope import estimate_isotopic_distribution, isotopic_distribution
 from .localization import DEFAULT_MAX_ISOMERS, candidate_sites, localization_isomers, pairwise_site_determining_ions, site_determining_ions
 from .mass_funcs import comp, mass, mz
 from .mod_builder import (
@@ -223,6 +223,7 @@ __all__ = [
     "convert_diann_sequence",
     "convert_casanovo_sequence",
     # isotope
+    "estimate_isotopic_distribution",
     "isotopic_distribution",
     # parallel
     "get_available_start_methods",
