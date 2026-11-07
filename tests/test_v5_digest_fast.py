@@ -1,4 +1,10 @@
-"""The plain-sequence digest fast path returns exactly what slicing and serializing returned (5.0)."""
+"""Every digest input form agrees, and the plain-sequence fast path agrees with slicing (5.0).
+
+Slicing an annotation keeps the parent's charge and its labile and unlocalised
+modifications; digesting drops them, because a digestion product is a different molecule.
+So the slice reference holds for every input that carries none of those three, and
+``ANALYTE_DECORATED`` covers the inputs where the two contracts part company.
+"""
 
 from dataclasses import dataclass
 
@@ -22,7 +28,6 @@ DECORATED = [
     "[Acetyl]-PEPTIDEKAAAR",
     "PEPTIDEKAAAR-[Amidated]",
     "(>name)PEPTIDEKAAAR",
-    "PEPTIDEKAAAR/2",
     "<13C>PEPTIDEKAAAR",
     "<[Carbamidomethyl]@C>PEPCTIDEKAAAR",
     "PEP(TIDEK)[Phospho]AAAR",
@@ -67,6 +72,14 @@ def _functional(sequence, kind: str) -> list[tuple[str, pt.Span]]:
             return pt.nonspecific_digest(sequence, min_len=2, max_len=6)
 
 
+# Annotations that belong to the parent analyte rather than to any one digestion product.
+ANALYTE_DECORATED = [
+    "PEPTIDEKAAAR/2",
+    "PEPTIDEKAAAR/[Na:z+1]",
+    "{Glycan:Hex}PEPTIDEKAAAR",
+    "[Phospho]?PEPTIDEKAAAR",
+]
+
 KINDS = ["digest", "semi", "simple", "left", "right", "semi_spans", "nonspecific"]
 
 
@@ -91,13 +104,29 @@ def test_same_output_as_slicing(sequence, kind):
     assert _functional(Entry(sequence), kind) == expected
 
 
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("sequence", ANALYTE_DECORATED)
+def test_analyte_annotations_are_dropped_not_sliced(sequence, kind):
+    """Digest differs from slicing by exactly the parent's charge, labile and unknown mods."""
+    expected = []
+    for peptide, span in _reference(sequence, kind):
+        product = pt.parse(peptide)
+        product.clear_charge(inplace=True)
+        product.clear_labile_mods(inplace=True)
+        product.clear_unknown_mods(inplace=True)
+        expected.append((product.serialize(), span))
+    assert _functional(sequence, kind) == expected
+    assert _functional(pt.parse(sequence), kind) == expected
+    assert _functional(Entry(sequence), kind) == expected
+
+
 def test_plain_detection():
     annot, plain = _digest_input("PEPTIDEK")
     assert plain == "PEPTIDEK"
     assert annot.stripped_sequence == "PEPTIDEK"
     assert _digest_input(pt.parse("PEPTIDEK"))[1] == "PEPTIDEK"
     assert _digest_input(Entry("PEPTIDEK"))[1] == "PEPTIDEK"
-    for decorated in DECORATED:
+    for decorated in DECORATED + ANALYTE_DECORATED:
         assert _digest_input(decorated)[1] is None
 
 
@@ -109,7 +138,7 @@ def test_plain_string_is_not_parsed_but_invalid_strings_still_raise():
 
 
 def test_list_input_matches_single():
-    seqs = SEQUENCES + DECORATED
+    seqs = SEQUENCES + DECORATED + ANALYTE_DECORATED
     assert pt.digest(seqs, "trypsin", missed_cleavages=1) == [pt.digest(s, "trypsin", missed_cleavages=1) for s in seqs]
 
 

@@ -45,9 +45,13 @@ Renamed or removed names
    * - ``peptacular.isotope.isotopic_distribution``
      - ``peptacular.isotope.brain_isotopic_distribution`` (``pt.isotopic_distribution``
        is unchanged)
-   * - ``pt.isotopic_distribution(annotations=...)``,
-       ``pt.estimate_isotopic_distribution(annotations=...)``
+   * - ``pt.isotopic_distribution(annotations=...)``
      - ``sequence=...``
+   * - ``peptacular.sequence.estimate_isotopic_distribution(annotations=...)``
+     - ``sequence=...``. This is the sequence-based estimate, and it is reached through
+       ``peptacular.sequence`` or ``ProFormaAnnotation.estimate_isotopic_distribution``.
+       ``pt.estimate_isotopic_distribution`` is a different function in both 4.x and 5.0:
+       it takes a neutral mass, not a sequence.
 
 Every removed ``pt`` name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
