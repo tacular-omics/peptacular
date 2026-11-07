@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.1.0] (2026-11-06)
+
 ### Fixed
 
 - Every digest function now drops the parent's charge and its labile and unlocalised modifications from each product instead of copying them onto every peptide, which gave every product the wrong mass. A digestion product is a different molecule from the sequence it was cut out of: it does not carry the parent's charge, and neither a labile nor an unlocalised modification names the residue it sits on, so neither can be asserted of any one product. `pt.digest("PEPTIDEKTIDER/2", "trypsin")` returned `PEPTIDEK/2` and `TIDER/2`, each 2.014553 Da heavy by the parent's two protons, and `pt.digest("{Glycan:Hex}PEPTIDEKTIDER", "trypsin")` put the one Hex on both products, counting 162.0528 Da twice. Isotope labels and static modification rules are still copied, because a global label applies to every residue and a static rule applies to whichever products carry the residue it targets. This covers `digest`, `simple_digest`, `semi_digest`, `left_semi_digest`, `right_semi_digest` and `nonspecific_digest`. `ProFormaAnnotation.slice` is unchanged: slicing an annotation is not digesting it. That makes one previously true equality false, which is a visible change in what `digest` returns: for a parent carrying a charge, a labile modification or an unlocalised modification, a digest product is no longer the same string as the matching `annot[span].serialize()`, and it differs by exactly those three things. A test in this repository asserted that equality, so anyone who built on it was building on the wrong product masses this entry fixes.
