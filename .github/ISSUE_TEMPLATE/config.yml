@@ -1,0 +1,3 @@
+# Blank issues stay enabled on purpose. A question about how to use the package
+# is a legitimate issue and should not be forced into a bug report form.
+blank_issues_enabled: true

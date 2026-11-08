@@ -1,0 +1,65 @@
+name: Bug report
+description: Something produces a wrong result, raises an unexpected error, or drops data.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. The fields below are what we need to reproduce
+        the problem. A report without a runnable reproducer usually cannot be acted on.
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: The smallest piece of code that shows the problem, as text we can copy and run.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The output or the full traceback, as text rather than a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: If the expected value comes from a specification or a published method, name it.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: "Run: python -c \"import <package>; print(<package>.__version__)\""
+      placeholder: "1.2.3"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Python version and operating system
+      placeholder: "Python 3.12.4, Ubuntu 24.04"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it
+      options:
+        - pip
+        - uv
+        - conda or mamba
+        - from source
+        - other
+    validations:
+      required: true
+  - type: input
+    id: data
+    attributes:
+      label: Input file, if the problem depends on one
+      description: The instrument and the format, for example a Bruker .d folder or a Thermo .raw file. Do not attach proprietary data.
+    validations:
+      required: false
