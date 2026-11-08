@@ -34,13 +34,21 @@ just install
 just check   # runs lint, tests, and type checking
 ```
 
-Use `just install` rather than a plain `uv sync`, because the extras carry tests.
-Measured on 2026-11-07: `just install`, which is `uv sync --all-extras`, collects 5557
-tests, and a plain `uv sync` collects 5394. The 163 missing ones are the tests behind the
-`psm-utils`, `alphabase` and `mcp` extras, the three a plain sync leaves out, and they
-**skip rather than fail** when their package is absent. A green run on a plain install
-therefore says nothing about those parts. `numpy` and `pyteomics` arrive through the dev
-group either way, which is why the gap is not larger.
+Use `just install`, which is `uv sync --all-extras`, rather than a plain `uv sync`.
+peptacular keeps optional work behind extras: `mcp`, `pyteomics`, `psm-utils`,
+`alphabase`, `numpy` and `interop`. The tests for those parts call
+`pytest.importorskip`, so when an extra is absent they **skip rather than fail** and the
+run still ends green.
+
+Read the collected total **and** the passed and skipped counts. Neither number alone sees
+every missing extra, because this suite skips in all three shapes. A module-level
+`importorskip` (`tests/test_interop_psm_utils.py`, `tests/mcp/conftest.py`) stops the module
+importing, so its tests are never collected at all and it adds just one skip for the whole
+module, however many tests that module held. A function-level one
+(`tests/test_fragment_arrays.py`) and a fixture-level one
+(`tests/test_interop_alphabase.py`) collect the test and then skip it, so the collected total
+is unchanged and only the passed count moves. To see what is actually installed rather than
+what is declared, run `uv pip list`.
 
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
