@@ -30,6 +30,11 @@ Two things that are the maintainer's job, not yours, so please leave them alone:
 - **Do not edit `uv.lock`** unless your change adds or removes a dependency. If it does, say so
   here and a maintainer will refresh the lock.
 
-If this is your first pull request here, welcome, and thank you. Setting up the development
-environment is `uv sync --locked` from a clone, which installs everything the test suite needs,
-including the optional readers. `CONTRIBUTING.md` has the rest.
+If this is your first pull request here, welcome, and thank you. `CONTRIBUTING.md` has the
+development setup for this package.
+
+One thing worth knowing, because it is easy to be misled by: most of these packages keep
+optional readers, format support and ontology lookups behind extras. A plain install can
+therefore leave the tests for those parts **skipping rather than failing**, and a green summary
+then says nothing about the behaviour you changed. If your change touches an optional part,
+check that its tests actually ran.
