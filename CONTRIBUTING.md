@@ -34,6 +34,14 @@ just install
 just check   # runs lint, tests, and type checking
 ```
 
+Use `just install` rather than a plain `uv sync`, because the extras carry tests.
+Measured on 2026-11-07: `just install`, which is `uv sync --all-extras`, collects 5557
+tests, and a plain `uv sync` collects 5394. The 163 missing ones are the tests behind the
+`psm-utils`, `alphabase` and `mcp` extras, the three a plain sync leaves out, and they
+**skip rather than fail** when their package is absent. A green run on a plain install
+therefore says nothing about those parts. `numpy` and `pyteomics` arrive through the dev
+group either way, which is why the gap is not larger.
+
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
 (`uvx pre-commit run --all-files` runs them on everything). Type checks and
