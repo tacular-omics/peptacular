@@ -34,13 +34,24 @@ just install
 just check   # runs lint, tests, and type checking
 ```
 
-Use `just install` rather than a plain `uv sync`, because the extras carry tests.
-Measured on 2026-11-07: `just install`, which is `uv sync --all-extras`, collects 5557
-tests, and a plain `uv sync` collects 5394. The 163 missing ones are the tests behind the
-`psm-utils`, `alphabase` and `mcp` extras, the three a plain sync leaves out, and they
-**skip rather than fail** when their package is absent. A green run on a plain install
-therefore says nothing about those parts. `numpy` and `pyteomics` arrive through the dev
-group either way, which is why the gap is not larger.
+Use `just install`, which is `uv sync --all-extras`, rather than a plain `uv sync`. A plain
+sync installs the dev group and no extras, so it leaves out `mcp` (the MCP server and its
+pydantic contracts), `psm-utils` and `alphabase` (two of the three `interop` converters).
+The `pyteomics` and `numpy` extras come out even, because the dev group pins those packages
+anyway.
+
+The tests for the absent parts call `pytest.importorskip`, so they **skip rather than fail**
+and a plain install still ends green. What goes dark is the whole of `tests/mcp/`, by way of
+`tests/mcp/conftest.py`, plus `tests/test_interop_psm_utils.py` and
+`tests/test_interop_alphabase.py`.
+
+If you compare two runs to check your install, compare the **passed counts**. That is the
+only one of the three pytest totals that always moves the right way here. The collected total
+cannot see `tests/test_interop_alphabase.py`, whose gate is a fixture, so those tests are
+collected and then skipped either way. The skipped count moves backwards: a module skipped at
+import counts once however many tests it hides, so a plain install reports fewer skips than a
+full one despite running far less. Simpler than any of the three, run `uv pip list` and read
+what is actually installed rather than what is declared.
 
 Install the commit hooks once per clone with `uvx pre-commit install`. On every
 commit they run `ruff check`, `ruff format --check` and a few file checks
