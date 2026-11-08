@@ -33,7 +33,7 @@ body:
     id: version
     attributes:
       label: Package version
-      description: "Run: python -c \"import <package>; print(<package>.__version__)\""
+      description: "The version you have installed. `pip show` or `uv pip show` prints it."
       placeholder: "1.2.3"
     validations:
       required: true
