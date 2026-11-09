@@ -77,3 +77,41 @@ def test_docstring_examples() -> None:
     assert not failures, f"docstring examples failed in {len(failures)} modules: {', '.join(failures)}"
     assert imported >= MIN_IMPORTED, f"only {imported} modules imported, expected >= {MIN_IMPORTED} (skipped: {skipped or 'none'})"
     assert attempted >= MIN_EXAMPLES, f"only {attempted} examples ran, expected >= {MIN_EXAMPLES} (skipped: {skipped or 'none'})"
+
+
+def test_needs_extra_gate_agrees_with_what_imports() -> None:
+    """The gate's verdict must match what actually fails to import.
+
+    `MIN_IMPORTED` is computed by subtraction, so it cannot see a wrong `NEEDS_EXTRA` root:
+    a verdict stuck at absent skips a module that imports fine, and a verdict stuck at
+    present hides a module that does not. This imports every gated module and compares.
+    Nothing here inspects the modules' own import statements, because a gated module may
+    reach its root through a relative import and still be keyed correctly:
+    `peptacular.mcp.operations` is keyed to pydantic and reaches it through `.contracts`.
+
+    :return: None
+    :rtype: None
+    """
+    absent_roots = sorted({root for root in NEEDS_EXTRA.values() if importlib.util.find_spec(root) is None})
+    predicted_absent = bool(absent_roots)
+
+    failures: list[tuple[str, str, str]] = []
+    for name in sorted(NEEDS_EXTRA):
+        try:
+            importlib.import_module(name)
+        except ImportError as exc:
+            failures.append((name, (getattr(exc, "name", None) or "").split(".")[0], f"{type(exc).__name__}: {exc}"))
+
+    named = [f"{module} (root {root or 'unnamed'})" for module, root, _message in failures]
+    assert predicted_absent == bool(failures), (
+        f"the gate says the extra is {'absent' if predicted_absent else 'present'} "
+        f"(absent roots: {absent_roots or 'none'}), but {len(failures)} of {len(NEEDS_EXTRA)} gated modules failed to import: {named or 'none'}"
+    )
+
+    unkeyed = [(module, root, message) for module, root, message in failures if root != NEEDS_EXTRA[module]]
+    assert not unkeyed, "a gated module failed on a root its key does not name, so it is broken rather than ungated: " + ", ".join(
+        f"{module} is keyed to {NEEDS_EXTRA[module]} but failed on {root or 'an unnamed root'} ({message})" for module, root, message in unkeyed
+    )
+
+    if predicted_absent:
+        assert failures, f"the gate says {absent_roots} absent, which skips every module keyed to them, yet all {len(NEEDS_EXTRA)} imported"
