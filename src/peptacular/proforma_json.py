@@ -60,7 +60,7 @@ def _matches_type(value: Any, expected: Any) -> bool:
 
 def _check_type(value: Any, expected: Any, field_name: str) -> None:
     if not _matches_type(value, expected):
-        raise PeptacularError(f"{field_name} must have type {expected}")
+        raise PeptacularError(f"{field_name} must have type {expected}, got {type(value).__name__}")
 
 
 @lru_cache(maxsize=1)
@@ -189,11 +189,11 @@ def _decode_mod_counts(value: Any, field_name: str) -> dict[str, int] | None:
     if value is None:
         return None
     if not isinstance(value, Mapping):
-        raise PeptacularError(f"{field_name} must be an object or null")
+        raise PeptacularError(f"{field_name} must be an object or null, got {type(value).__name__}")
     result: dict[str, int] = {}
     for modification, count in value.items():
         if not isinstance(modification, str) or not isinstance(count, int) or isinstance(count, bool):
-            raise PeptacularError(f"{field_name} must map modification strings to integer counts")
+            raise PeptacularError(f"{field_name} must map modification strings to integer counts, got {type(modification).__name__} -> {type(count).__name__}")
         result[modification] = count
     return result
 
@@ -205,7 +205,9 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
     names = data["names"]
     modifications = data["modifications"]
     if not isinstance(names, Mapping) or not isinstance(modifications, Mapping):
-        raise PeptacularError("names and modifications must be JSON objects")
+        raise PeptacularError(
+            f"names and modifications must be JSON objects, got names {type(names).__name__} and modifications {type(modifications).__name__}"
+        )
     _require_keys(names, {"compound", "ion", "peptide"})
     _require_keys(modifications, {"isotope", "fixed", "labile", "unlocalized", "n_terminal", "c_terminal", "internal"})
     _check_type(data["sequence"], str | None, "sequence")
@@ -216,15 +218,15 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
     internal: dict[int, dict[str, int]] | None = None
     if internal_value is not None:
         if not isinstance(internal_value, list):
-            raise PeptacularError("modifications.internal must be an array or null")
+            raise PeptacularError(f"modifications.internal must be an array or null, got {type(internal_value).__name__}")
         internal = {}
         for entry in internal_value:
             if not isinstance(entry, Mapping):
-                raise PeptacularError("Each internal modification entry must be an object")
+                raise PeptacularError(f"Each internal modification entry must be an object, got {type(entry).__name__}")
             _require_keys(entry, {"position", "modifications"})
             position = entry["position"]
             if not isinstance(position, int) or isinstance(position, bool):
-                raise PeptacularError("Internal modification position must be an integer")
+                raise PeptacularError(f"Internal modification position must be an integer, got {type(position).__name__}")
             if position in internal:
                 raise PeptacularError(f"Duplicate internal modification position: {position}")
             internal[position] = _decode_mod_counts(entry["modifications"], "internal modifications") or {}
@@ -233,11 +235,11 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
     intervals: list[Interval] | None = None
     if intervals_value is not None:
         if not isinstance(intervals_value, list):
-            raise PeptacularError("intervals must be an array or null")
+            raise PeptacularError(f"intervals must be an array or null, got {type(intervals_value).__name__}")
         intervals = []
         for entry in intervals_value:
             if not isinstance(entry, Mapping):
-                raise PeptacularError("Each interval must be an object")
+                raise PeptacularError(f"Each interval must be an object, got {type(entry).__name__}")
             _require_keys(entry, {"start", "end", "ambiguous", "modifications"})
             _check_type(entry["start"], int, "interval.start")
             _check_type(entry["end"], int, "interval.end")
@@ -253,9 +255,13 @@ def _decode_annotation(data: Mapping[str, Any]) -> Any:
 
     charge = data["charge"]
     if charge is not None and not isinstance(charge, (int, list)):
-        raise PeptacularError("charge must be an integer, an array of adduct strings, or null")
-    if isinstance(charge, bool) or (isinstance(charge, list) and not all(isinstance(item, str) for item in charge)):
-        raise PeptacularError("charge must be an integer, an array of adduct strings, or null")
+        raise PeptacularError(f"charge must be an integer, an array of adduct strings, or null, got {type(charge).__name__}")
+    if isinstance(charge, bool):
+        raise PeptacularError(f"charge must be an integer, an array of adduct strings, or null, got {type(charge).__name__}")
+    if isinstance(charge, list):
+        for item in charge:
+            if not isinstance(item, str):
+                raise PeptacularError(f"charge must be an integer, an array of adduct strings, or null, got an array containing {type(item).__name__}")
 
     return ProFormaAnnotation(
         sequence=data["sequence"],
@@ -315,7 +321,7 @@ def to_proforma_dict(value: Any) -> dict[str, Any]:
     """Encode a supported ProForma object as a versioned JSON-compatible mapping."""
     encoded = _encode(value)
     if not isinstance(encoded, dict) or "$type" not in encoded:
-        raise TypeError("The root ProForma JSON value must be a supported object")
+        raise TypeError(f"The root ProForma JSON value must be a supported object, got {type(encoded).__name__}")
     return {
         "$schema": PROFORMA_JSON_SCHEMA_ID,
         "schema_version": PROFORMA_JSON_SCHEMA_VERSION,
@@ -326,7 +332,7 @@ def to_proforma_dict(value: Any) -> dict[str, Any]:
 def from_proforma_dict(data: Mapping[str, Any], *, expected_type: type[Any] | None = None) -> Any:
     """Decode a versioned ProForma mapping, optionally enforcing its root type."""
     if not isinstance(data, Mapping):
-        raise TypeError("ProForma JSON data must be a mapping")
+        raise TypeError(f"ProForma JSON data must be a mapping, got {type(data).__name__}")
     if "$schema" not in data:
         raise PeptacularError("Missing required JSON field: $schema")
     version = data.get("schema_version")
@@ -357,7 +363,7 @@ def from_proforma_json(data: str | bytes | bytearray, *, expected_type: type[Any
     except json.JSONDecodeError as exc:
         raise PeptacularError(f"Invalid ProForma JSON: {exc}") from exc
     if not isinstance(parsed, Mapping):
-        raise PeptacularError("The root ProForma JSON value must be an object")
+        raise PeptacularError(f"The root ProForma JSON value must be an object, got {type(parsed).__name__}")
     return from_proforma_dict(parsed, expected_type=expected_type)
 
 

@@ -170,3 +170,17 @@ def test_mods_to_dict_uses_mod_type_values():
     """The docstring promises ModType values, not the annotation's section names."""
     assert pt.parse("[Acetyl]-PEP").nterm_mods.to_dict()["mod_type"] == "nterm"
     assert pt.parse("<[+5]@P>PEP").static_mods.to_dict()["mod_type"] == "static"
+
+
+def test_type_error_names_the_type_received():
+    data = pt.to_proforma_dict(pt.parse("PEPTIDE"))
+    data["intervals"] = [{"start": "1", "end": 3, "ambiguous": False, "modifications": None}]
+    with pytest.raises(PeptacularError, match="interval.start must have type .*, got str"):
+        pt.from_proforma_dict(data)
+
+
+def test_charge_list_error_names_the_bad_item_type():
+    data = pt.to_proforma_dict(pt.parse("PEPTIDE"))
+    data["charge"] = ["H+", 1]
+    with pytest.raises(PeptacularError, match="containing int"):
+        pt.from_proforma_dict(data)
