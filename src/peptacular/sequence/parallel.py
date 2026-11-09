@@ -36,7 +36,7 @@ AUTO_PARALLEL_MIN_ITEMS = 1000
 
 def _validate_positive_int(value: int | None, name: str) -> None:
     if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 1):
-        raise PeptacularError(f"{name} must be a positive integer")
+        raise PeptacularError(f"{name} must be a positive integer, not {value!r}")
 
 
 def set_start_method(method: Literal["fork", "spawn", "forkserver"] | None = None) -> None:
