@@ -154,7 +154,7 @@ def iter_batch(
     if errors not in ("raise", "collect"):
         raise PeptacularError("errors must be 'raise' or 'collect'")
     if isinstance(sequences, (str, ProFormaAnnotation)):
-        raise TypeError("sequences must be an iterable of inputs, not a single sequence")
+        raise TypeError(f"sequences must be an iterable of inputs, not a single sequence {sequences!r}")
     _validate_positive_int(batch_size, "batch_size")
     if batch_size is None:
         raise PeptacularError("batch_size must be a positive integer")
