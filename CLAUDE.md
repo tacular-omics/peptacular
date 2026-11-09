@@ -48,7 +48,11 @@ just clean          # remove caches and build artifacts
 Also: `install-prod`, `sync`, `codecov-tests`, `docs-clean`, `docs-open`, `upgrade`
 (pyupgrade --py312-plus), `all` (clean + install + test), and the release recipes below.
 
-Docstring examples (`>>>`) in `src/` run via `tests/test_doctest.py` as part of pytest.
+Docstring examples (`>>>`) in `src/` run via `tests/test_doctests.py` as part of pytest.
+It walks the package rather than listing modules, and holds two measured floors
+(`MIN_MODULES`, `MIN_EXAMPLES`) so a walk that collects nothing, or a module whose
+examples were deleted, fails instead of passing with zero failures. Four
+`peptacular.mcp` modules are skipped by name when the `mcp` extra is absent.
 
 CLI: the `peptacular-mcp` console script (extra `mcp`) is a stdio MCP server with 12
 tools. `peptacular-mcp --check` prints the installed tools, versions and request limits
