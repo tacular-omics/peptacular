@@ -194,3 +194,11 @@ def test_digest_batch_collects_lazy_iterator_failure(monkeypatch):
     assert result.error.code == "calculation_error"
     assert "lazy digestion failure" in result.error.message
     assert result.value is None
+
+
+def test_rejection_messages_include_offending_value():
+    with pytest.raises(TypeError, match="not a single sequence 'PEPTIDE'"):
+        pt.batch("mass", "PEPTIDE")
+
+    with pytest.raises(ValueError, match="batch_size must be a positive integer, not 0"):
+        pt.batch("mass", ["PEPTIDE"], batch_size=0)
