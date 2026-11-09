@@ -70,7 +70,7 @@ def test_configuration_errors_raise_even_for_empty_input(operation, kwargs):
 @pytest.mark.parametrize("key", ["n_workers", "chunksize", "batch_size"])
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
 def test_bad_execution_settings(key, value):
-    with pytest.raises(ValueError, match=key):
+    with pytest.raises(ValueError, match=f"{key} must be a positive integer, got {value!r}"):
         pt.batch("mass", [], **{key: value})
 
 
@@ -161,7 +161,7 @@ def test_invalid_input_and_execution_modes():
         pt.batch("mass", [123])
     with pytest.raises(TypeError):
         pt.batch("mass", "PEPTIDE")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"errors must be 'raise' or 'collect', got 'ignore'"):
         pt.batch("mass", [], errors="ignore")
     with pytest.raises(ValueError):
         pt.batch("mass", [], method="invalid")
