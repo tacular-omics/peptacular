@@ -5,6 +5,8 @@ import importlib
 import importlib.util
 import pkgutil
 
+import pytest
+
 import peptacular
 
 # Modules that cannot be imported without an optional extra, each mapped to the
@@ -80,38 +82,47 @@ def test_docstring_examples() -> None:
 
 
 def test_needs_extra_gate_agrees_with_what_imports() -> None:
-    """The gate's verdict must match what actually fails to import.
+    """Every `NEEDS_EXTRA` entry must predict, per module, whether that module imports.
 
-    `MIN_IMPORTED` is computed by subtraction, so it cannot see a wrong `NEEDS_EXTRA` root:
+    The floors cannot see a wrong root, because `MIN_IMPORTED` is computed by subtraction:
     a verdict stuck at absent skips a module that imports fine, and a verdict stuck at
-    present hides a module that does not. This imports every gated module and compares.
-    Nothing here inspects the modules' own import statements, because a gated module may
-    reach its root through a relative import and still be keyed correctly:
-    `peptacular.mcp.operations` is keyed to pydantic and reaches it through `.contracts`.
+    present hides one that does not. This asserts the gate per module, which also catches
+    an over-listed root, a module skipped in a lean install for a package it never needed.
+
+    The invariant this rests on: each entry's root must be one the module genuinely needs,
+    directly or through its own relative imports, which is what makes "root absent implies
+    the import fails" true. That is not the same as the module's own module-scope import
+    list, and here it is demonstrably not: `peptacular.mcp.operations` is keyed to pydantic
+    while its own roots name only tacular, because it reaches pydantic through a relative
+    import of `.contracts`. The strict form is still sound for it, since pydantic absent
+    makes `.contracts` fail and `operations` with it. The shape that breaks this form is one
+    entry shared by several modules whose roots differ, where a half-installed environment
+    leaves some of them importable, so each module here keeps its own entry.
 
     :return: None
     :rtype: None
     """
-    absent_roots = sorted({root for root in NEEDS_EXTRA.values() if importlib.util.find_spec(root) is None})
-    predicted_absent = bool(absent_roots)
+    assert NEEDS_EXTRA, "NEEDS_EXTRA is empty, so the gate is inert and nothing is checked"
+    rootless = sorted(name for name, root in NEEDS_EXTRA.items() if not root)
+    assert not rootless, f"these NEEDS_EXTRA entries name no root, so they read as present in every environment: {rootless}"
 
-    failures: list[tuple[str, str, str]] = []
-    for name in sorted(NEEDS_EXTRA):
+    for name, root in sorted(NEEDS_EXTRA.items()):
+        absent = importlib.util.find_spec(root) is None
         try:
             importlib.import_module(name)
+        except pytest.skip.Exception as exc:
+            pytest.fail(f"importing {name} raised Skipped, which pytest reports as a skip rather than a failure: {exc}")
         except ImportError as exc:
-            failures.append((name, (getattr(exc, "name", None) or "").split(".")[0], f"{type(exc).__name__}: {exc}"))
-
-    named = [f"{module} (root {root or 'unnamed'})" for module, root, _message in failures]
-    assert predicted_absent == bool(failures), (
-        f"the gate says the extra is {'absent' if predicted_absent else 'present'} "
-        f"(absent roots: {absent_roots or 'none'}), but {len(failures)} of {len(NEEDS_EXTRA)} gated modules failed to import: {named or 'none'}"
-    )
-
-    unkeyed = [(module, root, message) for module, root, message in failures if root != NEEDS_EXTRA[module]]
-    assert not unkeyed, "a gated module failed on a root its key does not name, so it is broken rather than ungated: " + ", ".join(
-        f"{module} is keyed to {NEEDS_EXTRA[module]} but failed on {root or 'an unnamed root'} ({message})" for module, root, message in unkeyed
-    )
-
-    if predicted_absent:
-        assert failures, f"the gate says {absent_roots} absent, which skips every module keyed to them, yet all {len(NEEDS_EXTRA)} imported"
+            failed_root = (getattr(exc, "name", None) or "").split(".")[0]
+            assert absent, (
+                f"{name} failed to import although its key's root {root} is present, so it is broken rather than ungated: {type(exc).__name__}: {exc}"
+            )
+            assert failed_root == root, (
+                f"{name} is keyed to {root} but failed on {failed_root or 'an unnamed root'}, "
+                f"so the key does not name what actually went missing: {type(exc).__name__}: {exc}"
+            )
+        else:
+            assert not absent, (
+                f"{name} imported although {root} is absent, so its key names a package the module does not need "
+                f"and a lean install skips examples it could have run"
+            )
