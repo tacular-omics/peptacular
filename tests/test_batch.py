@@ -1,6 +1,7 @@
 """Batch ordering, bounded consumption, diagnostics, and process portability."""
 
 import multiprocessing as mp
+import re
 from contextlib import closing
 
 import pytest
@@ -67,17 +68,22 @@ def test_configuration_errors_raise_even_for_empty_input(operation, kwargs):
         pt.batch(operation, [], errors="collect", **kwargs)
 
 
+def test_bad_errors_setting_names_the_value():
+    with pytest.raises(ValueError, match=r"errors must be 'raise' or 'collect', got 'oops'"):
+        pt.batch("mass", [], errors="oops")
+
+
 @pytest.mark.parametrize("key", ["n_workers", "chunksize", "batch_size"])
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
 def test_bad_execution_settings(key, value):
-    with pytest.raises(ValueError, match=key):
+    with pytest.raises(ValueError, match=rf"{re.escape(key)} must be a positive integer, got {re.escape(repr(value))}"):
         pt.batch("mass", [], **{key: value})
 
 
 @pytest.mark.parametrize("key", ["n_workers", "chunksize"])
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])
 def test_existing_parallel_api_validates_settings(key, value):
-    with pytest.raises(ValueError, match=key):
+    with pytest.raises(ValueError, match=rf"{re.escape(key)} must be a positive integer, got {re.escape(repr(value))}"):
         parallel_apply_internal(abs, [], **{key: value})
 
 
