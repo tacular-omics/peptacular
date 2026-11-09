@@ -64,6 +64,8 @@ tests are not in the hooks; run `just check` for those.
 2. Keep each pull request focused on a single change.
 3. Write clear commit messages that explain *why*, not just *what*.
 
+AI-assisted contributions are welcome; you are responsible for reviewing and testing what you submit.
+
 ## Code Style
 
 Formatting and linting are handled by [ruff](https://docs.astral.sh/ruff/) (line length 160, Python 3.12 target):
