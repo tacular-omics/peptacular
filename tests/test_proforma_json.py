@@ -218,3 +218,22 @@ def test_non_object_roots_name_the_received_type():
         pt.to_proforma_dict(5)
     with pytest.raises(PeptacularError, match="got list"):
         pt.from_proforma_json("[1]")
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")], ids=["nan", "inf", "negative-inf"])
+@pytest.mark.parametrize("operation", ["encode-dict", "encode-json", "decode-dict", "decode-json"])
+def test_nonfinite_errors_consistently_name_the_rejected_value(value, operation):
+    data = pt.to_proforma_dict(pt.TagMass(1.0))
+    data["mass_str"] = value
+
+    with pytest.raises(PeptacularError) as exc:
+        if operation == "encode-dict":
+            pt.to_proforma_dict(value)
+        elif operation == "encode-json":
+            pt.to_proforma_json(value)
+        elif operation == "decode-dict":
+            pt.from_proforma_dict(data)
+        else:
+            pt.from_proforma_json(json.dumps(data))
+
+    assert str(exc.value) == f"JSON numbers must be finite: {value!r}"
