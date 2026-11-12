@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 
 - `ProFormaAnnotation.to_ip2()` writes an annotation as an IP2 sequence instead of raising `NotImplementedError`. Each modification goes in parentheses directly after its residue, N-terminal modifications lead as parenthesis groups, and C-terminal modifications trail after the last residue's own modification, so `PEPTIDE[Phospho]-[Amidated]` becomes `PEPTIDE(Phospho)(Amidated)`. The modification string is copied unchanged and no flanking residues are written; reading the result with `from_ip2_sequence` gives back an equal annotation. It raises `PeptacularError` for what IP2 cannot place: isotope labels, labile modifications, unknown-position modifications, intervals, charge and charge adducts, and a C-terminal modification on a last residue with no modification of its own. It also refuses two cases that `from_ip2_sequence` would read back differently: more than one modification on the last residue, which the reader would split into residue and C-terminal modifications, and a modification name containing parentheses.
 
+### Fixed
+
+- ProForma JSON non-finite-number errors consistently include the rejected value (`nan`, `inf`, or `-inf`) when encoding objects, decoding mappings, or parsing JSON constants.
+
 ## [5.1.0] (2026-11-06)
 
 ### Fixed
