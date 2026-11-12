@@ -199,6 +199,10 @@ def hydrophobicity(
 
     The mean of the ``HydrophobicityScale.KYTE_DOOLITTLE`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.hydrophobicity("PEPTIDE"), 6)
+    0.342857
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -252,6 +256,10 @@ def flexibility(
     """Average backbone flexibility (Vihinen).
 
     The mean of the ``PhysicalPropertyScale.FLEXIBILITY_VIHINEN`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.flexibility("PEPTIDE"), 6)
+    0.685426
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -307,6 +315,10 @@ def hydrophilicity(
 
     The mean of the ``PhysicalPropertyScale.HYDROPHILICITY_HOP_WOOD`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.hydrophilicity("PEPTIDE"), 6)
+    0.683036
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -360,6 +372,10 @@ def surface_accessibility(
     """Average surface accessibility (Vergoten).
 
     The mean of the ``SurfaceAccessibilityScale.VERGOTEN`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.surface_accessibility("PEPTIDE"), 6)
+    0.704232
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -415,6 +431,10 @@ def polarity(
 
     The mean of the ``PolarityScale.GRANTHAM`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.polarity("PEPTIDE"), 6)
+    0.583774
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -468,6 +488,10 @@ def mutability(
     """Average relative mutability.
 
     The mean of the ``PhysicalPropertyScale.MUTABILITY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.mutability("PEPTIDE"), 6)
+    0.602217
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -523,6 +547,10 @@ def codons(
 
     The mean of the ``PhysicalPropertyScale.CODONS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.codons("PEPTIDE"), 6)
+    0.4
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -576,6 +604,10 @@ def bulkiness(
     """Average side-chain bulkiness.
 
     The mean of the ``PhysicalPropertyScale.BULKINESS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.bulkiness("PEPTIDE"), 6)
+    0.680663
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -631,6 +663,10 @@ def recognition_factors(
 
     The mean of the ``PhysicalPropertyScale.RECOGNITION_FACTORS`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.recognition_factors("PEPTIDE"), 6)
+    0.26601
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -684,6 +720,10 @@ def transmembrane_tendency(
     """Average transmembrane tendency.
 
     The mean of the ``PhysicalPropertyScale.TRANSMEMBRANE_TENDENCY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.transmembrane_tendency("PEPTIDE"), 6)
+    0.365546
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -739,6 +779,10 @@ def average_buried_area(
 
     The mean of the ``SurfaceAccessibilityScale.AVERAGE_BURIED_AREA`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.average_buried_area("PEPTIDE"), 6)
+    0.296493
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -793,6 +837,10 @@ def hplc(
 
     The mean of the ``HPLCScale.MEEK_2_1`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
 
+    >>> import peptacular as pt
+    >>> round(pt.hplc("PEPTIDE"), 6)
+    0.357143
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -846,6 +894,10 @@ def refractivity(
     """Average refractivity.
 
     The mean of the ``PhysicalPropertyScale.REFRACTIVITY`` scale over the residues, normalised to 0-1 across the scale. Modifications are ignored.
+
+    >>> import peptacular as pt
+    >>> round(pt.refractivity("PEPTIDE"), 6)
+    0.330691
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -1260,6 +1312,10 @@ def alpha_helix_percent(
 
     The ``alpha_helix`` entry of :func:`secondary_structure` with the default scale.
 
+    >>> import peptacular as pt
+    >>> round(pt.alpha_helix_percent("PEPTIDE"), 6)
+    0.274729
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -1317,6 +1373,10 @@ def beta_sheet_percent(
     """Predicted beta sheet fraction (0-1) by the Deleage-Roux method.
 
     The ``beta_sheet`` entry of :func:`secondary_structure` with the default scale.
+
+    >>> import peptacular as pt
+    >>> round(pt.beta_sheet_percent("PEPTIDE"), 6)
+    0.154845
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
@@ -1376,6 +1436,10 @@ def beta_turn_percent(
 
     The ``beta_turn`` entry of :func:`secondary_structure` with the default scale.
 
+    >>> import peptacular as pt
+    >>> round(pt.beta_turn_percent("PEPTIDE"), 6)
+    0.296072
+
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
     :param chunksize: Items per worker task for list input.
@@ -1433,6 +1497,10 @@ def coil_percent(
     """Predicted coil fraction (0-1) by the Deleage-Roux method.
 
     The ``coil`` entry of :func:`secondary_structure` with the default scale.
+
+    >>> import peptacular as pt
+    >>> round(pt.coil_percent("PEPTIDE"), 6)
+    0.274354
 
     :param sequence: A ProForma string or annotation, or a list of them (lists run in parallel above ``AUTO_PARALLEL_MIN_ITEMS``).
     :param n_workers: Worker count for list input.
