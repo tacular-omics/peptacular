@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- Add a runnable localization example to the examples gallery.
+
 ## [5.1.0] (2026-11-06)
 
 ### Fixed

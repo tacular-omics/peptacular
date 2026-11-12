@@ -66,6 +66,16 @@ Generate theoretical fragment ions for peptides.
    :language: python
    :linenos:
 
+Localization
+------------
+
+Expand ambiguous modification positions, choose candidate residues explicitly, and find
+site-determining ions for individual isomers and ordered pairs.
+
+.. literalinclude:: ../examples/localization.py
+   :language: python
+   :linenos:
+
 Isotope Calculations
 --------------------
 
