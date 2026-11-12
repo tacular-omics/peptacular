@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Slicing or digesting an annotation whose localization group (a primary tag plus `#label` references) would be split between the slice and the rest now raises `PeptacularError` naming the group, instead of silently dropping the modification or leaving a dangling `#label` reference. A group wholly inside the slice is unchanged.
 - ProForma JSON non-finite-number errors consistently include the rejected value (`nan`, `inf`, or `-inf`) when encoding objects, decoding mappings, or parsing JSON constants.
 
 ## [5.1.0] (2026-11-06)
