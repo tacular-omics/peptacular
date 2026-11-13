@@ -9,6 +9,7 @@ from ..annotation.mod import Mods
 from ..constants import Terminal
 from ..diagnostics import InvalidPositionError, PeptacularError
 from ..proforma_components.comps import FixedModification, ModificationTags
+from .localization import _group_tag
 from .parser import Interval, ProFormaParser
 
 if TYPE_CHECKING:
@@ -73,6 +74,7 @@ def slice_annotation(
     if annotation.has_internal_mods:
         if annotation._internal_mods is None:
             raise RuntimeError("Annotation internal_mods are None despite has_internal_mods being True.")
+        _check_localization_groups_not_cut(annotation._internal_mods, start, stop)
         new_internal_mods = _adjust_internal_mods(
             annotation._internal_mods,
             start,
@@ -681,6 +683,25 @@ def _validate_slice_indices(start: int, stop: int, seq_len: int) -> None:
     """Validate that slice indices are valid"""
     if start > stop:
         raise InvalidPositionError(f"Start index {start} cannot be greater than stop index {stop}.")
+
+
+def _check_localization_groups_not_cut(internal_mods: dict[int, dict[str, int]], start: int, stop: int) -> None:
+    """Raise if a localization group has members both inside and outside the slice.
+
+    A group is one modification with several candidate positions, so keeping only some of its
+    labels would drop the modification or leave a dangling ``#label`` reference.
+    """
+    members: dict[str, set[int]] = {}
+    for pos, mods in internal_mods.items():
+        for mod_str in mods:
+            tag = _group_tag(mod_str)
+            if tag is not None:
+                members.setdefault(tag.label, set()).add(pos)
+
+    for label, positions in members.items():
+        inside = [pos for pos in positions if start <= pos < stop]
+        if inside and len(inside) != len(positions):
+            raise PeptacularError(f"Localization group #{label} would be cut by slice [{start}:{stop}]. Slicing localization groups is not supported.")
 
 
 def _adjust_internal_mods(internal_mods: dict[int, dict[str, int]], start: int, stop: int) -> dict[int, dict[str, int]]:
