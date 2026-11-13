@@ -118,7 +118,8 @@ def averagine_comp(neutral_mass: float) -> Counter[ElementInfo]:
     best match the fractional averagine envelope is returned. If no candidate is within
     one dalton, the candidate with the smallest mass error is returned.
 
-    >>> comp = averagine_comp(1000.0)
+    >>> import peptacular as pt
+    >>> comp = pt.averagine_comp(1000.0)
     >>> abs(sum(element.get_mass(monoisotopic=True) * count for element, count in comp.items()) - 1000.0) < 1.0
     True
     """
