@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `ProFormaAnnotation.to_ip2()` writes an annotation as an IP2 sequence instead of raising `NotImplementedError`. Each modification goes in parentheses directly after its residue, N-terminal modifications lead as parenthesis groups, and C-terminal modifications trail after the last residue's own modification, so `PEPTIDE[Phospho]-[Amidated]` becomes `PEPTIDE(Phospho)(Amidated)`. The modification string is copied unchanged and no flanking residues are written; reading the result with `from_ip2_sequence` gives back an equal annotation. It raises `PeptacularError` for what IP2 cannot place: isotope labels, labile modifications, unknown-position modifications, intervals, charge and charge adducts, and a C-terminal modification on a last residue with no modification of its own. It also refuses two cases that `from_ip2_sequence` would read back differently: more than one modification on the last residue, which the reader would split into residue and C-terminal modifications, and a modification name containing parentheses.
+
+### Fixed
+
+- Slicing or digesting an annotation whose localization group (a primary tag plus `#label` references) would be split between the slice and the rest now raises `PeptacularError` naming the group, instead of silently dropping the modification or leaving a dangling `#label` reference. A group wholly inside the slice is unchanged.
+- `averagine_comp` no longer rounds each element on its own. It keeps the integer compositions within 1 Da of the requested monoisotopic mass and returns the one whose isotope envelope best matches the fractional averagine envelope. Independent rounding put `pt.averagine_comp(1000.0)` at 978.5134 Da, 21.49 Da short; it now lands within 0.5 Da. Element counts stay non-negative integers within 2 of `estimate_averagine_comp`.
+- ProForma JSON non-finite-number errors consistently include the rejected value (`nan`, `inf`, or `-inf`) when encoding objects, decoding mappings, or parsing JSON constants.
+
 ### Documentation
 
 - Add executable examples for all 17 amino-acid property scale functions.

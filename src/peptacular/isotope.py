@@ -83,10 +83,81 @@ def estimate_averagine_comp(neutral_mass: float, *, ion_type: str | IonType | Io
     return composition
 
 
-def averagine_comp(neutral_mass: float) -> Counter[ElementInfo]:
-    """Return the nearest integer peptide averagine composition."""
+_AVERAGINE_COUNT_WINDOW: Final[int] = 2
+_AVERAGINE_MASS_TOLERANCE: Final[float] = 1.0
+_AVERAGINE_ENVELOPE_PEAKS: Final[int] = 6
 
-    composition = Counter({element: int(floor(count + 0.5)) for element, count in estimate_averagine_comp(neutral_mass).items()})
+
+def _envelope_ratios(composition: Mapping[ElementInfo, float]) -> list[float]:
+    """Return the abundances of peaks k=1..5 relative to the monoisotopic peak."""
+
+    distribution = brain_isotopic_distribution(
+        cast(Mapping[str | ElementInfo, int | float], composition),
+        max_isotopes=_AVERAGINE_ENVELOPE_PEAKS,
+        min_abundance_threshold=0.0,
+    )
+    light = distribution[0].abundance
+    return [peak.abundance / light for peak in distribution[1:]]
+
+
+def _envelope_error(composition: Mapping[ElementInfo, int], reference: list[float]) -> float:
+    """Sum of relative abundance errors of peaks k=1..5 against the fractional envelope."""
+
+    if not any(composition.values()):
+        return float("inf")
+    ratios = _envelope_ratios(composition)
+    return sum(abs(ratio - expected) / expected for ratio, expected in zip(ratios, reference, strict=True))
+
+
+def averagine_comp(neutral_mass: float) -> Counter[ElementInfo]:
+    """Return the integer averagine composition that best reproduces the averagine isotope envelope.
+
+    Each element count is searched within two of its fractional estimate from
+    ``estimate_averagine_comp`` and never goes negative. Candidates whose monoisotopic
+    mass is within one dalton of ``neutral_mass`` are kept, and the one whose peaks k=1..5
+    best match the fractional averagine envelope is returned. If no candidate is within
+    one dalton, the candidate with the smallest mass error is returned.
+
+    >>> import peptacular as pt
+    >>> comp = pt.averagine_comp(1000.0)
+    >>> abs(sum(element.get_mass(monoisotopic=True) * count for element, count in comp.items()) - 1000.0) < 1.0
+    True
+    """
+
+    target = float(neutral_mass)
+    fractional = estimate_averagine_comp(target)
+    elements = list(fractional)
+    ideals = [fractional[element] for element in elements]
+    masses = [element.get_mass(monoisotopic=True) for element in elements]
+    # Each count is allowed to sit within the window of its own fractional estimate.
+    windows = [range(max(0, ceil(ideal - _AVERAGINE_COUNT_WINDOW)), floor(ideal + _AVERAGINE_COUNT_WINDOW) + 1) for ideal in ideals]
+
+    candidates: list[tuple[float, tuple[int, ...]]] = []
+
+    def search(index: int, counts: list[int], mass: float) -> None:
+        if index == len(elements):
+            candidates.append((abs(mass - target), tuple(counts)))
+            return
+        for count in windows[index]:
+            counts.append(count)
+            search(index + 1, counts, mass + masses[index] * count)
+            counts.pop()
+
+    search(0, [], 0.0)
+    feasible = [candidate for candidate in candidates if candidate[0] < _AVERAGINE_MASS_TOLERANCE]
+
+    if not feasible:
+        best_counts = min(candidates, key=lambda candidate: candidate[0])[1]
+    elif len(feasible) == 1:
+        best_counts = feasible[0][1]
+    else:
+        reference = _envelope_ratios(fractional)
+        best_counts = min(
+            feasible,
+            key=lambda candidate: (_envelope_error(dict(zip(elements, candidate[1], strict=True)), reference), candidate[0]),
+        )[1]
+
+    composition = Counter({element: count for element, count in zip(elements, best_counts, strict=True)})
     return Counter({element: count for element, count in composition.items() if count != 0})
 
 

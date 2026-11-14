@@ -1,4 +1,8 @@
+import pytest
+
+import peptacular as pt
 from peptacular import (
+    PeptacularError,
     convert_casanovo_sequence,
     convert_diann_sequence,
     convert_ip2_sequence,
@@ -231,3 +235,76 @@ class TestConvertersEdgeCases:
         results = convert_ip2_sequence(sequences, n_workers=4)
         assert results == expected
         assert len(results) == 100
+
+
+class TestToIP2:
+    """Tests for ProFormaAnnotation.to_ip2."""
+
+    @pytest.mark.parametrize(
+        ("proforma", "expected"),
+        [
+            ("PEP[Phospho]TIDE", "PEP(Phospho)TIDE"),
+            ("PEP[+79.9663]TIDE", "PEP(+79.9663)TIDE"),
+            ("PEP[UNIMOD:21]TIDE", "PEP(UNIMOD:21)TIDE"),
+            ("[Acetyl]-PEPTIDE", "(Acetyl)PEPTIDE"),
+            ("PEPTIDE[Phospho]-[Amidated]", "PEPTIDE(Phospho)(Amidated)"),
+            ("PEPTIDE", "PEPTIDE"),
+            ("[A][B]-PEPTIDE", "(A)(B)PEPTIDE"),
+            ("PEP[A][B]TIDE", "PEP(A)(B)TIDE"),
+            ("[A]-P[B]-[C][D]", "(A)P(B)(C)(D)"),
+            ("<[Carbamidomethyl]@C>PECTIDE", "PEC(Carbamidomethyl)TIDE"),
+        ],
+    )
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_ip2() == expected
+
+    @pytest.mark.parametrize(
+        "ip2",
+        [
+            "PEP(Phospho)TIDE",
+            "(Acetyl)PEPTIDE",
+            "(Acetyl)(Oxidation)(Phospho)PEPTIDE",
+            "PEPTIDE(Phospho)(Amidated)",
+            "PEPTIDE(Phospho)(Amidated)(Oxidation)",
+            "PEP(Phospho)(Oxidation)TIDE",
+            "(Acetyl)PEP(Phospho)TIDE(Oxidation)(Amidated)",
+            "K.PEP(Phospho)TIDE.R",
+            "-.(Acetyl)PEPTIDE(Phospho)(Amidated).-",
+            "K.PEPTIDE.R",
+        ],
+    )
+    def test_round_trip(self, ip2: str):
+        original = pt.ProFormaAnnotation.from_ip2_sequence(ip2)
+        written = original.to_ip2()
+        assert "." not in written
+        again = pt.ProFormaAnnotation.from_ip2_sequence(written)
+        assert again == original
+        assert again.mass() == pytest.approx(original.mass())
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[Phospho]?PEPTIDE", "unknown"),
+            ("PEP(TI)[Phospho]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[+2Na+]", "charge adducts"),
+            ("PEPTIDE-[Amidated]", "C-terminal modification on a last residue"),
+            ("PEPTIDEK[A][B]", "multiple modifications on the last residue"),
+            ("PEP[Carbamidomethyl(C)]TIDE", "parentheses"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_ip2()
+
+    def test_modification_multiplier_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", nterm_mods={"Acetyl": 2})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot.to_ip2()
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
+        annot.to_ip2()
+        assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"

@@ -1942,11 +1942,76 @@ class ProFormaAnnotation(_ModAccessMixin):
         return unique_fragments(annotations, precision=precision)
 
     def to_ip2(self) -> str:
-        """Convert this annotation to IP2 format string.
+        """Convert this annotation to an IP2 sequence string.
 
-        :raises NotImplementedError: This conversion is not yet implemented.
+        IP2 writes each modification in parentheses directly after the residue it sits on.
+        N-terminal modifications are leading parenthesis groups, and C-terminal modifications
+        are trailing groups after the last residue's own modification. The modification string
+        is copied through unchanged, and no flanking residues are written. The output is the
+        inverse of :meth:`from_ip2_sequence`, so reading it back gives an equal annotation.
+        Static modifications are written onto the residues they apply to.
+
+        >>> import peptacular as pt
+        >>> pt.parse("PEP[Phospho]TIDE").to_ip2()
+        'PEP(Phospho)TIDE'
+        >>> pt.parse("PEP[+79.9663]TIDE").to_ip2()
+        'PEP(+79.9663)TIDE'
+        >>> pt.parse("[Acetyl]-PEPTIDE").to_ip2()
+        '(Acetyl)PEPTIDE'
+        >>> pt.parse("PEPTIDE[Phospho]-[Amidated]").to_ip2()
+        'PEPTIDE(Phospho)(Amidated)'
+
+        :return: The annotation as an IP2 sequence without flanking residues.
+        :rtype: str
+        :raises PeptacularError: If the annotation has isotope labels, labile modifications,
+            unknown-position modifications, interval modifications, a charge or charge adducts,
+            a C-terminal modification on a last residue with no modification of its own, more
+            than one modification on the last residue, a modification multiplier, or a
+            modification name containing parentheses.
         """
-        raise NotImplementedError("Conversion to IP2 format is not yet implemented.")
+        for mod_type, feature in (
+            (ModType.ISOTOPE, "isotope labels"),
+            (ModType.LABILE, "labile modifications"),
+            (ModType.UNKNOWN, "unknown-position modifications"),
+            (ModType.INTERVAL, "interval modifications"),
+            (ModType.CHARGE, "charge and charge adducts"),
+        ):
+            if self.has_mods(mod_type):
+                raise PeptacularError(f"IP2 format does not support {feature}.")
+
+        annot_copy = self.copy()
+        annot_copy.condense_static_mods(inplace=True)
+
+        def group(mods: Mapping[str, int]) -> str:
+            out: list[str] = []
+            for name, count in mods.items():
+                if count != 1:
+                    raise PeptacularError("IP2 format does not support modification multipliers.")
+                if "(" in name or ")" in name:
+                    raise PeptacularError(f"IP2 format cannot write a modification name containing parentheses: {name!r}.")
+                out.append(f"({name})")
+            return "".join(out)
+
+        sequence = annot_copy.stripped_sequence
+        last = len(sequence) - 1
+        internal = annot_copy._internal_mods or {}
+        cterm = annot_copy._cterm_mods or {}
+
+        # The reader gives the first group after the last residue to that residue and every
+        # later group to the C-terminus, so the writer must emit exactly that shape.
+        if last >= 0:
+            if cterm and last not in internal:
+                raise PeptacularError("IP2 format cannot place a C-terminal modification on a last residue that has no modification of its own.")
+            if last in internal and len(internal[last]) > 1:
+                raise PeptacularError("IP2 format cannot place multiple modifications on the last residue, they would be read as C-terminal modifications.")
+
+        parts: list[str] = [group(annot_copy._nterm_mods or {})]
+        for index, residue in enumerate(sequence):
+            parts.append(residue)
+            if index in internal:
+                parts.append(group(internal[index]))
+        parts.append(group(cterm))
+        return "".join(parts)
 
     @staticmethod
     def from_ip2_sequence(sequence: str) -> "ProFormaAnnotation":
