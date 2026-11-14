@@ -169,7 +169,7 @@ def _encode(value: Any) -> Any:
     if isinstance(value, tuple):
         return [_encode(item) for item in value]
     if isinstance(value, float) and not isfinite(value):
-        raise PeptacularError("JSON numbers must be finite")
+        raise PeptacularError(f"JSON numbers must be finite: {value!r}")
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     raise TypeError(f"Unsupported ProForma JSON value: {type(value).__name__}")
@@ -285,7 +285,7 @@ def _decode(value: Any) -> Any:
         return tuple(_decode(item) for item in value)
     if not isinstance(value, Mapping):
         if isinstance(value, float) and not isfinite(value):
-            raise PeptacularError("JSON numbers must be finite")
+            raise PeptacularError(f"JSON numbers must be finite: {value!r}")
         if value is None or isinstance(value, (str, int, float, bool)):
             return value
         raise PeptacularError(f"Unsupported JSON value: {type(value).__name__}")
@@ -377,7 +377,7 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _invalid_constant(value: str) -> Any:
-    raise PeptacularError(f"JSON numbers must be finite: {value}")
+    raise PeptacularError(f"JSON numbers must be finite: {float(value)!r}")
 
 
 def get_proforma_json_schema() -> dict[str, Any]:

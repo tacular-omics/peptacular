@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 
 import pytest
-from tacular import ELEMENT_LOOKUP
+from tacular import ELEMENT_LOOKUP, ElementInfo
 
 import peptacular as pt
 from peptacular.constants import ELECTRON_MASS
@@ -225,3 +225,102 @@ def test_formula_isotopic_distribution_alias_removed():
 
     assert not hasattr(iso, "isotopic_distribution")
     assert "isotopic_distribution" not in iso.__all__
+
+
+def _composition_mass(composition: Mapping[ElementInfo, int]) -> float:
+    return sum(element.get_mass(monoisotopic=True) * count for element, count in composition.items())
+
+
+@pytest.mark.parametrize("target", [500.0, 1000.0, 1500.0, 2000.0, 3000.0, 5000.0, 10000.0])
+def test_averagine_comp_mass_is_within_one_dalton_of_target(target):
+    """Rounding each element on its own drifted up to 21 Da from the target (issue #87)."""
+
+    composition = pt.averagine_comp(target)
+    assert abs(_composition_mass(composition) - target) < 1.0
+
+
+@pytest.mark.parametrize("target", [500.0, 1000.0, 1500.0, 2000.0, 3000.0, 5000.0, 10000.0])
+def test_averagine_comp_stays_near_fractional_estimate(target):
+    """The integer composition is still an averagine composition: non-negative and close to the estimate."""
+
+    fractional = pt.estimate_averagine_comp(target)
+    composition = pt.averagine_comp(target)
+    for element, ideal in fractional.items():
+        count = composition.get(element, 0)
+        assert isinstance(count, int)
+        assert count >= 0
+        assert abs(count - ideal) <= 2
+
+
+_ENVELOPE_PEPTIDES = [
+    "SESPEKVAL",
+    "PEPTIDEK",
+    "ACDEFGHIK",
+    "LLLLLLLLLK",
+    "GGGGGGGGGGGGGGR",
+    "MPEPTIDERPEPTIDEKLLSVAK",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAK",
+    "YGGFLRSGGRGIK",
+    "DDLSLGEKHLLKWDRVA",
+    "SAMPLEPEPTIDESEQUENCE",
+]
+# Largest k=1..5 relative abundance error over _ENVELOPE_PEPTIDES on main before this change (issue #87).
+_MAIN_MAX_ENVELOPE_ERROR_PERCENT = 101.78
+_ENVELOPE_PEAKS = 5
+
+
+def _true_envelope(peptide: str) -> tuple[float, list[float]]:
+    """Return the monoisotopic mass and the k=0..5 abundances of the peptide's true envelope.
+
+    The BRAIN envelope of the real composition is anchored on the peak nearest the
+    monoisotopic mass, so a selenium-containing peptide does not shift the reference.
+    """
+
+    mass = float(pt.mass(peptide, monoisotopic=True))
+    distribution = brain_isotopic_distribution(pt.comp(peptide), max_isotopes=_ENVELOPE_PEAKS + 8, min_abundance_threshold=0.0)
+    anchor = min(range(len(distribution)), key=lambda index: abs(distribution[index].mass - mass))
+    assert abs(distribution[anchor].mass - mass) < 0.01
+    return mass, [distribution[anchor + k].abundance for k in range(_ENVELOPE_PEAKS + 1)]
+
+
+def _envelope_error_percent(peptide: str) -> float:
+    """Largest relative abundance error of estimate_isotopic_distribution over k=1..5, in percent."""
+
+    mass, truth = _true_envelope(peptide)
+    estimate = estimate_isotopic_distribution(mass, max_isotopes=_ENVELOPE_PEAKS + 8, min_abundance_threshold=0.0)
+    return 100.0 * max(abs(estimate[k].abundance - truth[k]) / truth[k] for k in range(1, _ENVELOPE_PEAKS + 1))
+
+
+def test_averagine_envelope_worst_case_is_no_worse_than_main(capsys):
+    """The largest k=1..5 relative abundance error is no worse than the rounding baseline (issue #87)."""
+
+    errors = {peptide: _envelope_error_percent(peptide) for peptide in _ENVELOPE_PEPTIDES}
+    worst = max(errors.values())
+    for peptide, error in errors.items():
+        print(f"{peptide:28s} worst k=1..5 error {error:8.2f}%")
+    print(f"largest k=1..5 error: {worst:.2f}% (main: {_MAIN_MAX_ENVELOPE_ERROR_PERCENT:.2f}%)")
+    assert worst <= _MAIN_MAX_ENVELOPE_ERROR_PERCENT
+
+
+@pytest.mark.parametrize("target", [1000.0, 2000.0, 5000.0])
+def test_averagine_comp_minimises_envelope_error_among_mass_feasible_compositions(target):
+    """No other integer composition within two of the estimate and one dalton of the target has a closer envelope."""
+
+    from itertools import product
+    from math import ceil, floor
+
+    from peptacular import isotope
+
+    fractional = pt.estimate_averagine_comp(target)
+    elements = list(fractional)
+    reference = isotope._envelope_ratios(fractional)
+    windows = [range(max(0, ceil(fractional[e] - 2)), floor(fractional[e] + 2) + 1) for e in elements]
+    feasible = []
+    for counts in product(*windows):
+        composition = {e: n for e, n in zip(elements, counts, strict=True) if n}
+        if composition and abs(_composition_mass(composition) - target) < 1.0:
+            feasible.append(composition)
+
+    chosen = dict(pt.averagine_comp(target))
+    chosen_error = isotope._envelope_error(chosen, reference)
+    assert all(isotope._envelope_error(composition, reference) >= chosen_error - 1e-12 for composition in feasible)
