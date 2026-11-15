@@ -32,6 +32,8 @@ def slice_annotation(
     start: int | None,
     stop: int | None,
     inplace: bool = False,
+    *,
+    _keep_cut_localization_groups: bool = False,
 ) -> ProFormaAnnotation:
     """
     Slice the annotation sequence and return a new annotation with the sliced sequence and modifications.
@@ -41,6 +43,9 @@ def slice_annotation(
         start: Start index (inclusive)
         stop: Stop index (exclusive)
         inplace: Whether to modify the annotation in place
+        _keep_cut_localization_groups: Private. Skip the check that refuses a slice cutting a
+            localization group. Only :func:`split_annotation` sets it, because a split keeps every
+            position and so keeps every member of the group.
 
     Returns:
         Sliced annotation
@@ -54,6 +59,7 @@ def slice_annotation(
             start=start,
             stop=stop,
             inplace=True,
+            _keep_cut_localization_groups=_keep_cut_localization_groups,
         )
 
     # Handle default values and negative indices
@@ -74,7 +80,8 @@ def slice_annotation(
     if annotation.has_internal_mods:
         if annotation._internal_mods is None:
             raise RuntimeError("Annotation internal_mods are None despite has_internal_mods being True.")
-        _check_localization_groups_not_cut(annotation._internal_mods, start, stop)
+        if not _keep_cut_localization_groups:
+            _check_localization_groups_not_cut(annotation._internal_mods, start, stop)
         new_internal_mods = _adjust_internal_mods(
             annotation._internal_mods,
             start,
@@ -147,7 +154,11 @@ def split_annotation(annotation: ProFormaAnnotation) -> list[ProFormaAnnotation]
 
     result: list[ProFormaAnnotation] = []
     for s, e in annot_slices:
-        sliced = slice_annotation(annotation, s, e, inplace=False)
+        # A split keeps every position of the sequence, so every member of a localization group
+        # is still present across the pieces: nothing is dropped and no reference is orphaned,
+        # which is what the slice guard (#85) protects against. The guard would otherwise refuse
+        # to split any peptide whose group spans more than one residue.
+        sliced = slice_annotation(annotation, s, e, inplace=False, _keep_cut_localization_groups=True)
         result.append(sliced)
 
     return result
