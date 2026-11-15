@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- Add a runnable localization example to the examples gallery.
 - Add executable examples for all 17 amino-acid property scale functions.
 
 ## [5.1.0] (2026-11-06)
