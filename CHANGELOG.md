@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `pt.count_residues()` and `pt.percent_residues()` no longer carry the parent's annotations into their keys. Counting a charged peptide used to give `{'P/2': 2, 'E/2': 2, …}` instead of `{'P': 2, 'E': 2, …}`; a labile modification gave `{'+79.966}P`, an unlocalised one `[Phospho]?P`, and a name `(>Name)P`. The keys now hold the residue and the modifications localised to it, including its own N- or C-terminal modification, so `pt.count_residues("PEPTIDE/2") == pt.count_residues("PEPTIDE")` (#105).
 - Slicing or digesting an annotation whose localization group (a primary tag plus `#label` references) would be split between the slice and the rest now raises `PeptacularError` naming the group, instead of silently dropping the modification or leaving a dangling `#label` reference. A group wholly inside the slice is unchanged.
 - `averagine_comp` no longer rounds each element on its own. It keeps the integer compositions within 1 Da of the requested monoisotopic mass and returns the one whose isotope envelope best matches the fractional averagine envelope. Independent rounding put `pt.averagine_comp(1000.0)` at 978.5134 Da, 21.49 Da short; it now lands within 0.5 Da. Element counts stay non-negative integers within 2 of `estimate_averagine_comp`.
 - ProForma JSON non-finite-number errors consistently include the rejected value (`nan`, `inf`, or `-inf`) when encoding objects, decoding mappings, or parsing JSON constants.

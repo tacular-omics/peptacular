@@ -32,6 +32,50 @@ class TestCondenseToPeptidoform:
         assert result.serialize() == "PEPTIDE"
 
 
+class TestCountResidues:
+    def test_charge_is_not_part_of_a_key(self):
+        assert pt.parse("PEPTIDE/2").count_residues() == pt.parse("PEPTIDE").count_residues()
+
+    def test_charge_keeps_the_modified_residue_key(self):
+        counts = pt.parse("PEM[Oxidation]TIDE/2").count_residues()
+        assert counts["M[Oxidation]"] == 1
+        assert not any("/" in residue for residue in counts)
+
+    def test_charge_adducts_are_not_part_of_a_key(self):
+        assert pt.parse("PEPTIDE/[M+2H]").count_residues() == pt.parse("PEPTIDE").count_residues()
+
+    def test_labile_modification_is_not_part_of_a_key(self):
+        counts = pt.parse("{+79.966}PEPTIDE").count_residues()
+        assert counts == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_unlocalised_modification_is_not_part_of_a_key(self):
+        counts = pt.parse("[Phospho]?PEPTIDE").count_residues()
+        assert counts == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_names_are_not_part_of_a_key(self):
+        plain = {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+        assert pt.parse("(>Peptide)PEPTIDE/2").count_residues() == plain
+        assert pt.parse("(>>Ion)PEPTIDE/2").count_residues() == plain
+        assert pt.parse("(>>>Compound)(>Peptide)PEPTIDE/2").count_residues() == plain
+
+    def test_terminal_modifications_stay_with_their_residue(self):
+        counts = pt.parse("[Acetyl]-PEPTIDE-[Amidated]").count_residues()
+        assert counts == {"[Acetyl]-P": 1, "E": 1, "P": 1, "T": 1, "I": 1, "D": 1, "E-[Amidated]": 1}
+
+    def test_include_mods_false_ignores_every_annotation(self):
+        assert pt.parse("PEM[Oxidation]TIDE/2").count_residues(include_mods=False) == {
+            "P": 1,
+            "E": 2,
+            "M": 1,
+            "T": 1,
+            "I": 1,
+            "D": 1,
+        }
+
+    def test_percent_residues_follows_the_same_keys(self):
+        assert pt.parse("PEPTIDE/2").percent_residues() == pt.parse("PEPTIDE").percent_residues()
+
+
 class TestPercentResidues:
     def test_empty_sequence_returns_empty_dict(self):
         a = pt.parse("")

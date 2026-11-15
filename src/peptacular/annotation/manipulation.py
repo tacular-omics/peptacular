@@ -198,9 +198,43 @@ def condense_to_peptidoform(annotation: ProFormaAnnotation, inplace: bool = True
     return annotation
 
 
+def _residue_key(annotation: ProFormaAnnotation) -> str:
+    """
+    Serialize one split piece as the residue it holds and that residue's own modifications.
+
+    The pieces that :meth:`ProFormaAnnotation.split` returns carry the parent's column, the
+    parent's labile and unlocalised modifications and the parent's names on every piece, so
+    serializing a piece as-is yields keys such as ``P/2`` or ``{+79.966}P`` that are not
+    residues. Those annotations belong to the peptide, not to the residue, and are dropped
+    here; the internal modifications and the terminal modifications stay because they are
+    written at the residue's own position.
+
+    Args:
+        annotation: One piece from :meth:`ProFormaAnnotation.split`
+
+    Returns:
+        The residue with its own modifications, for example ``M[Oxidation]``
+    """
+
+    residue = annotation.copy()
+    residue.set_charge(None, inplace=True)
+    residue.set_labile_mods(None, inplace=True)
+    residue.set_unknown_mods(None, inplace=True)
+    residue.set_compound_name(None, inplace=True)
+    residue.set_ion_name(None, inplace=True)
+    residue.set_peptide_name(None, inplace=True)
+    return residue.serialize()
+
+
 def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) -> dict[str, int]:
     """
     Count the occurrences of each residue in the sequence.
+
+    With ``include_mods`` the keys are a residue plus the modifications localised to it,
+    including any N- or C-terminal modification on that residue, so ``PEPM[Oxidation]TIDE``
+    holds ``M[Oxidation]``. Annotations that describe the peptide as a whole -- charge, labile
+    and unlocalised modifications, and names -- are not part of a key, so ``PEPTIDE/2`` counts
+    the same as ``PEPTIDE``.
 
     Args:
         annotation: The ProFormaAnnotation to analyze
@@ -214,7 +248,7 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
         return dict(Counter(annotation.sequence))
 
     split_annotations = annotation.split()
-    return dict(Counter(a.serialize() for a in split_annotations))
+    return dict(Counter(_residue_key(a) for a in split_annotations))
 
 
 def percent_residues(
