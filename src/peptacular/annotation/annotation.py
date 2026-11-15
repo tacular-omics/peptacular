@@ -2057,6 +2057,9 @@ class ProFormaAnnotation(_ModAccessMixin):
         The modification string is copied through unchanged. Static modifications are written onto
         the residues they apply to.
 
+        Two modifications at one terminus are refused rather than written. ``from_diann`` gives
+        the leading bracket group a dash and rewrites a single trailing group, so a second group
+        at either terminus would come back as a string it cannot parse.
 
         >>> import peptacular as pt
         >>> pt.parse("PEPTIDE").to_diann()
@@ -2076,7 +2079,8 @@ class ProFormaAnnotation(_ModAccessMixin):
         :rtype: str
         :raises PeptacularError: If the annotation has isotope labels, labile modifications,
             unknown-position modifications, interval modifications, charge or charge adducts,
-            or modification multipliers.
+            modification multipliers, more than one N-terminal modification, or more than one
+            C-terminal modification.
         """
         for mod_type, feature in (
             (ModType.ISOTOPE, "isotope labels"),
@@ -2103,6 +2107,13 @@ class ProFormaAnnotation(_ModAccessMixin):
         internal = annot_copy._internal_mods or {}
         nterm = annot_copy._nterm_mods or {}
         cterm = annot_copy._cterm_mods or {}
+
+        # `from_diann` gives the leading bracket group a dash and rewrites a single trailing
+        # group, so a second group at either terminus comes back as a string it cannot parse.
+        if len(nterm) > 1:
+            raise PeptacularError("DIA-NN format cannot write more than one N-terminal modification, from_diann would not read the result back.")
+        if len(cterm) > 1:
+            raise PeptacularError("DIA-NN format cannot write more than one C-terminal modification, from_diann would not read the result back.")
 
         parts: list[str] = ["_", group(nterm)]
         for index, residue in enumerate(sequence):
