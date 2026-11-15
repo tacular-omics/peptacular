@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Speed up `pt.coverage()`, `pt.percent_coverage()`, and `find_indices()` on unmodified sequences by using `str.find` and direct slice assignment instead of regex matching and annotation slicing. On a 1600-residue protein with 474 tryptic peptides, median execution time drops from ~40 ms to ~5.7 ms with identical coverage results across all parameter combinations (`accumulate`, `ignore_mods`, `ignore_ambiguity`), overlapping repeats, and ambiguous intervals (#86).
+- Speed up `pt.coverage()`, `pt.percent_coverage()` and `find_indices()` on unmodified sequences by using `str.find` and direct slice assignment instead of regex matching and annotation slicing. On a 1600-residue protein with 474 tryptic peptides, median execution time drops from about 40 ms to about 5.7 ms, and on a 1600-residue protein with 462 tryptic peptides it drops from 27.6 ms to 2.9 ms with the annotation slices in one call falling from 2628 to none. The coverage vector is unchanged for every combination of `accumulate`, `ignore_mods` and `ignore_ambiguity` on plain sequences, a modified protein, modified peptides, repeated and overlapping matches and ambiguous intervals, with the one exception in the next entry (#86).
+- `pt.coverage()`, `pt.percent_coverage()`, `pt.find_subsequence_indices()` and `pt.is_subsequence()` called with `ignore_mods=True` now return a result where they used to raise `PeptacularError`, when the protein holds an interval or a localization group that the match's slice would cut. The old path sliced the parent once per match even though the caller had asked for modifications to be ignored, and that slice refused the cut, so `pt.coverage("PE(PT)IDE", ["PEP"], ignore_mods=True)` raised instead of returning `[1, 1, 1, 0, 0, 0, 0]`. With `ignore_mods=False` the slice still runs and still refuses, which is what keeps the refusal meaningful (#86).
 
 ### Added
 
