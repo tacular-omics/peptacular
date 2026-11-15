@@ -67,21 +67,89 @@ class TestFindIndices:
         assert sub.find_indices(whole) == [0, 3]
 
 
-class TestCoverageFastPathParity:
-    """Verify behavioral parity of the string search fast path on coverage across all parameter combinations."""
+_PARITY_CASES = [
+    ("plain", "PEPTIDE", ["PEP", "TID"]),
+    ("mod_prot_unmod_pep", "P[+80]EPTIDE", ["PEP", "TID"]),
+    ("mod_pep_mod_prot", "P[+80]EPTIDE", ["P[+80]EP", "PEP", "TID"]),
+    ("multiple_occurrence", "PEPTIDEPEP", ["PEP"]),
+    ("overlapping", "IIIII", ["II"]),
+    ("ambig_sub", "PEPTIDE", ["P(?EP)"]),
+    ("ambig_prot", "P(?EP)TIDE", ["PEP"]),
+]
 
-    @pytest.mark.parametrize(
-        ("name", "prot_str", "peps_str"),
-        [
-            ("plain", "PEPTIDE", ["PEP", "TID"]),
-            ("mod_prot_unmod_pep", "P[+80]EPTIDE", ["PEP", "TID"]),
-            ("mod_pep_mod_prot", "P[+80]EPTIDE", ["P[+80]EP", "PEP", "TID"]),
-            ("multiple_occurrence", "PEPTIDEPEP", ["PEP"]),
-            ("overlapping", "IIIII", ["II"]),
-            ("ambig_sub", "PEPTIDE", ["P(?EP)"]),
-            ("ambig_prot", "P(?EP)TIDE", ["PEP"]),
-        ],
-    )
+# The coverage vector each case returned before the string-search fast path, measured on
+# f9907bc (the commit before #101) for every case and option combination below. These are
+# literals on purpose: comparing the annotation method against the sequence wrapper only
+# shows that the two entry points agree, and both of them go through the fast path, so such
+# a comparison cannot see the fast path drift away from the answer it replaced.
+_PRE_FAST_PATH_COVERAGE: dict[tuple[str, bool, bool, bool], list[int]] = {
+    ("plain", False, False, False): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", False, False, True): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", False, True, False): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", False, True, True): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", True, False, False): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", True, False, True): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", True, True, False): [1, 1, 1, 1, 1, 1, 0],
+    ("plain", True, True, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", False, False, False): [0, 0, 0, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", False, False, True): [0, 0, 0, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", False, True, False): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", False, True, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", True, False, False): [0, 0, 0, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", True, False, True): [0, 0, 0, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", True, True, False): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_prot_unmod_pep", True, True, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", False, False, False): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", False, False, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", False, True, False): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", False, True, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", True, False, False): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", True, False, True): [1, 1, 1, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", True, True, False): [2, 2, 2, 1, 1, 1, 0],
+    ("mod_pep_mod_prot", True, True, True): [2, 2, 2, 1, 1, 1, 0],
+    ("multiple_occurrence", False, False, False): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", False, False, True): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", False, True, False): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", False, True, True): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", True, False, False): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", True, False, True): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", True, True, False): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("multiple_occurrence", True, True, True): [1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
+    ("overlapping", False, False, False): [1, 1, 1, 1, 1],
+    ("overlapping", False, False, True): [1, 1, 1, 1, 1],
+    ("overlapping", False, True, False): [1, 1, 1, 1, 1],
+    ("overlapping", False, True, True): [1, 1, 1, 1, 1],
+    ("overlapping", True, False, False): [1, 2, 2, 2, 1],
+    ("overlapping", True, False, True): [1, 2, 2, 2, 1],
+    ("overlapping", True, True, False): [1, 2, 2, 2, 1],
+    ("overlapping", True, True, True): [1, 2, 2, 2, 1],
+    ("ambig_sub", False, False, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_sub", False, False, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_sub", False, True, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_sub", False, True, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_sub", True, False, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_sub", True, False, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_sub", True, True, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_sub", True, True, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_prot", False, False, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_prot", False, False, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_prot", False, True, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_prot", False, True, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_prot", True, False, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_prot", True, False, True): [1, 1, 1, 0, 0, 0, 0],
+    ("ambig_prot", True, True, False): [1, 0, 0, 0, 0, 0, 0],
+    ("ambig_prot", True, True, True): [1, 1, 1, 0, 0, 0, 0],
+}
+
+
+class TestCoverageFastPathParity:
+    """The string search fast path returns what annotation slicing returned, option for option."""
+
+    def test_expected_table_covers_every_case_and_option(self):
+        assert len(_PRE_FAST_PATH_COVERAGE) == len(_PARITY_CASES) * 8
+        assert {key[0] for key in _PRE_FAST_PATH_COVERAGE} == {case[0] for case in _PARITY_CASES}
+
+    @pytest.mark.parametrize(("name", "prot_str", "peps_str"), _PARITY_CASES)
     @pytest.mark.parametrize("accumulate", [False, True])
     @pytest.mark.parametrize("ignore_mods", [False, True])
     @pytest.mark.parametrize("ignore_ambiguity", [False, True])
@@ -94,10 +162,12 @@ class TestCoverageFastPathParity:
         ignore_mods: bool,
         ignore_ambiguity: bool,
     ):
+        expected = _PRE_FAST_PATH_COVERAGE[name, accumulate, ignore_mods, ignore_ambiguity]
+
         prot = pt.parse(prot_str)
         peps = [pt.parse(p) for p in peps_str]
 
-        # Calculate via annotation method
+        # The annotation method, against the value measured before the fast path existed.
         cov = prot.coverage(
             peps,
             accumulate=accumulate,
@@ -105,8 +175,9 @@ class TestCoverageFastPathParity:
             ignore_ambiguity=ignore_ambiguity,
         )
         assert len(cov) == len(prot)
+        assert cov == expected
 
-        # Calculate via public sequence API
+        # The public sequence wrapper reaches the same answer.
         cov_public = pt.coverage(
             prot_str,
             peps_str,
@@ -114,7 +185,7 @@ class TestCoverageFastPathParity:
             ignore_mods=ignore_mods,
             ignore_ambiguity=ignore_ambiguity,
         )
-        assert cov == cov_public
+        assert cov_public == expected
 
     def test_overlapping_repeats_find_all_positions(self):
         # Zero-width lookahead ensures overlapping occurrences are all identified
@@ -127,3 +198,37 @@ class TestCoverageFastPathParity:
         assert pt.coverage("PEPTIDE", ["P(?EP)"]) == [1, 0, 0, 0, 0, 0, 0]
         # Ambiguous interval in protein stays at 0
         assert pt.coverage("P(?EP)TIDE", ["PEP"]) == [1, 0, 0, 0, 0, 0, 0]
+
+
+class TestCoverageIgnoreModsSkipsSlicing:
+    """`ignore_mods=True` no longer slices the parent, so a cut it refused is no longer reached.
+
+    Before the fast path, `coverage` sliced the parent annotation once per match even when the
+    caller had asked for modifications to be ignored, and the slice raised whenever it would cut
+    an interval or a localization group. Measured on f9907bc, each call below raised
+    `PeptacularError`; the fast path reaches the answer without a slice. With `ignore_mods=False`
+    the slow path still runs and still refuses, which is what keeps the refusal meaningful.
+    """
+
+    @pytest.mark.parametrize(
+        ("prot_str", "peps_str", "expected"),
+        [
+            ("PE(?PT)IDE", ["PEP"], [1, 1, 0, 0, 0, 0, 0]),
+            ("PE(PT)IDE", ["PEP"], [1, 1, 1, 0, 0, 0, 0]),
+            ("PEPT[Phospho#g1]IDEK[#g1]", ["PEPT"], [1, 1, 1, 1, 0, 0, 0, 0]),
+        ],
+    )
+    def test_ignore_mods_returns_a_vector_where_slicing_refused(self, prot_str: str, peps_str: list[str], expected: list[int]):
+        assert pt.coverage(prot_str, peps_str, ignore_mods=True) == expected
+
+    @pytest.mark.parametrize(
+        ("prot_str", "peps_str", "message"),
+        [
+            ("PE(?PT)IDE", ["PEP"], "Interval"),
+            ("PE(PT)IDE", ["PEP"], "Interval"),
+            ("PEPT[Phospho#g1]IDEK[#g1]", ["PEPT"], "Localization group"),
+        ],
+    )
+    def test_ignore_mods_false_still_refuses_the_cut(self, prot_str: str, peps_str: list[str], message: str):
+        with pytest.raises(pt.PeptacularError, match=message):
+            pt.coverage(prot_str, peps_str, ignore_mods=False)
