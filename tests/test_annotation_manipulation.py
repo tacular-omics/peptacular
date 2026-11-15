@@ -75,6 +75,13 @@ class TestCountResidues:
     def test_percent_residues_follows_the_same_keys(self):
         assert pt.parse("PEPTIDE/2").percent_residues() == pt.parse("PEPTIDE").percent_residues()
 
+    def test_global_isotope_label_stays_in_the_key(self):
+        # A global isotope label applies to every residue, so unlike the charge and the
+        # labile, unlocalised and name annotations it belongs in the key. The docstring
+        # of count_residues promises this; without a test the promise cannot fail.
+        assert pt.parse("<13C>PEPTIDE").count_residues() == {"<13C>P": 2, "<13C>E": 2, "<13C>T": 1, "<13C>I": 1, "<13C>D": 1}
+        assert pt.parse("<13C>PEPTIDE/2").count_residues() == pt.parse("<13C>PEPTIDE").count_residues()
+
 
 class TestPercentResidues:
     def test_empty_sequence_returns_empty_dict(self):

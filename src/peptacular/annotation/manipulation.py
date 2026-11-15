@@ -202,12 +202,13 @@ def _residue_key(annotation: ProFormaAnnotation) -> str:
     """
     Serialize one split piece as the residue it holds and that residue's own modifications.
 
-    The pieces that :meth:`ProFormaAnnotation.split` returns carry the parent's column, the
+    The pieces that :meth:`ProFormaAnnotation.split` returns carry the parent's charge, the
     parent's labile and unlocalised modifications and the parent's names on every piece, so
     serializing a piece as-is yields keys such as ``P/2`` or ``{+79.966}P`` that are not
     residues. Those annotations belong to the peptide, not to the residue, and are dropped
-    here; the internal modifications and the terminal modifications stay because they are
-    written at the residue's own position.
+    here. The internal modifications and the terminal modifications stay because they are
+    written at the residue's own position, and so does a global isotope label, which applies
+    to every residue.
 
     Args:
         annotation: One piece from :meth:`ProFormaAnnotation.split`
@@ -232,9 +233,10 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
 
     With ``include_mods`` the keys are a residue plus the modifications localised to it,
     including any N- or C-terminal modification on that residue, so ``PEPM[Oxidation]TIDE``
-    holds ``M[Oxidation]``. Annotations that describe the peptide as a whole -- charge, labile
-    and unlocalised modifications, and names -- are not part of a key, so ``PEPTIDE/2`` counts
-    the same as ``PEPTIDE``.
+    holds ``M[Oxidation]``. Annotations that describe the peptide as a whole (charge, labile
+    and unlocalised modifications, and names) are not part of a key, so ``PEPTIDE/2`` counts
+    the same as ``PEPTIDE``. A global isotope label is the exception and stays in the key,
+    because it applies to every residue: ``<13C>PEPTIDE`` holds ``<13C>P``.
 
     Args:
         annotation: The ProFormaAnnotation to analyze
