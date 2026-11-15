@@ -439,6 +439,11 @@ def count_residues(
     include_mods: If True, modified residues are counted as distinct entities. If False,
                   only unmodified residues are counted.
 
+    Residues inside an interval are counted one by one, so the counts sum to the sequence
+    length. A modified interval is written onto each of its residues as a one-residue
+    interval with the same modifications, e.g. ``PEP(?TI)[Phospho]DE`` holds
+    ``(?T)[Phospho]`` and ``(?I)[Phospho]``.
+
     .. code-block:: python
 
         # Single sequence
@@ -448,6 +453,13 @@ def count_residues(
         # Single sequence
         >>> count_residues('PEP[Oxidation]TIDE-[+30]')
         {'P': 1, 'E': 1, 'P[Oxidation]': 1, 'T': 1, 'I': 1, 'D': 1, 'E-[+30]': 1}
+
+        # Interval residues are counted individually
+        >>> count_residues('PEP(?TI)DE')
+        {'P': 2, 'E': 2, 'T': 1, 'I': 1, 'D': 1}
+
+        >>> count_residues('PEP(?TI)[Phospho]DE')
+        {'P': 2, 'E': 2, '(?T)[Phospho]': 1, '(?I)[Phospho]': 1, 'D': 1}
 
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
@@ -507,6 +519,9 @@ def percent_residues(
 
     include_mods: If True, modified residues are counted as distinct entities. If False,
                   only unmodified residues are counted.
+
+    Percentages are over every residue, including those inside an interval, and are keyed
+    as in :func:`count_residues`.
 
     .. code-block:: python
 
