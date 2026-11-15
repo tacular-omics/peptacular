@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Speed up `pt.coverage()`, `pt.percent_coverage()`, and `find_indices()` on unmodified sequences by using `str.find` and direct slice assignment instead of regex matching and annotation slicing. On a 1600-residue protein with 474 tryptic peptides, median execution time drops from ~40 ms to ~5.7 ms with identical coverage results across all parameter combinations (`accumulate`, `ignore_mods`, `ignore_ambiguity`), overlapping repeats, and ambiguous intervals (#86).
+
 ### Added
 
 - `ProFormaAnnotation.to_casanovo()` writes an annotation as a Casanovo sequence string instead of raising `NotImplementedError`. Casanovo writes modifications as signed delta masses with no brackets directly after the modified residue, and N-terminal modifications as signed delta masses at the very start of the string, so `[+42.011]-PEPM[+15.995]IDEC[+57.021]` becomes `+42.011PEPM+15.995IDEC+57.021`. The delta mass number is copied through unchanged; reading the result with `from_casanovo` gives back an equal annotation. It raises `PeptacularError` for what Casanovo cannot express: modifications that are not signed delta masses, multiple modifications on one residue, multiple N-terminal modifications, C-terminal modifications, isotope labels, labile modifications, unknown-position modifications, intervals, charge or charge adducts, or modification multipliers.
