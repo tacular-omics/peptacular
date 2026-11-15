@@ -3,6 +3,7 @@ import pytest
 import peptacular as pt
 from peptacular import (
     PeptacularError,
+    ProFormaFormatError,
     convert_casanovo_sequence,
     convert_diann_sequence,
     convert_ip2_sequence,
@@ -380,3 +381,102 @@ class TestToCasanovo:
         annot = pt.parse("<[+57.021]@C>PECTIDE")
         annot.to_casanovo()
         assert annot.serialize() == "<[+57.021]@C>PECTIDE"
+
+
+class TestToDiann:
+    """Tests for ProFormaAnnotation.to_diann."""
+
+    @pytest.mark.parametrize(
+        ("proforma", "expected"),
+        [
+            ("PEPTIDE", "_PEPTIDE_"),
+            ("PEP[Phospho]TIDE", "_PEP[Phospho]TIDE_"),
+            ("PEP[+79.9663]TIDE", "_PEP[+79.9663]TIDE_"),
+            ("[Acetyl]-PEPTIDE", "_[Acetyl]PEPTIDE_"),
+            ("PEPTIDE-[Amidated]", "_PEPTIDE_[Amidated]"),
+            ("[Acetyl]-PEP[Phospho]TIDE-[Amidated]", "_[Acetyl]PEP[Phospho]TIDE_[Amidated]"),
+            ("<[Carbamidomethyl]@C>PECTIDE", "_PEC[Carbamidomethyl]TIDE_"),
+            ("PEP[Phospho][Oxidation]TIDE", "_PEP[Phospho][Oxidation]TIDE_"),
+            ("[Acetyl]-P[Phospho]-[Amidated]", "_[Acetyl]P[Phospho]_[Amidated]"),
+        ],
+    )
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_diann() == expected
+
+    @pytest.mark.parametrize(
+        "diann",
+        [
+            "_PEPTIDE_",
+            "_PEP[Phospho]TIDE_",
+            "_PEP[+79.9663]TIDE_",
+            "_[Acetyl]PEPTIDE_",
+            "_PEPTIDE_[Amidated]",
+            "_[Acetyl]PEP[Phospho]TIDE_[Amidated]",
+            "_[Acetyl]PEP[Phospho]TIDE[Oxidation]_[Amidated]",
+            "_PEP[Phospho][Oxidation]TIDE_",
+            "_[Acetyl]P[Phospho]_[Amidated]",
+        ],
+    )
+    def test_round_trip(self, diann: str):
+        original = pt.ProFormaAnnotation.from_diann(diann)
+        written = original.to_diann()
+        again = pt.ProFormaAnnotation.from_diann(written)
+        assert again == original
+        assert again.mass() == pytest.approx(original.mass())
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[Phospho]?PEPTIDE", "unknown"),
+            ("PEP(TI)[Phospho]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[+2Na+]", "charge adducts"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_diann()
+
+    def test_modification_multiplier_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", nterm_mods={"Acetyl": 2})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot.to_diann()
+
+    @pytest.mark.parametrize(
+        ("proforma", "unwritable"),
+        [
+            ("[Acetyl][Phospho]-PEPTIDE", "_[Acetyl][Phospho]PEPTIDE_"),
+            ("[Acetyl][Methyl]-PEP[Phospho]TIDE", "_[Acetyl][Methyl]PEP[Phospho]TIDE_"),
+        ],
+    )
+    def test_two_nterm_mods_refused(self, proforma: str, unwritable: str):
+        """`from_diann` dashes only the first leading group, so the second one cannot be read back."""
+
+        with pytest.raises(PeptacularError, match="more than one N-terminal modification"):
+            pt.parse(proforma).to_diann()
+
+        with pytest.raises(ProFormaFormatError):
+            pt.ProFormaAnnotation.from_diann(unwritable)
+
+    @pytest.mark.parametrize(
+        ("proforma", "unwritable"),
+        [
+            ("PEPTIDE-[Amidated][Phospho]", "_PEPTIDE_[Amidated][Phospho]"),
+            ("[Acetyl]-P[Phospho]-[Amidated][Phospho]", "_[Acetyl]P[Phospho]_[Amidated][Phospho]"),
+        ],
+    )
+    def test_two_cterm_mods_refused(self, proforma: str, unwritable: str):
+        """`from_diann` rewrites one trailing group, so with two the inner underscore reaches the parser."""
+
+        with pytest.raises(PeptacularError, match="more than one C-terminal modification"):
+            pt.parse(proforma).to_diann()
+
+        with pytest.raises(ProFormaFormatError):
+            pt.ProFormaAnnotation.from_diann(unwritable)
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
+        annot.to_diann()
+        assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
