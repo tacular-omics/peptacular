@@ -308,3 +308,75 @@ class TestToIP2:
         annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
         annot.to_ip2()
         assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
+
+
+class TestToCasanovo:
+    """Tests for ProFormaAnnotation.to_casanovo."""
+
+    @pytest.mark.parametrize(
+        ("proforma", "expected"),
+        [
+            ("PEPTIDE", "PEPTIDE"),
+            ("PEPM[+15.995]IDE", "PEPM+15.995IDE"),
+            ("[+43.006]-PEPTIDE", "+43.006PEPTIDE"),
+            ("[+42.011]-PEPM[+15.995]IDEC[+57.021]", "+42.011PEPM+15.995IDEC+57.021"),
+            ("<[+57.021]@C>PECTIDE", "PEC+57.021TIDE"),
+        ],
+    )
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_casanovo() == expected
+
+    @pytest.mark.parametrize(
+        "casanovo",
+        [
+            "PEPTIDE",
+            "+43.006PEPTIDE",
+            "PEPM+15.995IDE",
+            "+42.011PEPM+15.995IDEC+57.021",
+            "+42.011PEPM-17.027IDEC+57.021",
+        ],
+    )
+    def test_round_trip(self, casanovo: str):
+        original = pt.ProFormaAnnotation.from_casanovo(casanovo)
+        written = original.to_casanovo()
+        again = pt.ProFormaAnnotation.from_casanovo(written)
+        assert again == original
+        assert again.mass() == pytest.approx(original.mass())
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("PEP[Phospho]TIDE", "signed delta mass"),
+            ("PEP[UNIMOD:21]TIDE", "signed delta mass"),
+            ("PEP[Formula:HO3P]TIDE", "signed delta mass"),
+            ("PEP[Glycan:HexNAc]TIDE", "signed delta mass"),
+            ("PEP[15.995]TIDE", "signed delta mass"),
+            ("[Acetyl]-PEPTIDE", "signed delta mass"),
+            ("PEPM[+15.995][+1.0]IDE", "multiple modifications"),
+            ("[+42.011][+1.0]-PEPTIDE", "multiple N-terminal modifications"),
+            ("PEPTIDE-[-17.027]", "C-terminal"),
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[+79.966]?PEPTIDE", "unknown"),
+            ("PEP(TI)[+79.966]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[+2Na+]", "charge adducts"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_casanovo()
+
+    def test_modification_multiplier_refused(self):
+        annot_nterm = pt.ProFormaAnnotation(sequence="PEPTIDE", nterm_mods={"+42.011": 2})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot_nterm.to_casanovo()
+
+        annot_internal = pt.ProFormaAnnotation(sequence="PEPTIDE", internal_mods={1: {"+15.995": 2}})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot_internal.to_casanovo()
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[+57.021]@C>PECTIDE")
+        annot.to_casanovo()
+        assert annot.serialize() == "<[+57.021]@C>PECTIDE"
