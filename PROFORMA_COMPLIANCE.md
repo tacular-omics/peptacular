@@ -2,7 +2,12 @@
 
 The checklist below describes notation support. Parsing a sequence does not imply
 that every calculation is possible. Use `diagnose(sequence, operation)` to check a
-specific calculation and inspect its diagnostic.
+specific calculation and inspect its diagnostic. Its `digest` operation checks
+`ProFormaAnnotation.digest_spans`, which locates the cut sites without building the
+peptides, so it reports success for a sequence whose peptides `pt.digest` refuses to
+build: `diagnose("PRT(ESFRMS)[+19.0523]ISK", "digest", enzyme="trypsin")` returns `None`
+while `pt.digest` on that sequence raises `PeptacularError: Interval [3:9] would be cut by
+slice [2:7]`, because building the second peptide cuts the range.
 
 Section numbers and level names follow the
 [final ProForma 2.1 specification](https://www.psidev.info/proforma).
