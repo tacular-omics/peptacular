@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 
 ### Documentation
 
+- `PROFORMA_COMPLIANCE.md` says which digest `diagnose(sequence, "digest")` checks. The operation runs `ProFormaAnnotation.digest_spans`, which locates the cut sites without building the peptides, so it reports success for a sequence whose peptides `pt.digest` refuses to build: `diagnose("PRT(ESFRMS)[+19.0523]ISK", "digest", enzyme="trypsin")` returns `None` while `pt.digest` on that sequence raises `PeptacularError: Interval [3:9] would be cut by slice [2:7]`. `docs/streaming.rst` already said the batch `digest` operation returns spans rather than `pt.digest` pairs, and the compliance file sent readers to `diagnose` without that caveat.
 - Add a runnable localization example to the examples gallery.
 - Add executable examples for all 17 amino-acid property scale functions.
 
