@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Speed up `pt.coverage()`, `pt.percent_coverage()`, and `find_indices()` on unmodified sequences by using `str.find` and direct slice assignment instead of regex matching and annotation slicing. On a 1600-residue protein with 474 tryptic peptides, median execution time drops from ~40 ms to ~5.7 ms with identical coverage results across all parameter combinations (`accumulate`, `ignore_mods`, `ignore_ambiguity`), overlapping repeats, and ambiguous intervals (#86).
+
 ### Added
 
 - `ProFormaAnnotation.to_ip2()` writes an annotation as an IP2 sequence instead of raising `NotImplementedError`. Each modification goes in parentheses directly after its residue, N-terminal modifications lead as parenthesis groups, and C-terminal modifications trail after the last residue's own modification, so `PEPTIDE[Phospho]-[Amidated]` becomes `PEPTIDE(Phospho)(Amidated)`. The modification string is copied unchanged and no flanking residues are written; reading the result with `from_ip2_sequence` gives back an equal annotation. It raises `PeptacularError` for what IP2 cannot place: isotope labels, labile modifications, unknown-position modifications, intervals, charge and charge adducts, and a C-terminal modification on a last residue with no modification of its own. It also refuses two cases that `from_ip2_sequence` would read back differently: more than one modification on the last residue, which the reader would split into residue and C-terminal modifications, and a modification name containing parentheses.
