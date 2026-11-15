@@ -2047,11 +2047,68 @@ class ProFormaAnnotation(_ModAccessMixin):
         return ProFormaAnnotation.parse(sequence)
 
     def to_diann(self) -> str:
-        """Convert this annotation to DIA-NN format string.
+        """Convert this annotation to a DIA-NN format string.
 
-        :raises NotImplementedError: This conversion is not yet implemented.
+        The sequence is enclosed in underscores, with modifications written in square brackets
+        immediately following the modified residue. N-terminal modifications are written inside
+        the opening underscore, and C-terminal modifications are written after the closing underscore.
+        The modification string is copied through unchanged. Static modifications are written onto
+        the residues they apply to.
+
+        >>> import peptacular as pt
+        >>> pt.parse("PEPTIDE").to_diann()
+        '_PEPTIDE_'
+        >>> pt.parse("PEP[Phospho]TIDE").to_diann()
+        '_PEP[Phospho]TIDE_'
+        >>> pt.parse("PEP[+79.9663]TIDE").to_diann()
+        '_PEP[+79.9663]TIDE_'
+        >>> pt.parse("[Acetyl]-PEPTIDE").to_diann()
+        '_[Acetyl]PEPTIDE_'
+        >>> pt.parse("PEPTIDE-[Amidated]").to_diann()
+        '_PEPTIDE_[Amidated]'
+        >>> pt.parse("[Acetyl]-PEP[Phospho]TIDE-[Amidated]").to_diann()
+        '_[Acetyl]PEP[Phospho]TIDE_[Amidated]'
+
+        :return: The annotation as a DIA-NN sequence.
+        :rtype: str
+        :raises PeptacularError: If the annotation has isotope labels, labile modifications,
+            unknown-position modifications, interval modifications, charge or charge adducts,
+            or modification multipliers.
         """
-        raise NotImplementedError("Conversion to DIANN format is not yet implemented.")
+        for mod_type, feature in (
+            (ModType.ISOTOPE, "isotope labels"),
+            (ModType.LABILE, "labile modifications"),
+            (ModType.UNKNOWN, "unknown-position modifications"),
+            (ModType.INTERVAL, "interval modifications"),
+            (ModType.CHARGE, "charge or charge adducts"),
+        ):
+            if self.has_mods(mod_type):
+                raise PeptacularError(f"DIA-NN format does not support {feature}.")
+
+        annot_copy = self.copy()
+        annot_copy.condense_static_mods(inplace=True)
+
+        def group(mods: Mapping[str, int]) -> str:
+            out: list[str] = []
+            for name, count in mods.items():
+                if count != 1:
+                    raise PeptacularError("DIA-NN format does not support modification multipliers.")
+                out.append(f"[{name}]")
+            return "".join(out)
+
+        sequence = annot_copy.stripped_sequence
+        internal = annot_copy._internal_mods or {}
+        nterm = annot_copy._nterm_mods or {}
+        cterm = annot_copy._cterm_mods or {}
+
+        parts: list[str] = ["_", group(nterm)]
+        for index, residue in enumerate(sequence):
+            parts.append(residue)
+            if index in internal:
+                parts.append(group(internal[index]))
+        parts.append("_")
+        parts.append(group(cterm))
+        return "".join(parts)
 
     @staticmethod
     def from_diann(sequence: str) -> "ProFormaAnnotation":

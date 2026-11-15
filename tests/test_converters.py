@@ -308,3 +308,69 @@ class TestToIP2:
         annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
         annot.to_ip2()
         assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
+
+
+class TestToDiann:
+    """Tests for ProFormaAnnotation.to_diann."""
+
+    @pytest.mark.parametrize(
+        ("proforma", "expected"),
+        [
+            ("PEPTIDE", "_PEPTIDE_"),
+            ("PEP[Phospho]TIDE", "_PEP[Phospho]TIDE_"),
+            ("PEP[+79.9663]TIDE", "_PEP[+79.9663]TIDE_"),
+            ("[Acetyl]-PEPTIDE", "_[Acetyl]PEPTIDE_"),
+            ("PEPTIDE-[Amidated]", "_PEPTIDE_[Amidated]"),
+            ("[Acetyl]-PEP[Phospho]TIDE-[Amidated]", "_[Acetyl]PEP[Phospho]TIDE_[Amidated]"),
+            ("<[Carbamidomethyl]@C>PECTIDE", "_PEC[Carbamidomethyl]TIDE_"),
+            ("[A][B]-PEPTIDE", "_[A][B]PEPTIDE_"),
+            ("PEP[A][B]TIDE", "_PEP[A][B]TIDE_"),
+            ("[A]-P[B]-[C][D]", "_[A]P[B]_[C][D]"),
+        ],
+    )
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_diann() == expected
+
+    @pytest.mark.parametrize(
+        "diann",
+        [
+            "_PEPTIDE_",
+            "_PEP[Phospho]TIDE_",
+            "_PEP[+79.9663]TIDE_",
+            "_[Acetyl]PEPTIDE_",
+            "_PEPTIDE_[Amidated]",
+            "_[Acetyl]PEP[Phospho]TIDE_[Amidated]",
+            "_[Acetyl]PEP[Phospho]TIDE[Oxidation]_[Amidated]",
+        ],
+    )
+    def test_round_trip(self, diann: str):
+        original = pt.ProFormaAnnotation.from_diann(diann)
+        written = original.to_diann()
+        again = pt.ProFormaAnnotation.from_diann(written)
+        assert again == original
+        assert again.mass() == pytest.approx(original.mass())
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[Phospho]?PEPTIDE", "unknown"),
+            ("PEP(TI)[Phospho]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[+2Na+]", "charge adducts"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_diann()
+
+    def test_modification_multiplier_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", nterm_mods={"Acetyl": 2})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot.to_diann()
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
+        annot.to_diann()
+        assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
