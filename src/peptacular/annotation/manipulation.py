@@ -58,25 +58,40 @@ def coverage(
     cov_arr = [0] * len(annotation)
 
     for sub_annots in subsequences:
-        peptide_cov = [1] * len(sub_annots)
-        if ignore_ambiguity is False:
-            # Filter for ambiguous intervals only
+        sub_len = len(sub_annots)
+        has_ambig = False
+        if ignore_ambiguity is False and sub_annots.intervals:
+            for interval in sub_annots.intervals:
+                if interval.ambiguous:
+                    has_ambig = True
+                    break
+
+        if not has_ambig:
+            for subsequence_index in find_indices(sub_annots, other=annotation, ignore_mods=ignore_mods):
+                start = subsequence_index
+                if accumulate:
+                    for i in range(sub_len):
+                        cov_arr[start + i] += 1
+                else:
+                    cov_arr[start : start + sub_len] = [1] * sub_len
+        else:
+            peptide_cov = [1] * sub_len
             for interval in sub_annots.intervals:
                 if interval.ambiguous:
                     for i in range(interval.start, interval.end):
                         peptide_cov[i] = 0
 
-        for subsequence_index in find_indices(sub_annots, other=annotation, ignore_mods=ignore_mods):
-            start = subsequence_index
+            for subsequence_index in find_indices(sub_annots, other=annotation, ignore_mods=ignore_mods):
+                start = subsequence_index
 
-            for i, cov in enumerate(peptide_cov):
-                if accumulate:
-                    cov_arr[start + i] += cov
-                else:
-                    cov_arr[start + i] = cov
+                for i, cov in enumerate(peptide_cov):
+                    if accumulate:
+                        cov_arr[start + i] += cov
+                    else:
+                        cov_arr[start + i] = cov
 
     # apply to annotation
-    if ignore_ambiguity is False:
+    if ignore_ambiguity is False and annotation.intervals:
         # Set coverage to 0 for ambiguous positions
         for interval in annotation.intervals:
             if interval.ambiguous:
@@ -249,6 +264,12 @@ def is_subsequence(
     if annotation.sequence not in other.sequence:
         return False
 
+    can_skip_slicing = ignore_mods or (
+        not annotation.has_mods() and not other.has_mods() and (ignore_intervals or (not annotation.intervals and not other.intervals))
+    )
+    if can_skip_slicing:
+        return True
+
     # Loop over all starting indexes where the sequence is found. Use a zero-width
     # lookahead so overlapping occurrences (e.g. 'II' in 'IIIII') are all found;
     # a plain re.finditer would advance past each match and miss overlaps.
@@ -299,6 +320,20 @@ def find_indices(
 
     if not annotation.sequence or not other.sequence:
         return []
+
+    can_skip_slicing = ignore_mods or (
+        not annotation.has_mods() and not other.has_mods() and (ignore_intervals or (not annotation.intervals and not other.intervals))
+    )
+
+    if can_skip_slicing:
+        indices: list[int] = []
+        seq = other.sequence
+        subseq = annotation.sequence
+        idx = seq.find(subseq)
+        while idx != -1:
+            indices.append(idx)
+            idx = seq.find(subseq, idx + 1)
+        return indices
 
     indices: list[int] = []
     for match in re.finditer(f"(?={re.escape(annotation.sequence)})", other.sequence):

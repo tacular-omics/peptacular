@@ -28,7 +28,8 @@ NEEDS_EXTRA = {
 # an empty __init__ and the walk enters it either way. Raise these when you add modules or
 # examples, and never lower them without saying why in the commit message.
 MIN_MODULES = 74
-MIN_EXAMPLES = 217
+# The 17 property examples add an import and a calculation each.
+MIN_EXAMPLES = 251
 MIN_IMPORTED = MIN_MODULES - len(NEEDS_EXTRA)
 
 

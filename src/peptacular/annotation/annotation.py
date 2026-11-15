@@ -211,6 +211,8 @@ LOSS_TYPE = NeutralDelta | NeutralDeltaLiteral | NeutralDeltaInfo | str
 CUSTOM_LOSS_TYPE = str | ChargedFormula | float | dict[str | ChargedFormula | float, int]
 POSITION_TYPE = int | tuple[int, int]
 
+_SIGNED_DELTA_RE = re.compile(r"^[+-](?:\d+(?:\.\d*)?|\.\d+)$")
+
 
 class ProFormaAnnotation(_ModAccessMixin):
     """A single ProForma 2.1 peptidoform: a sequence plus its modifications, intervals, names and charge.
@@ -2070,11 +2072,74 @@ class ProFormaAnnotation(_ModAccessMixin):
         return ProFormaAnnotation.parse(sequence)
 
     def to_casanovo(self) -> str:
-        """Convert this annotation to Casanovo format string.
+        """Convert this annotation to a Casanovo format string.
 
-        :raises NotImplementedError: This conversion is not yet implemented.
+        Casanovo writes a modification as a signed delta mass with no brackets, directly after
+        the residue it sits on, and an N-terminal modification as a signed delta mass at the
+        very start of the sequence. Static modifications are condensed onto the residues they
+        apply to.
+
+        >>> import peptacular as pt
+        >>> pt.parse("PEPTIDE").to_casanovo()
+        'PEPTIDE'
+        >>> pt.parse("PEPM[+15.995]IDE").to_casanovo()
+        'PEPM+15.995IDE'
+        >>> pt.parse("[+43.006]-PEPTIDE").to_casanovo()
+        '+43.006PEPTIDE'
+        >>> pt.parse("[+42.011]-PEPM[+15.995]IDEC[+57.021]").to_casanovo()
+        '+42.011PEPM+15.995IDEC+57.021'
+
+        :return: The annotation as a Casanovo sequence string.
+        :rtype: str
+        :raises PeptacularError: If the annotation has modifications that are not signed delta masses,
+            multiple modifications on one residue, multiple N-terminal modifications, C-terminal modifications,
+            isotope labels, labile modifications, unknown-position modifications, interval modifications,
+            charge or charge adducts, or modification multipliers.
         """
-        raise NotImplementedError("Conversion to Casanovo format is not yet implemented.")
+        for mod_type, feature in (
+            (ModType.ISOTOPE, "isotope labels"),
+            (ModType.LABILE, "labile modifications"),
+            (ModType.UNKNOWN, "unknown-position modifications"),
+            (ModType.INTERVAL, "interval modifications"),
+            (ModType.CHARGE, "charge or charge adducts"),
+        ):
+            if self.has_mods(mod_type):
+                raise PeptacularError(f"Casanovo format does not support {feature}.")
+
+        annot_copy = self.copy()
+        annot_copy.condense_static_mods(inplace=True)
+
+        if annot_copy._cterm_mods:
+            raise PeptacularError("Casanovo format does not support C-terminal modifications.")
+
+        nterm = annot_copy._nterm_mods or {}
+        if len(nterm) > 1:
+            raise PeptacularError("Casanovo format does not support multiple N-terminal modifications.")
+
+        nterm_str = ""
+        for name, count in nterm.items():
+            if count != 1:
+                raise PeptacularError("Casanovo format does not support modification multipliers.")
+            if not _SIGNED_DELTA_RE.match(name):
+                raise PeptacularError(f"Casanovo format only supports signed delta mass modifications, not {name!r}.")
+            nterm_str = name
+
+        sequence = annot_copy.stripped_sequence
+        internal = annot_copy._internal_mods or {}
+        parts: list[str] = [nterm_str]
+        for index, residue in enumerate(sequence):
+            parts.append(residue)
+            if index in internal:
+                mods = internal[index]
+                if len(mods) > 1:
+                    raise PeptacularError("Casanovo format does not support multiple modifications on one residue.")
+                for name, count in mods.items():
+                    if count != 1:
+                        raise PeptacularError("Casanovo format does not support modification multipliers.")
+                    if not _SIGNED_DELTA_RE.match(name):
+                        raise PeptacularError(f"Casanovo format only supports signed delta mass modifications, not {name!r}.")
+                    parts.append(name)
+        return "".join(parts)
 
     @staticmethod
     def from_casanovo(sequence: str) -> "ProFormaAnnotation":
