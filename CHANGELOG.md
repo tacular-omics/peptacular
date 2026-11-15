@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `count_residues` and `percent_residues` count the residues inside an interval instead of counting the interval as one residue. With an interval anywhere in the sequence the counts did not sum to the sequence length: `pt.count_residues("PEP(?TI)DE")` returned a `(?TI)` key and a total of 6 for a 7-residue peptide, and `(?PEP)TIDE` totalled 5 for 7 residues, so `percent_residues` was computed over the wrong total. Now `T` and `I` are counted individually. An interval without modifications adds no key of its own. An interval with modifications is written onto each residue it spans as a one-residue interval with the same modifications, so `PEP(?TI)[Phospho]DE` holds `(?T)[Phospho]` and `(?I)[Phospho]`, which keeps the modification visible and apart from a localised `T[Phospho]`. `include_mods=False` and `split` are unchanged.
+
 ### Changed
 
 - Speed up `pt.coverage()`, `pt.percent_coverage()` and `find_indices()` on unmodified sequences by using `str.find` and direct slice assignment instead of regex matching and annotation slicing. On a 1600-residue protein with 474 tryptic peptides, median execution time drops from about 40 ms to about 5.7 ms, and on a 1600-residue protein with 462 tryptic peptides it drops from 27.6 ms to 2.9 ms with the annotation slices in one call falling from 2628 to none. The coverage vector is unchanged for every combination of `accumulate`, `ignore_mods` and `ignore_ambiguity` on plain sequences, a modified protein, modified peptides, repeated and overlapping matches and ambiguous intervals, with the one exception in the next entry (#86).
