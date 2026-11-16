@@ -40,7 +40,6 @@ from .diagnostics import (
 )
 from .digestion import DigestProtocol, EnzymeConfig
 from .fragmentation_presets import (
-    FRAGMENTATION_PRESET_ALIASES,
     FRAGMENTATION_PRESET_CITATIONS,
     FRAGMENTATION_PRESETS,
     fragmentation_preset,
@@ -277,7 +276,6 @@ __all__ = [
     "FRAGMENT_ARRAY_KEYS",
     "fragmentation_preset",
     "FRAGMENTATION_PRESETS",
-    "FRAGMENTATION_PRESET_ALIASES",
     "FRAGMENTATION_PRESET_CITATIONS",
     # localization
     "localization_isomers",

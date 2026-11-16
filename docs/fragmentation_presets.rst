@@ -37,8 +37,8 @@ override it when your data say otherwise.
 The presets
 -----------
 
-Every preset sets ``ion_types``, ``neutral_deltas`` and ``max_ndeltas=1`` (at most one neutral
-loss per ion). ``charge_state`` adds ``charges``, always ``1`` to ``max(1, charge_state - 1)``,
+Each method has one spelling, matched without regard to case or surrounding spaces. Every preset
+sets ``ion_types``, ``neutral_deltas`` and ``max_ndeltas=1`` (at most one neutral loss per ion). ``charge_state`` adds ``charges``, always ``1`` to ``max(1, charge_state - 1)``,
 because the fragments of a ``z+`` precursor cannot each carry ``z`` charges. Leave
 ``charge_state`` out and :func:`peptacular.fragment` uses the annotation's own charge.
 
@@ -50,14 +50,14 @@ because the fragments of a ``z+`` precursor cannot each carry ``z`` charges. Lea
      - ion_types
      - neutral_deltas
      - primary literature
-   * - ``cid`` (alias ``cad``)
+   * - ``cid``
      - b, y
      - H2O, NH3
      - Roepstorff and Fohlman 1984, Biol Mass Spectrom 11:601 (10.1002/bms.1200111109), the
        letter that names a, b, c, x, y, z; Paizs and Suhai 2005, Mass Spectrom Rev 24:508-548
        (10.1002/mas.20024) for b and y dominating low-energy CID and for the water and ammonia
        losses
-   * - ``hcd`` (aliases ``beam-type cid``, ``pasef``)
+   * - ``hcd``
      - b, y
      - H2O, NH3
      - Olsen et al. 2007, Nat Methods 4:709-712 (10.1038/nmeth1060)
@@ -69,7 +69,7 @@ because the fragments of a ``z+`` precursor cannot each carry ``z`` charges. Lea
      - c, z.
      - H2O, NH3
      - Zubarev et al. 1998, JACS 120:3265-3266 (10.1021/ja973478k)
-   * - ``ethcd`` (aliases ``etcid``, ``etcad``)
+   * - ``ethcd``
      - b, y, c, z.
      - H2O, NH3
      - Frese et al. 2012, Anal Chem 84:9668-9673 (10.1021/ac3025366); Swaney et al. 2007, Anal
@@ -141,6 +141,7 @@ Mapping an instrument's activation type
 
 peptacular reads no files, so it does not know what a spectrum was fragmented with. A reader does:
 `spxtacular <https://spxtacular.readthedocs.io/>`_ carries the method on
-``MsnSpectrum.activation_type``, normalised from the PSI-MS dissociation-method accessions, and its
-names line up with the preset names above apart from the aliases in
-:data:`peptacular.FRAGMENTATION_PRESET_ALIASES`. Map it there and pass the preset here.
+``MsnSpectrum.activation_type``, normalised from the PSI-MS dissociation-method accessions. Each
+method has one spelling here, so an instrument's own name for it, such as PASEF for beam-type
+collisional dissociation or ETciD for electron transfer with supplemental collisional activation,
+is mapped to a preset there and the preset is passed here.

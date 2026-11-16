@@ -125,9 +125,9 @@ which builds a `Fragment`.
   `parse_formula`, `add_composition`, `merge_compositions`.
 - **Fragments**: `fragment`, `frag`, `fast_fragment`, `Fragment`, `fragment_arrays` and
   `FRAGMENT_ARRAY_KEYS` (numpy columns; needs the `numpy` extra), plus the activation-method
-  presets `fragmentation_preset`, `FRAGMENTATION_PRESETS`, `FRAGMENTATION_PRESET_ALIASES` and
-  `FRAGMENTATION_PRESET_CITATIONS` (`fragmentation_presets.py`; each preset is `fragment()`'s own
-  keyword arguments for one method, with its primary literature).
+  presets `fragmentation_preset`, `FRAGMENTATION_PRESETS` and `FRAGMENTATION_PRESET_CITATIONS`
+  (`fragmentation_presets.py`; each preset is `fragment()`'s own keyword arguments for one method,
+  with its primary literature, and one spelling per method).
 - **Digestion**: `digest`, `simple_digest`, `semi_digest`, `left_semi_digest`,
   `right_semi_digest`, `nonspecific_digest`, `cleavage_sites`, `simple_cleavage_sites`,
   `EnzymeConfig`, `DigestProtocol`. Spans: `Span`, `build_spans`,

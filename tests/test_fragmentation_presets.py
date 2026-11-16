@@ -46,10 +46,6 @@ class TestPresetTable:
     def test_every_preset_sets_the_same_three_keys(self, name: str):
         assert set(pt.FRAGMENTATION_PRESETS[name]) == {"ion_types", "neutral_deltas", "max_ndeltas"}
 
-    @pytest.mark.parametrize(("alias", "target"), sorted(pt.FRAGMENTATION_PRESET_ALIASES.items()))
-    def test_every_alias_resolves_to_its_preset(self, alias: str, target: str):
-        assert pt.fragmentation_preset(alias) == pt.fragmentation_preset(target)
-
     def test_etd_holds_no_collisional_series(self):
         # The b and y ions of an electron-transfer experiment come from supplemental collisional
         # activation of the charge-reduced survivor, which is the ethcd preset.
@@ -82,8 +78,15 @@ class TestPresetLookup:
         assert "mystery" in message
         for name in PRESET_NAMES:
             assert name in message
-        for alias in pt.FRAGMENTATION_PRESET_ALIASES:
-            assert alias in message
+
+    def test_an_instrument_name_is_not_a_preset(self):
+        # One spelling per method: mapping PASEF or ETciD onto a preset is the reader's job.
+        for instrument_name in ("pasef", "etcid", "cad", "beam-type cid"):
+            with pytest.raises(pt.PeptacularError, match="Unknown activation method"):
+                pt.fragmentation_preset(instrument_name)
+
+    def test_no_alias_table_is_exported(self):
+        assert not hasattr(pt, "FRAGMENTATION_PRESET_ALIASES")
 
 
 class TestPresetCounts:

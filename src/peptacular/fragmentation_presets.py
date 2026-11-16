@@ -54,6 +54,11 @@ uvpd       a, b, c, x, y, z                 H2O               Shaw et al. 2013, 
 come from collisional activation of the charge-reduced survivor (Swaney et al. 2007, and Han et al.
 2007, Rapid Commun Mass Spectrom 21:1567-1573, 10.1002/rcm.2994), which is what ``ethcd`` is for.
 
+Each method has one spelling, the key above, matched without regard to case or surrounding
+spaces. An instrument's own name for a method, such as PASEF for beam-type collisional
+dissociation or ETciD for electron transfer with supplemental collisional activation, is mapped to
+a preset by whatever reads the file, not here.
+
 A preset for a method not listed here is a dict: write it into :data:`FRAGMENTATION_PRESETS` and
 :func:`fragmentation_preset` will find it.
 
@@ -73,7 +78,7 @@ from typing import Any
 
 from .diagnostics import PeptacularError
 
-__all__ = ["FRAGMENTATION_PRESETS", "FRAGMENTATION_PRESET_ALIASES", "FRAGMENTATION_PRESET_CITATIONS", "fragmentation_preset"]
+__all__ = ["FRAGMENTATION_PRESETS", "FRAGMENTATION_PRESET_CITATIONS", "fragmentation_preset"]
 
 _WATER_AND_AMMONIA = ("H2O", "NH3")
 
@@ -89,17 +94,6 @@ FRAGMENTATION_PRESETS: dict[str, dict[str, Any]] = {
 """The keyword arguments of :func:`peptacular.fragment` for each activation method, except
 ``charges``, which :func:`fragmentation_preset` adds from the precursor charge. Writable: a new
 method is a new key."""
-
-FRAGMENTATION_PRESET_ALIASES: dict[str, str] = {
-    "cad": "cid",
-    "beam-type cid": "hcd",
-    "pasef": "hcd",
-    "etcid": "ethcd",
-    "etcad": "ethcd",
-}
-"""Other names for a preset. ``pasef`` fragments by beam-type collisional dissociation, so it maps
-to ``hcd``; ``etcid`` and ``etcad`` are electron transfer with supplemental collisional activation,
-the same series as ``ethcd``."""
 
 FRAGMENTATION_PRESET_CITATIONS: dict[str, str] = {
     "cid": (
@@ -127,8 +121,9 @@ def fragmentation_preset(method: str, *, charge_state: int | None = None) -> dic
     The returned dict is a fresh copy, so overriding one entry is a dict literal and the caller's
     key wins.
 
-    :param method: A key of :data:`FRAGMENTATION_PRESETS` or of
-        :data:`FRAGMENTATION_PRESET_ALIASES`, in any case and with surrounding spaces ignored.
+    :param method: A key of :data:`FRAGMENTATION_PRESETS`, in any case and with surrounding
+        spaces ignored. There is one spelling per method: an instrument's own name for it, such
+        as PASEF or ETciD, is mapped to a preset by whatever reads the file.
     :type method: str
     :param charge_state: The precursor charge. When given, the preset carries
         ``charges=(1, ..., max(1, abs(charge_state) - 1))``. When None, no ``charges`` key is set
@@ -151,11 +146,9 @@ def fragmentation_preset(method: str, *, charge_state: int | None = None) -> dic
     """
 
     key = method.strip().lower()
-    key = FRAGMENTATION_PRESET_ALIASES.get(key, key)
     if key not in FRAGMENTATION_PRESETS:
         names = ", ".join(sorted(FRAGMENTATION_PRESETS))
-        aliases = ", ".join(sorted(FRAGMENTATION_PRESET_ALIASES))
-        raise PeptacularError(f"Unknown activation method: {method!r}. Presets: {names}. Aliases: {aliases}")
+        raise PeptacularError(f"Unknown activation method: {method!r}. Presets: {names}")
     preset = dict(FRAGMENTATION_PRESETS[key])
     if charge_state is not None:
         preset["charges"] = tuple(range(1, max(1, abs(charge_state) - 1) + 1))

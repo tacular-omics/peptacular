@@ -292,7 +292,6 @@ print([round(x, 3) for x in fast[(pt.IonType.B, 1)]][:3])  # [98.06, 227.103, 32
 ```
 fragmentation_preset(method: str, *, charge_state: int | None = None) -> dict[str, Any]
 FRAGMENTATION_PRESETS: dict[str, dict]            # the table, writable: a new method is a new key
-FRAGMENTATION_PRESET_ALIASES: dict[str, str]      # cad->cid, beam-type cid/pasef->hcd, etcid/etcad->ethcd
 FRAGMENTATION_PRESET_CITATIONS: dict[str, str]    # the primary literature per preset
 ```
 
@@ -315,7 +314,10 @@ and the peptide.
 Every preset sets `max_ndeltas=1`. `charge_state=z` adds `charges=(1, ..., max(1, z - 1))`, the
 same rule in every preset, because the fragments of a z+ precursor cannot each carry z charges.
 `etd` carries no b or y series: those come from collisional activation of the charge-reduced
-survivor, which is `ethcd`. An unknown method raises `PeptacularError` naming the valid names.
+survivor, which is `ethcd`. Each method has one spelling, matched without regard to case or
+surrounding spaces, and an unknown method raises `PeptacularError` naming the seven valid names.
+An instrument's own name for a method (PASEF, ETciD) is mapped to a preset by whatever reads the
+file, not here.
 
 ```python
 import peptacular as pt
