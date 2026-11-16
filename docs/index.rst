@@ -41,6 +41,7 @@ User Guide
    interoperability
    masses
    mass_calculation
+   fragmentation_presets
    localization
    records
    json_serialization

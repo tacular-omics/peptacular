@@ -39,6 +39,11 @@ from .diagnostics import (
     UnsupportedOperationError,
 )
 from .digestion import DigestProtocol, EnzymeConfig
+from .fragmentation_presets import (
+    FRAGMENTATION_PRESET_CITATIONS,
+    FRAGMENTATION_PRESETS,
+    fragmentation_preset,
+)
 from .isotope import (
     AVERAGINE_RATIOS,
     IsotopicData,
@@ -269,6 +274,9 @@ __all__ = [
     "fast_fragment",
     "fragment_arrays",
     "FRAGMENT_ARRAY_KEYS",
+    "fragmentation_preset",
+    "FRAGMENTATION_PRESETS",
+    "FRAGMENTATION_PRESET_CITATIONS",
     # localization
     "localization_isomers",
     "DEFAULT_MAX_ISOMERS",

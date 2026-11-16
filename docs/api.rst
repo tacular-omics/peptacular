@@ -87,6 +87,11 @@ Records
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: peptacular.fragmentation_presets
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Property
 ^^^^^^^^
 
