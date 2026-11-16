@@ -83,6 +83,68 @@ class TestCountResidues:
         assert pt.parse("<13C>PEPTIDE/2").count_residues() == pt.parse("<13C>PEPTIDE").count_residues()
 
 
+INTERVAL_SEQUENCES = [
+    "PEPTIDE",
+    "PEP(?TI)DE",
+    "(?PEP)TIDE",
+    "PEP(TI)DE",
+    "PEP(?TI)[Phospho]DE",
+    "PEP(TI)[Phospho]DE",
+]
+
+
+class TestCountResiduesIntervals:
+    @pytest.mark.parametrize("seq", INTERVAL_SEQUENCES)
+    @pytest.mark.parametrize("include_mods", [True, False])
+    def test_counts_sum_to_sequence_length(self, seq: str, include_mods: bool):
+        assert sum(pt.count_residues(seq, include_mods=include_mods).values()) == pt.sequence_length(seq)
+
+    def test_ambiguous_interval_counts_its_residues(self):
+        assert pt.count_residues("PEP(?TI)DE") == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_leading_interval_counts_all_three_residues(self):
+        assert pt.count_residues("(?PEP)TIDE") == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_non_ambiguous_interval_counts_its_residues(self):
+        assert pt.count_residues("PEP(TI)DE") == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_interval_modification_stays_visible_on_each_residue(self):
+        assert pt.count_residues("PEP(?TI)[Phospho]DE") == {
+            "P": 2,
+            "E": 2,
+            "(?T)[Phospho]": 1,
+            "(?I)[Phospho]": 1,
+            "D": 1,
+        }
+        assert pt.count_residues("PEP(TI)[Phospho][Oxidation]DE") == {
+            "P": 2,
+            "E": 2,
+            "(T)[Phospho][Oxidation]": 1,
+            "(I)[Phospho][Oxidation]": 1,
+            "D": 1,
+        }
+
+    def test_residue_modification_inside_interval_is_kept(self):
+        counts = pt.count_residues("PEP(?T[Oxidation]I)[Phospho]DE")
+        assert counts["(?T[Oxidation])[Phospho]"] == 1
+        assert counts["(?I)[Phospho]"] == 1
+
+    def test_interval_beside_residue_modification(self):
+        counts = pt.count_residues("P[Oxidation]EP(?TI)DE")
+        assert counts == {"P[Oxidation]": 1, "E": 2, "P": 1, "T": 1, "I": 1, "D": 1}
+
+    def test_include_mods_false_is_unchanged(self):
+        assert pt.count_residues("PEP(?TI)[Phospho]DE", include_mods=False) == {"P": 2, "E": 2, "T": 1, "I": 1, "D": 1}
+
+    def test_input_is_not_modified(self):
+        annot = pt.parse("PEP(?TI)[Phospho]DE")
+        annot.count_residues()
+        assert annot.serialize() == "PEP(?TI)[Phospho]DE"
+
+    def test_method_matches_function(self):
+        assert pt.parse("PEP(?TI)[Phospho]DE").count_residues() == pt.count_residues("PEP(?TI)[Phospho]DE")
+
+
 class TestPercentResidues:
     def test_empty_sequence_returns_empty_dict(self):
         a = pt.parse("")
@@ -283,3 +345,17 @@ class TestCoverageIgnoreModsSkipsSlicing:
     def test_ignore_mods_false_still_refuses_the_cut(self, prot_str: str, peps_str: list[str], message: str):
         with pytest.raises(pt.PeptacularError, match=message):
             pt.coverage(prot_str, peps_str, ignore_mods=False)
+
+
+class TestPercentResiduesIntervals:
+    @pytest.mark.parametrize("seq", INTERVAL_SEQUENCES)
+    def test_sums_to_100(self, seq: str):
+        assert sum(pt.percent_residues(seq).values()) == pytest.approx(100.0)
+
+    def test_computed_over_every_residue(self):
+        assert pt.percent_residues("PEP(?TI)DE") == pytest.approx({"P": 200 / 7, "E": 200 / 7, "T": 100 / 7, "I": 100 / 7, "D": 100 / 7})
+
+    def test_modified_interval_percentages(self):
+        result = pt.percent_residues("PEP(TI)[Phospho]DE")
+        assert result["(T)[Phospho]"] == pytest.approx(100 / 7)
+        assert result["(I)[Phospho]"] == pytest.approx(100 / 7)

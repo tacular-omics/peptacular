@@ -238,6 +238,16 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
     the same as ``PEPTIDE``. A global isotope label is the exception and stays in the key,
     because it applies to every residue: ``<13C>PEPTIDE`` holds ``<13C>P``.
 
+    Intervals are counted residue by residue, so the counts always sum to the sequence length:
+    ``PEP(?TI)DE`` holds ``T`` and ``I`` and no ``(?TI)`` key. An interval that carries no
+    modification adds nothing to the keys. An interval that carries modifications is written
+    onto each of its residues as a one-residue interval with the same modifications, so
+    ``PEP(?TI)[Phospho]DE`` holds ``(?T)[Phospho]`` and ``(?I)[Phospho]`` and
+    ``PEP(TI)[Phospho]DE`` holds ``(T)[Phospho]`` and ``(I)[Phospho]``. That is the form
+    ``serialize`` already uses for an interval, and it keeps the modification apart from a
+    localised one such as ``T[Phospho]``, because the interval only says the modification is
+    somewhere on its residues. ``include_mods=False`` counts plain residue letters.
+
     Args:
         annotation: The ProFormaAnnotation to analyze
         include_mods: Whether to include modifications in the count
@@ -249,8 +259,19 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
     if not include_mods:
         return dict(Counter(annotation.sequence))
 
-    split_annotations = annotation.split()
-    return dict(Counter(_residue_key(a) for a in split_annotations))
+    # split keeps an interval whole as one piece, which is right for split but not for a count,
+    # so take the intervals off first, split the plain residues, then put each modified
+    # interval back on the residues it spans.
+    residues = annotation.copy()
+    intervals = residues.pop_intervals(inplace=True)
+    keys = [_residue_key(a) for a in residues.split()]
+    for interval in intervals:
+        if not interval.has_mods:
+            continue
+        prefix = "(?" if interval.ambiguous else "("
+        for i in range(interval.start, interval.end):
+            keys[i] = f"{prefix}{keys[i]}){interval.mod_str}"
+    return dict(Counter(keys))
 
 
 def percent_residues(
