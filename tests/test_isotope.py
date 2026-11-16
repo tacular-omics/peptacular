@@ -324,3 +324,108 @@ def test_averagine_comp_minimises_envelope_error_among_mass_feasible_composition
     chosen = dict(pt.averagine_comp(target))
     chosen_error = isotope._envelope_error(chosen, reference)
     assert all(isotope._envelope_error(composition, reference) >= chosen_error - 1e-12 for composition in feasible)
+
+
+# Compositions returned by averagine_comp on main before the cache was added (issue #107).
+_AVERAGINE_COMP_BEFORE_CACHE = {
+    500.0: {"C": 21, "H": 37, "N": 7, "O": 7},
+    1000.0: {"C": 42, "H": 71, "N": 12, "O": 16},
+    1500.0: {"C": 66, "H": 105, "N": 19, "O": 19, "S": 1},
+    2000.0: {"C": 88, "H": 142, "N": 24, "O": 27, "S": 1},
+    3000.0: {"C": 132, "H": 209, "N": 37, "O": 41, "S": 1},
+    5000.0: {"C": 220, "H": 351, "N": 61, "O": 68, "S": 2},
+    10000.0: {"C": 441, "H": 697, "N": 125, "O": 133, "S": 4},
+}
+
+
+@pytest.mark.parametrize("target", list(_AVERAGINE_COMP_BEFORE_CACHE))
+def test_averagine_comp_values_match_the_uncached_search(target):
+    """Caching leaves the returned composition unchanged, on a cold and on a warm cache (issue #107)."""
+
+    from peptacular import isotope
+
+    expected = _AVERAGINE_COMP_BEFORE_CACHE[target]
+    isotope._averagine_counts.cache_clear()
+    cold = pt.averagine_comp(target)
+    warm = pt.averagine_comp(target)
+    assert {str(element): count for element, count in cold.items()} == expected
+    assert warm == cold
+    assert isotope._averagine_counts.cache_info().hits >= 1
+
+
+def test_averagine_envelope_worst_case_is_still_93_38_percent():
+    """The worst k=1..5 error over the envelope peptides is the value measured before the cache (issue #107)."""
+
+    from peptacular import isotope
+
+    isotope._averagine_counts.cache_clear()
+    for _ in range(2):  # second pass runs on a warm cache
+        worst = max(_envelope_error_percent(peptide) for peptide in _ENVELOPE_PEPTIDES)
+        assert worst == pytest.approx(93.38, abs=0.005)
+
+
+def test_averagine_comp_returns_a_fresh_counter_each_call():
+    """Mutating a returned composition cannot change what the next caller gets (issue #107)."""
+
+    first = pt.averagine_comp(1000.0)
+    expected = dict(first)
+    carbon = next(element for element in first if element.symbol == "C")
+
+    first[carbon] += 100
+    first[ELEMENT_LOOKUP["Se"]] = 3
+    first.clear()
+
+    second = pt.averagine_comp(1000.0)
+    assert dict(second) == expected
+    assert second is not first
+    second[carbon] = 0
+    assert dict(pt.averagine_comp(1000.0)) == expected
+
+
+def test_estimate_isotopic_distribution_is_unaffected_by_mutating_averagine_comp():
+    """An edited averagine_comp result does not leak into the isotope envelope (issue #107)."""
+
+    before = estimate_isotopic_distribution(1000.0, max_isotopes=5)
+    pt.averagine_comp(1000.0).clear()
+    assert estimate_isotopic_distribution(1000.0, max_isotopes=5) == before
+
+
+def test_averagine_comp_searches_each_mass_once():
+    """Repeated calls with one mass search once, and estimate_isotopic_distribution shares that search (issue #107)."""
+
+    from peptacular import isotope
+
+    isotope._averagine_counts.cache_clear()
+    for _ in range(10):
+        pt.averagine_comp(1000.0)
+    info = isotope._averagine_counts.cache_info()
+    assert (info.misses, info.hits) == (1, 9)
+
+    for _ in range(5):
+        estimate_isotopic_distribution(1000.0, max_isotopes=5)
+    info = isotope._averagine_counts.cache_info()
+    assert (info.misses, info.hits) == (1, 14)
+
+    pt.averagine_comp(1000.5)
+    assert isotope._averagine_counts.cache_info().misses == 2
+    assert pt.averagine_comp(1000) == pt.averagine_comp(1000.0)  # an int key is the same float key
+
+
+def test_averagine_comp_cache_is_bounded():
+    """The cache keeps at most 1024 masses, like the other bounded caches in the module (issue #107)."""
+
+    from peptacular import isotope
+
+    isotope._averagine_counts.cache_clear()
+    assert isotope._averagine_counts.cache_info().maxsize == 1024
+    for index in range(20):
+        pt.averagine_comp(1000.0 + index)
+    assert isotope._averagine_counts.cache_info().currsize == 20
+
+
+def test_averagine_comp_rejects_invalid_mass_every_time():
+    """A refused mass is not cached as a result (issue #107)."""
+
+    for _ in range(2):
+        with pytest.raises(pt.PeptacularError):
+            pt.averagine_comp(-1.0)
