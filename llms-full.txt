@@ -584,6 +584,11 @@ pi(sequence: SEQS, *PAR) -> float | list[float]              # isoelectric point
 charge_at_ph(sequence: SEQS, pH: float = 7.0, *PAR) -> float | list[float]
 aromaticity(sequence: SEQS, aromatic_residues: list[str] | None = None, *PAR) -> float | list[float]
 aa_property_percentage(sequence: SEQS, residues: list[str], *PAR) -> float | list[float]
+instability_index(sequence: SEQS, *PAR) -> float | list[float]        # ProtParam, below 40 is stable
+aliphatic_index(sequence: SEQS, *PAR) -> float | list[float]          # ProtParam, mole percent of A/V/I/L
+molar_extinction_coefficient(sequence: SEQS, cystines: bool = False, *PAR) -> int | list[int]   # 280 nm, cystines keyword-only
+    # The three ProtParam numbers refuse an ambiguous residue they cannot resolve ('X' always,
+    # and any residue with no DIWV entry for the instability index) instead of diluting it.
 secondary_structure(sequence: SEQS, scale=SecondaryStructureMethod.DELEAGE_ROUX, *PAR) -> dict[str, float] | list[...]
 alpha_helix_percent / beta_sheet_percent / beta_turn_percent / coil_percent(sequence: SEQS, *PAR)
 calc_property(sequence: SEQS, scale: str | dict[str, float], missing_aa_handling="error",

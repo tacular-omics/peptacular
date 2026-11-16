@@ -665,6 +665,12 @@ def instability_index(sequence: str) -> float:
     Citation:
         Guruprasad K., Reddy B.V.B., Pandit M.W. (1990) Protein Eng. 4:155-161.
 
+    The DIWV matrix is measured for the twenty standard amino acids, so a dipeptide holding
+    an ambiguous residue (``B``, ``J``, ``Z``, ``X``) or a residue outside the twenty
+    (``U``, ``O``) has no entry and is refused. Unlike the aliphatic index, no ambiguity
+    code can be resolved here, because the two amino acids a code stands for have different
+    DIWV values.
+
     :param sequence: Plain amino acid sequence string.
     :return: The instability index as a float.
     :raises PeptacularError: If a dipeptide has no DIWV matrix entry.
@@ -683,28 +689,120 @@ def instability_index(sequence: str) -> float:
     return (INSTABILITY_INDEX_SCALE / len(sequence)) * total
 
 
+_ANY_RESIDUE: Final[str] = "X"
+"""The ProForma code for an unspecified amino acid. It stands for any of the twenty."""
+
+_ALIPHATIC_INDEX_FACTORS: Final[dict[str, float]] = {
+    "A": 1.0,  # alanine is the unit of the formula, so its coefficient is 1 by definition
+    "V": ALIPHATIC_INDEX_VAL_FACTOR,
+    "I": ALIPHATIC_INDEX_ILE_LEU_FACTOR,
+    "L": ALIPHATIC_INDEX_ILE_LEU_FACTOR,
+}
+"""The aliphatic index coefficient of each residue the formula counts. Every other residue
+contributes nothing to the sum but is still counted in the length."""
+
+_CHROMOPHORES: Final[frozenset[str]] = frozenset("WYC")
+"""The residues that absorb at 280 nm."""
+
+
+def _aliphatic_factor(aa: str) -> float:
+    """The aliphatic index coefficient of one residue.
+
+    An ambiguity code is resolved when every amino acid it stands for carries the same
+    coefficient: ``J`` is leucine or isoleucine and both are 3.9, ``B`` is aspartate or
+    asparagine and ``Z`` is glutamate or glutamine, neither of which is aliphatic, so all
+    three are determinate. ``X`` stands for any of the twenty, whose coefficients differ, so
+    it is refused rather than counted as zero, which would leave it in the length and
+    dilute the mole percent.
+
+    :param aa: One residue code.
+    :type aa: str
+    :return: The coefficient to add to the sum for this residue.
+    :rtype: float
+    :raises PeptacularError: If the residue's coefficient is not determined.
+    """
+    if aa in _ALIPHATIC_INDEX_FACTORS:
+        return _ALIPHATIC_INDEX_FACTORS[aa]
+
+    if aa in AMBIGUOUS_AMINO_ACID_MAP:
+        options = AMBIGUOUS_AMINO_ACID_MAP[aa]
+        factors = {_ALIPHATIC_INDEX_FACTORS.get(option, 0.0) for option in options}
+        if len(factors) == 1:
+            return factors.pop()
+        raise PeptacularError(
+            f"Cannot calculate the aliphatic index of the ambiguous residue '{aa}': it stands for "
+            f"{' or '.join(options)}, whose aliphatic side chain volumes differ."
+        )
+
+    if aa == _ANY_RESIDUE:
+        raise PeptacularError(
+            f"Cannot calculate the aliphatic index of the ambiguous residue '{_ANY_RESIDUE}': it stands for any "
+            f"amino acid, and their aliphatic side chain volumes differ."
+        )
+
+    return 0.0
+
+
 def aliphatic_index(sequence: str) -> float:
     """Calculate the aliphatic index of a protein sequence.
 
     The aliphatic index represents the relative volume occupied by aliphatic side
     chains (alanine, valine, isoleucine, and leucine).
 
+    An ambiguous residue is resolved when every amino acid it stands for occupies the same
+    volume (``J`` is leucine or isoleucine, both 3.9) and refused when they differ (``X``
+    stands for any amino acid). The index is a mole percent, so counting an indeterminate
+    residue as zero would dilute it rather than leave it out.
+
     Citation:
         Ikai A.J. (1980) J. Biochem. 88:1895-1898.
 
     :param sequence: Plain amino acid sequence string.
     :return: The aliphatic index as a float.
+    :raises PeptacularError: If a residue's aliphatic side chain volume is not determined.
     """
     if not sequence:
         return 0.0
 
-    counts = _count_residues(sequence)
-    ala = counts.get("A", 0)
-    val = counts.get("V", 0)
-    ile = counts.get("I", 0)
-    leu = counts.get("L", 0)
+    total = sum(_aliphatic_factor(aa) for aa in sequence)
 
-    return (ALIPHATIC_INDEX_SCALE / len(sequence)) * (ala + ALIPHATIC_INDEX_VAL_FACTOR * val + ALIPHATIC_INDEX_ILE_LEU_FACTOR * (ile + leu))
+    return (ALIPHATIC_INDEX_SCALE / len(sequence)) * total
+
+
+def _chromophore(aa: str) -> str | None:
+    """The residue a code absorbs as at 280 nm, or None when it does not absorb.
+
+    An ambiguity code is resolved when none of the amino acids it stands for is a
+    chromophore: ``B`` is aspartate or asparagine, ``J`` is leucine or isoleucine and ``Z``
+    is glutamate or glutamine, so none of them absorbs. ``X`` stands for any amino acid,
+    tryptophan and tyrosine among them, so it is refused rather than counted as zero, which
+    would understate the coefficient.
+
+    :param aa: One residue code.
+    :type aa: str
+    :return: The chromophore to count, or None.
+    :rtype: str | None
+    :raises PeptacularError: If the residue's absorbance is not determined.
+    """
+    if aa in _CHROMOPHORES:
+        return aa
+
+    if aa in AMBIGUOUS_AMINO_ACID_MAP:
+        options = AMBIGUOUS_AMINO_ACID_MAP[aa]
+        if any(option in _CHROMOPHORES for option in options):
+            raise PeptacularError(
+                f"Cannot calculate the molar extinction coefficient of the ambiguous residue '{aa}': it stands "
+                f"for {' or '.join(options)}, which do not absorb alike at 280 nm."
+            )
+        return None
+
+    if aa == _ANY_RESIDUE:
+        raise PeptacularError(
+            f"Cannot calculate the molar extinction coefficient of the ambiguous residue '{_ANY_RESIDUE}': it "
+            f"stands for any amino acid, tryptophan and tyrosine among them."
+        )
+
+    return None
 
 
 def molar_extinction_coefficient(sequence: str, *, cystines: bool = False) -> int:
@@ -714,14 +812,24 @@ def molar_extinction_coefficient(sequence: str, *, cystines: bool = False) -> in
         Gill S.C., von Hippel P.H. (1989) Anal. Biochem. 182:319-326, with the Trp and Tyr
         values of Pace C.N. et al. (1995) Protein Sci. 4:2411-2423.
 
+    An ambiguous residue is resolved when none of the amino acids it stands for absorbs at
+    280 nm (``B``, ``J`` and ``Z``) and refused when one of them does (``X`` stands for any
+    amino acid, tryptophan and tyrosine among them).
+
     :param sequence: Plain amino acid sequence string.
     :param cystines: If True, count paired cysteines (cystines) contributing 125 M^-1 cm^-1 each.
     :return: The molar extinction coefficient as an integer.
+    :raises PeptacularError: If a residue's absorbance at 280 nm is not determined.
     """
     if not sequence:
         return 0
 
-    counts = _count_residues(sequence)
+    counts: dict[str, int] = {}
+    for aa in sequence:
+        chromophore = _chromophore(aa)
+        if chromophore is not None:
+            counts[chromophore] = counts.get(chromophore, 0) + 1
+
     trp = counts.get("W", 0)
     tyr = counts.get("Y", 0)
     cys = counts.get("C", 0) if cystines else 0

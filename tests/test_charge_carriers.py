@@ -302,3 +302,42 @@ class TestCarrierSyntaxIsCheckedAtParse:
         assert annot.serialize() == "PEP[Foo]TIDE"
         with pytest.raises(pt.PeptacularError):
             annot.mass()
+
+
+class TestCarrierErrorPointsAtItsOwnCarrier:
+    """A position in a comma list names the carrier that is wrong, and the prefix is written once."""
+
+    def test_a_bad_multiplier_reports_its_own_position(self):
+        # The multiplier error used to carry the position of the first carrier in the list.
+        with pytest.raises(pt.ProFormaFormatError) as info:
+            pt.parse("EMEVEESPEK/[Na:z+1,H:z+1^0]")
+        message = str(info.value)
+        assert "Invalid adduct multiplier '^0'" in message
+        assert "Position 19:" in message
+
+    def test_a_bad_multiplier_on_the_only_carrier_is_unchanged(self):
+        with pytest.raises(pt.ProFormaFormatError, match="Position 12:"):
+            pt.parse("EMEVEESPEK/[H:z+1^0]")
+
+    def test_the_multiplier_and_the_carrier_agree_on_where_they_point(self):
+        positions = []
+        for seq in ("EMEVEESPEK/[Na:z+1,H:z+1^0]", "EMEVEESPEK/[Na:z+1,garbage]"):
+            with pytest.raises(pt.ProFormaFormatError) as info:
+                pt.parse(seq)
+            positions.append([line for line in str(info.value).splitlines() if line.startswith("Position ")][0])
+        assert positions[0] == positions[1] == "Position 19:"
+
+    def test_the_carrier_prefix_is_not_doubled(self):
+        # parse_global_charge_carrier names the carrier in this message itself, so the
+        # parser must not prepend its own copy.
+        with pytest.raises(pt.ProFormaFormatError) as info:
+            pt.parse("EMEVEESPEK/[Na:Z+1]")
+        message = str(info.value)
+        assert message.count("Invalid charge carrier") == 1
+        assert "'Na:Z+1'" in message
+
+    @pytest.mark.parametrize("seq", ["EMEVEESPEK/[]", "EMEVEESPEK/[garbage]", "EMEVEESPEK/[Na:zX]"])
+    def test_a_message_without_its_own_prefix_still_gets_one(self, seq):
+        with pytest.raises(pt.ProFormaFormatError) as info:
+            pt.parse(seq)
+        assert str(info.value).count("Invalid charge carrier") == 1
