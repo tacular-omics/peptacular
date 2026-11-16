@@ -5,6 +5,8 @@ from collections import Counter
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from .mod import Interval
+
 if TYPE_CHECKING:
     from .annotation import ProFormaAnnotation
 
@@ -246,7 +248,10 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
     ``PEP(TI)[Phospho]DE`` holds ``(T)[Phospho]`` and ``(I)[Phospho]``. That is the form
     ``serialize`` already uses for an interval, and it keeps the modification apart from a
     localised one such as ``T[Phospho]``, because the interval only says the modification is
-    somewhere on its residues. ``include_mods=False`` counts plain residue letters.
+    somewhere on its residues. A terminal modification or a global isotope label on that residue is
+    written outside the parentheses, where ProForma puts it, so ``[Acetyl]-(?PEP)[Phospho]TIDE`` holds
+    ``[Acetyl]-(?P)[Phospho]`` and every key is a sequence ``parse`` reads back.
+    ``include_mods=False`` counts plain residue letters.
 
     Args:
         annotation: The ProFormaAnnotation to analyze
@@ -264,13 +269,19 @@ def count_residues(annotation: ProFormaAnnotation, include_mods: bool = True) ->
     # interval back on the residues it spans.
     residues = annotation.copy()
     intervals = residues.pop_intervals(inplace=True)
-    keys = [_residue_key(a) for a in residues.split()]
+    pieces = residues.split()
+    keys = [_residue_key(a) for a in pieces]
     for interval in intervals:
         if not interval.has_mods:
             continue
-        prefix = "(?" if interval.ambiguous else "("
+        # Put the interval back on the piece and serialize, rather than wrapping the piece's key
+        # in parentheses: the key can already carry a terminal modification or a global tag, which
+        # belong outside the interval. Wrapping the whole key gave strings such as
+        # `(?[Acetyl]-P)[Phospho]` that are not valid ProForma.
         for i in range(interval.start, interval.end):
-            keys[i] = f"{prefix}{keys[i]}){interval.mod_str}"
+            piece = pieces[i]
+            piece.intervals = [Interval(0, 1, ambiguous=interval.ambiguous, mods=interval.mods)]
+            keys[i] = _residue_key(piece)
     return dict(Counter(keys))
 
 

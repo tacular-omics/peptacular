@@ -442,7 +442,9 @@ def count_residues(
     Residues inside an interval are counted one by one, so the counts sum to the sequence
     length. A modified interval is written onto each of its residues as a one-residue
     interval with the same modifications, e.g. ``PEP(?TI)[Phospho]DE`` holds
-    ``(?T)[Phospho]`` and ``(?I)[Phospho]``.
+    ``(?T)[Phospho]`` and ``(?I)[Phospho]``. A terminal modification or a global isotope
+    label on that residue stays outside the parentheses, so every key is a sequence
+    ``parse`` reads back.
 
     .. code-block:: python
 
@@ -460,6 +462,10 @@ def count_residues(
 
         >>> count_residues('PEP(?TI)[Phospho]DE')
         {'P': 2, 'E': 2, '(?T)[Phospho]': 1, '(?I)[Phospho]': 1, 'D': 1}
+
+        # A terminal modification stays outside the interval, so the key parses
+        >>> count_residues('[Acetyl]-(?PEP)[Phospho]TIDE')
+        {'[Acetyl]-(?P)[Phospho]': 1, '(?E)[Phospho]': 1, '(?P)[Phospho]': 1, 'T': 1, 'I': 1, 'D': 1, 'E': 1}
 
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):

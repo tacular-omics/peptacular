@@ -145,6 +145,60 @@ class TestCountResiduesIntervals:
         assert pt.parse("PEP(?TI)[Phospho]DE").count_residues() == pt.count_residues("PEP(?TI)[Phospho]DE")
 
 
+INTERVAL_KEY_SEQUENCES = [
+    "PEP(?TI)[Phospho]DE",
+    "PEP(TI)[Phospho]DE",
+    "PEP(?T[Oxidation]I)[Phospho]DE",
+    "(?PEPTIDE)[Phospho]",
+    "[Acetyl]-(?PEP)[Phospho]TIDE",
+    "PEPTID(?E)[Phospho]-[Amidated]",
+    "<13C>PEP(?TI)[Phospho]DE",
+    "[Acetyl]-(?PEPTIDE)[Phospho]-[Amidated]",
+    "<13C>[Acetyl]-(?PEP)[Phospho]TIDE-[Amidated]",
+]
+
+
+class TestCountResiduesIntervalKeysAreProForma:
+    @pytest.mark.parametrize("seq", INTERVAL_KEY_SEQUENCES)
+    def test_every_key_parses(self, seq: str):
+        for key in pt.count_residues(seq):
+            assert pt.parse(key).serialize() == key
+
+    def test_n_terminal_modification_stays_outside_the_interval(self):
+        assert pt.count_residues("[Acetyl]-(?PEP)[Phospho]TIDE") == {
+            "[Acetyl]-(?P)[Phospho]": 1,
+            "(?E)[Phospho]": 1,
+            "(?P)[Phospho]": 1,
+            "T": 1,
+            "I": 1,
+            "D": 1,
+            "E": 1,
+        }
+
+    def test_c_terminal_modification_stays_outside_the_interval(self):
+        assert pt.count_residues("PEPTID(?E)[Phospho]-[Amidated]") == {
+            "P": 2,
+            "E": 1,
+            "T": 1,
+            "I": 1,
+            "D": 1,
+            "(?E)[Phospho]-[Amidated]": 1,
+        }
+
+    def test_global_isotope_label_stays_outside_the_interval(self):
+        assert pt.count_residues("<13C>PEP(?TI)[Phospho]DE") == {
+            "<13C>P": 2,
+            "<13C>E": 2,
+            "<13C>(?T)[Phospho]": 1,
+            "<13C>(?I)[Phospho]": 1,
+            "<13C>D": 1,
+        }
+
+    @pytest.mark.parametrize("seq", INTERVAL_KEY_SEQUENCES)
+    def test_counts_still_sum_to_sequence_length(self, seq: str):
+        assert sum(pt.count_residues(seq).values()) == pt.sequence_length(seq)
+
+
 class TestPercentResidues:
     def test_empty_sequence_returns_empty_dict(self):
         a = pt.parse("")
