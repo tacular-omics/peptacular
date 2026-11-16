@@ -5,10 +5,13 @@ from dataclasses import dataclass
 
 from .core import (
     aa_property_percentage,
+    aliphatic_index,
     calc_property,
     calc_window_property,
     charge_at_ph,
     generate_partitions,
+    instability_index,
+    molar_extinction_coefficient,
     secondary_structure,
 )
 from .data import (
@@ -411,3 +414,17 @@ class AnnotationProperties:
             max_weight=max_weight,
         )
         return vals
+
+    @property
+    def instability_index(self) -> float:
+        """Calculate the instability index of the stripped sequence."""
+        return instability_index(sequence=self.stripped_sequence)
+
+    @property
+    def aliphatic_index(self) -> float:
+        """Calculate the aliphatic index of the stripped sequence."""
+        return aliphatic_index(sequence=self.stripped_sequence)
+
+    def molar_extinction_coefficient(self, *, cystines: bool = False) -> int:
+        """Calculate the molar extinction coefficient at 280 nm."""
+        return molar_extinction_coefficient(sequence=self.stripped_sequence, cystines=cystines)
