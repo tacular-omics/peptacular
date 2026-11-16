@@ -93,6 +93,7 @@ Calculate various physicochemical properties of peptides.
 - Aromaticity
 - Aliphatic index
 - Instability index
+- Molar extinction coefficient
 - GRAVY score
 - Secondary structure predictions
 - Custom property scales

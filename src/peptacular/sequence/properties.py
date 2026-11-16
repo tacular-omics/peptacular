@@ -50,6 +50,9 @@ __all__ = [
     "beta_turn_percent",
     "coil_percent",
     "property_partitions",
+    "instability_index",
+    "aliphatic_index",
+    "molar_extinction_coefficient",
 ]
 
 
@@ -1636,3 +1639,182 @@ def property_partitions(
             min_weight=min_weight,
             max_weight=max_weight,
         )
+
+
+def _instability_index_single(
+    sequence: str | ProFormaAnnotation | HasSequence,
+) -> float:
+    annotation = get_annotation_input(sequence=sequence, copy=False)
+    return annotation.prop.instability_index
+
+
+@overload
+def instability_index(
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> float: ...
+
+
+@overload
+def instability_index(
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[float]: ...
+
+
+def instability_index(
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> float | list[float]:
+    """Calculate the instability index of a protein sequence.
+
+    A value below 40 predicts a stable protein; a value above 40 predicts an unstable one.
+
+    Citation:
+        Guruprasad K., Reddy B.V.B., Pandit M.W. (1990) Protein Eng. 4:155-161.
+
+    :param sequence: A ProForma string or annotation, or a list of them.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input.
+    :return: The instability index, or a list of floats for list input.
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _instability_index_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    return _instability_index_single(sequence=sequence)
+
+
+def _aliphatic_index_single(
+    sequence: str | ProFormaAnnotation | HasSequence,
+) -> float:
+    annotation = get_annotation_input(sequence=sequence, copy=False)
+    return annotation.prop.aliphatic_index
+
+
+@overload
+def aliphatic_index(
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> float: ...
+
+
+@overload
+def aliphatic_index(
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[float]: ...
+
+
+def aliphatic_index(
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> float | list[float]:
+    """Calculate the aliphatic index of a protein sequence.
+
+    Represents the relative volume occupied by aliphatic side chains (Ala, Val, Ile, Leu).
+
+    Citation:
+        Ikai A.J. (1980) J. Biochem. 88:1895-1898.
+
+    :param sequence: A ProForma string or annotation, or a list of them.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input.
+    :return: The aliphatic index, or a list of floats for list input.
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _aliphatic_index_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    return _aliphatic_index_single(sequence=sequence)
+
+
+def _molar_extinction_coefficient_single(
+    sequence: str | ProFormaAnnotation | HasSequence,
+    cystines: bool = False,
+) -> int:
+    annotation = get_annotation_input(sequence=sequence, copy=False)
+    return annotation.prop.molar_extinction_coefficient(cystines=cystines)
+
+
+@overload
+def molar_extinction_coefficient(
+    sequence: str | ProFormaAnnotation | HasSequence,
+    *,
+    cystines: bool = False,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> int: ...
+
+
+@overload
+def molar_extinction_coefficient(
+    sequence: Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    cystines: bool = False,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[int]: ...
+
+
+def molar_extinction_coefficient(
+    sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence],
+    *,
+    cystines: bool = False,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> int | list[int]:
+    """Calculate the molar extinction coefficient at 280 nm in M^-1 cm^-1.
+
+    Citation:
+        Gill S.C., von Hippel P.H. (1989) Anal. Biochem. 182:319-326, with the Trp and Tyr
+        values of Pace C.N. et al. (1995) Protein Sci. 4:2411-2423.
+
+    :param sequence: A ProForma string or annotation, or a list of them.
+    :param cystines: If True, count paired cysteines (cystines) contributing 125 M^-1 cm^-1 each.
+    :param n_workers: Worker count for list input.
+    :param chunksize: Items per worker task for list input.
+    :param method: Parallel backend for list input.
+    :return: The molar extinction coefficient, or a list of integers for list input.
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _molar_extinction_coefficient_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+            cystines=cystines,
+        )
+    return _molar_extinction_coefficient_single(sequence=sequence, cystines=cystines)

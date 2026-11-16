@@ -3,9 +3,11 @@ from __future__ import annotations
 import math
 import statistics
 from collections.abc import Generator, Iterable, Mapping, Sequence
+from typing import Final
 
 from ..diagnostics import PeptacularError
 from .data import (
+    DIWV,
     NEGATIVE_AMINO_ACIDS,
     POSITIVE_AMINO_ACIDS,
     PROPERTY_SCALES,
@@ -31,6 +33,16 @@ __all__ = [
     "charge_at_ph",
     "secondary_structure",
     "generate_partitions",
+    "instability_index",
+    "aliphatic_index",
+    "molar_extinction_coefficient",
+    "INSTABILITY_INDEX_SCALE",
+    "ALIPHATIC_INDEX_VAL_FACTOR",
+    "ALIPHATIC_INDEX_ILE_LEU_FACTOR",
+    "ALIPHATIC_INDEX_SCALE",
+    "EXTINCTION_COEFFICIENT_TRP",
+    "EXTINCTION_COEFFICIENT_TYR",
+    "EXTINCTION_COEFFICIENT_CYSTINE",
 ]
 
 # Handle ambiguous amino acids
@@ -634,3 +646,85 @@ def generate_partitions(
         window_values.append(value)
 
     return window_values
+
+
+INSTABILITY_INDEX_SCALE: Final[float] = 10.0
+ALIPHATIC_INDEX_VAL_FACTOR: Final[float] = 2.9
+ALIPHATIC_INDEX_ILE_LEU_FACTOR: Final[float] = 3.9
+ALIPHATIC_INDEX_SCALE: Final[float] = 100.0
+EXTINCTION_COEFFICIENT_TRP: Final[int] = 5500
+EXTINCTION_COEFFICIENT_TYR: Final[int] = 1490
+EXTINCTION_COEFFICIENT_CYSTINE: Final[int] = 125
+
+
+def instability_index(sequence: str) -> float:
+    """Calculate the instability index of a protein sequence.
+
+    A value below 40 predicts a stable protein; a value above 40 predicts an unstable one.
+
+    Citation:
+        Guruprasad K., Reddy B.V.B., Pandit M.W. (1990) Protein Eng. 4:155-161.
+
+    :param sequence: Plain amino acid sequence string.
+    :return: The instability index as a float.
+    :raises PeptacularError: If a dipeptide has no DIWV matrix entry.
+    """
+    if len(sequence) < 2:
+        return 0.0
+
+    total = 0.0
+    for i in range(len(sequence) - 1):
+        d1, d2 = sequence[i], sequence[i + 1]
+        row = DIWV.get(d1)  # type: ignore[arg-type]
+        if row is None or d2 not in row:
+            raise PeptacularError(f"No DIWV entry for dipeptide '{d1}{d2}'")
+        total += row[d2]
+
+    return (INSTABILITY_INDEX_SCALE / len(sequence)) * total
+
+
+def aliphatic_index(sequence: str) -> float:
+    """Calculate the aliphatic index of a protein sequence.
+
+    The aliphatic index represents the relative volume occupied by aliphatic side
+    chains (alanine, valine, isoleucine, and leucine).
+
+    Citation:
+        Ikai A.J. (1980) J. Biochem. 88:1895-1898.
+
+    :param sequence: Plain amino acid sequence string.
+    :return: The aliphatic index as a float.
+    """
+    if not sequence:
+        return 0.0
+
+    counts = _count_residues(sequence)
+    ala = counts.get("A", 0)
+    val = counts.get("V", 0)
+    ile = counts.get("I", 0)
+    leu = counts.get("L", 0)
+
+    return (ALIPHATIC_INDEX_SCALE / len(sequence)) * (ala + ALIPHATIC_INDEX_VAL_FACTOR * val + ALIPHATIC_INDEX_ILE_LEU_FACTOR * (ile + leu))
+
+
+def molar_extinction_coefficient(sequence: str, *, cystines: bool = False) -> int:
+    """Calculate the molar extinction coefficient at 280 nm in M^-1 cm^-1.
+
+    Citation:
+        Gill S.C., von Hippel P.H. (1989) Anal. Biochem. 182:319-326, with the Trp and Tyr
+        values of Pace C.N. et al. (1995) Protein Sci. 4:2411-2423.
+
+    :param sequence: Plain amino acid sequence string.
+    :param cystines: If True, count paired cysteines (cystines) contributing 125 M^-1 cm^-1 each.
+    :return: The molar extinction coefficient as an integer.
+    """
+    if not sequence:
+        return 0
+
+    counts = _count_residues(sequence)
+    trp = counts.get("W", 0)
+    tyr = counts.get("Y", 0)
+    cys = counts.get("C", 0) if cystines else 0
+
+    cystine_pairs = cys // 2
+    return trp * EXTINCTION_COEFFICIENT_TRP + tyr * EXTINCTION_COEFFICIENT_TYR + cystine_pairs * EXTINCTION_COEFFICIENT_CYSTINE

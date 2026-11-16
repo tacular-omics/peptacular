@@ -73,6 +73,7 @@ from .parallel import (
 )
 from .properties import (
     aa_property_percentage,
+    aliphatic_index,
     alpha_helix_percent,
     aromaticity,
     average_buried_area,
@@ -88,6 +89,8 @@ from .properties import (
     hplc,
     hydrophilicity,
     hydrophobicity,
+    instability_index,
+    molar_extinction_coefficient,
     mutability,
     pi,
     polarity,
@@ -210,6 +213,9 @@ __all__ = [
     "beta_turn_percent",
     "coil_percent",
     "property_partitions",
+    "instability_index",
+    "aliphatic_index",
+    "molar_extinction_coefficient",
     # transformations
     "reverse",
     "shuffle",
