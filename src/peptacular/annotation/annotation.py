@@ -1352,7 +1352,12 @@ class ProFormaAnnotation(_ModAccessMixin):
         position: int | tuple[int, int] | None = None,
         _include_sequence: bool = True,
     ) -> Fragment:
-        """Calculate mass, preferring user charge over annotation charge."""
+        """Calculate mass, preferring user charge over annotation charge.
+
+        A cross-linked or branched peptidoform, a ``#XL`` or ``#BRANCH`` label on two residues,
+        raises :class:`UnsupportedOperationError`: the two residues are bonded to each other and
+        that bond is not modelled, so the ions of the linear peptide would be wrong.
+        """
         return _frag_engine.frag(
             self,
             ion_type,
@@ -1490,6 +1495,10 @@ class ProFormaAnnotation(_ModAccessMixin):
 
         A single ion type, charge, isotope or neutral delta may be passed without a list
         (``fragment("by", 2)`` is ``fragment(["by"], [2])``).
+
+        A cross-linked or branched peptidoform, a ``#XL`` or ``#BRANCH`` label on two residues,
+        raises :class:`UnsupportedOperationError`: the two residues are bonded to each other and
+        that bond is not modelled, so the ions of the linear peptide would be wrong.
         """
         return _frag_engine.fragment(
             self,
@@ -1527,6 +1536,8 @@ class ProFormaAnnotation(_ModAccessMixin):
         ``pa.table(result)`` and ``pd.DataFrame(result)`` accept it directly.
 
         :raises MissingOptionalDependencyError: If numpy is not installed.
+        :raises UnsupportedOperationError: If a ``#XL`` or ``#BRANCH`` label is on two residues
+            (a cross-linked or branched peptidoform).
         """
         from .frag_arrays import fragment_arrays
 
@@ -1567,6 +1578,8 @@ class ProFormaAnnotation(_ModAccessMixin):
         :rtype: dict[tuple[IonType, int], list[float]]
         :raises PeptacularError: If the ion type is unsupported, a charge is invalid,
             or the annotation contains unknown mods or interval mods.
+        :raises UnsupportedOperationError: If a ``#XL`` or ``#BRANCH`` label is on two residues
+            (a cross-linked or branched peptidoform).
         """
         return _frag_engine.fast_fragment(self, ion_types, charges, monoisotopic=monoisotopic)
 

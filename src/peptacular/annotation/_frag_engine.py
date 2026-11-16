@@ -7,7 +7,8 @@ into this module; use those methods, not these functions.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Sequence
+import re
+from collections.abc import Callable, Generator, Iterable, Sequence
 from functools import partial
 from itertools import product
 from typing import TYPE_CHECKING, Any
@@ -252,6 +253,61 @@ def satellite_mod_error(annot: ProFormaAnnotation, ion_type: IonType) -> str | N
     return None
 
 
+_CROSS_LINK_TAG = re.compile(r"#(XL[A-Za-z0-9_]*|BRANCH)(?:\(([^()]*)\))?\s*$", re.IGNORECASE)
+
+
+def _cross_link_label_counts(annot: ProFormaAnnotation) -> dict[str, int]:
+    """How many positions of ``annot`` carry each cross-link or branch label."""
+    counts: dict[str, int] = {}
+    mod_groups: list[Iterable[str]] = []
+    if annot._internal_mods:
+        mod_groups.extend(mods.keys() for mods in annot._internal_mods.values())
+    for container in (annot._nterm_mods, annot._cterm_mods, annot._unknown_mods, annot._labile_mods):
+        if container:
+            mod_groups.append(container.keys())
+    for mod_strs in mod_groups:
+        for mod_str in mod_strs:
+            for part in mod_str.split("|"):
+                if part.strip().upper().startswith("INFO:"):
+                    continue
+                match = _CROSS_LINK_TAG.search(part)
+                if match is not None:
+                    label = match.group(1).upper()
+                    counts[label] = counts.get(label, 0) + 1
+    return counts
+
+
+def cross_link_error(annot: ProFormaAnnotation) -> str | None:
+    """Why the ions of this annotation are not defined, or None when they are.
+
+    A cross-link (``#XL1``) or a branch (``#BRANCH``) whose label is on two residues bonds
+    those residues to each other, so one backbone cleavage between them does not separate the
+    two halves and the ions a linear peptide of the same residues would give do not exist.
+    peptacular does not model that bond yet (ProForma 2.1 section 9.2, see
+    ``PROFORMA_COMPLIANCE.md``), and the interchain form (``//``) is already refused when
+    parsed, so the intrachain form is refused here rather than answered with linear masses.
+
+    A label on one residue only is a dead-end linker, which bonds nothing and weighs as any
+    other modification, so it is not refused.
+    """
+    bonded = sorted(label for label, count in _cross_link_label_counts(annot).items() if count > 1)
+    if not bonded:
+        return None
+    labels = ", ".join(f"#{label}" for label in bonded)
+    return (
+        f"Fragment ions are not supported for a cross-linked or branched peptidoform ({labels} is on two residues, "
+        "which bonds them to each other, so a cleavage between them does not separate the two halves): "
+        f"{annot.serialize()}. mass(), neutral_mass() and mz() still describe the intact molecule."
+    )
+
+
+def check_cross_links(annot: ProFormaAnnotation) -> None:
+    """Raise :class:`UnsupportedOperationError` when :func:`cross_link_error` names a reason."""
+    message = cross_link_error(annot)
+    if message is not None:
+        raise UnsupportedOperationError(message)
+
+
 def frag_impl(
     annot: ProFormaAnnotation,
     ion_type: IonType,
@@ -348,6 +404,7 @@ def frag(
     _include_sequence: bool = True,
 ) -> Fragment:
     """Body of :meth:`ProFormaAnnotation.frag`: one ion, preferring ``charge`` over the annotation's charge."""
+    check_cross_links(annot)
     ion_type = to_ion_type(ion_type)
     delta_info = DeltaInfo.from_input(deltas)
 
@@ -788,6 +845,7 @@ def fragment(
 ) -> list[Fragment]:
     """Body of :meth:`ProFormaAnnotation.fragment`: every ion of each ion type and charge."""
     check_unknown_residues(annot)
+    check_cross_links(annot)
     ion_types = _as_options(ion_types)
     isotopes = _as_options(isotopes)
     neutral_deltas = _as_options(neutral_deltas)
@@ -862,6 +920,7 @@ def fast_fragment(
     monoisotopic: bool = True,
 ) -> dict[tuple[IonType, int], list[float]]:
     """Body of :meth:`ProFormaAnnotation.fast_fragment`: prefix/suffix sums of the residue masses."""
+    check_cross_links(annot)
     ion_types = _as_options(ion_types)
     if charges is None:
         charges = default_fragment_charges(annot.charge_state)
