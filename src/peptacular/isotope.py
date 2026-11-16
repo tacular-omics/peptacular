@@ -118,13 +118,23 @@ def averagine_comp(neutral_mass: float) -> Counter[ElementInfo]:
     best match the fractional averagine envelope is returned. If no candidate is within
     one dalton, the candidate with the smallest mass error is returned.
 
+    The search result is cached per mass (``functools.lru_cache``, at most 1024 masses),
+    so repeated calls with the same mass do not search again. The cache holds an immutable
+    tuple; every call returns a new ``Counter`` that the caller may modify freely.
+
     >>> import peptacular as pt
     >>> comp = pt.averagine_comp(1000.0)
     >>> abs(sum(element.get_mass(monoisotopic=True) * count for element, count in comp.items()) - 1000.0) < 1.0
     True
     """
 
-    target = float(neutral_mass)
+    return Counter(dict(_averagine_counts(float(neutral_mass))))
+
+
+@lru_cache(maxsize=1024)
+def _averagine_counts(target: float) -> tuple[tuple[ElementInfo, int], ...]:
+    """Search the integer averagine composition for ``target`` and return it as immutable (element, count) pairs."""
+
     fractional = estimate_averagine_comp(target)
     elements = list(fractional)
     ideals = [fractional[element] for element in elements]
@@ -157,8 +167,7 @@ def averagine_comp(neutral_mass: float) -> Counter[ElementInfo]:
             key=lambda candidate: (_envelope_error(dict(zip(elements, candidate[1], strict=True)), reference), candidate[0]),
         )[1]
 
-    composition = Counter({element: count for element, count in zip(elements, best_counts, strict=True)})
-    return Counter({element: count for element, count in composition.items() if count != 0})
+    return tuple((element, count) for element, count in zip(elements, best_counts, strict=True) if count != 0)
 
 
 @lru_cache(maxsize=256)
