@@ -42,7 +42,7 @@ class TestCountResidues:
         assert not any("/" in residue for residue in counts)
 
     def test_charge_adducts_are_not_part_of_a_key(self):
-        assert pt.parse("PEPTIDE/[M+2H]").count_residues() == pt.parse("PEPTIDE").count_residues()
+        assert pt.parse("PEPTIDE/[Na:z+1]").count_residues() == pt.parse("PEPTIDE").count_residues()
 
     def test_labile_modification_is_not_part_of_a_key(self):
         counts = pt.parse("{+79.966}PEPTIDE").count_residues()
