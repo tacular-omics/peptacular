@@ -3,6 +3,7 @@ from collections.abc import Generator
 from typing import NoReturn
 
 from ..diagnostics import ProFormaFormatError
+from ..proforma_components.parsers import parse_global_charge_carrier
 from .mod import VALID_AMINO_ACIDS, Interval
 
 __all__ = [
@@ -530,8 +531,11 @@ class ProFormaParser:
             self.cursor += 1
 
             # Parse adducts
-            for part in content.split(","):
-                part = part.strip()
+            part_start = start
+            for raw_part in content.split(","):
+                part = raw_part.strip()
+                part_pos = part_start + (len(raw_part) - len(raw_part.lstrip()))
+                part_start += len(raw_part) + 1
                 if "^" in part:
                     base, mult = part.rsplit("^", 1)
                     if not mult.isdigit() or int(mult) == 0:
@@ -540,6 +544,14 @@ class ProFormaParser:
                     part = base
                 else:
                     count = 1
+
+                # Check the carrier's syntax with the same function that resolves it later, so the
+                # parser and mass()/mz() cannot disagree. Resolution of what the carrier means stays
+                # lazy; only a carrier that is impossible as written is rejected here.
+                try:
+                    parse_global_charge_carrier(part)
+                except ProFormaFormatError as e:
+                    self._raise_parse_error(f"Invalid charge carrier '{part}': {e}", part_pos)
 
                 key = sys.intern(part)
                 adducts[key] = adducts.get(key, 0) + count

@@ -290,7 +290,7 @@ class TestToIP2:
             ("[Phospho]?PEPTIDE", "unknown"),
             ("PEP(TI)[Phospho]DE", "interval"),
             ("PEPTIDE/2", "charge"),
-            ("PEPTIDE/[+2Na+]", "charge adducts"),
+            ("PEPTIDE/[Na:z+1]", "charge adducts"),
             ("PEPTIDE-[Amidated]", "C-terminal modification on a last residue"),
             ("PEPTIDEK[A][B]", "multiple modifications on the last residue"),
             ("PEP[Carbamidomethyl(C)]TIDE", "parentheses"),
@@ -361,7 +361,7 @@ class TestToCasanovo:
             ("[+79.966]?PEPTIDE", "unknown"),
             ("PEP(TI)[+79.966]DE", "interval"),
             ("PEPTIDE/2", "charge"),
-            ("PEPTIDE/[+2Na+]", "charge adducts"),
+            ("PEPTIDE/[Na:z+1]", "charge adducts"),
         ],
     )
     def test_refused_features(self, proforma: str, feature: str):
@@ -432,7 +432,7 @@ class TestToDiann:
             ("[Phospho]?PEPTIDE", "unknown"),
             ("PEP(TI)[Phospho]DE", "interval"),
             ("PEPTIDE/2", "charge"),
-            ("PEPTIDE/[+2Na+]", "charge adducts"),
+            ("PEPTIDE/[Na:z+1]", "charge adducts"),
         ],
     )
     def test_refused_features(self, proforma: str, feature: str):
