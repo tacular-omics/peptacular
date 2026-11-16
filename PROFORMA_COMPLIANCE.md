@@ -70,6 +70,13 @@ calculation rules, see [the companion notes](https://github.com/tacular-omics/pe
 - [ ] **Cross-linkers (interchain)** - `EVTK[X:DSS#XL1]L//EK[#XL1]SEFD` (§9.2.2)
 - [ ] **Branches** - `ED[MOD:00093#BRANCH]//D[#BRANCH]ATR` (§9.3) 
 
+The intrachain forms parse, round-trip and weigh as the intact molecule, and the interchain
+forms (`//`) are refused when parsed. Fragmentation refuses a peptidoform whose `#XL` or
+`#BRANCH` label is on two residues: those residues are bonded to each other, and that bond is
+not modelled, so a cleavage between them does not separate the two halves and the ions a linear
+peptide would give do not exist. A label on one residue only is a dead-end linker, which bonds
+nothing and fragments as an ordinary modification.
+
 ## 5.3.5 Level 2-ProForma + Glycans
 
 - [x] **GNO modifications** - `NEEYN[GNO:G59626AS]K` (§10.1)

@@ -132,7 +132,10 @@ def fragment_arrays(
     annotation's index in ``annotations``.
     """
     np = _require_numpy()
-    from ._frag_engine import _as_options, get_loss_combinations
+    from ._frag_engine import _as_options, check_cross_links, get_loss_combinations
+
+    for annotation in annotations:
+        check_cross_links(annotation)
 
     kwargs: dict[str, Any] = {
         "monoisotopic": monoisotopic,

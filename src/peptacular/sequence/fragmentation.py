@@ -112,6 +112,12 @@ def fragment(
 ) -> list[Fragment] | list[list[Fragment]]:
     """
     Builds fragment ions from a given input sequence or list of sequences.
+
+    A cross-linked or branched peptidoform, a ``#XL`` or ``#BRANCH`` label on two residues,
+    raises :class:`UnsupportedOperationError`: the two residues are bonded to each other and
+    that bond is not modelled, so the ions of the linear peptide would be wrong. A label on one
+    residue only is a dead-end linker, which bonds nothing and fragments as an ordinary
+    modification.
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
