@@ -6,6 +6,9 @@ from ..diagnostics import ProFormaFormatError
 from ..proforma_components.parsers import parse_global_charge_carrier
 from .mod import VALID_AMINO_ACIDS, Interval
 
+_CARRIER_ERROR_PREFIX = "Invalid charge carrier"
+"""Shared by this parser and :func:`parse_global_charge_carrier`, so a message carries it once."""
+
 __all__ = [
     "ProFormaParser",
 ]
@@ -539,7 +542,7 @@ class ProFormaParser:
                 if "^" in part:
                     base, mult = part.rsplit("^", 1)
                     if not mult.isdigit() or int(mult) == 0:
-                        self._raise_parse_error(f"Invalid adduct multiplier '^{mult}': expected a positive integer", start)
+                        self._raise_parse_error(f"Invalid adduct multiplier '^{mult}': expected a positive integer", part_pos)
                     count = int(mult)
                     part = base
                 else:
@@ -551,7 +554,11 @@ class ProFormaParser:
                 try:
                     parse_global_charge_carrier(part)
                 except ProFormaFormatError as e:
-                    self._raise_parse_error(f"Invalid charge carrier '{part}': {e}", part_pos)
+                    # Some of that function's own messages already name the carrier, so the prefix
+                    # is added only when it is not there, rather than written twice.
+                    detail = str(e)
+                    message = detail if detail.startswith(_CARRIER_ERROR_PREFIX) else f"{_CARRIER_ERROR_PREFIX} '{part}': {detail}"
+                    self._raise_parse_error(message, part_pos)
 
                 key = sys.intern(part)
                 adducts[key] = adducts.get(key, 0) + count
