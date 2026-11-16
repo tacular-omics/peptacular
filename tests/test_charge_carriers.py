@@ -242,3 +242,63 @@ class TestSetChargeStringNormalisation:
 
         mods = Mods(mod_type=ModType.CHARGE, _mods={"H:z+1^-2": 1})
         assert pt.parse("PEPTIDEK").set_charge(mods).serialize() == "PEPTIDEK/[H-1:z-1^2]"
+
+
+class TestCarrierSyntaxIsCheckedAtParse:
+    """parse checks a charge carrier's syntax, so a malformed one never reaches mass()/mz()."""
+
+    BAD = ["EMEVEESPEK/[]", "EMEVEESPEK/[garbage]", "EMEVEESPEK/[Na:zX]"]
+
+    @pytest.mark.parametrize("seq", BAD)
+    def test_malformed_carrier_raises_at_parse(self, seq):
+        with pytest.raises(pt.ProFormaFormatError, match="Invalid charge carrier"):
+            pt.parse(seq)
+
+    @pytest.mark.parametrize(
+        ("seq", "carrier"),
+        [("EMEVEESPEK/[]", "''"), ("EMEVEESPEK/[garbage]", "'garbage'"), ("EMEVEESPEK/[Na:zX]", "'Na:zX'")],
+    )
+    def test_error_names_the_carrier_and_its_position(self, seq, carrier):
+        with pytest.raises(pt.ProFormaFormatError) as info:
+            pt.parse(seq)
+        message = str(info.value)
+        assert carrier in message
+        assert "Position 12:" in message
+
+    def test_position_points_at_the_bad_carrier_in_a_list(self):
+        with pytest.raises(pt.ProFormaFormatError) as info:
+            pt.parse("EMEVEESPEK/[Na:z+1, garbage]")
+        assert "'garbage'" in str(info.value)
+        assert "Position 20:" in str(info.value)
+
+    def test_empty_carrier_in_a_list_raises(self):
+        with pytest.raises(pt.ProFormaFormatError, match="Position 19:"):
+            pt.parse("EMEVEESPEK/[Na:z+1,]")
+
+    @pytest.mark.parametrize("seq", BAD)
+    def test_validate_returns_false_instead_of_raising(self, seq):
+        assert pt.validate(seq) is False
+
+    # charge_state and m/z recorded on main before this change.
+    @pytest.mark.parametrize(
+        ("seq", "charge_state", "mz"),
+        [
+            ("EMEVEESPEK/2", 2, 603.763368666686),
+            ("EMEVEESPEK/-1", -1, 1204.5049079335088),
+            ("EMEVEESPEK/[Na:z+1]", 1, 1228.5014051022208),
+            ("EMEVEESPEK/[Na:z+1,H:z+1]", 2, 614.754340784421),
+            ("EMEVEESPEK/[H-2Na1:z+1]", 1, 1226.4857550377608),
+            ("EMEVEESPEK/[Na:z+1^2]", 2, 625.7453129021559),
+        ],
+    )
+    def test_valid_forms_keep_their_charge_state_and_mz(self, seq, charge_state, mz):
+        annot = pt.parse(seq)
+        assert annot.charge_state == charge_state
+        assert annot.mz() == pytest.approx(mz, rel=1e-12)
+        assert annot.serialize() == seq
+
+    def test_name_resolution_stays_lazy(self):
+        annot = pt.parse("PEP[Foo]TIDE")
+        assert annot.serialize() == "PEP[Foo]TIDE"
+        with pytest.raises(pt.PeptacularError):
+            annot.mass()
