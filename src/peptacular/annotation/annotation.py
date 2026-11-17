@@ -1590,7 +1590,14 @@ class ProFormaAnnotation(_ModAccessMixin):
     def slice_by_span(self, span: Span | tuple[int, int, int], *, inplace: bool = False) -> Self:
         return self.slice(span[0], span[1], inplace=inplace)
 
-    def slice(self, start: int | None, stop: int | None, *, inplace: bool = False) -> Self:
+    def slice(
+        self,
+        start: int | None,
+        stop: int | None,
+        *,
+        inplace: bool = False,
+        _keep_cut_localization_groups: bool = False,
+    ) -> Self:
         """Return a sub-annotation spanning ``sequence[start:stop]``, carrying over applicable mods.
 
         :param start: 0-based start index (inclusive); ``None`` means the beginning.
@@ -1599,6 +1606,11 @@ class ProFormaAnnotation(_ModAccessMixin):
         :type stop: int | None
         :param inplace: Modify this object when ``True``; return a new annotation when ``False``.
         :type inplace: bool
+        :param _keep_cut_localization_groups: Private. Skip the check that refuses a slice
+            cutting a localization group. Only for callers that take every residue of the
+            annotation apart, such as :meth:`split` and the fragment engine, where a group
+            is divided between the pieces rather than lost.
+        :type _keep_cut_localization_groups: bool
         :return: The sliced annotation.
         :rtype: Self
         """
@@ -1609,6 +1621,7 @@ class ProFormaAnnotation(_ModAccessMixin):
                 start=start,
                 stop=stop,
                 inplace=inplace,
+                _keep_cut_localization_groups=_keep_cut_localization_groups,
             ),
         )
 
@@ -2012,6 +2025,24 @@ class ProFormaAnnotation(_ModAccessMixin):
         internal = annot_copy._internal_mods or {}
         cterm = annot_copy._cterm_mods or {}
 
+        # The reader rewrites each parenthesis group into square brackets and then decides
+        # which group is terminal by those brackets, so a terminal name holding one of them
+        # comes back as something else. An internal name is read back unchanged.
+        for mods, where in ((annot_copy._nterm_mods or {}, "N-terminus"), (cterm, "C-terminus")):
+            for name in mods:
+                if "[" in name or "]" in name:
+                    raise PeptacularError(f"IP2 format cannot write a modification name containing square brackets at the {where}: {name!r}.")
+
+        # The same brackets defeat the reader when they sit on the last residue and a
+        # C-terminal group follows it: the trailing run is then not seen as two groups and
+        # the C-terminal modification comes back on the residue.
+        if cterm and last >= 0:
+            for name in internal.get(last, {}):
+                if "[" in name or "]" in name:
+                    raise PeptacularError(
+                        f"IP2 format cannot write a C-terminal modification after a last-residue modification name containing square brackets: {name!r}."
+                    )
+
         # The reader gives the first group after the last residue to that residue and every
         # later group to the C-terminus, so the writer must emit exactly that shape.
         if last >= 0:
@@ -2120,6 +2151,14 @@ class ProFormaAnnotation(_ModAccessMixin):
         internal = annot_copy._internal_mods or {}
         nterm = annot_copy._nterm_mods or {}
         cterm = annot_copy._cterm_mods or {}
+
+        # The reader matches a terminal group with a bracket pattern that stops at the first
+        # `]`, so a terminal name holding a square bracket is cut in the wrong place and the
+        # result does not parse. An internal name is read back unchanged.
+        for mods, where in ((nterm, "N-terminus"), (cterm, "C-terminus")):
+            for name in mods:
+                if "[" in name or "]" in name:
+                    raise PeptacularError(f"DIA-NN format cannot write a modification name containing square brackets at the {where}: {name!r}.")
 
         # `from_diann` gives the leading bracket group a dash and rewrites a single trailing
         # group, so a second group at either terminus comes back as a string it cannot parse.

@@ -17,7 +17,8 @@ a starting point to override, never evidence about a particular spectrum.
 
 Every preset sets ``ion_types``, ``neutral_deltas`` and ``max_ndeltas``, and
 :func:`fragmentation_preset` adds ``charges`` when it is given a ``charge_state``. The charge rule
-is the same in every preset, ``1`` to ``max(1, charge_state - 1)``, because the fragments of a
+is the same in every preset, magnitudes ``1`` to ``max(1, abs(charge_state) - 1)`` carrying the sign
+of ``charge_state``, because the fragments of a
 ``z+`` precursor cannot each carry ``z`` charges.
 
 =========  ===============================  ================  ==========================================
@@ -125,8 +126,9 @@ def fragmentation_preset(method: str, *, charge_state: int | None = None) -> dic
         spaces ignored. There is one spelling per method: an instrument's own name for it, such
         as PASEF or ETciD, is mapped to a preset by whatever reads the file.
     :type method: str
-    :param charge_state: The precursor charge. When given, the preset carries
-        ``charges=(1, ..., max(1, abs(charge_state) - 1))``. When None, no ``charges`` key is set
+    :param charge_state: The precursor charge, sign included. When given, the preset carries
+        one charge per magnitude ``1`` to ``max(1, abs(charge_state) - 1)``, each with the sign of
+        ``charge_state``, so ``3`` gives ``(1, 2)`` and ``-3`` gives ``(-2, -1)``. When None, no ``charges`` key is set
         and :func:`peptacular.fragment` uses the annotation's own charge.
     :type charge_state: int | None
     :return: The keyword arguments, a new dict on every call.
@@ -151,5 +153,9 @@ def fragmentation_preset(method: str, *, charge_state: int | None = None) -> dic
         raise PeptacularError(f"Unknown activation method: {method!r}. Presets: {names}")
     preset = dict(FRAGMENTATION_PRESETS[key])
     if charge_state is not None:
-        preset["charges"] = tuple(range(1, max(1, abs(charge_state) - 1) + 1))
+        # The rule is on the magnitude, but a fragment of a negative precursor is negative:
+        # dropping the sign asked `fragment` for charges the annotation does not carry.
+        magnitudes = range(1, max(1, abs(charge_state) - 1) + 1)
+        sign = -1 if charge_state < 0 else 1
+        preset["charges"] = tuple(sorted(sign * magnitude for magnitude in magnitudes))
     return preset

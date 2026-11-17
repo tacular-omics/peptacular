@@ -591,3 +591,62 @@ class TestFromMaxquant:
         assert convert_maxquant_sequence(seqs, n_workers=2) == expected
         assert convert_maxquant_sequence(seqs, method="thread", n_workers=2) == expected
         assert convert_maxquant_sequence([]) == []
+
+
+class TestBracketedModificationNamesAtATerminus:
+    """A name holding a square bracket breaks the readers' terminal detection.
+
+    Both readers delimit a terminal group with a bracket pattern that stops at the first
+    ``]``, so a terminal name such as ``Formula:[13C2]H3`` was written into a string that
+    either does not parse or parses as something else. The writers refuse it instead. An
+    internal name is read back unchanged and must keep working.
+    """
+
+    ISOTOPE_NAME = "Formula:[13C2]H3"
+
+    @pytest.mark.parametrize(
+        "proforma",
+        [
+            "[Formula:[13C2]H3]-PEPTIDE",
+            "PEPTIDE-[Formula:[13C2]H3]",
+        ],
+    )
+    def test_both_writers_refuse_a_bracketed_terminal_name(self, proforma: str):
+        for writer in ("to_ip2", "to_diann"):
+            with pytest.raises(PeptacularError, match="square brackets"):
+                getattr(pt.parse(proforma), writer)()
+
+    def test_ip2_refuses_a_cterm_modification_after_a_bracketed_last_residue_name(self):
+        # Written out it was `EEN(Formula:[13C2]H3)(UNIMOD:35)`, which the reader gave back
+        # as `EEN[Formula:[13C2]H3][UNIMOD:35]`: the C-terminal modification silently moved
+        # onto the residue.
+        with pytest.raises(PeptacularError, match="square brackets"):
+            pt.parse("EEN[Formula:[13C2]H3]-[UNIMOD:35]").to_ip2()
+
+    @pytest.mark.parametrize(
+        "proforma",
+        [
+            "PEP[Formula:[13C2]H3]TIDE",
+            "PEPTIDEK[Formula:[13C2]H3]",
+            "[UNIMOD:1]-EEN[Formula:[13C2]H3]",
+            "PEPTIDE[Phospho]-[Amidated]",
+        ],
+    )
+    def test_ip2_still_round_trips_what_it_can_carry(self, proforma: str):
+        written = pt.parse(proforma).to_ip2()
+        assert pt.ProFormaAnnotation.from_ip2_sequence(written).serialize() == proforma
+
+    @pytest.mark.parametrize(
+        "proforma",
+        [
+            "PEP[Formula:[13C2]H3]TIDE",
+            "PEPTIDEK[Formula:[13C2]H3]",
+            "[UNIMOD:1]-EEN[Formula:[13C2]H3]",
+            "EEN[Formula:[13C2]H3]-[UNIMOD:35]",
+            "PEPTIDE[Phospho]-[Amidated]",
+            "PEPTIDE-[UNIMOD:35]",
+        ],
+    )
+    def test_diann_still_round_trips_what_it_can_carry(self, proforma: str):
+        written = pt.parse(proforma).to_diann()
+        assert pt.ProFormaAnnotation.from_diann(written).serialize() == proforma

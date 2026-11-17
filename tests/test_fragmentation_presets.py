@@ -62,7 +62,7 @@ class TestPresetLookup:
     def test_no_charge_state_sets_no_charges(self, name: str):
         assert "charges" not in pt.fragmentation_preset(name)
 
-    @pytest.mark.parametrize(("charge_state", "charges"), [(1, (1,)), (2, (1,)), (3, (1, 2)), (4, (1, 2, 3)), (-3, (1, 2))])
+    @pytest.mark.parametrize(("charge_state", "charges"), [(1, (1,)), (2, (1,)), (3, (1, 2)), (4, (1, 2, 3)), (-3, (-2, -1)), (-4, (-3, -2, -1))])
     def test_charge_rule_is_one_to_precursor_minus_one(self, charge_state: int, charges: tuple[int, ...]):
         assert pt.fragmentation_preset("hcd", charge_state=charge_state)["charges"] == charges
 
@@ -165,3 +165,23 @@ class TestIonsAreUsable:
         # Documented in the module docstring: fast_fragment takes three of the preset's keys.
         with pytest.raises(TypeError):
             pt.fast_fragment(PEPTIDE, **pt.fragmentation_preset("hcd", charge_state=2))
+
+
+class TestNegativeChargeState:
+    """A negative precursor keeps its sign in the preset's charges."""
+
+    def test_negative_charge_state_gives_negative_charges(self):
+        assert pt.fragmentation_preset("cid", charge_state=-3)["charges"] == (-2, -1)
+
+    def test_positive_charge_state_is_unchanged(self):
+        assert pt.fragmentation_preset("cid", charge_state=3)["charges"] == (1, 2)
+
+    def test_singly_negative_precursor_gives_one_negative_charge(self):
+        assert pt.fragmentation_preset("cid", charge_state=-1)["charges"] == (-1,)
+
+    def test_the_preset_matches_what_fragment_does_without_it(self):
+        # `abs()` asked for charges 1 and 2 of a precursor carrying -3, so the preset
+        # returned the wrong ions for every negative-mode peptide.
+        with_preset = {f.charge_state for f in pt.fragment("PEPTIDEK/-3", **pt.fragmentation_preset("cid", charge_state=-3))}
+        without = {f.charge_state for f in pt.fragment("PEPTIDEK/-3", ion_types=("b", "y"))}
+        assert with_preset == without == {-2, -1}

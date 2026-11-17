@@ -211,11 +211,11 @@ def frag_one(
         raise PeptacularError(blocked)
     ion_annot = annot
     if ion_type in SATELLITE_TRIM_END:
-        ion_annot = annot.slice(0, len(annot) - 1, inplace=False)
+        ion_annot = annot.slice(0, len(annot) - 1, inplace=False, _keep_cut_localization_groups=True)
         if annot.has_cterm_mods:
             ion_annot.set_cterm_mods(annot.cterm_mods, validate=False)
     elif ion_type in SATELLITE_TRIM_START:
-        ion_annot = annot.slice(1, len(annot), inplace=False)
+        ion_annot = annot.slice(1, len(annot), inplace=False, _keep_cut_localization_groups=True)
         if annot.has_nterm_mods:
             ion_annot.set_nterm_mods(annot.nterm_mods, validate=False)
     return frag_impl(
@@ -445,7 +445,7 @@ def frag(
             pass
         case tuple() as pios_tuple:
             pos_start, pos_end = pios_tuple
-            frag_annot = frag_annot.slice(pos_start, pos_end, inplace=inplace)
+            frag_annot = frag_annot.slice(pos_start, pos_end, inplace=inplace, _keep_cut_localization_groups=True)
         case _:
             raise PeptacularError(f"Invalid position type: {type(position)}")
 
@@ -623,7 +623,10 @@ def fragment_series(
                 )
                 continue
             if sub_annot is None:
-                sub_annot = annot.slice(0, i, inplace=False) if forward else annot[n - i : n]
+                if forward:
+                    sub_annot = annot.slice(0, i, inplace=False, _keep_cut_localization_groups=True)
+                else:
+                    sub_annot = annot.slice(n - i, n, inplace=False, _keep_cut_localization_groups=True)
             if frag_type in SATELLITE_TRIM_END or frag_type in SATELLITE_TRIM_START:
                 # A series skips d/w ions of a modified cleaved residue; an explicit
                 # frag() of the same ion raises.
@@ -747,7 +750,7 @@ def fragment_ions(
         if ion_info.ion_type == IonType.IMMONIUM:
             # Immonium ions are single residue fragments
             for i in range(1, len(annot) + 1):
-                sub_annot = annot.slice(i - 1, i, inplace=False)
+                sub_annot = annot.slice(i - 1, i, inplace=False, _keep_cut_localization_groups=True)
 
                 if neutral_deltas:
                     loss_dict.clear()
@@ -783,7 +786,7 @@ def fragment_ions(
                         continue
                     if max_length is not None and (end - start + 1) > max_length:
                         continue
-                    sub_annot = annot.slice(start - 1, end, inplace=False)
+                    sub_annot = annot.slice(start - 1, end, inplace=False, _keep_cut_localization_groups=True)
 
                     if neutral_deltas:
                         loss_dict.clear()
