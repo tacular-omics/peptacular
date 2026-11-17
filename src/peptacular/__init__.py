@@ -239,7 +239,7 @@ from .spans import (
 )
 from .utils import get_mod_type
 
-__version__ = "5.1.0"
+__version__ = "5.2.0"
 
 __all__ = [
     "__version__",

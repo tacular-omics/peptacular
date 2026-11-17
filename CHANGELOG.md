@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [5.2.0] (2026-11-16)
+
 ### Fixed
 
 - `pt.aliphatic_index()` no longer returns a diluted number for an ambiguous residue, and `pt.molar_extinction_coefficient()` no longer assumes an unspecified residue is not a chromophore. Both counted a residue they could not place as zero while still counting it in the length, so `pt.aliphatic_index("AJILAVIL")` gave 256.25 where `AVILAVIL` gives 292.5, although `J` is leucine or isoleucine and both occupy the same aliphatic volume. An ambiguous residue is now resolved when every amino acid it stands for contributes the same amount (`J` is 3.9 for the aliphatic index, and `B`, `J` and `Z` are exact zeros for both numbers, since none of aspartate, asparagine, leucine, isoleucine, glutamate or glutamine is aliphatic or absorbs at 280 nm), and refused with `PeptacularError` when they differ. `X` stands for any amino acid, so it is always refused: its aliphatic volume is unknown, and it could be tryptophan or tyrosine. A residue outside the twenty (`U`, `O`) is a determinate zero for both, because it is a defined residue that is neither aliphatic nor a chromophore. `pt.instability_index()` is unchanged and still refuses every residue with no `DIWV` entry, which is every one of these, because no ambiguity code can be resolved there: the two amino acids a code stands for have different `DIWV` values. So the aliphatic index of a peptide holding `J` is determined while its instability index is not, and the two now say so. The published benchmark values are unchanged.
