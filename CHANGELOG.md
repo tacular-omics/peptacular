@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `ProFormaAnnotation.to_skyline()`, `ProFormaAnnotation.from_skyline()` and `pt.convert_skyline_sequence()` read and write Skyline modified sequences (#117). Each modification is written in square brackets directly after its residue, as a signed delta mass or a modification name, so `PEPT[+79.9663]IDE` and `PEPC[Carbamidomethyl]IDE` are written unchanged. The reader matches balanced square brackets, reads `(unimod:N)` in round brackets without regard to case as `[UNIMOD:N]`, and adds the `+` ProForma requires to a bracket that holds an unsigned number, so `AAM[15.9949]Q[-0.98]R` reads as `AAM[+15.9949]Q[-0.98]R` and `GSMAFVPK(unimod:259)` as `GSMAFVPK[UNIMOD:259]`. `to_skyline()` raises `PeptacularError` for isotope labels, labile modifications, unknown-position modifications, intervals, charge or charge adducts, modification multipliers, any terminal modification (Skyline writes it onto the terminal residue, where the reader cannot tell it from a modification on that residue), more than one modification on one residue (Skyline sums them into one bracket), an unsigned number as a modification name and a name with unbalanced square brackets.
+
 ## [5.2.0] (2026-11-16)
 
 ### Fixed
