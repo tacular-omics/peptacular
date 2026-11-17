@@ -2153,6 +2153,129 @@ class ProFormaAnnotation(_ModAccessMixin):
 
         return ProFormaAnnotation.parse(sequence)
 
+    def to_maxquant(self) -> str:
+        """Convert this annotation to a MaxQuant modified-sequence string.
+
+        MaxQuant writes the sequence inside underscores, with each modification in round
+        brackets directly after the residue it sits on. The group before the first residue is
+        the N-terminal modification, and a group after the last residue is read back as a
+        C-terminal modification. The modification string is copied through unchanged, so both
+        the abbreviated (``ox``) and the full-name (``Oxidation (M)``) spellings are written
+        as given. Static modifications are written onto the residues they apply to.
+
+        MaxQuant writes at most one modification per position, so a second modification on one
+        residue or at one terminus is refused. A modification on the last residue is refused
+        too, because ``from_maxquant`` reads a trailing group as a C-terminal modification and
+        the two cannot be told apart.
+
+        >>> import peptacular as pt
+        >>> pt.parse("PEPTIDE").to_maxquant()
+        '_PEPTIDE_'
+        >>> pt.parse("PEPM[Oxidation (M)]TIDE").to_maxquant()
+        '_PEPM(Oxidation (M))TIDE_'
+        >>> pt.parse("[ac]-SM[ox]K").to_maxquant()
+        '_(ac)SM(ox)K_'
+        >>> pt.parse("PEPTIDE-[Amidated]").to_maxquant()
+        '_PEPTIDE(Amidated)_'
+        >>> pt.parse("PEP[Phospho]TIDE-[Amidated]").to_maxquant()
+        '_PEP(Phospho)TIDE(Amidated)_'
+
+        :return: The annotation as a MaxQuant modified sequence.
+        :rtype: str
+        :raises PeptacularError: If the annotation has isotope labels, labile modifications,
+            unknown-position modifications, interval modifications, charge or charge adducts,
+            modification multipliers, more than one modification at a terminus or on one
+            residue, a modification on the last residue, or a modification name with
+            unbalanced parentheses.
+        """
+        for mod_type, feature in (
+            (ModType.ISOTOPE, "isotope labels"),
+            (ModType.LABILE, "labile modifications"),
+            (ModType.UNKNOWN, "unknown-position modifications"),
+            (ModType.INTERVAL, "interval modifications"),
+            (ModType.CHARGE, "charge or charge adducts"),
+        ):
+            if self.has_mods(mod_type):
+                raise PeptacularError(f"MaxQuant format does not support {feature}.")
+
+        annot_copy = self.copy()
+        annot_copy.condense_static_mods(inplace=True)
+
+        def group(mods: Mapping[str, int], where: str) -> str:
+            if len(mods) > 1:
+                raise PeptacularError(f"MaxQuant format cannot write more than one modification {where}.")
+            out: list[str] = []
+            for name, count in mods.items():
+                if count != 1:
+                    raise PeptacularError("MaxQuant format does not support modification multipliers.")
+                depth = 0
+                for char in name:
+                    depth += (char == "(") - (char == ")")
+                    if depth < 0:
+                        break
+                if depth != 0:
+                    raise PeptacularError(f"MaxQuant format cannot write a modification name with unbalanced parentheses: {name!r}.")
+                out.append(f"({name})")
+            return "".join(out)
+
+        sequence = annot_copy.stripped_sequence
+        last = len(sequence) - 1
+        internal = annot_copy._internal_mods or {}
+
+        # `from_maxquant` reads a group after the last residue as a C-terminal modification.
+        if last in internal:
+            raise PeptacularError("MaxQuant format cannot write a modification on the last residue, from_maxquant would read it as a C-terminal modification.")
+
+        parts: list[str] = ["_", group(annot_copy._nterm_mods or {}, "at the N-terminus")]
+        for index, residue in enumerate(sequence):
+            parts.append(residue)
+            if index in internal:
+                parts.append(group(internal[index], "on one residue"))
+        parts.append(group(annot_copy._cterm_mods or {}, "at the C-terminus"))
+        parts.append("_")
+        return "".join(parts)
+
+    @staticmethod
+    def from_maxquant(sequence: str) -> "ProFormaAnnotation":
+        """Internal function for converting a single MaxQuant modified sequence."""
+        sequence = sequence.strip("_")
+
+        # Split into residues and round-bracket groups, matching nested parentheses so that
+        # names such as "Oxidation (M)" stay in one piece.
+        tokens: list[tuple[bool, str]] = []
+        depth = 0
+        start = 0
+        for index, char in enumerate(sequence):
+            if char == "(":
+                if depth == 0:
+                    start = index + 1
+                depth += 1
+            elif char == ")":
+                if depth == 0:
+                    raise ProFormaFormatError(f"Unbalanced parentheses in MaxQuant sequence: {sequence!r}.")
+                depth -= 1
+                if depth == 0:
+                    tokens.append((True, sequence[start:index]))
+            elif depth == 0:
+                tokens.append((False, char))
+        if depth != 0:
+            raise ProFormaFormatError(f"Unbalanced parentheses in MaxQuant sequence: {sequence!r}.")
+
+        # A leading group is N-terminal, a trailing group is C-terminal, the rest sit on the
+        # residue before them.
+        first = next((i for i, (is_mod, _) in enumerate(tokens) if not is_mod), len(tokens))
+        last = next((i for i in range(len(tokens) - 1, -1, -1) if not tokens[i][0]), -1)
+        out: list[str] = []
+        if first:
+            out.extend(f"[{name}]" for _, name in tokens[:first])
+            out.append("-")
+        for is_mod, text in tokens[first : last + 1]:
+            out.append(f"[{text}]" if is_mod else text)
+        if last >= 0 and last + 1 < len(tokens):
+            out.append("-")
+            out.extend(f"[{name}]" for _, name in tokens[last + 1 :])
+        return ProFormaAnnotation.parse("".join(out))
+
     def to_casanovo(self) -> str:
         """Convert this annotation to a Casanovo format string.
 
