@@ -98,7 +98,11 @@ def _envelope_ratios(composition: Mapping[ElementInfo, float]) -> list[float]:
         min_abundance_threshold=0.0,
     )
     light = distribution[0].abundance
-    return [peak.abundance / light for peak in distribution[1:]]
+    ratios = [peak.abundance / light for peak in distribution[1:]]
+    # A small composition has fewer peaks than the window. A peak it cannot produce has zero
+    # abundance, which is a number the error below can use, where a missing entry is not: it
+    # made the comparison raise for every mass whose candidates are that small.
+    return ratios + [0.0] * (_AVERAGINE_ENVELOPE_PEAKS - 1 - len(ratios))
 
 
 def _envelope_error(composition: Mapping[ElementInfo, int], reference: list[float]) -> float:
@@ -106,8 +110,15 @@ def _envelope_error(composition: Mapping[ElementInfo, int], reference: list[floa
 
     if not any(composition.values()):
         return float("inf")
-    ratios = _envelope_ratios(composition)
-    return sum(abs(ratio - expected) / expected for ratio, expected in zip(ratios, reference, strict=True))
+    total = 0.0
+    for ratio, expected in zip(_envelope_ratios(composition), reference, strict=True):
+        if expected == 0.0:
+            # The envelope has no peak here. A candidate that has one does not match it.
+            if ratio != 0.0:
+                return float("inf")
+            continue
+        total += abs(ratio - expected) / expected
+    return total
 
 
 @lru_cache(maxsize=_AVERAGINE_CACHE_SIZE)

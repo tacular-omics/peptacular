@@ -441,3 +441,41 @@ def test_averagine_comp_rejects_invalid_mass_every_time():
     for _ in range(2):
         with pytest.raises(pt.PeptacularError):
             pt.averagine_comp(-1.0)
+
+
+# --- small masses through the averagine search (#96 follow-up) -------------------------
+# A composition too small to show six isotope peaks gave _envelope_ratios fewer ratios than
+# the fractional reference, and the strict zip comparing them raised ValueError. 74 of the
+# 128 masses on the quarter-dalton grid below reached that comparison. v5.1.0 returned a
+# composition for every one of them.
+_SMALL_MASS_GRID = [round(step * 0.25, 4) for step in range(1, 129)]
+
+
+def test_water_sized_mass_returns_the_composition_it_did_in_5_1_0():
+    comp = pt.averagine_comp(18.0106)
+    assert {element.symbol: count for element, count in comp.items()} == {"H": 2, "O": 1}
+
+
+def test_estimate_isotopic_distribution_works_for_a_water_sized_mass():
+    distribution = pt.estimate_isotopic_distribution(18.0106)
+    assert len(distribution) == 3
+
+
+@pytest.mark.parametrize("mass", _SMALL_MASS_GRID)
+def test_every_small_mass_on_the_quarter_dalton_grid_returns_a_composition(mass: float):
+    comp = pt.averagine_comp(mass)
+    assert all(count > 0 for count in comp.values())
+    assert all(isinstance(count, int) for count in comp.values())
+
+
+def test_the_envelope_term_still_discriminates_between_feasible_candidates():
+    # Non-vacuity for the padding: the error is still a number that orders candidates, and a
+    # composition that cannot produce the envelope's peaks is still worse than one that can.
+    from peptacular import isotope
+
+    reference = isotope._envelope_ratios(isotope.estimate_averagine_comp(1000.0))
+    assert len(reference) == isotope._AVERAGINE_ENVELOPE_PEAKS - 1
+    good = dict(isotope._averagine_counts(1000.0))
+    worse = dict(good)
+    worse[next(iter(worse))] = 1
+    assert isotope._envelope_error(good, reference) < isotope._envelope_error(worse, reference)
