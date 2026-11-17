@@ -162,7 +162,7 @@ pattern:
   `nonspecific_spans`, `cleavage_sites`, `sequential_digest_spans`. Every method that
   yields spans ends in `_spans`.
 - **Conversion**: `to_dict` / `from_dict`, `to_json` / `from_json`, `to_ms2_pip` /
-  `from_ms2_pip`, `to_diann` / `from_diann`, `to_casanovo` / `from_casanovo`,
+  `from_ms2_pip`, `to_diann` / `from_diann`, `to_maxquant` / `from_maxquant`, `to_casanovo` / `from_casanovo`,
   `to_ip2` / `from_ip2_sequence`.
 
 ```python
@@ -625,6 +625,7 @@ print(round(pt.calc_property("PEPTIDE", scale=pt.HydrophobicityScale.KYTE_DOOLIT
 ```
 convert_ip2_sequence(sequence: str | list[str], *PAR) -> str | list[str]        # 'K.PEPTIDE.K' -> ProForma
 convert_diann_sequence(sequence: str | list[str], *PAR) -> str | list[str]      # '_PEM[...]TIDE_'
+convert_maxquant_sequence(sequence: str | list[str], *PAR) -> str | list[str]   # '_(ac)SM(ox)K_'
 convert_casanovo_sequence(sequence: str | list[str], *PAR) -> str | list[str]   # '+43.006PEPTIDE'
 to_ms2_pip(sequence: SEQS, *PAR) -> tuple[str, str] | list[tuple[str, str]]     # (sequence, 'pos|Name|...')
 from_ms2_pip(sequence: tuple[str, str] | Sequence[tuple[str, str]], static_mods: Mapping[str, float] | None = None, *PAR)
@@ -635,6 +636,7 @@ import peptacular as pt
 
 print(pt.convert_ip2_sequence("K.PEPTIDE.K"))              # PEPTIDE
 print(pt.convert_diann_sequence("_PEM[Carbamidomethyl]TIDE_"))  # PEM[Carbamidomethyl]TIDE
+print(pt.convert_maxquant_sequence("_(ac)SM(ox)K_"))        # [ac]-SM[ox]K
 print(pt.convert_casanovo_sequence("+43.006PEPTIDE"))      # [+43.006]-PEPTIDE
 print(pt.to_ms2_pip("PEM[Oxidation]TIDE"))                 # ('PEMTIDE', '3|Oxidation')
 ```
