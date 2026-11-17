@@ -97,7 +97,7 @@ Calculate various properties like pI, hydrophobicity, etc.
 Converters
 ----------
 
-Convert sequences from other tools (IP2, DIANN, MaxQuant, Casanovo, MS2PIP) to ProForma format.
+Convert sequences from other tools (IP2, DIANN, MaxQuant, Skyline, Casanovo, MS2PIP) to ProForma format.
 
 .. literalinclude:: ../examples/converters.py
    :language: python
