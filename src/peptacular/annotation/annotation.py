@@ -2237,7 +2237,34 @@ class ProFormaAnnotation(_ModAccessMixin):
 
     @staticmethod
     def from_maxquant(sequence: str) -> "ProFormaAnnotation":
-        """Internal function for converting a single MaxQuant modified sequence."""
+        """Read a MaxQuant modified-sequence string into an annotation.
+
+        MaxQuant writes the sequence inside underscores, with each modification in round
+        brackets directly after the residue it sits on. A group before the first residue is
+        the N-terminal modification, a group after the last residue is the C-terminal
+        modification, and every other group sits on the residue before it. Nested
+        parentheses are matched, so a full name such as ``Oxidation (M)`` stays in one
+        piece, and the modification string is read through unchanged.
+
+        >>> import peptacular as pt
+        >>> pt.ProFormaAnnotation.from_maxquant("_PEPTIDE_").serialize()
+        'PEPTIDE'
+        >>> pt.ProFormaAnnotation.from_maxquant("_(ac)SM(ox)K_").serialize()
+        '[ac]-SM[ox]K'
+        >>> pt.ProFormaAnnotation.from_maxquant("_ALTDM(Oxidation (M))PQM(Oxidation (M))R_").serialize()
+        'ALTDM[Oxidation (M)]PQM[Oxidation (M)]R'
+        >>> pt.ProFormaAnnotation.from_maxquant("_P(Phospho)EPTIDE_").serialize()
+        'P[Phospho]EPTIDE'
+        >>> pt.ProFormaAnnotation.from_maxquant("_PEPTIDE(Amidated)_").serialize()
+        'PEPTIDE-[Amidated]'
+
+        :param sequence: A MaxQuant modified sequence, with or without the enclosing underscores.
+        :type sequence: str
+        :return: The sequence as an annotation.
+        :rtype: ProFormaAnnotation
+        :raises ProFormaFormatError: If the parentheses are unbalanced, or if the ProForma
+            string the groups are rewritten into cannot be parsed.
+        """
         sequence = sequence.strip("_")
 
         # Split into residues and round-bracket groups, matching nested parentheses so that
