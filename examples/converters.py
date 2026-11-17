@@ -2,7 +2,7 @@
 Sequence Format Conversion Examples
 ====================================
 Examples of converting peptide sequences from other tools (IP2, DIANN, MaxQuant,
-Casanovo, MS2PIP) to ProForma 2.1 format. All conversion functions support parallel execution.
+Skyline, Casanovo, MS2PIP) to ProForma 2.1 format. All conversion functions support parallel execution.
 """
 
 import peptacular as pt
@@ -60,6 +60,29 @@ def run():
     maxquant_annot = pt.parse("PEP[Phospho]TIDE-[Amidated]")
     print(f"\nProForma: {maxquant_annot.serialize()}")
     print(f"MaxQuant: {maxquant_annot.to_maxquant()}\n")
+
+    # ============================================================================
+    # SKYLINE SEQUENCE CONVERSION
+    # ============================================================================
+
+    print("\n" + "=" * 60)
+    print("SKYLINE SEQUENCE CONVERSION")
+    print("=" * 60)
+
+    # Skyline writes each modification in square brackets after its residue, as a signed
+    # mass difference, a name, or (unimod:N) in round brackets.
+    skyline_mass = "AAM[15.9949]Q[-0.98]R"
+    print(f"Skyline with deltas: {skyline_mass}")
+    print(f"ProForma: {pt.convert_skyline_sequence(skyline_mass)}")
+
+    skyline_unimod = "GSMAFVPK(unimod:259)"
+    print(f"Skyline with UniMod: {skyline_unimod}")
+    print(f"ProForma: {pt.convert_skyline_sequence(skyline_unimod)}")
+
+    # Writing a Skyline sequence back out
+    skyline_annot = pt.parse("PEPC[Carbamidomethyl]IDE")
+    print(f"\nProForma: {skyline_annot.serialize()}")
+    print(f"Skyline: {skyline_annot.to_skyline()}\n")
 
     # ============================================================================
     # CASANOVO SEQUENCE CONVERSION
