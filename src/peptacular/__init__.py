@@ -152,6 +152,7 @@ from .sequence import (
     convert_casanovo_sequence,
     convert_diann_sequence,
     convert_ip2_sequence,
+    convert_maxquant_sequence,
     count_residues,
     coverage,
     digest,
@@ -415,6 +416,7 @@ __all__ = [
     # converters
     "convert_ip2_sequence",
     "convert_diann_sequence",
+    "convert_maxquant_sequence",
     "convert_casanovo_sequence",
     "to_ms2_pip",
     "from_ms2_pip",
