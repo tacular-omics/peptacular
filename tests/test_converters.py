@@ -8,6 +8,7 @@ from peptacular import (
     convert_diann_sequence,
     convert_ip2_sequence,
     convert_maxquant_sequence,
+    convert_skyline_sequence,
 )
 
 
@@ -650,3 +651,125 @@ class TestBracketedModificationNamesAtATerminus:
     def test_diann_still_round_trips_what_it_can_carry(self, proforma: str):
         written = pt.parse(proforma).to_diann()
         assert pt.ProFormaAnnotation.from_diann(written).serialize() == proforma
+
+
+SKYLINE_PAIRS = [
+    ("PEPTIDE", "PEPTIDE"),
+    ("PEPT[+79.9663]IDE", "PEPT[+79.9663]IDE"),
+    ("PEPT[-18.0106]IDE", "PEPT[-18.0106]IDE"),
+    ("PEPC[Carbamidomethyl]IDE", "PEPC[Carbamidomethyl]IDE"),
+]
+
+
+class TestToSkyline:
+    """Tests for ProFormaAnnotation.to_skyline."""
+
+    @pytest.mark.parametrize(("proforma", "expected"), SKYLINE_PAIRS)
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_skyline() == expected
+
+    def test_static_mod_condensed(self):
+        assert pt.parse("<[Carbamidomethyl]@C>PECTIDE").to_skyline() == "PEC[Carbamidomethyl]TIDE"
+
+    def test_last_residue_mod_written(self):
+        assert pt.parse("GSMAFVPK[+8.0]").to_skyline() == "GSMAFVPK[+8.0]"
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[Phospho]?PEPTIDE", "unknown"),
+            ("PEP(TI)[Phospho]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[Na:z+1]", "charge adducts"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_skyline()
+
+    def test_modification_multiplier_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", internal_mods={1: {"Phospho": 2}})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot.to_skyline()
+
+    @pytest.mark.parametrize("proforma", ["[Acetyl]-PEPTIDE", "PEPTIDE-[Amidated]", "[Acetyl]-PEPTIDE-[Amidated]"])
+    def test_terminal_mod_refused(self, proforma: str):
+        with pytest.raises(PeptacularError, match="terminal modification"):
+            pt.parse(proforma).to_skyline()
+
+    def test_two_mods_on_one_residue_refused(self):
+        with pytest.raises(PeptacularError, match="more than one modification on one residue"):
+            pt.parse("PEP[+1][+2]TIDE").to_skyline()
+
+    def test_unsigned_number_refused(self):
+        with pytest.raises(PeptacularError, match="unsigned number"):
+            pt.parse("PEPT[15.9949]IDE").to_skyline()
+
+    def test_unbalanced_name_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", internal_mods={1: {"a]": 1}})
+        with pytest.raises(PeptacularError, match="unbalanced"):
+            annot.to_skyline()
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
+        annot.to_skyline()
+        assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
+
+
+class TestFromSkyline:
+    """Tests for ProFormaAnnotation.from_skyline and convert_skyline_sequence."""
+
+    @pytest.mark.parametrize(("proforma", "sky"), SKYLINE_PAIRS)
+    def test_round_trip(self, proforma: str, sky: str):
+        annot = pt.ProFormaAnnotation.from_skyline(sky)
+        assert annot == pt.parse(proforma)
+        assert annot.to_skyline() == sky
+
+    @pytest.mark.parametrize(
+        ("sky", "expected"),
+        [
+            ("GVDC[+57]QEVSQEK", "GVDC[+57]QEVSQEK"),
+            ("GSMAFVPK(unimod:259)", "GSMAFVPK[UNIMOD:259]"),
+            ("GSMAFVPK(UniMod:259)", "GSMAFVPK[UNIMOD:259]"),
+            ("GSMAFVPK[+8.0]", "GSMAFVPK[+8.0]"),
+            ("PEPT[Phospho (ST)]IDER", "PEPT[Phospho (ST)]IDER"),
+            ("AAM[15.9949]Q[-0.98]R", "AAM[+15.9949]Q[-0.98]R"),
+        ],
+    )
+    def test_reads(self, sky: str, expected: str):
+        assert pt.ProFormaAnnotation.from_skyline(sky).serialize() == expected
+        assert convert_skyline_sequence(sky) == expected
+
+    def test_masses(self):
+        assert pt.ProFormaAnnotation.from_skyline("GSMAFVPK(unimod:259)").mass() == pytest.approx(843.4404, abs=1e-4)
+        assert pt.ProFormaAnnotation.from_skyline("AAM[15.9949]Q[-0.98]R").mass() == pytest.approx(590.2999, abs=1e-4)
+
+    def test_unsigned_number_gets_plus(self):
+        annot = pt.ProFormaAnnotation.from_skyline("PEPT[15.9949]IDE")
+        assert annot.serialize() == "PEPT[+15.9949]IDE"
+        assert annot.mass() == pytest.approx(pt.parse("PEPTIDE").mass() + 15.9949, abs=1e-4)
+
+    def test_balanced_square_brackets(self):
+        assert pt.ProFormaAnnotation.from_skyline("PEPT[a[b]c]IDE").serialize() == "PEPT[a[b]c]IDE"
+
+    def test_modification_is_never_terminal(self):
+        annot = pt.ProFormaAnnotation.from_skyline("P[+42]EPTIDEK[+8]")
+        assert not annot.has_nterm_mods
+        assert not annot.has_cterm_mods
+
+    @pytest.mark.parametrize(
+        "bad",
+        ["PEPT[+1IDE", "PEPT+1]IDE", "PEPT[]IDE", "[+1]PEPTIDE", "PEPT(phospho)IDE", "PEPT(unimod:35IDE", "(unimod:35)PEPTIDE"],
+    )
+    def test_malformed_raises(self, bad: str):
+        with pytest.raises(ProFormaFormatError):
+            pt.ProFormaAnnotation.from_skyline(bad)
+
+    def test_convert_list(self):
+        seqs = ["PEPTIDE", "AAM[15.9949]Q[-0.98]R", "GSMAFVPK(unimod:259)"]
+        expected = ["PEPTIDE", "AAM[+15.9949]Q[-0.98]R", "GSMAFVPK[UNIMOD:259]"]
+        assert convert_skyline_sequence(seqs, n_workers=2) == expected
+        assert convert_skyline_sequence(seqs, method="thread", n_workers=2) == expected
+        assert convert_skyline_sequence([]) == []
