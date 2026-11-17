@@ -266,6 +266,10 @@ _ENVELOPE_PEPTIDES = [
 ]
 # Largest k=1..5 relative abundance error over _ENVELOPE_PEPTIDES on main before this change (issue #87).
 _MAIN_MAX_ENVELOPE_ERROR_PERCENT = 101.78
+# The same error with the #87 search in place, measured at 93.3805% before the #107 cache was
+# added and rounded up here. An improvement to the search must lower it, so the test below
+# bounds the error instead of pinning it, like the #87 baseline above.
+_SEARCH_MAX_ENVELOPE_ERROR_PERCENT = 93.39
 _ENVELOPE_PEAKS = 5
 
 
@@ -353,15 +357,16 @@ def test_averagine_comp_values_match_the_uncached_search(target):
     assert isotope._averagine_counts.cache_info().hits >= 1
 
 
-def test_averagine_envelope_worst_case_is_still_93_38_percent():
-    """The worst k=1..5 error over the envelope peptides is the value measured before the cache (issue #107)."""
+def test_averagine_envelope_worst_case_is_no_worse_than_before_the_cache():
+    """The worst k=1..5 error is no worse than before the cache, and the warm cache gives the same number (issue #107)."""
 
     from peptacular import isotope
 
     isotope._averagine_counts.cache_clear()
-    for _ in range(2):  # second pass runs on a warm cache
-        worst = max(_envelope_error_percent(peptide) for peptide in _ENVELOPE_PEPTIDES)
-        assert worst == pytest.approx(93.38, abs=0.005)
+    cold = max(_envelope_error_percent(peptide) for peptide in _ENVELOPE_PEPTIDES)
+    warm = max(_envelope_error_percent(peptide) for peptide in _ENVELOPE_PEPTIDES)
+    assert warm == pytest.approx(cold, abs=1e-12)
+    assert cold <= _SEARCH_MAX_ENVELOPE_ERROR_PERCENT
 
 
 def test_averagine_comp_returns_a_fresh_counter_each_call():
@@ -408,16 +413,23 @@ def test_averagine_comp_searches_each_mass_once():
 
     pt.averagine_comp(1000.5)
     assert isotope._averagine_counts.cache_info().misses == 2
-    assert pt.averagine_comp(1000) == pt.averagine_comp(1000.0)  # an int key is the same float key
+
+    # An int key reaches the same entry as the float. Value equality would hold with no cache
+    # at all, so what names the shared entry is the miss count, which must not move.
+    before = isotope._averagine_counts.cache_info()
+    assert pt.averagine_comp(1000) == pt.averagine_comp(1000.0)
+    after = isotope._averagine_counts.cache_info()
+    assert (after.misses, after.hits) == (before.misses, before.hits + 2)
 
 
 def test_averagine_comp_cache_is_bounded():
-    """The cache keeps at most 1024 masses, like the other bounded caches in the module (issue #107)."""
+    """The cache keeps at most _AVERAGINE_CACHE_SIZE masses, like the other bounded caches in the module (issue #107)."""
 
     from peptacular import isotope
 
     isotope._averagine_counts.cache_clear()
-    assert isotope._averagine_counts.cache_info().maxsize == 1024
+    assert isotope._AVERAGINE_CACHE_SIZE == 1024
+    assert isotope._averagine_counts.cache_info().maxsize == isotope._AVERAGINE_CACHE_SIZE
     for index in range(20):
         pt.averagine_comp(1000.0 + index)
     assert isotope._averagine_counts.cache_info().currsize == 20
