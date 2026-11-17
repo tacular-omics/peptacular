@@ -36,6 +36,7 @@ from .converters import (
     convert_casanovo_sequence,
     convert_diann_sequence,
     convert_ip2_sequence,
+    convert_maxquant_sequence,
 )
 from .digestion import (
     cleavage_sites,
@@ -227,6 +228,7 @@ __all__ = [
     # converters
     "convert_ip2_sequence",
     "convert_diann_sequence",
+    "convert_maxquant_sequence",
     "convert_casanovo_sequence",
     # isotope
     "estimate_isotopic_distribution",
