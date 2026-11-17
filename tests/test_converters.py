@@ -7,6 +7,7 @@ from peptacular import (
     convert_casanovo_sequence,
     convert_diann_sequence,
     convert_ip2_sequence,
+    convert_maxquant_sequence,
 )
 
 
@@ -480,3 +481,113 @@ class TestToDiann:
         annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
         annot.to_diann()
         assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
+
+
+MAXQUANT_PAIRS = [
+    ("PEPTIDE", "_PEPTIDE_"),
+    ("PEPM[Oxidation (M)]TIDE", "_PEPM(Oxidation (M))TIDE_"),
+    ("[ac]-SM[ox]K", "_(ac)SM(ox)K_"),
+    ("PEPTIDE-[Amidated]", "_PEPTIDE(Amidated)_"),
+    ("PEP[Phospho]TIDE-[Amidated]", "_PEP(Phospho)TIDE(Amidated)_"),
+]
+
+
+class TestToMaxquant:
+    """Tests for ProFormaAnnotation.to_maxquant."""
+
+    @pytest.mark.parametrize(("proforma", "expected"), MAXQUANT_PAIRS)
+    def test_output(self, proforma: str, expected: str):
+        assert pt.parse(proforma).to_maxquant() == expected
+
+    def test_static_mod_condensed(self):
+        assert pt.parse("<[Carbamidomethyl]@C>PECTIDE").to_maxquant() == "_PEC(Carbamidomethyl)TIDE_"
+
+    @pytest.mark.parametrize(
+        ("proforma", "feature"),
+        [
+            ("<13C>PEPTIDE", "isotope"),
+            ("{Hex}PEPTIDE", "labile"),
+            ("[Phospho]?PEPTIDE", "unknown"),
+            ("PEP(TI)[Phospho]DE", "interval"),
+            ("PEPTIDE/2", "charge"),
+            ("PEPTIDE/[Na:z+1]", "charge adducts"),
+        ],
+    )
+    def test_refused_features(self, proforma: str, feature: str):
+        with pytest.raises(PeptacularError, match=feature):
+            pt.parse(proforma).to_maxquant()
+
+    def test_modification_multiplier_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", nterm_mods={"Acetyl": 2})
+        with pytest.raises(PeptacularError, match="multipliers"):
+            annot.to_maxquant()
+
+    @pytest.mark.parametrize(
+        ("proforma", "where"),
+        [
+            ("[Acetyl][Phospho]-PEPTIDE", "at the N-terminus"),
+            ("PEPTIDE-[Amidated][Phospho]", "at the C-terminus"),
+            ("PEP[Phospho][Oxidation]TIDE", "on one residue"),
+        ],
+    )
+    def test_two_mods_at_one_position_refused(self, proforma: str, where: str):
+        with pytest.raises(PeptacularError, match=f"more than one modification {where}"):
+            pt.parse(proforma).to_maxquant()
+
+    @pytest.mark.parametrize("proforma", ["PEPTIDEK[TMT6plex]", "PEPTIDE[Phospho]-[Amidated]"])
+    def test_last_residue_mod_refused(self, proforma: str):
+        with pytest.raises(PeptacularError, match="last residue"):
+            pt.parse(proforma).to_maxquant()
+
+    def test_last_residue_mod_is_read_as_cterm(self):
+        assert pt.ProFormaAnnotation.from_maxquant("_PEPTIDEK(TMT6plex)_").serialize() == "PEPTIDEK-[TMT6plex]"
+
+    def test_unbalanced_name_refused(self):
+        annot = pt.ProFormaAnnotation(sequence="PEPTIDE", internal_mods={1: {"a)": 1}})
+        with pytest.raises(PeptacularError, match="unbalanced"):
+            annot.to_maxquant()
+
+    def test_does_not_modify_input(self):
+        annot = pt.parse("<[Carbamidomethyl]@C>PECTIDE")
+        annot.to_maxquant()
+        assert annot.serialize() == "<[Carbamidomethyl]@C>PECTIDE"
+
+
+class TestFromMaxquant:
+    """Tests for ProFormaAnnotation.from_maxquant and convert_maxquant_sequence."""
+
+    @pytest.mark.parametrize(("proforma", "mq"), MAXQUANT_PAIRS)
+    def test_round_trip(self, proforma: str, mq: str):
+        annot = pt.ProFormaAnnotation.from_maxquant(mq)
+        assert annot == pt.parse(proforma)
+        assert annot.to_maxquant() == mq
+
+    @pytest.mark.parametrize(
+        ("mq", "expected"),
+        [
+            ("_ALTDM(Oxidation (M))PQM(Oxidation (M))R_", "ALTDM[Oxidation (M)]PQM[Oxidation (M)]R"),
+            ("_P(Phospho)EPTIDE_", "P[Phospho]EPTIDE"),
+            ("_PEPTIDE(Amidated)_", "PEPTIDE-[Amidated]"),
+            ("_(ac)SM(ox)K_", "[ac]-SM[ox]K"),
+            ("PEPTIDE", "PEPTIDE"),
+        ],
+    )
+    def test_reads(self, mq: str, expected: str):
+        assert pt.ProFormaAnnotation.from_maxquant(mq).serialize() == expected
+        assert convert_maxquant_sequence(mq) == expected
+
+    def test_first_residue_mod_is_not_nterminal(self):
+        annot = pt.ProFormaAnnotation.from_maxquant("_P(Phospho)EPTIDE_")
+        assert not annot.has_nterm_mods
+
+    @pytest.mark.parametrize("bad", ["_PEP(Phospho_", "_PEP)TIDE_", "_PEP(Phospho))TIDE_"])
+    def test_unbalanced_raises(self, bad: str):
+        with pytest.raises(ProFormaFormatError):
+            pt.ProFormaAnnotation.from_maxquant(bad)
+
+    def test_convert_list(self):
+        seqs = ["_PEPTIDE_", "_(ac)SM(ox)K_", "_PEPM(Oxidation (M))TIDE_"]
+        expected = ["PEPTIDE", "[ac]-SM[ox]K", "PEPM[Oxidation (M)]TIDE"]
+        assert convert_maxquant_sequence(seqs, n_workers=2) == expected
+        assert convert_maxquant_sequence(seqs, method="thread", n_workers=2) == expected
+        assert convert_maxquant_sequence([]) == []
