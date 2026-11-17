@@ -7,6 +7,7 @@ from .parallel import parallel_apply_internal
 __all__ = [
     "convert_ip2_sequence",
     "convert_diann_sequence",
+    "convert_maxquant_sequence",
     "convert_casanovo_sequence",
 ]
 
@@ -113,6 +114,58 @@ def convert_diann_sequence(
         )
     else:
         return _convert_diann_sequence_single(sequence)
+
+
+def _convert_maxquant_sequence_single(sequence: str) -> str:
+    return ProFormaAnnotation.from_maxquant(sequence).serialize()
+
+
+@overload
+def convert_maxquant_sequence(
+    sequence: str,
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str: ...
+
+
+@overload
+def convert_maxquant_sequence(
+    sequence: list[str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[str]: ...
+
+
+def convert_maxquant_sequence(
+    sequence: str | list[str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str | list[str]:
+    """
+    Converts a MaxQuant-Like sequence to a proforma2.0 compatible sequence.
+
+    .. code-block:: python
+
+        >>> convert_maxquant_sequence('_(ac)SM(Oxidation (M))K(Amidated)_')
+        '[ac]-SM[Oxidation (M)]K-[Amidated]'
+
+    """
+    if isinstance(sequence, list):
+        return parallel_apply_internal(
+            _convert_maxquant_sequence_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    else:
+        return _convert_maxquant_sequence_single(sequence)
 
 
 def _convert_casanovo_sequence_single(sequence: str) -> str:

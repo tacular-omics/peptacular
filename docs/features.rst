@@ -107,6 +107,7 @@ Import and export sequences from popular proteomics tools.
 
 - IP2 (flanking amino acids notation)
 - DIANN (modification notation)
+- MaxQuant (modified sequence notation)
 - Casanovo (de novo sequencing output)
 - MS2PIP (fragment prediction input/output)
 
