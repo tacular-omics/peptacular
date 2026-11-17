@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `ProFormaAnnotation.to_msfragger()`, `ProFormaAnnotation.from_msfragger()`, `pt.to_msfragger()`, and `pt.from_msfragger()` convert peptides between ProForma and MSFragger / FragPipe's `(Peptide, Assigned Modifications)` pair format (#116).
+
 ## [5.2.0] (2026-11-16)
 
 ### Fixed

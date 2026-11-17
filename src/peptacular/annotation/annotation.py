@@ -212,6 +212,7 @@ CUSTOM_LOSS_TYPE = str | ChargedFormula | float | dict[str | ChargedFormula | fl
 POSITION_TYPE = int | tuple[int, int]
 
 _SIGNED_DELTA_RE = re.compile(r"^[+-](?:\d+(?:\.\d*)?|\.\d+)$")
+_MSFRAGGER_ENTRY_RE = re.compile(r"^(?:(N-term)|(C-term)|(\d+)([a-zA-Z]))\(([+-]?(?:\d+(?:\.\d*)?|\.\d+))\)$")
 
 
 class ProFormaAnnotation(_ModAccessMixin):
@@ -2558,6 +2559,130 @@ class ProFormaAnnotation(_ModAccessMixin):
         # Add static modifications
         for static_aa, mass in (static_mods or {}).items():
             annot.add_static_mod_by_residue(static_aa, mass, inplace=True)
+
+        return annot
+
+    def to_msfragger(self, *, inplace: bool = False) -> tuple[str, str]:
+        """Convert peptide annotation to MSFragger (Peptide, Assigned Modifications) format.
+
+        FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and its variable
+        modifications in ``Assigned Modifications`` (e.g. ``N-term(42.0106), 4M(15.9949)``).
+
+        FragPipe's ``psm.tsv`` also contains a ``Modified Peptide`` column with residue masses
+        (e.g. ``M[147]``). This method intentionally writes ``(Peptide, Assigned Modifications)``
+        pairs rather than ``Modified Peptide``, because ``Modified Peptide`` records integer residue
+        masses from which the original delta mass (such as ``+15.9949``) cannot be recovered or read back.
+
+        :param inplace: Modify this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: A tuple of ``(unmodified_sequence, assigned_modifications)``.
+        :rtype: tuple[str, str]
+        """
+        if self.has_mods(
+            (
+                ModType.ISOTOPE,
+                ModType.LABILE,
+                ModType.UNKNOWN,
+                ModType.INTERVAL,
+                ModType.CHARGE,
+            )
+        ):
+            raise PeptacularError("MSFragger format does not support isotope, labile, unknown, interval, charge, or charge adduct modifications.")
+
+        if not inplace:
+            annot_copy = self.copy()
+            annot_copy.condense_static_mods(inplace=True)
+        else:
+            self.condense_static_mods(inplace=True)
+            annot_copy = self
+
+        def _format_delta_mass(name: str) -> str:
+            if not _SIGNED_DELTA_RE.match(name):
+                raise PeptacularError(f"MSFragger format only supports signed delta mass modifications, not {name!r}.")
+            return name[1:] if name.startswith("+") else name
+
+        mod_entries: list[str] = []
+
+        # Process N-terminal modifications
+        if annot_copy._nterm_mods is not None:
+            if len(annot_copy._nterm_mods) > 1:
+                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+            for mod_name, count in annot_copy._nterm_mods.items():
+                if count != 1:
+                    raise PeptacularError("MSFragger format does not support modification multipliers.")
+                mass_str = _format_delta_mass(mod_name)
+                mod_entries.append(f"N-term({mass_str})")
+
+        # Process internal modifications
+        if annot_copy._internal_mods is not None:
+            for index in sorted(annot_copy._internal_mods.keys()):
+                mods_dict = annot_copy._internal_mods[index]
+                if len(mods_dict) > 1:
+                    raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+                for mod_name, count in mods_dict.items():
+                    if count != 1:
+                        raise PeptacularError("MSFragger format does not support modification multipliers.")
+                    mass_str = _format_delta_mass(mod_name)
+                    pos = index + 1
+                    residue = annot_copy.sequence[index]
+                    mod_entries.append(f"{pos}{residue}({mass_str})")
+
+        # Process C-terminal modifications
+        if annot_copy._cterm_mods is not None:
+            if len(annot_copy._cterm_mods) > 1:
+                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+            for mod_name, count in annot_copy._cterm_mods.items():
+                if count != 1:
+                    raise PeptacularError("MSFragger format does not support modification multipliers.")
+                mass_str = _format_delta_mass(mod_name)
+                mod_entries.append(f"C-term({mass_str})")
+
+        unmod_sequence = annot_copy.stripped_sequence
+        return unmod_sequence, ", ".join(mod_entries)
+
+    @staticmethod
+    def from_msfragger(peptide: str, modifications: str) -> "ProFormaAnnotation":
+        """Create ProFormaAnnotation from MSFragger peptide and assigned modifications pair.
+
+        :param peptide: The unmodified amino acid sequence.
+        :type peptide: str
+        :param modifications: The comma-separated assigned modifications string
+            (e.g. ``"N-term(42.0106), 4M(15.9949)"``).
+        :type modifications: str
+        :return: A parsed ProFormaAnnotation object.
+        :rtype: ProFormaAnnotation
+        """
+        annot = ProFormaAnnotation(sequence=peptide)
+
+        if modifications.strip() == "":
+            return annot
+
+        parts = [part.strip() for part in modifications.split(",")]
+        for part in parts:
+            if not part:
+                raise PeptacularError(f"Invalid MSFragger modification entry: {part!r}")
+
+            match = _MSFRAGGER_ENTRY_RE.match(part)
+            if not match:
+                raise PeptacularError(f"Invalid MSFragger modification entry: {part!r}")
+
+            nterm, cterm, pos_str, residue, mass_str = match.groups()
+            mass_val = float(mass_str)
+
+            if nterm:
+                annot.append_nterm_mod(mass_val, inplace=True)
+            elif cterm:
+                annot.append_cterm_mod(mass_val, inplace=True)
+            else:
+                pos = int(pos_str)
+                if pos < 1 or pos > len(peptide):
+                    raise PeptacularError(f"Modification position {pos} is out of range for peptide of length {len(peptide)}")
+                expected_residue = peptide[pos - 1]
+                if residue != expected_residue:
+                    raise PeptacularError(
+                        f"Residue mismatch at position {pos}: expected {residue!r} from modification, but found {expected_residue!r} in peptide {peptide!r}"
+                    )
+                annot.append_internal_mod_at_index(pos - 1, mass_val, inplace=True)
 
         return annot
 
