@@ -201,7 +201,7 @@ def convert_skyline_sequence(
     method: ParallelMethod | ParallelMethodLiteral | None = None,
 ) -> str | list[str]:
     """
-    Converts a Skyline-Like sequence to a proforma2.0 compatible sequence.
+    Converts a Skyline modified sequence to a ProForma sequence.
 
     .. code-block:: python
 

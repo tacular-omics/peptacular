@@ -213,6 +213,10 @@ POSITION_TYPE = int | tuple[int, int]
 
 _SIGNED_DELTA_RE = re.compile(r"^[+-](?:\d+(?:\.\d*)?|\.\d+)$")
 _SKYLINE_BARE_NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+# Skyline's own mass regex is `^[+-]?[0-9]*[.,]?[0-9]*$` (MassModification.cs:108), so a comma
+# decimal is a mass to Skyline. Its value depends on the writer's culture, so this matches it
+# in order to refuse it, not to read it.
+_SKYLINE_COMMA_NUMBER = re.compile(r"[+-]?[0-9]*,[0-9]*")
 _SKYLINE_UNIMOD = re.compile(r"unimod:(\d+)", re.IGNORECASE)
 
 
@@ -2368,11 +2372,13 @@ class ProFormaAnnotation(_ModAccessMixin):
         delta mass keeps the precision it was given. Static modifications are written onto
         the residues they apply to.
 
-        Skyline writes a terminal modification onto the first or last residue, and sums two
-        modifications on one residue into a single bracket. ``from_skyline`` cannot tell
-        either from an ordinary modification on that residue, so a terminal modification and a
-        second modification on one residue are refused, as is a bare unsigned number, which
-        ``from_skyline`` would read back as a signed delta mass.
+        Skyline writes a terminal modification onto the first or last residue, and its
+        mass-delta forms sum two modifications on one residue into a single bracket. Its name
+        and UniMod forms give each modification its own bracket instead, ``[A][B]`` and
+        ``(unimod:4)(unimod:35)``, which ``from_skyline`` reads. ``from_skyline`` cannot tell a
+        terminal modification, or a summed mass, from an ordinary modification on that residue,
+        so a terminal modification and a second modification on one residue are refused, as is
+        a bare unsigned number, which ``from_skyline`` would read back as a signed delta mass.
 
         >>> import peptacular as pt
         >>> pt.parse("PEPTIDE").to_skyline()
@@ -2426,7 +2432,10 @@ class ProFormaAnnotation(_ModAccessMixin):
                 if count != 1:
                     raise PeptacularError("Skyline format does not support modification multipliers.")
             if len(mods) > 1:
-                raise PeptacularError("Skyline format cannot write more than one modification on one residue, Skyline sums them into a single bracket.")
+                raise PeptacularError(
+                    "Skyline format cannot write more than one modification on one residue: Skyline's mass-delta forms sum them into a single bracket, "
+                    "which from_skyline cannot tell from one modification of that mass."
+                )
             (name,) = mods
             depth = 0
             for char in name:
@@ -2452,7 +2461,10 @@ class ProFormaAnnotation(_ModAccessMixin):
         matched as balanced pairs. A round-bracket ``(unimod:N)`` is read without regard to case
         as ``[UNIMOD:N]``, and a bracket holding a bare number gets the ``+`` ProForma requires
         when it has no sign. Skyline writes a terminal modification onto the first or last
-        residue, so every modification is read as sitting on the residue before it.
+        residue, so a Skyline string carries no terminal modification of its own. ProForma
+        syntax that Skyline never writes is passed through to the parser rather than refused,
+        as in the other readers, so ``from_skyline("PEPTIDE-[Amidated]")`` does return a
+        C-terminal modification.
 
         >>> import peptacular as pt
         >>> pt.ProFormaAnnotation.from_skyline("GVDC[+57]QEVSQEK").serialize()
@@ -2484,9 +2496,22 @@ class ProFormaAnnotation(_ModAccessMixin):
                         break
                 else:
                     raise ProFormaFormatError(f"Unbalanced square brackets in Skyline sequence: {sequence!r}.")
-                text = sequence[index + 1 : end]
+                # Stripped before the checks below: a bracket written with padding held a
+                # bare number that the unstripped test read as a name, and `mass()` then
+                # raised for a modification Skyline means as a delta.
+                text = sequence[index + 1 : end].strip()
                 if not text:
                     raise ProFormaFormatError(f"Empty modification in Skyline sequence: {sequence!r}.")
+                if _SKYLINE_COMMA_NUMBER.fullmatch(text):
+                    # Skyline's fallback writes the mass in the current culture
+                    # (ModifiedSequence.cs:308) and its own parser accepts a comma decimal
+                    # (MassModification.cs:108), so this is a mass written on a machine whose
+                    # culture uses a comma. Which number it is depends on that culture, so it
+                    # is refused rather than read as a name or guessed at.
+                    raise ProFormaFormatError(
+                        f"Comma decimal in a Skyline modification: {text!r} in {sequence!r}. Skyline writes a mass in the writer's "
+                        f"culture, so the value is ambiguous here; rewrite it with a period."
+                    )
                 if _SKYLINE_BARE_NUMBER.fullmatch(text) and text[0] not in "+-":
                     text = f"+{text}"
                 _skyline_require_residue(out, sequence)

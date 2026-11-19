@@ -752,12 +752,87 @@ class TestFromSkyline:
         assert annot.mass() == pytest.approx(pt.parse("PEPTIDE").mass() + 15.9949, abs=1e-4)
 
     def test_balanced_square_brackets(self):
+        # peptacular's own choice, not Skyline's behaviour. Skyline cannot emit this: a name
+        # holding `]` is written in round or curly brackets instead
+        # (pwiz_tools/Skyline/Model/ModifiedSequence.cs:324-336), and Skyline's reader closes
+        # at the first `]` (Model/ModificationMatcher.cs:294). Reading the balanced pair is
+        # strictly more permissive, so it costs nothing, but no Skyline string exercises it.
         assert pt.ProFormaAnnotation.from_skyline("PEPT[a[b]c]IDE").serialize() == "PEPT[a[b]c]IDE"
 
     def test_modification_is_never_terminal(self):
         annot = pt.ProFormaAnnotation.from_skyline("P[+42]EPTIDEK[+8]")
         assert not annot.has_nterm_mods
         assert not annot.has_cterm_mods
+
+    # --- strings taken from Skyline's own repository, ProteoWizard/pwiz at 408a38ca --------
+    # Each label is the file the string was read from, verified 2026-11-19. Base path:
+    # https://github.com/ProteoWizard/pwiz/blob/408a38ca6e2042ba886a2cd495eaa989be4436f8/pwiz_tools/Skyline/
+    @pytest.mark.parametrize(
+        ("skyline", "proforma", "provenance"),
+        [
+            ("GVDC[+57]QEVSQEK", "GVDC[+57]QEVSQEK", "TestTutorial/TutorialAuditLogs/en/TestOrbiPrmTutorial.log:69, real Skyline output"),
+            ("GVDC[+57.021464]QEVSQEK", "GVDC[+57.021464]QEVSQEK", "the same log at :198, the full-precision form of the same peptide"),
+            ("C[+57.0]PEPTIDER[+10.0]", "C[+57.0]PEPTIDER[+10.0]", "Test/ModifiedSequenceTest.cs:72, modified_sequence of a heavy precursor"),
+            ("A[+56.0]GLQFPVGR", "A[+56.0]GLQFPVGR", "Test/ModifiedSequenceTest.cs:191, an N-terminal PropionylNT written onto residue 0"),
+            (
+                "AFC[UniMod:4]AVPWQGTM[oXi]T(UniMod:21)LSK",
+                "AFC[UniMod:4]AVPWQGTM[oXi]T[UNIMOD:21]LSK",
+                "Test/ModificationMatcherTest.cs:392 STR_CYS_OXI_PHOS, square and round UniMod in one string",
+            ),
+        ],
+    )
+    def test_reads_real_skyline_strings(self, skyline: str, proforma: str, provenance: str):
+        assert pt.ProFormaAnnotation.from_skyline(skyline).serialize() == proforma, provenance
+
+    def test_reads_the_two_forms_the_skyline_tutorial_lists(self):
+        # Documentation/Tutorials/ImportingIntegrationBoundaries/en/index.html: "peptide
+        # modified sequences can be expressed in many different ways, so GSMAFVPK(UniMod:259),
+        # GSMAFVPK[+8.0], and GSMAFVPK[Label (K) 6] are all acceptable." The first two are the
+        # ones peptacular resolves to a mass.
+        by_mass = pt.ProFormaAnnotation.from_skyline("GSMAFVPK[+8.0]")
+        by_unimod = pt.ProFormaAnnotation.from_skyline("GSMAFVPK(UniMod:259)")
+        assert by_mass.serialize() == "GSMAFVPK[+8.0]"
+        assert by_unimod.serialize() == "GSMAFVPK[UNIMOD:259]"
+        # UNIMOD:259 is Label:13C(6)15N(2), 8.014199 Da, so the tutorial's two spellings are
+        # the same peptide to within the rounding of its own +8.0.
+        assert by_unimod.mass() == pytest.approx(by_mass.mass(), abs=0.015)
+
+    # --- fix: a bracket written with padding ----------------------------------------------
+    @pytest.mark.parametrize("skyline", ["PEPT[ 15.99]IDE", "PEPT[15.99 ]IDE", "PEPT[  +15.99  ]IDE"])
+    def test_bracket_text_is_stripped_before_the_number_test(self, skyline: str):
+        # Unstripped, the bare-number test missed these and the mass became a modification
+        # named "15.99", which mass() then refused.
+        annot = pt.ProFormaAnnotation.from_skyline(skyline)
+        assert annot.serialize() == "PEPT[+15.99]IDE"
+        assert annot.mass() == pytest.approx(pt.parse("PEPTIDE").mass() + 15.99, abs=1e-4)
+
+    def test_a_bracket_of_only_whitespace_is_empty(self):
+        with pytest.raises(ProFormaFormatError, match="Empty modification"):
+            pt.ProFormaAnnotation.from_skyline("PEPT[ ]IDE")
+
+    # --- fix: a comma decimal is Skyline's culture-dependent mass form ---------------------
+    @pytest.mark.parametrize("skyline", ["PEPM[15,9949]K", "PEPM[+15,9949]K", "PEPM[-0,98]K", "PEPM[1,000]K"])
+    def test_comma_decimal_is_refused(self, skyline: str):
+        # Model/ModifiedSequence.cs:308 writes the mass with CultureInfo.CurrentCulture and
+        # Model/MassModification.cs:108 accepts `[.,]` as the separator, so the value depends
+        # on the culture that wrote it: "1,000" is 1000 in one and 1.0 in another.
+        with pytest.raises(ProFormaFormatError, match="Comma decimal"):
+            pt.ProFormaAnnotation.from_skyline(skyline)
+
+    def test_a_name_holding_a_comma_is_not_refused(self):
+        # The refusal matches only a bare number, so a modification name keeps working.
+        assert pt.ProFormaAnnotation.from_skyline("PEPT[Label:2H(4),13C(1)]IDE").serialize() == "PEPT[Label:2H(4),13C(1)]IDE"
+
+    # --- fix: the guard against a modification before the first residue -------------------
+    @pytest.mark.parametrize("skyline", ["[+42]-PEPTIDE", "[+1]?PEPTIDE", "[+42]PEPTIDE", "(unimod:35)PEPTIDE"])
+    def test_modification_before_the_first_residue_is_refused(self, skyline: str):
+        # Skyline's reader does accept this shape and folds it onto residue 0
+        # (Model/PeptideGroup.cs:409 NormalizeNTerminalMod), but Skyline never writes it, and
+        # reading it would put a modification where peptacular cannot write it back. Without
+        # this guard the first two parse as ProForma terminal and unknown-position
+        # modifications instead of being refused.
+        with pytest.raises(ProFormaFormatError):
+            pt.ProFormaAnnotation.from_skyline(skyline)
 
     @pytest.mark.parametrize(
         "bad",
