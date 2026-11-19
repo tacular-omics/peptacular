@@ -212,6 +212,18 @@ CUSTOM_LOSS_TYPE = str | ChargedFormula | float | dict[str | ChargedFormula | fl
 POSITION_TYPE = int | tuple[int, int]
 
 _SIGNED_DELTA_RE = re.compile(r"^[+-](?:\d+(?:\.\d*)?|\.\d+)$")
+_SKYLINE_BARE_NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+# Skyline's own mass regex is `^[+-]?[0-9]*[.,]?[0-9]*$` (MassModification.cs:108), so a comma
+# decimal is a mass to Skyline. Its value depends on the writer's culture, so this matches it
+# in order to refuse it, not to read it.
+_SKYLINE_COMMA_NUMBER = re.compile(r"[+-]?[0-9]*,[0-9]*")
+_SKYLINE_UNIMOD = re.compile(r"unimod:(\d+)", re.IGNORECASE)
+
+
+def _skyline_require_residue(tokens: list[str], sequence: str) -> None:
+    """Raise if no residue has been read yet, so a Skyline modification has nothing to sit on."""
+    if not any(not token.startswith("[") for token in tokens):
+        raise ProFormaFormatError(f"Modification before the first residue in Skyline sequence: {sequence!r}.")
 
 
 class ProFormaAnnotation(_ModAccessMixin):
@@ -2349,6 +2361,175 @@ class ProFormaAnnotation(_ModAccessMixin):
         if last >= 0 and last + 1 < len(tokens):
             out.append("-")
             out.extend(f"[{name}]" for _, name in tokens[last + 1 :])
+        return ProFormaAnnotation.parse("".join(out))
+
+    def to_skyline(self) -> str:
+        """Convert this annotation to a Skyline modified-sequence string.
+
+        Skyline writes each modification in square brackets directly after the residue it
+        sits on, either as a signed mass difference (``[+57.0]``) or as a modification name
+        (``[Carbamidomethyl]``). The modification string is copied through unchanged, so a
+        delta mass keeps the precision it was given. Static modifications are written onto
+        the residues they apply to.
+
+        Skyline writes a terminal modification onto the first or last residue, and its
+        mass-delta forms sum two modifications on one residue into a single bracket. Its name
+        and UniMod forms give each modification its own bracket instead, ``[A][B]`` and
+        ``(unimod:4)(unimod:35)``, which ``from_skyline`` reads. ``from_skyline`` cannot tell a
+        terminal modification, or a summed mass, from an ordinary modification on that residue,
+        so a terminal modification and a second modification on one residue are refused, as is
+        a bare unsigned number, which ``from_skyline`` would read back as a signed delta mass.
+
+        >>> import peptacular as pt
+        >>> pt.parse("PEPTIDE").to_skyline()
+        'PEPTIDE'
+        >>> pt.parse("PEPT[+79.9663]IDE").to_skyline()
+        'PEPT[+79.9663]IDE'
+        >>> pt.parse("PEPT[-18.0106]IDE").to_skyline()
+        'PEPT[-18.0106]IDE'
+        >>> pt.parse("PEPC[Carbamidomethyl]IDE").to_skyline()
+        'PEPC[Carbamidomethyl]IDE'
+
+        :return: The annotation as a Skyline modified sequence.
+        :rtype: str
+        :raises PeptacularError: If the annotation has isotope labels, labile modifications,
+            unknown-position modifications, interval modifications, charge or charge adducts,
+            modification multipliers, a terminal modification, more than one modification on
+            one residue, an unsigned bare number as a modification, or a modification name with
+            unbalanced square brackets.
+        """
+        for mod_type, feature in (
+            (ModType.ISOTOPE, "isotope labels"),
+            (ModType.LABILE, "labile modifications"),
+            (ModType.UNKNOWN, "unknown-position modifications"),
+            (ModType.INTERVAL, "interval modifications"),
+            (ModType.CHARGE, "charge or charge adducts"),
+        ):
+            if self.has_mods(mod_type):
+                raise PeptacularError(f"Skyline format does not support {feature}.")
+
+        annot_copy = self.copy()
+        annot_copy.condense_static_mods(inplace=True)
+
+        # Skyline writes a terminal modification onto the first or last residue, where
+        # `from_skyline` cannot tell it from a modification on that residue.
+        if annot_copy._nterm_mods or annot_copy._cterm_mods:
+            raise PeptacularError(
+                "Skyline format cannot write a terminal modification, Skyline writes it onto the "
+                "terminal residue and from_skyline could not tell it from a modification on that residue."
+            )
+
+        sequence = annot_copy.stripped_sequence
+        internal = annot_copy._internal_mods or {}
+
+        parts: list[str] = []
+        for index, residue in enumerate(sequence):
+            parts.append(residue)
+            mods = internal.get(index)
+            if not mods:
+                continue
+            for count in mods.values():
+                if count != 1:
+                    raise PeptacularError("Skyline format does not support modification multipliers.")
+            if len(mods) > 1:
+                raise PeptacularError(
+                    "Skyline format cannot write more than one modification on one residue: Skyline's mass-delta forms sum them into a single bracket, "
+                    "which from_skyline cannot tell from one modification of that mass."
+                )
+            (name,) = mods
+            depth = 0
+            for char in name:
+                depth += (char == "[") - (char == "]")
+                if depth < 0:
+                    break
+            if depth != 0:
+                raise PeptacularError(f"Skyline format cannot write a modification name with unbalanced square brackets: {name!r}.")
+            if _SKYLINE_BARE_NUMBER.fullmatch(name) and name[0] not in "+-":
+                raise PeptacularError(
+                    f"Skyline format cannot write the unsigned number {name!r} as a modification, from_skyline would read it back as a signed delta mass."
+                )
+            parts.append(f"[{name}]")
+        return "".join(parts)
+
+    @staticmethod
+    def from_skyline(sequence: str) -> "ProFormaAnnotation":
+        """Read a Skyline modified-sequence string into an annotation.
+
+        Skyline writes each modification directly after the residue it sits on, in square
+        brackets, as a signed mass difference (``[+57]``, ``[-0.98]``) or as a modification
+        name (``[Phospho (ST)]``), or as ``(unimod:N)`` in round brackets. Square brackets are
+        matched as balanced pairs. A round-bracket ``(unimod:N)`` is read without regard to case
+        as ``[UNIMOD:N]``, and a bracket holding a bare number gets the ``+`` ProForma requires
+        when it has no sign. Skyline writes a terminal modification onto the first or last
+        residue, so a Skyline string carries no terminal modification of its own. ProForma
+        syntax that Skyline never writes is passed through to the parser rather than refused,
+        as in the other readers, so ``from_skyline("PEPTIDE-[Amidated]")`` does return a
+        C-terminal modification.
+
+        >>> import peptacular as pt
+        >>> pt.ProFormaAnnotation.from_skyline("GVDC[+57]QEVSQEK").serialize()
+        'GVDC[+57]QEVSQEK'
+        >>> pt.ProFormaAnnotation.from_skyline("GSMAFVPK(unimod:259)").serialize()
+        'GSMAFVPK[UNIMOD:259]'
+        >>> pt.ProFormaAnnotation.from_skyline("PEPT[Phospho (ST)]IDER").serialize()
+        'PEPT[Phospho (ST)]IDER'
+        >>> pt.ProFormaAnnotation.from_skyline("AAM[15.9949]Q[-0.98]R").serialize()
+        'AAM[+15.9949]Q[-0.98]R'
+
+        :param sequence: A Skyline modified sequence.
+        :type sequence: str
+        :return: The sequence as an annotation.
+        :rtype: ProFormaAnnotation
+        :raises ProFormaFormatError: If the brackets are unbalanced, a bracket is empty or comes
+            before the first residue, a round bracket is not ``(unimod:N)``, or the ProForma
+            string the brackets are rewritten into cannot be parsed.
+        """
+        out: list[str] = []
+        index = 0
+        while index < len(sequence):
+            char = sequence[index]
+            if char == "[":
+                depth = 0
+                for end in range(index, len(sequence)):
+                    depth += (sequence[end] == "[") - (sequence[end] == "]")
+                    if depth == 0:
+                        break
+                else:
+                    raise ProFormaFormatError(f"Unbalanced square brackets in Skyline sequence: {sequence!r}.")
+                # Stripped before the checks below: a bracket written with padding held a
+                # bare number that the unstripped test read as a name, and `mass()` then
+                # raised for a modification Skyline means as a delta.
+                text = sequence[index + 1 : end].strip()
+                if not text:
+                    raise ProFormaFormatError(f"Empty modification in Skyline sequence: {sequence!r}.")
+                if _SKYLINE_COMMA_NUMBER.fullmatch(text):
+                    # Skyline's fallback writes the mass in the current culture
+                    # (ModifiedSequence.cs:308) and its own parser accepts a comma decimal
+                    # (MassModification.cs:108), so this is a mass written on a machine whose
+                    # culture uses a comma. Which number it is depends on that culture, so it
+                    # is refused rather than read as a name or guessed at.
+                    raise ProFormaFormatError(
+                        f"Comma decimal in a Skyline modification: {text!r} in {sequence!r}. Skyline writes a mass in the writer's "
+                        f"culture, so the value is ambiguous here; rewrite it with a period."
+                    )
+                if _SKYLINE_BARE_NUMBER.fullmatch(text) and text[0] not in "+-":
+                    text = f"+{text}"
+                _skyline_require_residue(out, sequence)
+                out.append(f"[{text}]")
+                index = end + 1
+            elif char == "(":
+                end = sequence.find(")", index)
+                match = _SKYLINE_UNIMOD.fullmatch(sequence[index + 1 : end]) if end != -1 else None
+                if match is None:
+                    raise ProFormaFormatError(f"Expected (unimod:N) for a round bracket in Skyline sequence: {sequence!r}.")
+                _skyline_require_residue(out, sequence)
+                out.append(f"[UNIMOD:{match.group(1)}]")
+                index = end + 1
+            elif char in "])":
+                raise ProFormaFormatError(f"Unbalanced brackets in Skyline sequence: {sequence!r}.")
+            else:
+                out.append(char)
+                index += 1
         return ProFormaAnnotation.parse("".join(out))
 
     def to_casanovo(self) -> str:

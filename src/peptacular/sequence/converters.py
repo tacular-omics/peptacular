@@ -8,6 +8,7 @@ __all__ = [
     "convert_ip2_sequence",
     "convert_diann_sequence",
     "convert_maxquant_sequence",
+    "convert_skyline_sequence",
     "convert_casanovo_sequence",
 ]
 
@@ -166,6 +167,58 @@ def convert_maxquant_sequence(
         )
     else:
         return _convert_maxquant_sequence_single(sequence)
+
+
+def _convert_skyline_sequence_single(sequence: str) -> str:
+    return ProFormaAnnotation.from_skyline(sequence).serialize()
+
+
+@overload
+def convert_skyline_sequence(
+    sequence: str,
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str: ...
+
+
+@overload
+def convert_skyline_sequence(
+    sequence: list[str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[str]: ...
+
+
+def convert_skyline_sequence(
+    sequence: str | list[str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str | list[str]:
+    """
+    Converts a Skyline modified sequence to a ProForma sequence.
+
+    .. code-block:: python
+
+        >>> convert_skyline_sequence('AAM[15.9949]Q[-0.98]R')
+        'AAM[+15.9949]Q[-0.98]R'
+
+    """
+    if isinstance(sequence, list):
+        return parallel_apply_internal(
+            _convert_skyline_sequence_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    else:
+        return _convert_skyline_sequence_single(sequence)
 
 
 def _convert_casanovo_sequence_single(sequence: str) -> str:

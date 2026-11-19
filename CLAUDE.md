@@ -150,7 +150,7 @@ which builds a `Fragment`.
   `secondary_structure`, `calc_property`, `calc_window_property` and ~20 more named
   scales, plus the scale enums (`HydrophobicityScale`, `HPLCScale`, ...) and the
   `annot.prop` object (`AnnotationProperties`).
-- **Converters**: `convert_ip2_sequence`, `convert_diann_sequence`, `convert_maxquant_sequence`,
+- **Converters**: `convert_ip2_sequence`, `convert_diann_sequence`, `convert_maxquant_sequence`, `convert_skyline_sequence`,
   `convert_casanovo_sequence`, `to_ms2_pip`, `from_ms2_pip`.
 - **Batch**: `batch`, `iter_batch`, `diagnose`, `BatchResult`, `Diagnostic`, and the
   `HasSequence` input protocol (any object with a `.sequence` str, e.g. a fastatacular
