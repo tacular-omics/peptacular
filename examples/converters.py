@@ -1,8 +1,9 @@
 """
 Sequence Format Conversion Examples
 ====================================
-Examples of converting peptide sequences from other tools (IP2, DIANN, MaxQuant,
-Skyline, Casanovo, MS2PIP) to ProForma 2.1 format. All conversion functions support parallel execution.
+Examples of converting peptide sequences from other tools (IP2, DIANN, MaxQuant, Skyline,
+Casanovo, MS2PIP, MSFragger) to ProForma 2.1 format. All conversion functions support
+parallel execution.
 """
 
 import peptacular as pt
@@ -102,6 +103,27 @@ def run():
     casanovo_annot = pt.ProFormaAnnotation.from_casanovo("+43.006PEPTIDE")
     print(f"\nCasanovo (annotation method): {casanovo_annot.serialize()}")
     print(f"  Mass: {casanovo_annot.mass():.4f} Da")
+
+    # ============================================================================
+    # MSFRAGGER / FRAGPIPE CONVERSION
+    # ============================================================================
+
+    print("\n" + "=" * 60)
+    print("MSFRAGGER / FRAGPIPE CONVERSION")
+    print("=" * 60)
+
+    # FragPipe's psm.tsv carries two columns: the stripped Peptide and the entries in
+    # Assigned Modifications. This row is from compomics/psm_utils' example file.
+    peptide, assigned = "LHISPSNMTNQNTPEYMEK", "8M(15.9949), C-term(-0.9840)"
+    print(f"Peptide: {peptide}")
+    print(f"Assigned Modifications: {assigned}")
+    print(f"ProForma: {pt.from_msfragger((peptide, assigned))}")
+
+    # Writing the pair back out. The entries are sorted as strings and every mass gets four
+    # decimals, which is what Philosopher writes.
+    annot = pt.parse("[+42.0106]-PEPM[+15.9949]IDE")
+    print(f"\nProForma: {annot.serialize()}")
+    print(f"MSFragger: {annot.to_msfragger()}\n")
 
     # ============================================================================
     # MS2PIP FORMAT CONVERSION

@@ -558,8 +558,10 @@ def to_msfragger(
 ) -> tuple[str, str] | list[tuple[str, str]]:
     """Convert peptide sequence(s) to MSFragger (Peptide, Assigned Modifications) format.
 
-    FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and its variable
-    modifications in ``Assigned Modifications`` (e.g. ``N-term(42.0106), 4M(15.9949)``).
+    FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and the modifications
+    assigned to it in ``Assigned Modifications`` (e.g. ``4M(15.9949), N-term(42.0106)``). Fixed
+    modifications are in that column too, not only variable ones. Each mass is written with four
+    decimals and the entries are sorted as strings, as Philosopher writes them.
 
     FragPipe's ``psm.tsv`` also contains a ``Modified Peptide`` column with residue masses
     (e.g. ``M[147]``). This method intentionally writes ``(Peptide, Assigned Modifications)``
@@ -639,8 +641,15 @@ def from_msfragger(
         >>> from_msfragger(items)
         ['PEPTIDE', 'PEPM[+15.9949]IDE']
     """
-    if isinstance(sequence, Sequence) and not isinstance(sequence, tuple):
-        if not all(isinstance(item, tuple) and len(item) == 2 for item in sequence):
+    # A tuple of pairs is a batch, not one pair. `Sequence[tuple[str, str]]` admits a tuple, so
+    # `(('A', ''), ('B', '4M(15.9949)'))` matched the batch overload and then took the single
+    # path, where `item[0]` is a tuple and `.strip()` raised AttributeError. The element type
+    # tells the two apart without guessing: a pair holds strings, a batch holds pairs.
+    is_batch = isinstance(sequence, Sequence) and not isinstance(sequence, tuple)
+    if isinstance(sequence, tuple) and sequence and all(isinstance(item, (tuple, list)) for item in sequence):
+        is_batch = True
+    if is_batch:
+        if not all(isinstance(item, (tuple, list)) and len(item) == 2 for item in sequence):
             raise PeptacularError("All items in sequence must be tuples of (peptide, modifications)")
 
         return parallel_apply_internal(

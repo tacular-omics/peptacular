@@ -230,6 +230,9 @@ Peptacular supports conversion from and to a number of popular peptide sequence 
    diann_seq = pt.convert_diann_sequence('_PEM[Carbamidomethyl]TIDE_')
    casanovo_seq = pt.convert_casanovo_sequence('+43.006PEPTIDE')
 
+   # From a FragPipe psm.tsv row: the Peptide and Assigned Modifications columns
+   fragpipe_seq = pt.from_msfragger(('PEPMIDE', '4M(15.9949)'))
+
    # To MS2PIP format
    peptide = pt.parse("PEM[Oxidation]TIDE")
    unmod_seq, mod_str = peptide.to_ms2_pip()

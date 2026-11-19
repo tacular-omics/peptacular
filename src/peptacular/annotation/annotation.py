@@ -226,7 +226,13 @@ def _skyline_require_residue(tokens: list[str], sequence: str) -> None:
         raise ProFormaFormatError(f"Modification before the first residue in Skyline sequence: {sequence!r}.")
 
 
-_MSFRAGGER_ENTRY_RE = re.compile(r"^(?:(N-term)|(C-term)|(\d+)([a-zA-Z]))\(([+-]?(?:\d+(?:\.\d*)?|\.\d+))\)$")
+# `[0-9]` rather than `\\d`: `\\d` matches a full-width or Arabic-Indic digit and `int()`
+# accepts it, so a position written with one was read as a number. Philosopher writes the
+# position with strconv.Itoa (lib/rep/rep.go:594), which is ASCII.
+_MSFRAGGER_ENTRY_RE = re.compile(r"^(?:(N-term)|(C-term)|([0-9]+)([a-zA-Z]))\(([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))\)$")
+# `A-Z` and not `str.isalpha()`, for the reason above: `isalpha()` is true of a non-ASCII
+# letter, and the FragPipe `Peptide` column holds bare residues.
+_MSFRAGGER_PEPTIDE_RE = re.compile(r"^[A-Z]+$")
 
 
 class ProFormaAnnotation(_ModAccessMixin):
@@ -2757,8 +2763,18 @@ class ProFormaAnnotation(_ModAccessMixin):
     def to_msfragger(self, *, inplace: bool = False) -> tuple[str, str]:
         """Convert peptide annotation to MSFragger (Peptide, Assigned Modifications) format.
 
-        FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and its variable
-        modifications in ``Assigned Modifications`` (e.g. ``N-term(42.0106), 4M(15.9949)``).
+        FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and the
+        modifications assigned to it in ``Assigned Modifications`` (e.g.
+        ``4M(15.9949), N-term(42.0106)``). Fixed modifications are in that column too, not only
+        variable ones: Philosopher filters on ``i.Type == mod.Assigned`` alone
+        (``lib/rep/rep.go:591``) and its own test expects a ``Variable: false`` entry in the list
+        (``lib/id/pep_test.go:116``). Static modifications are condensed onto their residues and
+        written, which is what that column holds.
+
+        Each mass is written with four decimals and the entries are sorted as strings, as
+        Philosopher writes them (``%.4f`` at ``lib/rep/rep.go:596``, ``sort.Strings`` at
+        ``lib/rep/psm.go:564``), so ``10P(15.9949), 4P(15.9949)`` is the order for positions 10
+        and 4, and a residue entry precedes ``N-term``.
 
         FragPipe's ``psm.tsv`` also contains a ``Modified Peptide`` column with residue masses
         (e.g. ``M[147]``). This method intentionally writes ``(Peptide, Assigned Modifications)``
@@ -2791,7 +2807,11 @@ class ProFormaAnnotation(_ModAccessMixin):
         def _format_delta_mass(name: str) -> str:
             if not _SIGNED_DELTA_RE.match(name):
                 raise PeptacularError(f"MSFragger format only supports signed delta mass modifications, not {name!r}.")
-            return name[1:] if name.startswith("+") else name
+            # Philosopher writes every mass with four decimals:
+            # `fmt.Sprintf("%s%s(%.4f)", pos, i.AminoAcid, i.MassDiff)` (lib/rep/rep.go:596).
+            # Copying the ProForma text gave "4M(16)" for `[+16]` and "4M(.5)" for `[+.5]`,
+            # neither of which FragPipe writes.
+            return f"{float(name):.4f}"
 
         mod_entries: list[str] = []
 
@@ -2829,8 +2849,12 @@ class ProFormaAnnotation(_ModAccessMixin):
                 mass_str = _format_delta_mass(mod_name)
                 mod_entries.append(f"C-term({mass_str})")
 
+        # Philosopher sorts the entry strings and joins them with ", ": `sort.Strings(assL)`
+        # (lib/rep/psm.go:564) then `strings.Join(assL, ", ")` (lib/rep/psm.go:640). It is a
+        # plain string sort, so "10P(...)" comes before "4P(...)" and "4M(...)" before
+        # "N-term(...)".
         unmod_sequence = annot_copy.stripped_sequence
-        return unmod_sequence, ", ".join(mod_entries)
+        return unmod_sequence, ", ".join(sorted(mod_entries))
 
     @staticmethod
     def from_msfragger(peptide: str, modifications: str) -> "ProFormaAnnotation":
@@ -2844,7 +2868,29 @@ class ProFormaAnnotation(_ModAccessMixin):
         :return: A parsed ProFormaAnnotation object.
         :rtype: ProFormaAnnotation
         """
+        # `Peptide` is the stripped sequence: the FragPipe output guide calls it the
+        # "peptide amino acid sequence, any modifications not included ('stripped' peptide
+        # sequence)". Anything else here is not that column, and reading it anyway doubled a
+        # modification already written in ProForma, or carried a charge through unchecked.
+        if not isinstance(peptide, str):
+            raise PeptacularError(f"MSFragger Peptide must be a string, not {type(peptide).__name__}.")
+        if not _MSFRAGGER_PEPTIDE_RE.match(peptide):
+            raise PeptacularError(
+                f"MSFragger Peptide must be a bare upper-case residue sequence, not {peptide!r}. "
+                f"That column holds the stripped sequence, so it carries no modification, charge or separator."
+            )
+
         annot = ProFormaAnnotation(sequence=peptide)
+
+        # An empty `Assigned Modifications` cell means no modifications: in
+        # compomics/psm_utils `example_files/fragpipe.psm.tsv` the one row with an empty cell
+        # (FLLEAGADQEHK) also has a blank `Modified Peptide`, which the FragPipe output guide
+        # defines as "blank if peptide is unmodified". A reader handing the cell over as None,
+        # or as the NaN pandas gives an empty cell, means that same empty cell.
+        if modifications is None or (isinstance(modifications, float) and modifications != modifications):
+            return annot
+        if not isinstance(modifications, str):
+            raise PeptacularError(f"MSFragger Assigned Modifications must be a string, or None or NaN for an empty cell, not {type(modifications).__name__}.")
 
         if modifications.strip() == "":
             return annot
