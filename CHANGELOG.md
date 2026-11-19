@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 
 - `pt.mass()`, `pt.mz()`, the matching `ProFormaAnnotation` methods and `docs/mass_calculation.rst` say what a negative charge means and where that parts from the notation. A negative charge is deprotonation, so `PEPTIDE/-2` is the ion `[M-2H]2-` and `pt.mass("PEPTIDE/-2")` is 797.345411 against a neutral 799.359964. ProForma 2.1 section 11.5 words it the other way, "any negative charges are defined as addition of electrons e-", which would put the ion at 799.361061, heavier than the neutral peptide. The docs now quote that sentence, say that peptacular models the deprotonated ion because that is what negative-mode electrospray produces, and give the size of the difference: one neutral hydrogen atom per charge, `PROTON_MASS + ELECTRON_MASS`, about 1.007825 Da. They also record that there is no charge-carrier spelling for the electron reading, since a carrier is a charged formula of elements and an electron is not one (`PEPTIDE/[e:z-1]` raises `ProFormaFormatError`), so a caller who wants `[M+ne]n-` adds `n * pt.ELECTRON_MASS` to `neutral_mass()`. No behaviour or API change.
 
+- `ProFormaAnnotation.to_msfragger()`, `ProFormaAnnotation.from_msfragger()`, `pt.to_msfragger()`, and `pt.from_msfragger()` convert peptides between ProForma and MSFragger / FragPipe's `(Peptide, Assigned Modifications)` pair format (#116).
+
 ## [5.2.0] (2026-11-16)
 
 ### Fixed

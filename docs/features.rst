@@ -111,6 +111,7 @@ Import and export sequences from popular proteomics tools.
 - Skyline (modified sequence notation)
 - Casanovo (de novo sequencing output)
 - MS2PIP (fragment prediction input/output)
+- MSFragger (peptide and assigned modifications pairs)
 
 Parallel Processing
 ~~~~~~~~~~~~~~~~~~~

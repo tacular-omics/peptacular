@@ -60,6 +60,7 @@ from .mod_builder import (
     extend_mods,
     filter_mods,
     from_ms2_pip,
+    from_msfragger,
     get_mods,
     modify,
     pop_mods,
@@ -67,6 +68,7 @@ from .mod_builder import (
     set_mods,
     strip_mods,
     to_ms2_pip,
+    to_msfragger,
 )
 from .parallel import (
     get_available_start_methods,
@@ -188,6 +190,8 @@ __all__ = [
     "filter_mods",
     "to_ms2_pip",
     "from_ms2_pip",
+    "to_msfragger",
+    "from_msfragger",
     "condense_to_peptidoform",
     # properties
     "calc_property",
