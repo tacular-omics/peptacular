@@ -21,6 +21,8 @@ __all__ = [
     "filter_mods",
     "to_ms2_pip",
     "from_ms2_pip",
+    "to_msfragger",
+    "from_msfragger",
     "condense_to_peptidoform",
 ]
 
@@ -518,6 +520,151 @@ def from_ms2_pip(
             item=item,
             static_mods=static_mods,
         )
+
+
+def _to_msfragger_single(
+    sequence: ProFormaAnnotation | str,
+) -> tuple[str, str]:
+    annot = get_annotation_input(sequence=sequence, copy=True)
+    return annot.to_msfragger(inplace=True)
+
+
+@overload
+def to_msfragger(
+    sequence: ProFormaAnnotation | str,
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> tuple[str, str]: ...
+
+
+@overload
+def to_msfragger(
+    sequence: Sequence[ProFormaAnnotation | str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[tuple[str, str]]: ...
+
+
+def to_msfragger(
+    sequence: ProFormaAnnotation | str | Sequence[ProFormaAnnotation | str],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> tuple[str, str] | list[tuple[str, str]]:
+    """Convert peptide sequence(s) to MSFragger (Peptide, Assigned Modifications) format.
+
+    FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and the modifications
+    assigned to it in ``Assigned Modifications`` (e.g. ``4M(15.9949), N-term(42.0106)``). Fixed
+    modifications are in that column too, not only variable ones. Each mass is written with four
+    decimals and the entries are sorted as strings, as Philosopher writes them.
+
+    FragPipe's ``psm.tsv`` also contains a ``Modified Peptide`` column with residue masses
+    (e.g. ``M[147]``). This method intentionally writes ``(Peptide, Assigned Modifications)``
+    pairs rather than ``Modified Peptide``, because ``Modified Peptide`` records integer residue
+    masses from which the original delta mass (such as ``+15.9949``) cannot be recovered or read back.
+
+    .. code-block:: python
+
+        # Single sequence
+        >>> to_msfragger('PEPM[+15.9949]IDE')
+        ('PEPMIDE', '4M(15.9949)')
+
+        # Batch processing
+        >>> sequences = ['PEPTIDE', 'PEPM[+15.9949]IDE']
+        >>> to_msfragger(sequences)
+        [('PEPTIDE', ''), ('PEPMIDE', '4M(15.9949)')]
+    """
+    if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
+        return parallel_apply_internal(
+            _to_msfragger_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    else:
+        return _to_msfragger_single(sequence=sequence)
+
+
+def _from_msfragger_single(
+    item: tuple[str, str],
+) -> str:
+    peptide, modifications = item
+    return ProFormaAnnotation.from_msfragger(
+        peptide=peptide,
+        modifications=modifications,
+    ).serialize()
+
+
+@overload
+def from_msfragger(
+    sequence: tuple[str, str],
+    *,
+    n_workers: None = None,
+    chunksize: None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str: ...
+
+
+@overload
+def from_msfragger(
+    sequence: Sequence[tuple[str, str]],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> list[str]: ...
+
+
+def from_msfragger(
+    sequence: tuple[str, str] | Sequence[tuple[str, str]],
+    *,
+    n_workers: int | None = None,
+    chunksize: int | None = None,
+    method: ParallelMethod | ParallelMethodLiteral | None = None,
+) -> str | list[str]:
+    """Convert MSFragger format (peptide, assigned modifications) to ProForma string(s).
+
+    .. code-block:: python
+
+        # Single sequence
+        >>> from_msfragger(('PEPMIDE', '4M(15.9949)'))
+        'PEPM[+15.9949]IDE'
+
+        # Batch processing
+        >>> items = [('PEPTIDE', ''), ('PEPMIDE', '4M(15.9949)')]
+        >>> from_msfragger(items)
+        ['PEPTIDE', 'PEPM[+15.9949]IDE']
+    """
+    # A tuple of pairs is a batch, not one pair. `Sequence[tuple[str, str]]` admits a tuple, so
+    # `(('A', ''), ('B', '4M(15.9949)'))` matched the batch overload and then took the single
+    # path, where `item[0]` is a tuple and `.strip()` raised AttributeError. The element type
+    # tells the two apart without guessing: a pair holds strings, a batch holds pairs.
+    is_batch = isinstance(sequence, Sequence) and not isinstance(sequence, tuple)
+    if isinstance(sequence, tuple) and sequence and all(isinstance(item, (tuple, list)) for item in sequence):
+        is_batch = True
+    if is_batch:
+        if not all(isinstance(item, (tuple, list)) and len(item) == 2 for item in sequence):
+            raise PeptacularError("All items in sequence must be tuples of (peptide, modifications)")
+
+        return parallel_apply_internal(
+            _from_msfragger_single,
+            sequence,
+            n_workers=n_workers,
+            chunksize=chunksize,
+            method=method,
+        )
+    else:
+        if not isinstance(sequence, tuple) or len(sequence) != 2:
+            raise PeptacularError("sequence must be a tuple of (peptide, modifications) for single processing")
+
+        item = cast(tuple[str, str], sequence)
+        return _from_msfragger_single(item=item)
 
 
 def _condense_to_peptidoform(

@@ -168,6 +168,7 @@ from .sequence import (
     fragment_arrays,
     fragment_records,
     from_ms2_pip,
+    from_msfragger,
     generate_random,
     get_available_start_methods,
     get_mods,
@@ -224,6 +225,7 @@ from .sequence import (
     strip_mods,
     surface_accessibility,
     to_ms2_pip,
+    to_msfragger,
     transmembrane_tendency,
     validate,
 )
@@ -422,6 +424,8 @@ __all__ = [
     "convert_casanovo_sequence",
     "to_ms2_pip",
     "from_ms2_pip",
+    "to_msfragger",
+    "from_msfragger",
     # Input protocol
     "HasSequence",
     # Batch

@@ -848,3 +848,267 @@ class TestFromSkyline:
         assert convert_skyline_sequence(seqs, n_workers=2) == expected
         assert convert_skyline_sequence(seqs, method="thread", n_workers=2) == expected
         assert convert_skyline_sequence([]) == []
+
+
+class TestMSFraggerConverter:
+    """Tests for MSFragger format conversion (to_msfragger, from_msfragger)."""
+
+    # Issue #116 listed pair 3 as "N-term(42.0106), 4M(15.9949)". Philosopher sorts the entry
+    # strings (`sort.Strings(assL)`, lib/rep/psm.go:564), so the residue entry comes first:
+    # "4M(15.9949), N-term(42.0106)", which is also what the real rows in
+    # pFindStudio/pDeep3 `psm.tsv` show ("7M(15.9949), N-term(42.0106)").
+    PAIRS = [
+        ("PEPTIDE", ("PEPTIDE", "")),
+        ("PEPM[+15.9949]IDE", ("PEPMIDE", "4M(15.9949)")),
+        ("[+42.0106]-PEPM[+15.9949]IDE", ("PEPMIDE", "4M(15.9949), N-term(42.0106)")),
+        ("PEPTIDE-[-0.9840]", ("PEPTIDE", "C-term(-0.9840)")),
+        ("PEPC[+57.0215]M[+15.9949]IDE", ("PEPCMIDE", "4C(57.0215), 5M(15.9949)")),
+    ]
+
+    @pytest.mark.parametrize(("proforma", "expected_pair"), PAIRS)
+    def test_to_msfragger_target_pairs(self, proforma: str, expected_pair: tuple[str, str]):
+        assert pt.parse(proforma).to_msfragger() == expected_pair
+        assert pt.to_msfragger(proforma) == expected_pair
+
+    def test_from_msfragger_target_pairs(self):
+        # 1. PEPTIDE -> ('PEPTIDE', '') -> PEPTIDE
+        assert pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "") == pt.parse("PEPTIDE")
+        assert pt.from_msfragger(("PEPTIDE", "")) == "PEPTIDE"
+
+        # 2. PEPM[+15.9949]IDE -> ('PEPMIDE', '4M(15.9949)') -> PEPM[+15.9949]IDE
+        assert pt.ProFormaAnnotation.from_msfragger("PEPMIDE", "4M(15.9949)") == pt.parse("PEPM[+15.9949]IDE")
+        assert pt.from_msfragger(("PEPMIDE", "4M(15.9949)")) == "PEPM[+15.9949]IDE"
+
+        # 3. [+42.0106]-PEPM[+15.9949]IDE -> ('PEPMIDE', 'N-term(42.0106), 4M(15.9949)') -> [+42.0106]-PEPM[+15.9949]IDE
+        assert pt.ProFormaAnnotation.from_msfragger("PEPMIDE", "N-term(42.0106), 4M(15.9949)") == pt.parse("[+42.0106]-PEPM[+15.9949]IDE")
+        assert pt.from_msfragger(("PEPMIDE", "N-term(42.0106), 4M(15.9949)")) == "[+42.0106]-PEPM[+15.9949]IDE"
+
+        # 4. PEPTIDE-[-0.9840] -> ('PEPTIDE', 'C-term(-0.9840)') -> PEPTIDE-[-0.984]
+        # (psm_utils gives PEPTIDE-[-0.984] because -0.9840 parsed as float normalizes trailing zeros)
+        assert pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "C-term(-0.9840)") == pt.parse("PEPTIDE-[-0.984]")
+        assert pt.from_msfragger(("PEPTIDE", "C-term(-0.9840)")) == "PEPTIDE-[-0.984]"
+
+        # 5. PEPC[+57.0215]M[+15.9949]IDE -> ('PEPCMIDE', '4C(57.0215), 5M(15.9949)') -> PEPC[+57.0215]M[+15.9949]IDE
+        assert pt.ProFormaAnnotation.from_msfragger("PEPCMIDE", "4C(57.0215), 5M(15.9949)") == pt.parse("PEPC[+57.0215]M[+15.9949]IDE")
+        assert pt.from_msfragger(("PEPCMIDE", "4C(57.0215), 5M(15.9949)")) == "PEPC[+57.0215]M[+15.9949]IDE"
+
+    # --- rows from real FragPipe psm.tsv files and from Philosopher's own test ------------
+    # Fetched 2026-11-19. The third column of each tuple is where the row came from.
+    REAL_ROWS = [
+        (
+            "FLLEAGADQEHK",
+            "",
+            "FLLEAGADQEHK",
+            "compomics/psm_utils example_files/fragpipe.psm.tsv, the one row with an empty cell (its Modified Peptide is blank too)",
+        ),
+        ("SEDCFILDHGK", "4C(57.0214)", "SEDC[+57.0214]FILDHGK", "the same file, a fixed carbamidomethyl in Assigned Modifications"),
+        ("REELSNVLAAMR", "11M(15.9949)", "REELSNVLAAM[+15.9949]R", "the same file"),
+        (
+            "LHISPSNMTNQNTPEYMEK",
+            "8M(15.9949), C-term(-0.9840)",
+            "LHISPSNM[+15.9949]TNQNTPEYMEK-[-0.984]",
+            "the same file, a C-terminal entry",
+        ),
+        ("ANIAVQR", "N-term(42.0106)", "[+42.0106]-ANIAVQR", "the same file, an N-terminal entry"),
+        (
+            "CEMSEHPSQTVRK",
+            "1C(57.0215), 3M(15.9949)",
+            "C[+57.0215]EM[+15.9949]SEHPSQTVRK",
+            "pFindStudio/pDeep3 pDeep/tmp/MSFragger-tsv-from-fc/psm.tsv",
+        ),
+        (
+            "THTGERPNACADCGK",
+            "10C(57.0215), 13C(57.0215)",
+            "THTGERPNAC[+57.0215]ADC[+57.0215]GK",
+            "the same pDeep3 file, two residues of one kind",
+        ),
+        (
+            "AASGSGMAQK",
+            "7M(15.9949), N-term(42.0106)",
+            "[+42.0106]-AASGSGM[+15.9949]AQK",
+            "the same pDeep3 file, the order sort.Strings gives",
+        ),
+    ]
+
+    @pytest.mark.parametrize(("peptide", "modifications", "proforma", "provenance"), REAL_ROWS)
+    def test_reads_real_fragpipe_rows(self, peptide: str, modifications: str, proforma: str, provenance: str):
+        assert pt.ProFormaAnnotation.from_msfragger(peptide, modifications).serialize() == proforma, provenance
+
+    @pytest.mark.parametrize(("peptide", "modifications", "proforma", "provenance"), REAL_ROWS)
+    def test_real_fragpipe_rows_rewrite_byte_identically(self, peptide: str, modifications: str, proforma: str, provenance: str):
+        # Every one of these rewrites to exactly the string FragPipe wrote, which needs both
+        # the four-decimal format and the string sort.
+        annot = pt.ProFormaAnnotation.from_msfragger(peptide, modifications)
+        assert annot.to_msfragger() == (peptide, modifications), provenance
+
+    @pytest.mark.parametrize(
+        ("peptide", "modifications", "calculated_peptide_mass"),
+        [
+            ("CEMSEHPSQTVRK", "1C(57.0215), 3M(15.9949)", 1603.7081),
+            ("THTGERPNACADCGK", "10C(57.0215), 13C(57.0215)", 1672.7046),
+            ("AASGSGMAQK", "7M(15.9949), N-term(42.0106)", 964.4284),
+        ],
+    )
+    def test_mass_matches_the_calculated_peptide_mass_column(self, peptide: str, modifications: str, calculated_peptide_mass: float):
+        # The expected value is the row's own "Calculated Peptide Mass" cell in
+        # pFindStudio/pDeep3 pDeep/tmp/MSFragger-tsv-from-fc/psm.tsv, so this compares against
+        # the tool's own arithmetic rather than against ours.
+        annot = pt.ProFormaAnnotation.from_msfragger(peptide, modifications)
+        assert annot.neutral_mass() == pytest.approx(calculated_peptide_mass, abs=0.001)
+
+    def test_reads_two_entries_on_one_residue(self):
+        # Philosopher's own test expects exactly this, with the same peptide:
+        # lib/id/pep_test.go:116 wants {"15M:15.9949:true", "16C:-32.0085:true",
+        # "16C:57.0214:false", "N-term:42.0106:true"} for peptide "DDDIAALVVDNGSGMCK", and its
+        # ModifiedPeptide is "n[43]DDDIAALVVDNGSGM[147]C[71]K". The `false` is a fixed
+        # modification, which is why that column is not only variable ones.
+        annot = pt.ProFormaAnnotation.from_msfragger("DDDIAALVVDNGSGMCK", "15M(15.9949), 16C(-32.0085), 16C(57.0214), N-term(42.0106)")
+        assert annot.serialize() == "[+42.0106]-DDDIAALVVDNGSGM[+15.9949]C[-32.0085][+57.0214]K"
+        # The writer refuses to put two entries back on one residue, so this row is read-only
+        # for now; that refusal is the issue's choice, not Philosopher's behaviour.
+        with pytest.raises(PeptacularError, match="multiple modifications at the same site"):
+            annot.to_msfragger()
+
+    def test_entries_are_sorted_as_strings_not_numerically(self):
+        # `sort.Strings(assL)` (lib/rep/psm.go:564) is a plain string sort, so "10P" precedes
+        # "4P", which a numeric sort would reverse. The real row is
+        # "10P(15.9949),4P(15.9949)" in siwar003/Hard-Matrisome-Digestion-Project data/psm/C3_psm.tsv.
+        annot = pt.ProFormaAnnotation.from_msfragger("PPPPPPPPPPPP", "10P(15.9949),4P(15.9949)")
+        assert annot.to_msfragger() == ("PPPPPPPPPPPP", "10P(15.9949), 4P(15.9949)")
+        # And a residue entry sorts before "N-term" because "4" < "N".
+        assert pt.parse("[+42.0106]-PEPM[+15.9949]IDE").to_msfragger() == ("PEPMIDE", "4M(15.9949), N-term(42.0106)")
+
+    def test_mass_is_always_written_with_four_decimals(self):
+        # `fmt.Sprintf("%s%s(%.4f)", ...)` (lib/rep/rep.go:596).
+        assert pt.parse("PEPM[+16]IDE").to_msfragger() == ("PEPMIDE", "4M(16.0000)")
+        assert pt.parse("PEPM[+15.994915]IDE").to_msfragger() == ("PEPMIDE", "4M(15.9949)")
+        assert pt.parse("PEPM[-0.98]IDE").to_msfragger() == ("PEPMIDE", "4M(-0.9800)")
+
+    @pytest.mark.parametrize(
+        "peptide",
+        ["PEPM[+15.9949]IDE", "PEPTIDE/2", " PEPMIDE ", "PEP TIDE", "PEPT1DE", "pepmide", "PEPTIDE*", ""],
+    )
+    def test_peptide_must_be_a_bare_residue_sequence(self, peptide: str):
+        # The FragPipe guide calls Peptide the "'stripped' peptide sequence". Reading anything
+        # else doubled a modification already in the sequence, or carried a charge through.
+        with pytest.raises(PeptacularError, match="bare upper-case residue sequence"):
+            pt.ProFormaAnnotation.from_msfragger(peptide, "")
+
+    def test_non_ascii_digits_are_not_positions(self):
+        with pytest.raises(PeptacularError, match="Invalid MSFragger modification entry"):
+            pt.ProFormaAnnotation.from_msfragger("PEPMIDE", "\uff17E(1.0000)")
+
+    @pytest.mark.parametrize("empty", [None, float("nan")])
+    def test_none_and_nan_mean_an_empty_cell(self, empty):
+        # An empty Assigned Modifications cell is an unmodified peptide: the one such row in
+        # compomics/psm_utils example_files/fragpipe.psm.tsv (FLLEAGADQEHK) has a blank
+        # Modified Peptide, which the FragPipe guide defines as "blank if peptide is
+        # unmodified". pandas hands an empty cell over as NaN.
+        assert pt.ProFormaAnnotation.from_msfragger("PEPTIDE", empty) == pt.parse("PEPTIDE")
+
+    @pytest.mark.parametrize("bad", [5, b"4M(15.9949)", ["4M(15.9949)"], {"4M": 15.9949}])
+    def test_other_non_string_modifications_are_refused(self, bad):
+        with pytest.raises(PeptacularError, match="Assigned Modifications must be a string"):
+            pt.ProFormaAnnotation.from_msfragger("PEPMIDE", bad)
+
+    def test_a_tuple_of_pairs_is_a_batch(self):
+        # `Sequence[tuple[str, str]]` admits a tuple, so a tuple of pairs matched the batch
+        # overload and then took the single path, raising AttributeError on `item[0].strip()`.
+        pairs = (("PEPTIDE", ""), ("PEPMIDE", "4M(15.9949)"))
+        assert pt.from_msfragger(pairs) == ["PEPTIDE", "PEPM[+15.9949]IDE"]
+        assert pt.from_msfragger(pairs + (("ANIAVQR", "N-term(42.0106)"),))[2] == "[+42.0106]-ANIAVQR"
+        # A pair of strings is still one pair.
+        assert pt.from_msfragger(("PEPMIDE", "4M(15.9949)")) == "PEPM[+15.9949]IDE"
+
+    def test_roundtrip_equivalence(self):
+        for proforma, (pep, mods) in self.PAIRS:
+            back = pt.ProFormaAnnotation.from_msfragger(pep, mods)
+            if proforma == "PEPTIDE-[-0.9840]":
+                # The mass is read as a float, so the trailing zero of the ProForma text is
+                # gone from the annotation. The written string is unaffected now that the
+                # writer formats with %.4f as Philosopher does, so the pair round trips
+                # byte-identically where it used to come back as "C-term(-0.984)".
+                assert back == pt.parse("PEPTIDE-[-0.984]")
+            else:
+                assert back == pt.parse(proforma)
+            assert back.to_msfragger() == (pep, mods)
+
+    @pytest.mark.parametrize(
+        "annot",
+        [
+            pt.ProFormaAnnotation("PEPTIDE", isotope_mods={"13C": 6}),
+            pt.ProFormaAnnotation("PEPTIDE", labile_mods={"Hex": 1}),
+            pt.ProFormaAnnotation("PEPTIDE", unknown_mods={"+15.9949": 1}),
+            pt.parse("(PEP)[+15.9949]TIDE"),
+            pt.parse("PEPTIDE/2"),
+            pt.parse("PEPTIDE/+2"),
+            pt.ProFormaAnnotation("PEPTIDE", nterm_mods={"+42.0106": 2}),
+            pt.ProFormaAnnotation("PEPTIDE", cterm_mods={"-0.9840": 2}),
+            pt.ProFormaAnnotation("PEPTIDE", internal_mods={1: {"+15.9949": 2}}),
+            pt.ProFormaAnnotation("PEPTIDE", nterm_mods={"+42.0106": 1, "+15.9949": 1}),
+            pt.ProFormaAnnotation("PEPTIDE", cterm_mods={"-0.9840": 1, "+15.9949": 1}),
+            pt.ProFormaAnnotation("PEPTIDE", internal_mods={1: {"+15.9949": 1, "+57.0215": 1}}),
+            pt.parse("PEPM[Oxidation]IDE"),
+            pt.parse("PEPM[147]IDE"),
+            pt.parse("[Acetyl]-PEPTIDE"),
+            pt.parse("PEPTIDE-[Amidated]"),
+        ],
+    )
+    def test_to_msfragger_refusals(self, annot: pt.ProFormaAnnotation):
+        with pytest.raises(PeptacularError):
+            annot.to_msfragger()
+
+    def test_from_msfragger_refuses_unparseable_entries(self):
+        bad_entries = [
+            "foo",
+            "4(15.9949)",
+            "4T",
+            "4T()",
+            "4T(Oxidation)",
+            "N-term()",
+            "N-term(Oxidation)",
+            "C-term()",
+            "C-term(Oxidation)",
+            "4T(15.9949), ",
+            ", 4T(15.9949)",
+        ]
+        for bad in bad_entries:
+            with pytest.raises(PeptacularError, match="Invalid MSFragger modification entry"):
+                pt.ProFormaAnnotation.from_msfragger("PEPTIDE", bad)
+
+    def test_from_msfragger_refuses_position_out_of_range(self):
+        with pytest.raises(PeptacularError, match="out of range"):
+            pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "0P(15.9949)")
+        with pytest.raises(PeptacularError, match="out of range"):
+            pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "8E(15.9949)")
+        with pytest.raises(PeptacularError, match="out of range"):
+            pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "100P(15.9949)")
+
+    def test_from_msfragger_refuses_residue_mismatch_naming_both_residues(self):
+        with pytest.raises(PeptacularError) as exc_info:
+            pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "4Q(15.9949)")
+        msg = str(exc_info.value)
+        assert "Q" in msg and "T" in msg
+
+        with pytest.raises(PeptacularError) as exc_info:
+            pt.ProFormaAnnotation.from_msfragger("PEPTIDE", "1E(15.9949)")
+        msg = str(exc_info.value)
+        assert "E" in msg and "P" in msg
+
+    def test_wrappers_batch_and_parallel(self):
+        seqs = ["PEPTIDE", "PEPM[+15.9949]IDE"]
+        expected_batch = [("PEPTIDE", ""), ("PEPMIDE", "4M(15.9949)")]
+
+        assert pt.to_msfragger(seqs) == expected_batch
+        assert pt.to_msfragger(seqs, n_workers=1, chunksize=1, method="sequential") == expected_batch
+
+        assert pt.from_msfragger(expected_batch) == ["PEPTIDE", "PEPM[+15.9949]IDE"]
+        assert pt.from_msfragger(expected_batch, n_workers=1, chunksize=1, method="sequential") == ["PEPTIDE", "PEPM[+15.9949]IDE"]
+
+    def test_wrappers_invalid_input(self):
+        with pytest.raises(PeptacularError):
+            pt.from_msfragger("not_a_tuple")  # type: ignore[arg-type]
+        with pytest.raises(PeptacularError):
+            pt.from_msfragger(("only_one",))  # type: ignore[arg-type]
+        with pytest.raises(PeptacularError):
+            pt.from_msfragger([("only_one",)])  # type: ignore[list-item]

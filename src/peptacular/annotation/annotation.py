@@ -226,6 +226,15 @@ def _skyline_require_residue(tokens: list[str], sequence: str) -> None:
         raise ProFormaFormatError(f"Modification before the first residue in Skyline sequence: {sequence!r}.")
 
 
+# `[0-9]` rather than `\\d`: `\\d` matches a full-width or Arabic-Indic digit and `int()`
+# accepts it, so a position written with one was read as a number. Philosopher writes the
+# position with strconv.Itoa (lib/rep/rep.go:594), which is ASCII.
+_MSFRAGGER_ENTRY_RE = re.compile(r"^(?:(N-term)|(C-term)|([0-9]+)([a-zA-Z]))\(([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))\)$")
+# `A-Z` and not `str.isalpha()`, for the reason above: `isalpha()` is true of a non-ASCII
+# letter, and the FragPipe `Peptide` column holds bare residues.
+_MSFRAGGER_PEPTIDE_RE = re.compile(r"^[A-Z]+$")
+
+
 class ProFormaAnnotation(_ModAccessMixin):
     """A single ProForma 2.1 peptidoform: a sequence plus its modifications, intervals, names and charge.
 
@@ -2748,6 +2757,170 @@ class ProFormaAnnotation(_ModAccessMixin):
         # Add static modifications
         for static_aa, mass in (static_mods or {}).items():
             annot.add_static_mod_by_residue(static_aa, mass, inplace=True)
+
+        return annot
+
+    def to_msfragger(self, *, inplace: bool = False) -> tuple[str, str]:
+        """Convert peptide annotation to MSFragger (Peptide, Assigned Modifications) format.
+
+        FragPipe's ``psm.tsv`` carries the unmodified sequence in ``Peptide`` and the
+        modifications assigned to it in ``Assigned Modifications`` (e.g.
+        ``4M(15.9949), N-term(42.0106)``). Fixed modifications are in that column too, not only
+        variable ones: Philosopher filters on ``i.Type == mod.Assigned`` alone
+        (``lib/rep/rep.go:591``) and its own test expects a ``Variable: false`` entry in the list
+        (``lib/id/pep_test.go:116``). Static modifications are condensed onto their residues and
+        written, which is what that column holds.
+
+        Each mass is written with four decimals and the entries are sorted as strings, as
+        Philosopher writes them (``%.4f`` at ``lib/rep/rep.go:596``, ``sort.Strings`` at
+        ``lib/rep/psm.go:564``), so ``10P(15.9949), 4P(15.9949)`` is the order for positions 10
+        and 4, and a residue entry precedes ``N-term``.
+
+        FragPipe's ``psm.tsv`` also contains a ``Modified Peptide`` column with residue masses
+        (e.g. ``M[147]``). This method intentionally writes ``(Peptide, Assigned Modifications)``
+        pairs rather than ``Modified Peptide``, because ``Modified Peptide`` records integer residue
+        masses from which the original delta mass (such as ``+15.9949``) cannot be recovered or read back.
+
+        :param inplace: Modify this object when ``True``; operate on a copy when ``False``.
+        :type inplace: bool
+        :return: A tuple of ``(unmodified_sequence, assigned_modifications)``.
+        :rtype: tuple[str, str]
+        """
+        if self.has_mods(
+            (
+                ModType.ISOTOPE,
+                ModType.LABILE,
+                ModType.UNKNOWN,
+                ModType.INTERVAL,
+                ModType.CHARGE,
+            )
+        ):
+            raise PeptacularError("MSFragger format does not support isotope, labile, unknown, interval, charge, or charge adduct modifications.")
+
+        if not inplace:
+            annot_copy = self.copy()
+            annot_copy.condense_static_mods(inplace=True)
+        else:
+            self.condense_static_mods(inplace=True)
+            annot_copy = self
+
+        def _format_delta_mass(name: str) -> str:
+            if not _SIGNED_DELTA_RE.match(name):
+                raise PeptacularError(f"MSFragger format only supports signed delta mass modifications, not {name!r}.")
+            # Philosopher writes every mass with four decimals:
+            # `fmt.Sprintf("%s%s(%.4f)", pos, i.AminoAcid, i.MassDiff)` (lib/rep/rep.go:596).
+            # Copying the ProForma text gave "4M(16)" for `[+16]` and "4M(.5)" for `[+.5]`,
+            # neither of which FragPipe writes.
+            return f"{float(name):.4f}"
+
+        mod_entries: list[str] = []
+
+        # Process N-terminal modifications
+        if annot_copy._nterm_mods is not None:
+            if len(annot_copy._nterm_mods) > 1:
+                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+            for mod_name, count in annot_copy._nterm_mods.items():
+                if count != 1:
+                    raise PeptacularError("MSFragger format does not support modification multipliers.")
+                mass_str = _format_delta_mass(mod_name)
+                mod_entries.append(f"N-term({mass_str})")
+
+        # Process internal modifications
+        if annot_copy._internal_mods is not None:
+            for index in sorted(annot_copy._internal_mods.keys()):
+                mods_dict = annot_copy._internal_mods[index]
+                if len(mods_dict) > 1:
+                    raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+                for mod_name, count in mods_dict.items():
+                    if count != 1:
+                        raise PeptacularError("MSFragger format does not support modification multipliers.")
+                    mass_str = _format_delta_mass(mod_name)
+                    pos = index + 1
+                    residue = annot_copy.sequence[index]
+                    mod_entries.append(f"{pos}{residue}({mass_str})")
+
+        # Process C-terminal modifications
+        if annot_copy._cterm_mods is not None:
+            if len(annot_copy._cterm_mods) > 1:
+                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
+            for mod_name, count in annot_copy._cterm_mods.items():
+                if count != 1:
+                    raise PeptacularError("MSFragger format does not support modification multipliers.")
+                mass_str = _format_delta_mass(mod_name)
+                mod_entries.append(f"C-term({mass_str})")
+
+        # Philosopher sorts the entry strings and joins them with ", ": `sort.Strings(assL)`
+        # (lib/rep/psm.go:564) then `strings.Join(assL, ", ")` (lib/rep/psm.go:640). It is a
+        # plain string sort, so "10P(...)" comes before "4P(...)" and "4M(...)" before
+        # "N-term(...)".
+        unmod_sequence = annot_copy.stripped_sequence
+        return unmod_sequence, ", ".join(sorted(mod_entries))
+
+    @staticmethod
+    def from_msfragger(peptide: str, modifications: str) -> "ProFormaAnnotation":
+        """Create ProFormaAnnotation from MSFragger peptide and assigned modifications pair.
+
+        :param peptide: The unmodified amino acid sequence.
+        :type peptide: str
+        :param modifications: The comma-separated assigned modifications string
+            (e.g. ``"N-term(42.0106), 4M(15.9949)"``).
+        :type modifications: str
+        :return: A parsed ProFormaAnnotation object.
+        :rtype: ProFormaAnnotation
+        """
+        # `Peptide` is the stripped sequence: the FragPipe output guide calls it the
+        # "peptide amino acid sequence, any modifications not included ('stripped' peptide
+        # sequence)". Anything else here is not that column, and reading it anyway doubled a
+        # modification already written in ProForma, or carried a charge through unchecked.
+        if not isinstance(peptide, str):
+            raise PeptacularError(f"MSFragger Peptide must be a string, not {type(peptide).__name__}.")
+        if not _MSFRAGGER_PEPTIDE_RE.match(peptide):
+            raise PeptacularError(
+                f"MSFragger Peptide must be a bare upper-case residue sequence, not {peptide!r}. "
+                f"That column holds the stripped sequence, so it carries no modification, charge or separator."
+            )
+
+        annot = ProFormaAnnotation(sequence=peptide)
+
+        # An empty `Assigned Modifications` cell means no modifications: in
+        # compomics/psm_utils `example_files/fragpipe.psm.tsv` the one row with an empty cell
+        # (FLLEAGADQEHK) also has a blank `Modified Peptide`, which the FragPipe output guide
+        # defines as "blank if peptide is unmodified". A reader handing the cell over as None,
+        # or as the NaN pandas gives an empty cell, means that same empty cell.
+        if modifications is None or (isinstance(modifications, float) and modifications != modifications):
+            return annot
+        if not isinstance(modifications, str):
+            raise PeptacularError(f"MSFragger Assigned Modifications must be a string, or None or NaN for an empty cell, not {type(modifications).__name__}.")
+
+        if modifications.strip() == "":
+            return annot
+
+        parts = [part.strip() for part in modifications.split(",")]
+        for part in parts:
+            if not part:
+                raise PeptacularError(f"Invalid MSFragger modification entry: {part!r}")
+
+            match = _MSFRAGGER_ENTRY_RE.match(part)
+            if not match:
+                raise PeptacularError(f"Invalid MSFragger modification entry: {part!r}")
+
+            nterm, cterm, pos_str, residue, mass_str = match.groups()
+            mass_val = float(mass_str)
+
+            if nterm:
+                annot.append_nterm_mod(mass_val, inplace=True)
+            elif cterm:
+                annot.append_cterm_mod(mass_val, inplace=True)
+            else:
+                pos = int(pos_str)
+                if pos < 1 or pos > len(peptide):
+                    raise PeptacularError(f"Modification position {pos} is out of range for peptide of length {len(peptide)}")
+                expected_residue = peptide[pos - 1]
+                if residue != expected_residue:
+                    raise PeptacularError(
+                        f"Residue mismatch at position {pos}: expected {residue!r} from modification, but found {expected_residue!r} in peptide {peptide!r}"
+                    )
+                annot.append_internal_mod_at_index(pos - 1, mass_val, inplace=True)
 
         return annot
 
