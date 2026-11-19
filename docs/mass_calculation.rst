@@ -90,3 +90,66 @@ deprotonation subtracts it), so the composition path and the mass path give the 
 number. ``mass()``, ``mz()``, ``fragment()`` and ``fast_fragment()`` all agree. Other
 adducts (``Na:z+1``, a hydride ``H:z-1``) are their atoms minus or plus electrons, with
 no binding term. Average masses use the average hydrogen mass minus one electron.
+
+Negative charge
+---------------
+
+**A negative charge is deprotonation.** ``PEPTIDE/-2`` is the ion
+:math:`[M-2H]^{2-}`: two protons are removed, not added.
+
+This departs from the notation's own wording, deliberately. ProForma 2.1 section 11.5
+reads:
+
+.. code-block:: text
+
+   The charge of a peptidoform ion can be specified after the definition. This specifies
+   the charge of the peptidoform ion, excluding any local charges of elemental formulas
+   (section 11.1). Any positive charges are defined as addition of protons H+, any
+   negative charges are defined as addition of electrons e-.
+
+peptacular follows that sentence for positive charges, which are protons, and parts with
+it for negative ones, because the ion that negative-mode electrospray produces is the
+deprotonated peptide, not the peptide with extra electrons on it. Reading a negative
+charge as added electrons would make ``pt.mass("PEPTIDE/-2")`` heavier than the neutral
+peptide, which is not an ion any negative-mode spectrum contains.
+
+**The size of the difference is one neutral hydrogen atom per charge**, which is
+``PROTON_MASS + ELECTRON_MASS``, about 1.007825 Da, so 2.01565 Da at charge 2:
+
+.. testcode::
+
+   import peptacular as pt
+
+   print(round(pt.mass("PEPTIDE/-2"), 6))                              # what peptacular returns
+   print(round(pt.parse("PEPTIDE").neutral_mass(), 6))                 # the neutral peptide
+   print(round(pt.parse("PEPTIDE").neutral_mass() + 2 * pt.ELECTRON_MASS, 6))  # the specification's reading
+
+.. testoutput::
+
+   797.345411
+   799.359964
+   799.361061
+
+**Getting the specification's reading.** There is no charge-carrier spelling for it. A
+charge carrier is a charged formula of elements (section 11.1) and an electron is not an
+element, so ``PEPTIDE/[e:z-1]`` and ``PEPTIDE/[e-1:z-1]`` both raise
+``ProFormaFormatError``, and so does an empty or zero-count formula. A carrier can only
+state the deprotonation peptacular already performs, and then gives the same number as
+``/-2``:
+
+.. testcode::
+
+   print(round(pt.mass("PEPTIDE/[H-1:z-1^2]"), 6))
+
+   try:
+       pt.mass("PEPTIDE/[e:z-1]")
+   except pt.ProFormaFormatError as exc:
+       print(type(exc).__name__)
+
+.. testoutput::
+
+   797.345411
+   ProFormaFormatError
+
+If you need :math:`[M+ne]^{n-}`, add ``n * pt.ELECTRON_MASS`` to ``neutral_mass()``
+yourself, as the third line above does. Nothing in peptacular computes it.

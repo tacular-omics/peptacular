@@ -1233,7 +1233,12 @@ class ProFormaAnnotation(_ModAccessMixin):
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
     ) -> float:
-        """Calculate mass, preferring user charge over annotation charge."""
+        """Calculate mass, preferring user charge over annotation charge.
+
+        A negative charge is deprotonation, so ``PEPTIDE/-2`` is :math:`[M-2H]^{2-}`. See
+        :func:`peptacular.mass` for how that differs from ProForma 2.1 section 11.5, which
+        words a negative charge as the addition of electrons.
+        """
         return _mass.mass_and_charge(self, ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)[0]
 
     def _mass_and_charge(
@@ -1380,7 +1385,11 @@ class ProFormaAnnotation(_ModAccessMixin):
         deltas: CUSTOM_LOSS_TYPE | None = None,
         calculate_with_composition: bool = False,
     ) -> float:
-        """Calculate m/z, preferring user charge over annotation charge."""
+        """Calculate m/z, preferring user charge over annotation charge.
+
+        The denominator is the absolute charge. A negative charge is deprotonation, so
+        ``PEPTIDE/-2`` is :math:`[M-2H]^{2-}`; see :func:`peptacular.mz`.
+        """
         mass, total_charge = _mass.mass_and_charge(self, ion_type, charge, monoisotopic, isotopes, deltas, calculate_with_composition)
         return mass / abs(total_charge) if total_charge else mass
 
