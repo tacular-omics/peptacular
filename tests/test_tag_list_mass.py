@@ -311,3 +311,93 @@ def test_a_secondary_ambiguity_site_weighs_nothing_extra() -> None:
     ]:
         assert pt.mass(seq) == pytest.approx(plain, abs=1e-9), seq
         assert pt.parse(seq).serialize() == seq
+
+
+# ---------------------------------------------------------------- validation of every tag
+
+# ProForma 2.1 Final, section 7.5 and section 6.6, joined tag lists the specification prints as
+# proper usage. Every one of these must stay valid.
+SPEC_VALID_LISTS = [
+    "ELVIS[U:Phospho|+79.966331]K",
+    "ELVIS[U:Phospho|Obs:+79.978]K",
+    "ELVIS[Phospho|O-phospho-L-serine]K",
+    "ELVIS[UNIMOD:21|MOD:00046]K",
+    "ELVIS[UNIMOD:21|Phospho]K",
+    "ELVIS[Phospho|O-phospho-L-serine|Obs:+79.966]K",
+    "ELVIS[Obs:+79.966|Phospho|Sulfo]K",
+    "ELVIS[Phospho|INFO:newly discovered]K",
+    "ELVIS[Phospho|INFO:newly discovered|INFO:really awesome [new-to-science] #cool]K",
+    "ELN[Glycan:Hex1|INFO:WURCS=2.0/1,1,0/[a1211h-1b_1-4]/1/]IS",
+    "ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S",
+    "[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S",
+    "ELVIS[Phospho|INFO:newly discovered|INFO:Created on 2021-06]K",
+    "[INFO:FLANK:ELV]-PRECIS-[INFO:FLANK:ELY]",
+]
+
+# One list per position kind, each with an unknown modification name written second.
+UNKNOWN_SECOND = [
+    "PEPTM[INFO:a|NoSuchMod]IDE",
+    "[INFO:a|NoSuchMod]-PEPTIDE",
+    "PEPTIDE-[INFO:a|NoSuchMod]",
+    "{INFO:a|NoSuchMod}PEPTIDE",
+    "[INFO:a|NoSuchMod]?PEPTIDE",
+    "PEP(TM)[INFO:a|NoSuchMod]IDE",
+    "<[INFO:a|NoSuchMod]@M>PEPTMIDE",
+]
+
+# The same kinds with the unknown name written third, and with a malformed accession instead.
+UNKNOWN_THIRD = [
+    "PEPTM[INFO:a|INFO:b|NoSuchMod]IDE",
+    "[INFO:a|INFO:b|NoSuchMod]-PEPTIDE",
+    "PEPTIDE-[INFO:a|INFO:b|NoSuchMod]",
+    "{INFO:a|INFO:b|NoSuchMod}PEPTIDE",
+    "[INFO:a|INFO:b|NoSuchMod]?PEPTIDE",
+    "PEP(TM)[INFO:a|INFO:b|NoSuchMod]IDE",
+    "<[INFO:a|INFO:b|NoSuchMod]@M>PEPTMIDE",
+    "PEPTM[INFO:a|UNIMOD:99999999]IDE",
+    "PEPTM[INFO:a|INFO:b|MOD:99999999]IDE",
+]
+
+
+@pytest.mark.parametrize("seq", UNKNOWN_SECOND + UNKNOWN_THIRD)
+def test_validation_reports_a_bad_tag_in_any_position(seq: str) -> None:
+    """Validation checks every tag of a list, not only the first. Each row is True on main."""
+    assert pt.validate(seq) is False
+    with pytest.raises(PeptacularError):
+        pt.parse(seq, validate=True)
+    # The mass path agrees, because the mass comes from that same tag.
+    with pytest.raises(PeptacularError):
+        pt.mass(seq)
+
+
+@pytest.mark.parametrize("seq", SPEC_VALID_LISTS)
+def test_the_specifications_own_joined_lists_stay_valid(seq: str) -> None:
+    assert pt.validate(seq) is True
+    assert pt.parse(seq, validate=True).serialize() == seq
+
+
+def test_the_specifications_own_invalid_info_tag_is_now_refused() -> None:
+    """Section 6.6, on three comments it prints as wrong:
+
+        "The first two comments would be invalid because of an unpaired bracket and the last is
+        invalid because of the use of the pipe character:
+        ELVIS[Phospho|INFO:newly]discovered]K
+        ELVIS[Phospho|INFO:newly[discovered]K
+        ELVIS[Phospho|INFO:newly|discovered]K"
+
+    The third splits into ``Phospho``, ``INFO:newly`` and ``discovered``, and that last tag is
+    not a modification anyone knows. It read as valid while only the first tag was checked.
+    """
+    assert pt.validate("ELVIS[Phospho|INFO:newly|discovered]K") is False
+    # The other two never parsed, because of the unpaired bracket.
+    assert pt.validate("ELVIS[Phospho|INFO:newly]discovered]K") is False
+    assert pt.validate("ELVIS[Phospho|INFO:newly[discovered]K") is False
+
+
+def test_all_tags_false_still_checks_the_first_tag_only() -> None:
+    """The parameter stays accepted, for a caller who wants the older, narrower check."""
+    mod = ModificationTags.from_string("INFO:a|NoSuchMod")
+    assert mod.validate() is not None
+    assert mod.validate(all_tags=True) is not None
+    assert mod.validate(all_tags=False) is None
+    assert ModificationTags.from_string("NoSuchMod|INFO:a").validate(all_tags=False) is not None

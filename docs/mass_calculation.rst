@@ -284,6 +284,12 @@ an information tag on its own always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")``
 unmodified 930.400449. Serialisation keeps the tags in the order they were written, whichever
 one the mass came from.
 
+**Validation reads every tag.** ``pt.validate``, ``pt.parse(..., validate=True)`` and the
+annotation's own validators check each tag of a list, so an unknown modification name or a
+malformed accession written second or third is reported rather than passing unnoticed while
+``mass()`` raises on it. ``ModificationTags.validate(all_tags=False)`` keeps the older check of
+the first tag alone.
+
 **Reading the choice back.** ``ModificationTags.mass_tag`` is the tag the numbers came from and
 ``ModificationTags.has_mass_tag`` says whether any tag in the list carries a mass at all, for a
 caller who needs to know which of the joined tags was used:

@@ -1253,7 +1253,19 @@ class ModificationTags(MassPropertyMixin):
     def is_valid(self) -> bool:
         return self.validate() is None
 
-    def validate(self, *, all_tags: bool = False) -> str | None:
+    def validate(self, *, all_tags: bool = True) -> str | None:
+        """Check this modification's tags and return the first error found, or None.
+
+        Every tag of a pipe-separated list is checked. Earlier releases checked only the first,
+        so an unknown name or a malformed tag written second went unreported while ``mass()``
+        raised on it. ``all_tags=False`` keeps that older behaviour of checking the first tag
+        alone.
+
+        :param all_tags: If True, the default, check every tag; if False, only the first.
+        :type all_tags: bool
+        :return: The first error, or None when every tag checked is valid.
+        :rtype: str | None
+        """
         if not self.tags:
             return "ModificationTags cannot be empty"
 
