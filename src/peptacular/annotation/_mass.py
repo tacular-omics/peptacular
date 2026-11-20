@@ -52,7 +52,7 @@ def _has_mass_mod(mods: "Iterable[Mod[ModificationTags]]") -> bool:
     for mod in mods:
         value = mod.value
         if isinstance(value, ModificationTags):
-            if value._has_mass_tag:
+            if value.has_mass_tag:
                 return True
         elif not isinstance(value, _MASSLESS_TAG_TYPES):
             return True
@@ -184,7 +184,7 @@ def base_comp(annot: "ProFormaAnnotation", skip_labile: bool = False, monoisotop
                 try:
                     add_composition(total_composition, mod.get_composition())
                 except ValueError as e:
-                    if isinstance(mod.value, ModificationTags) and isinstance(mod.value._mass_tag, TagMass):
+                    if isinstance(mod.value, ModificationTags) and isinstance(mod.value.mass_tag, TagMass):
                         # MassTag does not have composition, only delta mass
                         total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
                     else:

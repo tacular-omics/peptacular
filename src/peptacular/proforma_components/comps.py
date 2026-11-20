@@ -1270,13 +1270,13 @@ class ModificationTags(MassPropertyMixin):
         """The first tag in this modification, as written.
 
         :return: The first tag of the pipe-separated list. Mass, composition and charge come
-            from the first tag that carries a mass instead, which may be a later one.
+            from :attr:`mass_tag` instead, which skips the tags that carry no mass.
         :rtype: MODIFICATION_TAG_TYPE
         """
         return self.tags[0]
 
     @property
-    def _mass_tag(self) -> MODIFICATION_TAG_TYPE:
+    def mass_tag(self) -> MODIFICATION_TAG_TYPE:
         """The first tag, in written order, that carries a mass of its own.
 
         A pipe-separated list may hold tags that carry no mass of their own (an information tag,
@@ -1297,7 +1297,7 @@ class ModificationTags(MassPropertyMixin):
         return self.tags[0]
 
     @property
-    def _has_mass_tag(self) -> bool:
+    def has_mass_tag(self) -> bool:
         """Whether any tag in this modification carries a mass of its own.
 
         :return: True unless every tag is an information tag, a group or position label or a
@@ -1308,15 +1308,15 @@ class ModificationTags(MassPropertyMixin):
 
     def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get the mass from this modification"""
-        return self._mass_tag.get_mass(monoisotopic=monoisotopic)
+        return self.mass_tag.get_mass(monoisotopic=monoisotopic)
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get the composition from this modification"""
-        return self._mass_tag.get_composition()
+        return self.mass_tag.get_composition()
 
     def get_charge(self) -> int | None:
         """Get the charge of this modification, if any."""
-        mass_tag = self._mass_tag
+        mass_tag = self.mass_tag
         if isinstance(mass_tag, ChargedFormula):
             return mass_tag.charge
         if isinstance(mass_tag, GlycanTag):
