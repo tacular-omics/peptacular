@@ -240,8 +240,10 @@ of tag to the reader:
    so on.
 
 Some tags carry no mass of their own: an information tag, a group or position label such as
-``#g1`` with its optional localisation score, and the placement tags of a static modification
-rule (``Position:``, ``Limit:``, ``CoMKP``, ``CoMUP``), each of which refuses to be weighed.
+``#g1`` with its optional localisation score, and the four placement tags of section 11.2
+(Controlling placement of modifications), ``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP``,
+which that section defines as "four ways to control the exact placement of modifications of
+unknown position" rather than as masses. Each of them refuses to be weighed.
 Section 6.6 shows that a group label and an information tag may be written in either order
 inside one bracket, ``ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S`` and
 ``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``. In both of those the bracket
@@ -279,16 +281,27 @@ one written first rather than choosing between them:
    950.400449
 
 So a caller who wants the delta mass used writes it first, and one who wants the CV term used
-writes that first. When no tag in the list carries a mass, the modification weighs nothing, as
-an information tag on its own always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")`` is the
-unmodified 930.400449. Serialisation keeps the tags in the order they were written, whichever
-one the mass came from.
+writes that first. When no tag in the list carries a mass, the first tag stands and the list
+behaves as that tag always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")`` is the unmodified
+930.400449, while ``pt.mass("PEPTM[Limit:2]IDE")`` raises ``PlacementTag has no mass``, since a
+placement tag refuses to be weighed where an information tag reads as zero. Serialisation keeps
+the tags in the order they were written, whichever one the mass came from.
+
+A secondary ambiguity site that carries a mass-bearing tag after its label adds that mass:
+``EM[Oxidation#g1]EVT[#g1|+5]S`` is 5 Da over ``EM[Oxidation]EVTS``, as ``[+5|#g1]`` always was,
+where the label alone (``T[#g1]``) adds nothing.
 
 **Validation reads every tag.** ``pt.validate``, ``pt.parse(..., validate=True)`` and the
 annotation's own validators check each tag of a list, so an unknown modification name or a
-malformed accession written second or third is reported rather than passing unnoticed while
-``mass()`` raises on it. ``ModificationTags.validate(all_tags=False)`` keeps the older check of
-the first tag alone.
+malformed accession written second or third is reported instead of passing unnoticed.
+``ModificationTags.validate(all_tags=False)`` keeps the older check of the first tag alone.
+
+Validation is therefore stricter than ``mass()``, and deliberately so: a bad tag written after
+the tag the mass comes from does not affect the mass, so
+``pt.mass("PEPTM[Oxidation|NoSuchMod]IDE")`` is 946.395364 while
+``pt.validate("PEPTM[Oxidation|NoSuchMod]IDE")`` is ``False``. Validation answers whether every
+tag of the string can be resolved; ``mass()`` answers what the modification weighs, and only the
+winning tag decides that.
 
 **Reading the choice back.** ``ModificationTags.mass_tag`` is the tag the numbers came from and
 ``ModificationTags.has_mass_tag`` says whether any tag in the list carries a mass at all, for a

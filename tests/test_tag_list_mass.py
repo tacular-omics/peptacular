@@ -23,9 +23,10 @@ massless tag may be written first, not that the specification writes one in fron
 mass-bearing tag. The licence for reading the mass from a later tag is 7.5's sentence above.
 
 peptacular skips the tags that carry no mass of their own (an information tag, a group or
-position label such as ``#g1`` with its optional score, and the placement tags of a static
-modification rule, ``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP``, each of which refuses to
-be weighed) and takes the first one that has a mass. Which tag wins among the tags that do carry
+position label such as ``#g1`` with its optional score, and the four placement tags of section
+11.2, ``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP``, which that section defines as "four
+ways to control the exact placement of modifications of unknown position" and each of which
+refuses to be weighed) and takes the first one that has a mass. Which tag wins among the tags that do carry
 a mass is a reader's choice and is unchanged: the first of those, in written order. Tags are
 never summed.
 
@@ -311,6 +312,19 @@ def test_a_secondary_ambiguity_site_weighs_nothing_extra() -> None:
     ]:
         assert pt.mass(seq) == pytest.approx(plain, abs=1e-9), seq
         assert pt.parse(seq).serialize() == seq
+
+
+def test_a_secondary_site_that_carries_a_mass_tag_adds_it() -> None:
+    """A label is not a shield: a mass-bearing tag written after one still carries its mass.
+
+    ``T[#g1|+5]`` adds 5 Da, as ``T[+5|#g1]`` always did, where the label alone adds nothing. The
+    first spelling added nothing before this change, because the label was the whole modification.
+    """
+    plain = pt.mass("EM[Oxidation]EVTS")
+    for seq in ["EM[Oxidation#g1]EVT[#g1|+5]S", "EM[Oxidation#g1]EVT[+5|#g1]S"]:
+        assert pt.mass(seq) == pytest.approx(plain + 5.0, abs=1e-9), seq
+        assert pt.parse(seq).serialize() == seq
+    assert pt.mass("EM[Oxidation#g1]EVT[#g1]S") == pytest.approx(plain, abs=1e-9)
 
 
 # ---------------------------------------------------------------- validation of every tag
