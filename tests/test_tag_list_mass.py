@@ -216,19 +216,19 @@ def test_serialisation_keeps_the_written_order() -> None:
 def test_mass_tag_and_has_mass_tag(tags: str, delta: float, winner: str | None) -> None:
     """The property the rule lives in, read directly."""
     mod = ModificationTags.from_string(tags.strip("[]"))
-    assert mod.has_mass_tag is (winner is not None)
-    if mod.has_mass_tag:
-        assert mod.mass_tag.get_mass() == pytest.approx(delta, abs=1e-5)
+    assert mod._has_mass_tag is (winner is not None)
+    if mod._has_mass_tag:
+        assert mod._mass_tag.get_mass() == pytest.approx(delta, abs=1e-5)
         assert mod.get_mass() == pytest.approx(delta, abs=1e-5)
     else:
         # No tag carries a mass, so the first tag is returned and the list weighs nothing.
-        assert mod.mass_tag is mod.first_tag
+        assert mod._mass_tag is mod.first_tag
         assert mod.get_mass() == 0.0
 
 
 def test_mass_tag_is_the_first_mass_bearing_tag_not_the_first_tag() -> None:
     mod = ModificationTags.from_string("INFO:a|#g1|+10")
-    assert mod.first_tag is not mod.mass_tag
+    assert mod.first_tag is not mod._mass_tag
     assert mod.first_tag.serialize() == "INFO:a"
-    assert mod.mass_tag.serialize() == "+10"
+    assert mod._mass_tag.serialize() == "+10"
     assert len(mod) == 3

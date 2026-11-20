@@ -219,7 +219,7 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                 # (e.g. Amidated's ``O:-1``) survive; Counter's ``+=`` would drop them.
                 add_composition(total_composition, mod.get_composition())
             except ValueError as e:
-                mass_tag = mod.value.mass_tag if isinstance(mod.value, ModificationTags) else None
+                mass_tag = mod.value._mass_tag if isinstance(mod.value, ModificationTags) else None
                 if isinstance(mass_tag, TagMass):
                     total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
                 elif isinstance(mass_tag, GlycanTag):
