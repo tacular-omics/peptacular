@@ -174,3 +174,49 @@ state the deprotonation peptacular already performs, and then gives the same num
 
 If you need :math:`[M+ne]^{n-}`, add ``n * pt.ELECTRON_MASS`` to ``neutral_mass()``
 yourself, as the third line above does. Nothing in peptacular computes it.
+
+The unknown residue X
+---------------------
+
+**A bare ``X`` is refused, deliberately.** ProForma 2.1 section 7.1 reads:
+
+.. code-block:: text
+
+   X: Any amino acid (see also section 7.3 (Specifying a gap of known mass), for the use
+   of X). We note that the character X itself is assigned zero mass in this notation, and
+   it SHOULD be followed by a modification to provide the residue's total mass.
+
+peptacular follows the recommendation in that sentence rather than the zero in front of
+it. An ``X`` with no mass-bearing modification raises in ``mass()``, ``mz()``, ``comp()``,
+``fragment()``, ``fast_fragment()``, ``fragment_arrays()`` and
+``isotopic_distribution()``, on the mass path and on the composition path alike, because a
+sequence weighed with a zero ``X`` comes out about one residue light with nothing to say
+so. pyteomics 5.0.1 refuses the same input: ``fast_mass("PEPXTIDE")`` raises "No mass data
+for residue: X".
+
+**Write the mass out instead.** ``X[+100]`` gives the residue a mass, and ``X[+0]`` asks
+for zero mass in as many words, which is the notation's value said out loud:
+
+.. testcode::
+
+   import peptacular as pt
+
+   try:
+       pt.mass("PEPXTIDE")
+   except pt.PeptacularError as exc:
+       print(exc)
+
+   print(round(pt.mass("PEPX[+0]TIDE"), 6))
+   print(round(pt.mass("PEPX[+100]TIDE"), 6))
+
+.. testoutput::
+
+   X has no mass of its own. Attach a modification, for example X[+100], or X[+0] for zero mass.
+   799.359964
+   899.359964
+
+A static modification (``<[+5]@X>``), a named modification (``X[Phospho]``), a formula
+(``X[Formula:C2H3NO]``) and a mass-bearing modification on an interval that contains the
+``X`` (``PEP(X)[+10]K``) all cover it as well. ``B`` and ``Z`` raise for a different
+reason: section 7.1 gives each of them two possible masses and asks implementations to
+expand them combinatorially, so neither has one mass to report.

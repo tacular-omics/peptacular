@@ -1153,9 +1153,10 @@ class ProFormaAnnotation(_ModAccessMixin):
         """Elemental composition of the residues alone (no modifications, no terminal water).
 
         :rtype: Counter[ElementInfo]
-        :raises CompositionError: If a residue has no defined composition (``B`` or ``Z``, each of
-            which stands for two amino acids of different composition). ``X`` has one: it
-            contributes no atoms, per ProForma 2.1 section 7.1.
+        :raises CompositionError: If a residue has no defined composition: ``B`` or ``Z``, each of
+            which stands for two amino acids of different composition, or a bare ``X``, which has
+            no composition of its own (write ``X[Formula:...]`` for one, or ``X[+0]`` for zero
+            mass, a deliberate departure from ProForma 2.1 section 7.1).
         """
         return _mass.sequence_composition(self)
 

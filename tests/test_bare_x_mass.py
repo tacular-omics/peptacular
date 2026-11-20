@@ -1,153 +1,157 @@
-"""A bare X (unknown residue, no modification) contributes zero mass and no atoms.
+"""A bare X (unknown residue, no mass-bearing modification) has no mass and must raise.
 
-ProForma 2.1 Final, section 7.1 (Ambiguous amino acids):
+This is a deliberate departure from ProForma 2.1 Final, section 7.1 (Ambiguous amino acids):
 
     "X: Any amino acid (see also section 7.3 (Specifying a gap of known mass), for the use
     of X). We note that the character X itself is assigned zero mass in this notation, and
     it SHOULD be followed by a modification to provide the residue's total mass."
 
-Section 7.3 (Specifying a gap of known mass) says the same thing from the other side: the
-gap notation works "meaning that the mass of X is actually zero".
+peptacular follows the recommendation in that sentence rather than the zero in front of it: a
+sequence weighed with a zero X comes out about one residue light with nothing to say so, so
+every mass path refuses a bare X and the error names the two ways to write the mass out.
+``X[+100]`` gives the residue a mass and ``X[+0]`` asks for zero mass explicitly, which is the
+notation's own value said out loud. Digestion is not a mass calculation and is unaffected.
 
-Note that "SHOULD be followed by a modification" is a recommendation, not a requirement, so a
-bare X is a legal sequence whose residue weighs nothing. B and Z are different: section 7.1
-gives them two possible masses each and asks implementations to expand them combinatorially,
-so peptacular still refuses to weigh those.
+pyteomics 5.0.1, run outside peptacular on 2026-11-20, refuses the same input and supplies the
+absolute expected values in this file:
 
-The absolute expected values in this file come from pyteomics 5.0.1, computed outside
-peptacular with X added to ``pyteomics.mass.std_aa_comp`` as an empty composition, which is
-what the specification's zero mass means in atoms:
-
-    >>> comp = dict(pyteomics.mass.std_aa_comp); comp["X"] = pyteomics.mass.Composition({})
-    >>> pyteomics.mass.calculate_mass(sequence="PEPXTIDE", aa_comp=comp)   # 799.3599634
-    >>> pyteomics.mass.calculate_mass(sequence="RTAAXWT", aa_comp=comp)    # 704.3605728
+    >>> pyteomics.mass.fast_mass("PEPXTIDE")              # PyteomicsError: No mass data for residue: X
+    >>> pyteomics.mass.calculate_mass(sequence="PEPXTIDE")  # PyteomicsError: Unknown label: X
+    >>> pyteomics.mass.calculate_mass(sequence="PEPTIDE")   # 799.35996402671
+    >>> pyteomics.mass.calculate_mass(sequence="PEPTIDE", average=True)  # 799.8238768361077
+    >>> pyteomics.mass.Composition(sequence="PEPTIDE")    # {'H': 53, 'C': 34, 'O': 15, 'N': 7}
+    >>> pyteomics.mass.calculate_mass(sequence="RTAAWT")  # 704.3605731634
 """
 
 import pytest
 
 import peptacular as pt
-from peptacular.diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
+from peptacular.diagnostics import CompositionError, PeptacularError
 
-BARE_X = ["PEPXTIDE", "XPEPTIDE", "PEPTIDEX", "PEPX[INFO:unknown]TIDE"]
+BARE_X = ["PEPXTIDE", "XPEPTIDE", "PEPTIDEX", "X", "PEPX[INFO:unknown]TIDE", "PEPX[+100]TIDEX"]
+ERROR = "X has no mass of its own"
 
-# pyteomics 5.0.1 with X as an empty composition; see the module docstring.
-PYTEOMICS_MONO = {
-    "PEPTIDE": 799.359964,
-    "PEPXTIDE": 799.359964,
-    "RTAAXWT": 704.360573,
-    "XPEPTIDEX": 799.359964,
-    "PEPXXTIDE": 799.359964,
-}
-PYTEOMICS_AVERAGE = {"PEPTIDE": 799.823877, "PEPXTIDE": 799.823877}
-
-
-@pytest.mark.parametrize("seq", sorted(PYTEOMICS_MONO))
-def test_monoisotopic_mass_matches_pyteomics(seq: str) -> None:
-    """The expected value is pyteomics 5.0.1's, not ours. Fails on 5.0.1 through 5.2.0."""
-    assert pt.mass(seq) == pytest.approx(PYTEOMICS_MONO[seq], abs=1e-5)
-
-
-@pytest.mark.parametrize("seq", sorted(PYTEOMICS_AVERAGE))
-def test_average_mass_matches_pyteomics(seq: str) -> None:
-    assert pt.mass(seq, monoisotopic=False) == pytest.approx(PYTEOMICS_AVERAGE[seq], abs=1e-4)
-
-
-def test_composition_matches_pyteomics() -> None:
-    # pyteomics.mass.Composition(sequence="PEPXTIDE", aa_comp=comp) is
-    # {'H': 53, 'C': 34, 'O': 15, 'N': 7}, the same as for PEPTIDE: X adds no atoms.
-    assert pt.chem_formula(pt.comp("PEPXTIDE")) == "C34H53N7O15"
-    assert pt.comp("PEPXTIDE") == pt.comp("PEPTIDE")
-
-
-def test_the_specifications_own_gap_example() -> None:
-    """``RTAAX[+367.0537]WT`` is printed in section 7.3; the 367.0537 is the spec's number."""
-    # 704.360573 (pyteomics, X = 0) + 367.0537 (printed in the specification) = 1071.414273.
-    assert pt.mass("RTAAX[+367.0537]WT") == pytest.approx(1071.414273, abs=1e-5)
-    # The other example in 7.3, a sequence tag whose termini are gaps of known mass.
-    assert pt.mass("X[+379.147]UEX[+365.113]") == pytest.approx(pt.mass("UE") + 379.147 + 365.113, abs=1e-5)
-
-
-def test_a_bare_x_weighs_nothing_by_hand() -> None:
-    """Computed by hand from the residue masses, independently of the pyteomics numbers."""
-    # A peptide is the sum of its residues plus one water. X adds a residue position that
-    # contributes nothing, so PEPXTIDE weighs exactly what PEPTIDE weighs, and an X on its own
-    # weighs one water.
-    assert pt.mass("X") == pytest.approx(pt.chem_mass("H2O"), abs=1e-9)
-    assert pt.mass("XXXXX") == pytest.approx(pt.chem_mass("H2O"), abs=1e-9)
-    assert pt.mass("PEPXTIDE") == pytest.approx(pt.mass("PEPTIDE"), abs=1e-9)
-    assert pt.comp("XXXXX") == pt.chem_comp("H2O")
+# pyteomics 5.0.1 values; see the module docstring. X[+0] is a zero-mass residue, so these are
+# the values of the same sequence without the X.
+PYTEOMICS_PEPTIDE_MONO = 799.359964
+PYTEOMICS_PEPTIDE_AVERAGE = 799.823877
+PYTEOMICS_RTAAWT_MONO = 704.360573
 
 
 @pytest.mark.parametrize("seq", BARE_X)
-def test_every_mass_entry_point_accepts_a_bare_x(seq: str) -> None:
-    """mass, mz, comp, fragment, fast_fragment and isotopic_distribution, i.e. what #46 broke."""
-    assert pt.mass(seq) == pytest.approx(799.359964, abs=1e-5)
+@pytest.mark.parametrize("monoisotopic", [True, False])
+def test_bare_x_mass_raises(seq: str, monoisotopic: bool) -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.mass(seq, monoisotopic=monoisotopic)
+
+
+@pytest.mark.parametrize("seq", BARE_X)
+def test_bare_x_mass_with_composition_raises(seq: str) -> None:
+    with pytest.raises(CompositionError, match=ERROR):
+        pt.mass(seq, calculate_with_composition=True)
+
+
+@pytest.mark.parametrize("seq", BARE_X)
+def test_bare_x_composition_raises(seq: str) -> None:
+    with pytest.raises(CompositionError, match=ERROR):
+        pt.comp(seq)
+
+
+@pytest.mark.parametrize("seq", BARE_X)
+def test_bare_x_fragment_raises(seq: str) -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.fragment(seq)
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.fragment(seq, calculate_with_composition=True)
+
+
+@pytest.mark.parametrize("seq", BARE_X)
+def test_bare_x_fast_fragment_raises(seq: str) -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.parse(seq).fast_fragment()
+
+
+@pytest.mark.parametrize("seq", BARE_X)
+def test_bare_x_isotopic_distribution_raises(seq: str) -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.parse(seq).isotopic_distribution()
+
+
+def test_bare_x_mz_raises() -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.mz("PEPXTIDE", charge=2)
+
+
+def test_bare_x_fragment_arrays_raises() -> None:
+    pytest.importorskip("numpy")
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.fragment_arrays(["PEPXTIDE"])
+
+
+def test_the_a_ion_series_of_a_leading_bare_x_raises_on_both_paths() -> None:
+    """An a ion asks for the b ion minus CO, which is where a zero-mass X used to go negative.
+
+    Both mass paths refuse the sequence itself, so neither reports an impossible ion and neither
+    drops one silently.
+    """
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.fragment("XPEPTIDE", ion_types=["a"])
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.fragment("XPEPTIDE", ion_types=["a"], calculate_with_composition=True)
+    # The a ion series of a modified X is defined, so the refusal is about the bare X only.
+    assert len(pt.fragment("X[+100]PEPTIDE", ion_types=["a"])) == 8
+
+
+def test_the_error_says_what_to_do() -> None:
+    """The message names both spellings, because the fix is to write the mass out."""
+    with pytest.raises(PeptacularError) as exc:
+        pt.mass("PEPXTIDE")
+    assert str(exc.value) == "X has no mass of its own. Attach a modification, for example X[+100], or X[+0] for zero mass."
+
+
+def test_x_with_zero_mass_mod_is_the_notations_value_written_out() -> None:
+    """``X[+0]`` is the zero of section 7.1, asked for explicitly. pyteomics supplies the values."""
+    assert pt.mass("PEPX[+0]TIDE") == pytest.approx(PYTEOMICS_PEPTIDE_MONO, abs=1e-5)
+    assert pt.mass("PEPX[+0]TIDE", monoisotopic=False) == pytest.approx(PYTEOMICS_PEPTIDE_AVERAGE, abs=1e-4)
+    assert pt.mass("PEPX[+0]TIDE", calculate_with_composition=True) == pytest.approx(PYTEOMICS_PEPTIDE_MONO, abs=1e-5)
+    # pyteomics.mass.Composition(sequence="PEPTIDE") is {'H': 53, 'C': 34, 'O': 15, 'N': 7}.
+    assert pt.chem_formula(pt.comp("PEPX[+0]TIDE")) == "C34H53N7O15"
+
+
+def test_every_mass_entry_point_accepts_a_zero_mass_x() -> None:
+    """mass, mz, comp, fragment, fast_fragment, fragment_arrays and isotopic_distribution."""
+    pytest.importorskip("numpy")
+    seq = "PEPX[+0]TIDE"
+    assert pt.mass(seq) == pytest.approx(PYTEOMICS_PEPTIDE_MONO, abs=1e-5)
     assert pt.mz(seq + "/2") == pytest.approx(pt.mz("PEPTIDE/2"), abs=1e-9)
     assert pt.comp(seq) == pt.comp("PEPTIDE")
-    # The ion masses are PEPTIDE's, plus the duplicates the zero-mass position adds.
+    # The X is a cleavage position of its own, so the ion that ends on it repeats the mass of the
+    # ion before it and PEPTIDE's ions are a subset of this sequence's.
     assert set(round(f.mz, 6) for f in pt.fragment("PEPTIDE")) <= set(round(f.mz, 6) for f in pt.fragment(seq))
     assert len(pt.fast_fragment(seq)) == len(pt.fast_fragment("PEPTIDE"))
     assert [round(d.mass, 6) for d in pt.isotopic_distribution(seq, max_isotopes=3)] == [
         round(d.mass, 6) for d in pt.isotopic_distribution("PEPTIDE", max_isotopes=3)
     ]
+    assert len(pt.fragment_arrays([seq])["mz"]) == len(pt.fragment_arrays(["PEPTIDE"])["mz"]) + 2
 
 
-def test_unknown_position_modification_with_a_bare_x() -> None:
-    """A modification of unknown position is covered too; this raised before the fix."""
-    assert pt.mass("[+100]?PEPXTIDE") == pytest.approx(899.359964, abs=1e-5)
-    assert pt.mass("[+100]?PEPXTIDE") == pytest.approx(pt.mass("[+100]?PEPTIDE"), abs=1e-9)
-
-
-def test_an_a_ion_on_a_leading_bare_x_has_no_mass() -> None:
-    """Records a limit, it does not endorse it: the two mass paths disagree about this one ion.
-
-    An a ion subtracts CO from the b ion, and the b ion of a zero-mass prefix weighs less than
-    CO, so a1 of ``XPEPTIDE`` would be -26.987638 Da. The mass path refuses the whole call; the
-    composition path returns the 7 ions that are defined and drops a1. Both paths refused this
-    call before the bare-X fix, with ``Mass not available for amino acid: X``, so no a ion
-    series was available then either. Which of the two is right is a design decision and is
-    with the maintainers; if it changes, this test is the one place that moves.
-    """
-    with pytest.raises(InvalidAdjustmentError, match="finite and non-negative"):
-        pt.fragment("XPEPTIDE", ion_types=["a"])
-    ions = pt.fragment("XPEPTIDE", ion_types=["a"], calculate_with_composition=True)
-    assert [round(f.mz, 4) for f in ions] == [round(f.mz, 4) for f in pt.fragment("PEPTIDE", ion_types=["a"])]
-    # The dropped ion is a1, the one that ends on the X; b1 is defined and a1 is not.
-    assert len(ions) == len(pt.parse("XPEPTIDE").sequence) - 1
-    assert len(pt.fragment("XPEPTIDE", ion_types=["b"])) == len(pt.parse("XPEPTIDE").sequence)
-
-
-def test_fragment_arrays_accepts_a_bare_x() -> None:
-    pytest.importorskip("numpy")
-    import numpy as np
-
-    arrays = pt.fragment_arrays(["PEPXTIDE"])
-    plain = pt.fragment_arrays(["PEPTIDE"])
-    # One more ion than PEPTIDE, because the X is a cleavage position of its own, and the ion
-    # that ends on the X has the same mass as the one before it.
-    assert len(arrays["mz"]) == len(plain["mz"]) + 2
-    assert np.isfinite(arrays["mz"]).all()
-
-
-def test_the_x_adds_a_fragment_position_of_equal_mass() -> None:
-    # b3 is PEP and b4 is PEPX, so the two weigh the same.
-    by_position = {f.position: f.mz for f in pt.fragment("PEPXTIDE", ion_types="b", charges=1)}
-    assert by_position[4] == pytest.approx(by_position[3], abs=1e-9)
-
-
-@pytest.mark.parametrize("seq", ["PEPX[+100]TIDE", "PEPX[Formula:C2H3NO]TIDE", "PEPX[Phospho]TIDE"])
-def test_a_modified_x_is_unchanged(seq: str) -> None:
-    """A modification on the X still provides the residue's mass, as section 7.1 recommends."""
-    assert pt.mass(seq) > pt.mass("PEPTIDE")
+def test_the_specifications_own_gap_example() -> None:
+    """``RTAAX[+367.0537]WT`` is printed in section 7.3; the 367.0537 is the specification's."""
+    # 704.360573 (pyteomics RTAAWT) + 367.0537 (printed in section 7.3) = 1071.414273.
+    assert pt.mass("RTAAX[+367.0537]WT") == pytest.approx(PYTEOMICS_RTAAWT_MONO + 367.0537, abs=1e-5)
+    # The other example in 7.3, a sequence tag whose termini are gaps of known mass.
+    assert pt.mass("X[+379.147]UEX[+365.113]") == pytest.approx(pt.mass("UE") + 379.147 + 365.113, abs=1e-5)
 
 
 def test_x_with_mass_mod() -> None:
-    assert pt.mass("PEPX[+100]TIDE") == pytest.approx(pt.mass("PEPTIDE") + 100.0)
-    assert pt.mass("PEPX[+100]TIDE", monoisotopic=False) == pytest.approx(pt.mass("PEPTIDE", monoisotopic=False) + 100.0)
+    assert pt.mass("PEPX[+100]TIDE") == pytest.approx(PYTEOMICS_PEPTIDE_MONO + 100.0, abs=1e-5)
+    assert pt.mass("PEPX[+100]TIDE", monoisotopic=False) == pytest.approx(PYTEOMICS_PEPTIDE_AVERAGE + 100.0, abs=1e-4)
+    assert pt.fragment("PEPX[+100]TIDE")
+    assert pt.parse("PEPX[+100]TIDE").fast_fragment()
 
 
 def test_x_with_formula_mod_equals_glycine() -> None:
-    # Glycine's residue composition is C2H3NO, so X carrying that formula weighs what G weighs.
+    # C2H3NO is the glycine residue, so X[Formula:C2H3NO] weighs the same as G.
     assert pt.mass("PEPX[Formula:C2H3NO]TIDE") == pytest.approx(pt.mass("PEPGTIDE"))
     assert pt.comp("PEPX[Formula:C2H3NO]TIDE") == pt.comp("PEPGTIDE")
     assert pt.mass("PEPX[Formula:C2H3NO]TIDE", calculate_with_composition=True) == pytest.approx(pt.mass("PEPGTIDE"))
@@ -159,16 +163,23 @@ def test_x_with_named_mod() -> None:
 
 
 def test_x_with_static_mass_mod() -> None:
-    assert pt.mass("<[+5]@X>PEPXTIDE") == pytest.approx(pt.mass("PEPTIDE") + 5.0)
+    assert pt.mass("<[+5]@X>PEPXTIDE") == pytest.approx(PYTEOMICS_PEPTIDE_MONO + 5.0, abs=1e-5)
+
+
+def test_unknown_position_modification_does_not_cover_a_bare_x() -> None:
+    """A modification of unknown position belongs to no residue, so it leaves the X bare."""
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.mass("[+100]?PEPXTIDE")
 
 
 def test_condensed_ambiguity_still_has_mass() -> None:
-    annot = pt.parse("PEP(?MT)IDE")
+    annot = pt.parse("PEP(?TIDE)[Phospho]")
     assert annot.condense_ambiguity_to_xnotation().mass() == pytest.approx(annot.mass(), abs=1e-4)
 
 
 def test_digest_x_sequence_unchanged() -> None:
-    assert [s for s, _ in pt.digest("PEPXTIDEK", enzyme="trypsin")] == ["PEPXTIDEK"]
+    peptides = [peptide for peptide, _ in pt.digest("PEPXKTIDXRAA", "trypsin")]
+    assert peptides == ["PEPXK", "TIDXR", "AA"]
 
 
 @pytest.mark.parametrize(("seq", "expected"), [("PEP(X)[+10]K", 479.2536), ("(XX)[+10]K", 156.1055)])
@@ -176,14 +187,14 @@ def test_x_in_interval_with_mass_mod(seq: str, expected: float) -> None:
     assert pt.parse(seq).mass() == pytest.approx(expected, abs=1e-3)
 
 
-def test_x_in_interval_with_info_mod_does_not_raise() -> None:
-    # An INFO modification carries no mass, so the X inside the interval simply weighs nothing.
-    assert pt.parse("PEP(X)[INFO:unknown]K").mass() == pytest.approx(pt.mass("PEPK"), abs=1e-9)
+def test_x_in_interval_with_info_mod_raises() -> None:
+    with pytest.raises(PeptacularError, match=ERROR):
+        pt.parse("PEP(X)[INFO:unknown]K").mass()
 
 
 @pytest.mark.parametrize("residue", ["B", "Z"])
 @pytest.mark.parametrize("monoisotopic", [True, False])
-def test_b_and_z_still_refuse_to_be_weighed(residue: str, monoisotopic: bool) -> None:
+def test_b_and_z_refuse_for_their_own_reason(residue: str, monoisotopic: bool) -> None:
     """Section 7.1 gives B and Z two possible masses each, so neither has one mass to report."""
     with pytest.raises(PeptacularError, match=f"Mass not available for amino acid: {residue}"):
         pt.mass(f"PEP{residue}TIDE", monoisotopic=monoisotopic)
