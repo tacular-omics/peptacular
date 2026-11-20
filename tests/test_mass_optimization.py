@@ -66,8 +66,11 @@ def test_fallback_matches_fragment(sequence, kwargs):
 def test_residue_lookup_preserves_reference_masses(aa, monoisotopic):
     annot = pt.ProFormaAnnotation(aa)
     expected = AA_LOOKUP[aa].get_mass(monoisotopic=monoisotopic)
-    if expected is None:
-        with pytest.raises(ValueError, match="Mass not available"):
+    # A bare X has no residue mass; it only gets one from a modification (X[+100], or X[+0] for
+    # zero mass).
+    if expected is None or aa == "X":
+        message = "X has no mass of its own" if aa == "X" else "Mass not available"
+        with pytest.raises(ValueError, match=message):
             annot.mass(monoisotopic=monoisotopic)
     else:
         assert annot.mass(ion_type="n", monoisotopic=monoisotopic) == expected

@@ -378,12 +378,11 @@ def test_complementary_ions_sum_any_charge(seq):
 # =========================================================================== 3. data loops
 
 RESIDUE_CODES = sorted(code for code in AA_LOOKUP.keys() if isinstance(code, str) and len(code) == 1)
-# B (Asx) and Z (Glx) have no single mass and are documented to raise
-# "Mass not available for amino acid".
-# X is not here: ProForma 2.1 section 7.1 assigns it zero mass, and tacular's table gives it
-# 0.0 with an empty composition, so every mass path returns a value for it. B and Z have no
-# single mass (section 7.1 gives each two) and their table entries are None.
-NO_MASS_CODES = {code for code in RESIDUE_CODES if AA_LOOKUP[code].monoisotopic_mass is None}
+# B (Asx) and Z (Glx) stand for two amino acids each, so neither has one mass to report, and
+# a bare X has no mass of its own (a deliberate departure from ProForma 2.1 section 7.1). All
+# three refuse every mass path, each with its own message.
+NO_MASS_CODES = {code for code in RESIDUE_CODES if AA_LOOKUP[code].monoisotopic_mass is None} | {"X"}
+NO_MASS_MESSAGES = {"X": "X has no mass of its own"}
 
 
 def _placements(aa: str) -> list[str]:
@@ -392,7 +391,7 @@ def _placements(aa: str) -> list[str]:
 
 def test_residue_table_includes_extended_codes():
     assert {"U", "O", "X", "B", "Z", "J"} <= set(RESIDUE_CODES)
-    assert NO_MASS_CODES == {"B", "Z"}
+    assert NO_MASS_CODES == {"B", "Z", "X"}
 
 
 @pytest.mark.parametrize("aa", RESIDUE_CODES)
@@ -408,7 +407,8 @@ def test_every_residue_mass_paths(aa):
         }
         for name, call in calls.items():
             if aa in NO_MASS_CODES:
-                with pytest.raises((pt.PeptacularError, pt.CompositionError), match=f"not available for amino acid: {aa}"):
+                message = NO_MASS_MESSAGES.get(aa, f"not available for amino acid: {aa}")
+                with pytest.raises((pt.PeptacularError, pt.CompositionError), match=message):
                     call()
                 continue
             value = call()
