@@ -40,8 +40,6 @@ _MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.
 _AA_COMPOSITIONS: dict[str, Counter[ElementInfo] | None] = {aa: info.composition for aa, info in AA_LOOKUP.items()}
 _AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.items()}
 
-# Tags that carry no mass of their own: an X residue with only these is still a bare X.
-
 
 def charge_state(annot: "ProFormaAnnotation") -> int:
     """Body of :attr:`ProFormaAnnotation.charge_state`."""

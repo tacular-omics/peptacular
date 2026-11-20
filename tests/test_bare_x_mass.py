@@ -26,7 +26,7 @@ what the specification's zero mass means in atoms:
 import pytest
 
 import peptacular as pt
-from peptacular.diagnostics import CompositionError, PeptacularError
+from peptacular.diagnostics import CompositionError, InvalidAdjustmentError, PeptacularError
 
 BARE_X = ["PEPXTIDE", "XPEPTIDE", "PEPTIDEX", "PEPX[INFO:unknown]TIDE"]
 
@@ -90,6 +90,31 @@ def test_every_mass_entry_point_accepts_a_bare_x(seq: str) -> None:
     assert [round(d.mass, 6) for d in pt.isotopic_distribution(seq, max_isotopes=3)] == [
         round(d.mass, 6) for d in pt.isotopic_distribution("PEPTIDE", max_isotopes=3)
     ]
+
+
+def test_unknown_position_modification_with_a_bare_x() -> None:
+    """A modification of unknown position is covered too; this raised before the fix."""
+    assert pt.mass("[+100]?PEPXTIDE") == pytest.approx(899.359964, abs=1e-5)
+    assert pt.mass("[+100]?PEPXTIDE") == pytest.approx(pt.mass("[+100]?PEPTIDE"), abs=1e-9)
+
+
+def test_an_a_ion_on_a_leading_bare_x_has_no_mass() -> None:
+    """Records a limit, it does not endorse it: the two mass paths disagree about this one ion.
+
+    An a ion subtracts CO from the b ion, and the b ion of a zero-mass prefix weighs less than
+    CO, so a1 of ``XPEPTIDE`` would be -26.987638 Da. The mass path refuses the whole call; the
+    composition path returns the 7 ions that are defined and drops a1. Both paths refused this
+    call before the bare-X fix, with ``Mass not available for amino acid: X``, so no a ion
+    series was available then either. Which of the two is right is a design decision and is
+    with the maintainers; if it changes, this test is the one place that moves.
+    """
+    with pytest.raises(InvalidAdjustmentError, match="finite and non-negative"):
+        pt.fragment("XPEPTIDE", ion_types=["a"])
+    ions = pt.fragment("XPEPTIDE", ion_types=["a"], calculate_with_composition=True)
+    assert [round(f.mz, 4) for f in ions] == [round(f.mz, 4) for f in pt.fragment("PEPTIDE", ion_types=["a"])]
+    # The dropped ion is a1, the one that ends on the X; b1 is defined and a1 is not.
+    assert len(ions) == len(pt.parse("XPEPTIDE").sequence) - 1
+    assert len(pt.fragment("XPEPTIDE", ion_types=["b"])) == len(pt.parse("XPEPTIDE").sequence)
 
 
 def test_fragment_arrays_accepts_a_bare_x() -> None:
