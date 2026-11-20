@@ -496,10 +496,13 @@ def from_ms2_pip(
         >>> from_ms2_pip(('PEPTIDE', ''))
         'PEPTIDE'
     """
-    # Check if batch processing (list of tuples)
-    if isinstance(sequence, Sequence) and not isinstance(sequence, tuple):
+    # A tuple of pairs is a batch, not one pair.
+    is_batch = isinstance(sequence, Sequence) and not isinstance(sequence, tuple)
+    if isinstance(sequence, tuple) and sequence and all(isinstance(item, (tuple, list)) for item in sequence):
+        is_batch = True
+    if is_batch:
         # Validate that all items are tuples
-        if not all(isinstance(item, tuple) and len(item) == 2 for item in sequence):
+        if not all(isinstance(item, (tuple, list)) and len(item) == 2 for item in sequence):
             raise PeptacularError("All items in sequence must be tuples of (sequence, modifications)")
 
         return parallel_apply_internal(
@@ -512,7 +515,7 @@ def from_ms2_pip(
         )
     else:
         # Single tuple processing
-        if not isinstance(sequence, tuple) or len(sequence) != 2:
+        if not isinstance(sequence, (tuple, list)) or len(sequence) != 2:
             raise PeptacularError("sequence must be a tuple of (sequence, modifications) for single processing")
 
         item = cast(tuple[str, str], sequence)
