@@ -11,15 +11,23 @@ and on who decides which tag a reader uses:
     "It is however acknowledged that readers can choose to implement the parsing in different
     ways. Some tools may always take CV terms, others could take delta masses, and so on."
 
-Section 6.6 (The information tag) writes a list whose first tag carries no mass of its own:
+Section 6.6 (The information tag) shows that a group label and an information tag may be written
+in either order inside one bracket:
 
     ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S
     [+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S
 
-So peptacular skips the tags that carry no mass (an information tag, a group or position label
-such as ``#g1``, a localisation score) and takes the first one that has a mass. Which tag wins
-among the tags that do carry a mass is a reader's choice and is unchanged: the first of those,
-in written order. Tags are never summed.
+Note what 6.6 does not show: in both examples the bracket that begins with ``INFO:`` holds no
+mass-bearing tag at all, the ``+42`` being a separate modification. So 6.6 is evidence that a
+massless tag may be written first, not that the specification writes one in front of a
+mass-bearing tag. The licence for reading the mass from a later tag is 7.5's sentence above.
+
+peptacular skips the tags that carry no mass of their own (an information tag, a group or
+position label such as ``#g1`` with its optional score, and the placement tags of a static
+modification rule, ``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP``, each of which refuses to
+be weighed) and takes the first one that has a mass. Which tag wins among the tags that do carry
+a mass is a reader's choice and is unchanged: the first of those, in written order. Tags are
+never summed.
 
 Expected values from pyteomics 5.0.1, run outside peptacular on 2026-11-20:
 
@@ -232,3 +240,74 @@ def test_mass_tag_is_the_first_mass_bearing_tag_not_the_first_tag() -> None:
     assert mod.first_tag.serialize() == "INFO:a"
     assert mod.mass_tag.serialize() == "+10"
     assert len(mod) == 3
+
+
+PLACEMENT_TAGS = ["Position:M", "Limit:2", "CoMKP", "CoMUP"]
+
+
+@pytest.mark.parametrize("placement", PLACEMENT_TAGS)
+@pytest.mark.parametrize("where", ["first", "middle", "last"])
+def test_a_placement_tag_carries_no_mass_wherever_it_is_written(placement: str, where: str) -> None:
+    """``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP`` all refuse to be weighed.
+
+    Only ``Position:`` was skipped at first, so ``[INFO:a|Limit:2|+10]`` raised "PlacementTag has
+    no mass" on the mass path and returned the unmodified value on the composition path.
+    """
+    tags = {
+        "first": f"[{placement}|INFO:a|+10]",
+        "middle": f"[INFO:a|{placement}|+10]",
+        "last": f"[INFO:a|+10|{placement}]",
+    }[where]
+    seq = f"PEPTM{tags}IDE"
+    assert pt.mass(seq) == pytest.approx(PEPTMIDE + 10.0, abs=1e-5)
+    assert pt.mass(seq, monoisotopic=False) == pytest.approx(PEPTMIDE_AVERAGE + 10.0, abs=1e-3)
+    assert pt.fragment(seq, ion_types="b", charges=1)[4].mz == pytest.approx(B5_PEPTM + 10.0, abs=1e-5)
+    # The winning tag is a delta mass, which has no composition in any position.
+    with pytest.raises(CompositionError):
+        pt.comp(seq)
+
+
+@pytest.mark.parametrize("placement", PLACEMENT_TAGS)
+def test_a_placement_tag_in_front_of_a_named_modification(placement: str) -> None:
+    """A named modification has a composition, so both paths give the same number."""
+    seq = f"PEPTM[{placement}|Oxidation]IDE"
+    assert pt.mass(seq) == pytest.approx(PEPTMIDE + OXYGEN, abs=1e-5)
+    assert pt.mass(seq, calculate_with_composition=True) == pytest.approx(PEPTMIDE + OXYGEN, abs=1e-5)
+    assert pt.comp(seq) == pt.comp("PEPTM[Oxidation]IDE")
+
+
+@pytest.mark.parametrize("tags", ["[Position:M]", "[Limit:2]", "[CoMKP]", "[CoMUP]", "[CoMKP|CoMUP]", "[Limit:2|INFO:a]"])
+def test_a_list_of_placement_tags_alone_is_unchanged(tags: str) -> None:
+    """No tag carries a mass, so the first tag stands and the refusal it gives is kept.
+
+    An information tag written first still reads as zero (``[INFO:a|Limit:2]`` weighs nothing),
+    which is what peptacular has always done for a list that carries no mass at all.
+    """
+    with pytest.raises(PeptacularError, match="PlacementTag has no mass"):
+        pt.mass(f"PEPTM{tags}IDE")
+    assert pt.mass("PEPTM[INFO:a|Limit:2]IDE") == pytest.approx(PEPTMIDE, abs=1e-5)
+
+
+def test_an_unknown_modification_behind_an_information_tag_is_reported() -> None:
+    """The mass used to come from the information tag, so the unknown name went unnoticed."""
+    with pytest.raises(pt.UnknownModificationError, match="NotAMod"):
+        pt.mass("PEPTM[INFO:a|NotAMod]IDE")
+    with pytest.raises(pt.UnknownModificationError, match="NotAMod"):
+        pt.mass("PEPTM[NotAMod|INFO:a]IDE")
+
+
+def test_a_secondary_ambiguity_site_weighs_nothing_extra() -> None:
+    """A ``#g1`` reference marks a possible site; the mass belongs to the group's one modification.
+
+    ProForma 2.1 section 7.6.2 writes the modification once with its label and the other sites as
+    bare labels, so neither the bare label nor a label joined to an information tag may add mass.
+    """
+    plain = pt.mass("EM[Oxidation]EVTS")
+    for seq in [
+        "EM[Oxidation#g1]EVT[#g1]S",
+        "EM[Oxidation#g1]EVT[INFO:x|#g1]S",
+        "EM[Oxidation#g1]EVT[#g1|INFO:x]S",
+        "EM[Oxidation#g1(0.8)]EVT[#g1(0.2)]S",
+    ]:
+        assert pt.mass(seq) == pytest.approx(plain, abs=1e-9), seq
+        assert pt.parse(seq).serialize() == seq

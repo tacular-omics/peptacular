@@ -1229,11 +1229,13 @@ class GlobalChargeCarrier(MassPropertyMixin):
 
 # Type alias for modification tags
 # Tags that carry no mass of their own: an information tag, a group or position label such as
-# ``#g1``, and a localisation score. ProForma 2.1 section 6.6 writes them anywhere in a
-# pipe-separated list (``ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S`` and
-# ``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``), so a list's mass comes from
-# the first tag that has one rather than from the first tag written.
-_MASSLESS_TAG_TYPES: tuple[type, ...] = (TagInfo, PositionTag, PositionScore)
+# ``#g1`` with its optional localisation score, and the placement tags of a static modification
+# rule (``Position:``, ``Limit:``, ``CoMKP``, ``CoMUP``), every one of which refuses to be
+# weighed. ProForma 2.1 section 6.6 writes a group label before an information tag as readily as
+# after it, and section 7.5 leaves it to the reader which tag of a pipe-separated list to use, so
+# a list's mass comes from the first tag that has one rather than from the first tag written.
+# PlacementTagMixin covers all four placement tags, PositionTag among them.
+_MASSLESS_TAG_TYPES: tuple[type, ...] = (TagInfo, PositionScore, PlacementTagMixin)
 
 
 MODIFICATION_TAG_TYPE = (
@@ -1279,10 +1281,12 @@ class ModificationTags(MassPropertyMixin):
     def mass_tag(self) -> MODIFICATION_TAG_TYPE:
         """The first tag, in written order, that carries a mass of its own.
 
-        A pipe-separated list may hold tags that carry no mass of their own (an information tag,
-        a group or position label such as ``#g1``, a localisation score) in any position:
-        ProForma 2.1 section 6.6 writes ``[INFO:newly discovered|#g1]`` as readily as
-        ``[+42#g1|INFO:newly discovered]``. The mass, composition and charge of the list come
+        A pipe-separated list may hold tags that carry no mass of their own in any position: an
+        information tag, a group or position label such as ``#g1`` with its optional score, and
+        a placement tag of a static modification rule (``Position:``, ``Limit:``, ``CoMKP``,
+        ``CoMUP``). ProForma 2.1 section 6.6 writes a group label before an information tag
+        (``[INFO:newly discovered|#g1]``) as readily as after it, and section 7.5 leaves it to
+        the reader which tag of a list to use. The mass, composition and charge of the list come
         from this tag. Which tag wins among the tags that do carry a mass is unchanged: the
         first of those, in written order, so ``[Oxidation|+20]`` weighs 15.9949 and
         ``[+20|Oxidation]`` weighs 20. Tags are never summed.

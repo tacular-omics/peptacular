@@ -240,10 +240,16 @@ of tag to the reader:
    so on.
 
 Some tags carry no mass of their own: an information tag, a group or position label such as
-``#g1``, and a localisation score. Section 6.6 writes them in any position of the list, in
-front of the mass-bearing tag as readily as after it, as in
-``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``. peptacular skips those and
-takes the mass, the composition and the charge from the first tag that does carry a mass, in
+``#g1`` with its optional localisation score, and the placement tags of a static modification
+rule (``Position:``, ``Limit:``, ``CoMKP``, ``CoMUP``), each of which refuses to be weighed.
+Section 6.6 shows that a group label and an information tag may be written in either order
+inside one bracket, ``ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S`` and
+``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``. In both of those the bracket
+that begins with ``INFO:`` holds no mass-bearing tag, the ``+42`` being a separate
+modification, so 6.6 shows that a massless tag may come first and not that the notation writes
+one in front of a mass-bearing tag. What allows the mass to be read from a later tag is 7.5's
+sentence above, that the choice is the reader's. peptacular skips the tags that carry no mass
+and takes the mass, the composition and the charge from the first tag that does carry one, in
 written order, so the position of an information tag never changes a number:
 
 .. testcode::
