@@ -215,8 +215,107 @@ for zero mass in as many words, which is the notation's value said out loud:
    799.359964
    899.359964
 
-A static modification (``<[+5]@X>``), a named modification (``X[Phospho]``), a formula
-(``X[Formula:C2H3NO]``) and a mass-bearing modification on an interval that contains the
-``X`` (``PEP(X)[+10]K``) all cover it as well. ``B`` and ``Z`` raise for a different
-reason: section 7.1 gives each of them two possible masses and asks implementations to
-expand them combinatorially, so neither has one mass to report.
+A static modification (``<[+5]@X>``), a named modification (``X[Phospho]``) and a formula
+(``X[Formula:C2H3NO]``) cover it as well. A mass-bearing modification on an interval that
+contains the ``X`` (``PEP(X)[+10]K``) covers it for ``mass()`` and ``mz()`` only, because
+``fragment()``, ``fast_fragment()`` and ``fragment_arrays()`` refuse an interval whatever
+residues it holds: an interval's mass has no position, so no ion can be placed. ``B`` and
+``Z`` raise for a different reason: section 7.1 gives each of them two possible masses and
+asks implementations to expand them combinatorially, so neither has one mass to report.
+
+Pipe-separated tags
+-------------------
+
+**The mass comes from the first tag that has one.** A modification may be written as several
+tags separated by ``|``. ProForma 2.1 section 7.5 allows the combination and leaves the choice
+of tag to the reader:
+
+.. code-block:: text
+
+   Other combinations between CV/ontology names, accession numbers, and delta masses using
+   synonyms are allowed, though they MUST be synonymous terms.
+
+   [...] It is however acknowledged that readers can choose to implement the parsing in
+   different ways. Some tools may always take CV terms, others could take delta masses, and
+   so on.
+
+Some tags carry no mass of their own: an information tag, a group or position label such as
+``#g1`` with its optional localisation score, and the four placement tags of section 11.2
+(Controlling placement of modifications), ``Position:``, ``Limit:``, ``CoMKP`` and ``CoMUP``,
+which that section defines as "four ways to control the exact placement of modifications of
+unknown position" rather than as masses. Each of them refuses to be weighed.
+Section 6.6 shows that a group label and an information tag may be written in either order
+inside one bracket, ``ELV[+42#g1|INFO:newly discovered]I[#g1|INFO:awesome]S`` and
+``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``. In both of those the bracket
+that begins with ``INFO:`` holds no mass-bearing tag, the ``+42`` being a separate
+modification, so 6.6 shows that a massless tag may come first and not that the notation writes
+one in front of a mass-bearing tag. What allows the mass to be read from a later tag is 7.5's
+sentence above, that the choice is the reader's. peptacular skips the tags that carry no mass
+and takes the mass, the composition and the charge from the first tag that does carry one, in
+written order, so the position of an information tag never changes a number:
+
+.. testcode::
+
+   import peptacular as pt
+
+   print(round(pt.mass("PEPTM[INFO:a|+10]IDE"), 6))
+   print(round(pt.mass("PEPTM[+10|INFO:a]IDE"), 6))
+
+.. testoutput::
+
+   940.400449
+   940.400449
+
+**Among the tags that do carry a mass, the first one written wins, and tags are never summed.**
+Section 7.5 asks that joined tags be synonymous, so when they disagree peptacular reports the
+one written first rather than choosing between them:
+
+.. testcode::
+
+   print(round(pt.mass("PEPTM[Oxidation|+20]IDE"), 6))
+   print(round(pt.mass("PEPTM[+20|Oxidation]IDE"), 6))
+
+.. testoutput::
+
+   946.395364
+   950.400449
+
+So a caller who wants the delta mass used writes it first, and one who wants the CV term used
+writes that first. When no tag in the list carries a mass, the first tag stands and the list
+behaves as that tag always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")`` is the unmodified
+930.400449, while ``pt.mass("PEPTM[Limit:2]IDE")`` raises ``PlacementTag has no mass``, since a
+placement tag refuses to be weighed where an information tag reads as zero. Serialisation keeps
+the tags in the order they were written, whichever one the mass came from.
+
+A secondary ambiguity site that carries a mass-bearing tag after its label adds that mass:
+``EM[Oxidation#g1]EVT[#g1|+5]S`` is 5 Da over ``EM[Oxidation]EVTS``, as ``[+5|#g1]`` always was,
+where the label alone (``T[#g1]``) adds nothing.
+
+**Validation reads every tag.** ``pt.validate``, ``pt.parse(..., validate=True)`` and the
+annotation's own validators check each tag of a list, so an unknown modification name or a
+malformed accession written second or third is reported instead of passing unnoticed.
+``ModificationTags.validate(all_tags=False)`` keeps the older check of the first tag alone.
+
+Validation is therefore stricter than ``mass()``, and deliberately so: a bad tag written after
+the tag the mass comes from does not affect the mass, so
+``pt.mass("PEPTM[Oxidation|NoSuchMod]IDE")`` is 946.395364 while
+``pt.validate("PEPTM[Oxidation|NoSuchMod]IDE")`` is ``False``. Validation answers whether every
+tag of the string can be resolved; ``mass()`` answers what the modification weighs, and only the
+winning tag decides that.
+
+**Reading the choice back.** ``ModificationTags.mass_tag`` is the tag the numbers came from and
+``ModificationTags.has_mass_tag`` says whether any tag in the list carries a mass at all, for a
+caller who needs to know which of the joined tags was used:
+
+.. testcode::
+
+   from peptacular.proforma_components import ModificationTags
+
+   mod = ModificationTags.from_string("INFO:a|+10")
+   print(mod.first_tag.serialize(), mod.mass_tag.serialize(), mod.has_mass_tag)
+   print(ModificationTags.from_string("INFO:a|INFO:b").has_mass_tag)
+
+.. testoutput::
+
+   INFO:a +10 True
+   False

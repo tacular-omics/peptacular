@@ -1228,6 +1228,18 @@ class GlobalChargeCarrier(MassPropertyMixin):
 
 
 # Type alias for modification tags
+# Tags that carry no mass of their own: an information tag, a group or position label such as
+# ``#g1`` with its optional localisation score, and the four placement tags of ProForma 2.1
+# section 11.2 (Controlling placement of modifications), which are ``Position:``, ``Limit:``,
+# ``CoMKP`` and ``CoMUP``. That section defines them as "four ways to control the exact placement
+# of modifications of unknown position", not as masses, and each refuses to be weighed. Section
+# 6.6 writes a group label before an information tag as readily as after it, and section 7.5
+# leaves it to the reader which tag of a pipe-separated list to use, so a list's mass comes from
+# the first tag that has one rather than from the first tag written. PlacementTagMixin covers all
+# four of those tags, PositionTag among them.
+_MASSLESS_TAG_TYPES: tuple[type, ...] = (TagInfo, PositionScore, PlacementTagMixin)
+
+
 MODIFICATION_TAG_TYPE = (
     TagAccession | ChargedFormula | GlycanTag | TagInfo | TagMass | TagName | TagCustom | PositionScore | PositionTag | LimitTag | ComkpTag | ComupTag
 )
@@ -1243,7 +1255,19 @@ class ModificationTags(MassPropertyMixin):
     def is_valid(self) -> bool:
         return self.validate() is None
 
-    def validate(self, *, all_tags: bool = False) -> str | None:
+    def validate(self, *, all_tags: bool = True) -> str | None:
+        """Check this modification's tags and return the first error found, or None.
+
+        Every tag of a pipe-separated list is checked. Earlier releases checked only the first,
+        so an unknown name or a malformed tag written second went unreported while ``mass()``
+        raised on it. ``all_tags=False`` keeps that older behaviour of checking the first tag
+        alone.
+
+        :param all_tags: If True, the default, check every tag; if False, only the first.
+        :type all_tags: bool
+        :return: The first error, or None when every tag checked is valid.
+        :rtype: str | None
+        """
         if not self.tags:
             return "ModificationTags cannot be empty"
 
@@ -1259,24 +1283,65 @@ class ModificationTags(MassPropertyMixin):
 
     @property
     def first_tag(self) -> MODIFICATION_TAG_TYPE:
-        """Get the first tag in this modification"""
+        """The first tag in this modification, as written.
+
+        :return: The first tag of the pipe-separated list. Mass, composition and charge come
+            from :attr:`mass_tag` instead, which skips the tags that carry no mass.
+        :rtype: MODIFICATION_TAG_TYPE
+        """
         return self.tags[0]
+
+    @property
+    def mass_tag(self) -> MODIFICATION_TAG_TYPE:
+        """The first tag, in written order, that carries a mass of its own.
+
+        A pipe-separated list may hold tags that carry no mass of their own in any position: an
+        information tag, a group or position label such as ``#g1`` with its optional score, and
+        one of the four placement tags of ProForma 2.1 section 11.2, which that section defines
+        as ways "to control the exact placement of modifications of unknown position"
+        (``Position:``, ``Limit:``, ``CoMKP``, ``CoMUP``). Section 6.6 writes a group label
+        before an information tag
+        (``[INFO:newly discovered|#g1]``) as readily as after it, and section 7.5 leaves it to
+        the reader which tag of a list to use. The mass, composition and charge of the list come
+        from this tag. Which tag wins among the tags that do carry a mass is unchanged: the
+        first of those, in written order, so ``[Oxidation|+20]`` weighs 15.9949 and
+        ``[+20|Oxidation]`` weighs 20. Tags are never summed.
+
+        :return: The first mass-bearing tag, or the first tag when no tag carries a mass, so a
+            list of information tags behaves as it always has.
+        :rtype: MODIFICATION_TAG_TYPE
+        """
+        for tag in self.tags:
+            if not isinstance(tag, _MASSLESS_TAG_TYPES):
+                return tag
+        return self.tags[0]
+
+    @property
+    def has_mass_tag(self) -> bool:
+        """Whether any tag in this modification carries a mass of its own.
+
+        :return: True unless every tag is an information tag, a group or position label or a
+            localisation score.
+        :rtype: bool
+        """
+        return any(not isinstance(tag, _MASSLESS_TAG_TYPES) for tag in self.tags)
 
     def get_mass(self, *, monoisotopic: bool = True) -> float:
         """Get the mass from this modification"""
-        return self.first_tag.get_mass(monoisotopic=monoisotopic)
+        return self.mass_tag.get_mass(monoisotopic=monoisotopic)
 
     def get_composition(self) -> Counter[ElementInfo]:
         """Get the composition from this modification"""
-        return self.first_tag.get_composition()
+        return self.mass_tag.get_composition()
 
     def get_charge(self) -> int | None:
         """Get the charge of this modification, if any."""
-        if isinstance(self.first_tag, ChargedFormula):
-            return self.first_tag.charge
-        if isinstance(self.first_tag, GlycanTag):
+        mass_tag = self.mass_tag
+        if isinstance(mass_tag, ChargedFormula):
+            return mass_tag.charge
+        if isinstance(mass_tag, GlycanTag):
             # A glycan may carry a charged formula component (e.g. {C8H13N1O5Na1:z+1}).
-            return self.first_tag.get_charge()
+            return mass_tag.get_charge()
         return None
 
     def __len__(self) -> int:
