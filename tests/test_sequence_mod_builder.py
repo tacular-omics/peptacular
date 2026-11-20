@@ -3,6 +3,7 @@
 import pytest
 
 import peptacular as pt
+from peptacular.diagnostics import PeptacularError
 from peptacular.sequence.mod_builder import (
     append_mods,
     condense_static_mods,
@@ -168,6 +169,28 @@ class TestFromMs2Pip:
     def test_scalar_wrong_length_tuple_raises(self):
         with pytest.raises(ValueError, match="for single processing"):
             from_ms2_pip(("a", "b", "c"))
+
+    def test_from_ms2_pip_input_validation(self):
+        # Test issue 137: from_ms2_pip input validation
+        with pytest.raises(PeptacularError, match="bare upper-case residue sequence"):
+            from_ms2_pip((" PEPTIDE ", "3|Phospho"))
+
+        with pytest.raises(PeptacularError, match="bare upper-case residue sequence"):
+            from_ms2_pip(("PEP[Phospho]TIDE", "3|Phospho"))
+
+        with pytest.raises(PeptacularError, match="bare upper-case residue sequence"):
+            from_ms2_pip(("PEPTIDE/2", ""))
+
+        with pytest.raises(PeptacularError, match="must be a string"):
+            from_ms2_pip((123, "3|Phospho"))
+
+        with pytest.raises(PeptacularError, match="must be a string"):
+            from_ms2_pip(("PEPTIDE", None))
+
+        # Tuple of pairs is read as batch
+        batch = (("PEPTIDE", "3|Phospho"), ("PEPTIDE", ""))
+        assert from_ms2_pip(batch) == ["PEP[Phospho]TIDE", "PEPTIDE"]
+
 
 
 class TestCondenseToPeptidoform:

@@ -2713,6 +2713,15 @@ class ProFormaAnnotation(_ModAccessMixin):
     @staticmethod
     def from_ms2_pip(sequence: str, mod_str: str, *, static_mods: Mapping[str, float | int | str] | None = None) -> "ProFormaAnnotation":
         """Create ProFormaAnnotation from MS2PIP format"""
+        if not isinstance(sequence, str):
+            raise PeptacularError(f"MS2PIP sequence must be a string, not {type(sequence).__name__}.")
+        if not _MSFRAGGER_PEPTIDE_RE.match(sequence):
+            raise PeptacularError(
+                f"MS2PIP sequence must be a bare upper-case residue sequence, not {sequence!r}."
+            )
+
+        if not isinstance(mod_str, str):
+            raise PeptacularError(f"MS2PIP modifications must be a string, not {type(mod_str).__name__}.")
 
         # Create annotation with just the sequence
         annot = ProFormaAnnotation(sequence=sequence)
