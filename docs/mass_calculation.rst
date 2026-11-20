@@ -215,8 +215,65 @@ for zero mass in as many words, which is the notation's value said out loud:
    799.359964
    899.359964
 
-A static modification (``<[+5]@X>``), a named modification (``X[Phospho]``), a formula
-(``X[Formula:C2H3NO]``) and a mass-bearing modification on an interval that contains the
-``X`` (``PEP(X)[+10]K``) all cover it as well. ``B`` and ``Z`` raise for a different
-reason: section 7.1 gives each of them two possible masses and asks implementations to
-expand them combinatorially, so neither has one mass to report.
+A static modification (``<[+5]@X>``), a named modification (``X[Phospho]``) and a formula
+(``X[Formula:C2H3NO]``) cover it as well. A mass-bearing modification on an interval that
+contains the ``X`` (``PEP(X)[+10]K``) covers it for ``mass()`` and ``mz()`` only, because
+``fragment()``, ``fast_fragment()`` and ``fragment_arrays()`` refuse an interval whatever
+residues it holds: an interval's mass has no position, so no ion can be placed. ``B`` and
+``Z`` raise for a different reason: section 7.1 gives each of them two possible masses and
+asks implementations to expand them combinatorially, so neither has one mass to report.
+
+Pipe-separated tags
+-------------------
+
+**The mass comes from the first tag that has one.** A modification may be written as several
+tags separated by ``|``. ProForma 2.1 section 7.5 allows the combination and leaves the choice
+of tag to the reader:
+
+.. code-block:: text
+
+   Other combinations between CV/ontology names, accession numbers, and delta masses using
+   synonyms are allowed, though they MUST be synonymous terms.
+
+   [...] It is however acknowledged that readers can choose to implement the parsing in
+   different ways. Some tools may always take CV terms, others could take delta masses, and
+   so on.
+
+Some tags carry no mass of their own: an information tag, a group or position label such as
+``#g1``, and a localisation score. Section 6.6 writes them in any position of the list, in
+front of the mass-bearing tag as readily as after it, as in
+``[+42#g1]?ELV[INFO:newly discovered|#g1]I[INFO:awesome|#g1]S``. peptacular skips those and
+takes the mass, the composition and the charge from the first tag that does carry a mass, in
+written order, so the position of an information tag never changes a number:
+
+.. testcode::
+
+   import peptacular as pt
+
+   print(round(pt.mass("PEPTM[INFO:a|+10]IDE"), 6))
+   print(round(pt.mass("PEPTM[+10|INFO:a]IDE"), 6))
+
+.. testoutput::
+
+   940.400449
+   940.400449
+
+**Among the tags that do carry a mass, the first one written wins, and tags are never summed.**
+Section 7.5 asks that joined tags be synonymous, so when they disagree peptacular reports the
+one written first rather than choosing between them:
+
+.. testcode::
+
+   print(round(pt.mass("PEPTM[Oxidation|+20]IDE"), 6))
+   print(round(pt.mass("PEPTM[+20|Oxidation]IDE"), 6))
+
+.. testoutput::
+
+   946.395364
+   950.400449
+
+So a caller who wants the delta mass used writes it first, and one who wants the CV term used
+writes that first. When no tag in the list carries a mass, the modification weighs nothing, as
+an information tag on its own always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")`` is the
+unmodified 930.400449. Serialisation keeps the tags in the order they were written, whichever
+one the mass came from.

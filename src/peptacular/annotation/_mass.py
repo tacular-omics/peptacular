@@ -18,12 +18,10 @@ from ..proforma_components import (
     FormulaElement,
     GlobalChargeCarrier,
     ModificationTags,
-    PositionScore,
-    PositionTag,
-    TagInfo,
     TagMass,
     add_composition,
 )
+from ..proforma_components.comps import _MASSLESS_TAG_TYPES
 from .mod import Mod, Mods
 from .positions import to_ion_type
 from .utils import H_ELEMENT_INFO, _adjust_mass_value, can_fragment_sequence
@@ -44,16 +42,19 @@ _MONOISOTOPIC_AA_MASSES = {aa: info.monoisotopic_mass for aa, info in AA_LOOKUP.
 _AA_COMPOSITIONS: dict[str, Counter[ElementInfo] | None] = {aa: info.composition for aa, info in AA_LOOKUP.items()}
 _AVERAGE_AA_MASSES = {aa: info.average_mass for aa, info in AA_LOOKUP.items()}
 
-# Tags that carry no mass of their own: an X residue with only these is still a bare X.
-_MASSLESS_TAG_TYPES = (TagInfo, PositionTag, PositionScore)
-
 
 def _has_mass_mod(mods: "Iterable[Mod[ModificationTags]]") -> bool:
-    """True if any modification's mass comes from a mass-bearing tag (mass, formula, name, ...)."""
+    """True if any modification's mass comes from a mass-bearing tag (mass, formula, name, ...).
+
+    A pipe-separated list counts when any of its tags carries a mass, wherever it is written, so
+    ``X[INFO:a|+10]`` is covered exactly as ``X[+10|INFO:a]`` is.
+    """
     for mod in mods:
         value = mod.value
-        tag = value.first_tag if isinstance(value, ModificationTags) else value
-        if not isinstance(tag, _MASSLESS_TAG_TYPES):
+        if isinstance(value, ModificationTags):
+            if value.has_mass_tag:
+                return True
+        elif not isinstance(value, _MASSLESS_TAG_TYPES):
             return True
     return False
 
@@ -183,7 +184,7 @@ def base_comp(annot: "ProFormaAnnotation", skip_labile: bool = False, monoisotop
                 try:
                     add_composition(total_composition, mod.get_composition())
                 except ValueError as e:
-                    if isinstance(mod.value, ModificationTags) and isinstance(mod.value.first_tag, TagMass):
+                    if isinstance(mod.value, ModificationTags) and isinstance(mod.value.mass_tag, TagMass):
                         # MassTag does not have composition, only delta mass
                         total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
                     else:

@@ -219,15 +219,15 @@ class Mods[T: ModificationProtocol](MassPropertyMixin):
                 # (e.g. Amidated's ``O:-1``) survive; Counter's ``+=`` would drop them.
                 add_composition(total_composition, mod.get_composition())
             except ValueError as e:
-                first_tag = mod.value.first_tag if isinstance(mod.value, ModificationTags) else None
-                if isinstance(first_tag, TagMass):
+                mass_tag = mod.value.mass_tag if isinstance(mod.value, ModificationTags) else None
+                if isinstance(mass_tag, TagMass):
                     total_delta_mass += mod.get_mass(monoisotopic=monoisotopic)
-                elif isinstance(first_tag, GlycanTag):
+                elif isinstance(mass_tag, GlycanTag):
                     # A glycan may mix components that have a composition (monosaccharides,
                     # formulas) with bare-mass components ({+203.079}); split the two and route
                     # the mass part to the delta mass. Scale by the mod's occurrence count to
                     # match Mod.get_composition/get_mass.
-                    comp, delta = first_tag.get_composition_and_delta_mass(monoisotopic=monoisotopic)
+                    comp, delta = mass_tag.get_composition_and_delta_mass(monoisotopic=monoisotopic)
                     if mod.count != 1:
                         comp = Counter({element: n * mod.count for element, n in comp.items()})
                         delta *= mod.count
