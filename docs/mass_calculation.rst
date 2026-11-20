@@ -80,6 +80,27 @@ where:
 The denominator uses :math:`|z|` so that negative charge states still produce a
 positive *m/z* value.
 
+**``charge_state`` is the charge after the slash, not the total.** It reports the charge
+written as ``/2``, and it does not include a charge carried inside a ``Formula``
+modification. ProForma 2.1 section 11.5 says that "if both localised charges and charge
+carriers are used all of these should be accounted for in the total charge of the
+peptidoform ion", and gives this example, whose total charge is +4:
+
+.. testcode::
+
+   import peptacular as pt
+
+   annot = pt.ProFormaAnnotation.parse("PEPT[Formula:Zn:z+2]IDE/2")
+   print(annot.charge_state, round(annot.mass() / annot.mz()))
+
+.. testoutput::
+
+   2 4
+
+So ``charge_state`` is 2 while ``mz()`` divides by the total charge of 4. Use
+``charge_state`` for the value the notation wrote, and ``mass() / mz()`` or the fragment's
+own charge when the total is what matters.
+
 **The proton charge carrier.** A default (protonated) monoisotopic charge adds the
 CODATA ``PROTON_MASS`` (1.007276467 Da), as mzPAF (section 4.4.1), pyteomics and OpenMS
 do. An ion's elemental composition counts one hydrogen atom per charge, and

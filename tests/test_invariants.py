@@ -380,7 +380,10 @@ def test_complementary_ions_sum_any_charge(seq):
 RESIDUE_CODES = sorted(code for code in AA_LOOKUP.keys() if isinstance(code, str) and len(code) == 1)
 # B (Asx), Z (Glx) and X (any) have no single mass; documented to raise
 # "Mass not available for amino acid" (X since the bare-X fix in [Unreleased]).
-NO_MASS_CODES = {code for code in RESIDUE_CODES if AA_LOOKUP[code].monoisotopic_mass is None} | {"X"}
+# X is not here: ProForma 2.1 section 7.1 assigns it zero mass, and tacular's table gives it
+# 0.0 with an empty composition, so every mass path returns a value for it. B and Z have no
+# single mass (section 7.1 gives each two) and their table entries are None.
+NO_MASS_CODES = {code for code in RESIDUE_CODES if AA_LOOKUP[code].monoisotopic_mass is None}
 
 
 def _placements(aa: str) -> list[str]:
@@ -389,7 +392,7 @@ def _placements(aa: str) -> list[str]:
 
 def test_residue_table_includes_extended_codes():
     assert {"U", "O", "X", "B", "Z", "J"} <= set(RESIDUE_CODES)
-    assert NO_MASS_CODES == {"B", "Z", "X"}
+    assert NO_MASS_CODES == {"B", "Z"}
 
 
 @pytest.mark.parametrize("aa", RESIDUE_CODES)

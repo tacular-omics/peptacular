@@ -746,6 +746,22 @@ class ProFormaAnnotation(_ModAccessMixin):
     def charge_state(self) -> int:
         """Numeric charge state derived from the stored charge; 0 when uncharged.
 
+        This is the charge written after the slash, and it does not include any charge carried
+        inside a ``Formula`` modification. ProForma 2.1 section 11.5 says that "if both localised
+        charges and charge carriers are used all of these should be accounted for in the total
+        charge of the peptidoform ion", and gives ``PEPT[Formula:Zn:z+2]IDE/2`` as an example whose
+        total charge is +4. For that peptidoform ``charge_state`` is 2, while :meth:`mz` divides by
+        the total charge of 4.
+
+        .. code-block:: python
+
+            >>> import peptacular as pt
+            >>> annot = pt.ProFormaAnnotation.parse("PEPT[Formula:Zn:z+2]IDE/2")
+            >>> annot.charge_state
+            2
+            >>> round(annot.mass() / annot.mz())
+            4
+
         :rtype: int
         :raises PeptacularError: If the stored charge value has an unexpected type.
         """
