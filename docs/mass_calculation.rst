@@ -277,3 +277,20 @@ writes that first. When no tag in the list carries a mass, the modification weig
 an information tag on its own always has: ``pt.mass("PEPTM[INFO:a|INFO:b]IDE")`` is the
 unmodified 930.400449. Serialisation keeps the tags in the order they were written, whichever
 one the mass came from.
+
+**Reading the choice back.** ``ModificationTags.mass_tag`` is the tag the numbers came from and
+``ModificationTags.has_mass_tag`` says whether any tag in the list carries a mass at all, for a
+caller who needs to know which of the joined tags was used:
+
+.. testcode::
+
+   from peptacular.proforma_components import ModificationTags
+
+   mod = ModificationTags.from_string("INFO:a|+10")
+   print(mod.first_tag.serialize(), mod.mass_tag.serialize(), mod.has_mass_tag)
+   print(ModificationTags.from_string("INFO:a|INFO:b").has_mass_tag)
+
+.. testoutput::
+
+   INFO:a +10 True
+   False
