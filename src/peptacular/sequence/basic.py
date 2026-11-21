@@ -659,6 +659,23 @@ def validate(
 ) -> bool | list[bool]:
     """
     Checks if the input sequence is a valid ProForma sequence.
+
+    Checked: the ProForma syntax; every residue is a known amino-acid code; every
+    modification of every kind resolves against the ontologies (each tag of a
+    pipe-separated list); the intervals are in bounds and do not overlap; the charge is
+    well formed; and the ``#label`` rules of ProForma 2.1 sections 7.6.2, 7.9 and 9.2,
+    namely one preferred location per label, every label used also defined, no two labels
+    differing only in case, and no labile label reused for another modification.
+
+    A ``True`` here does not promise that a mass can be calculated. ``B``, ``Z``, ``J``
+    and a bare ``X`` are valid ProForma residues (section 7.1) and an empty sequence is
+    valid, yet :func:`mass` raises for a bare ``X``, for ``B`` or ``Z``, and for an empty
+    sequence.
+
+    :param sequence: The sequence, annotation or list of either to check.
+    :type sequence: str | ProFormaAnnotation | HasSequence | Sequence[str | ProFormaAnnotation | HasSequence]
+    :return: ``True`` when the input is valid ProForma, or one bool per item for a list.
+    :rtype: bool | list[bool]
     """
     if isinstance(sequence, Sequence) and not isinstance(sequence, str) and not isinstance(sequence, ProFormaAnnotation):
         return parallel_apply_internal(
