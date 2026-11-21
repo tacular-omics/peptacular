@@ -169,9 +169,11 @@ with invalid modifications/sequences. If you need strict validation:
 ``pt.validate()`` is the whole-string check, and it is stricter than ``parse(validate=True)``:
 on top of every field it reads the rules that span the whole annotation, among them the
 ``#label`` rules of ProForma 2.1 sections 7.6.2, 7.9 and 9.2. A label must be defined by
-attaching the modification to one position, no two labels may differ only in case, and a labile
-modification's label may not be reused for another modification. Referencing a labile label in
-the sequence, which section 7.9 is for, stays valid.
+attaching the modification to one position, one label may name one modification only, no two
+labels may differ only in case, and a labile modification's label may not be reused for another
+modification. Referencing a labile label in the sequence, which section 7.9 is for, stays valid,
+and a label written as its own element of a pipe-separated bracket, ``T[Phospho|#g1]``, counts as
+that modification's label.
 
 .. testcode::
 

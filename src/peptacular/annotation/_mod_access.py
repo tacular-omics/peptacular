@@ -46,10 +46,25 @@ EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=No
 def _label_occurrences(mods: "Mods | None") -> Iterable[tuple[str, bool]]:
     """Yield ``(label, defines)`` for every ``#label`` occurrence in ``mods``.
 
-    ``defines`` is ``True`` when the label is attached to a modification, which ProForma
-    2.1 section 7.6.2 (ii) reads as the preferred location of that modification, and
-    ``False`` for a bare reference such as ``[#g1]`` or ``[#g1(0.90)]``, which is stored
-    as a :class:`PositionScore` tag.
+    ``defines`` is ``True`` when the label belongs to a modification, which ProForma 2.1
+    section 7.6.2 (ii) reads as the preferred location of that modification. That covers
+    a label written onto a tag (``[Phospho#g1]``) and a label written as its own element
+    of a bracket that also holds a modification tag (``[Phospho|#g1]``). It is ``False``
+    for a bare reference, a bracket of labels, scores and information tags only, such as
+    ``[#g1]``, ``[#g1(0.90)]`` or ``[INFO:a|#g1]``, which is what section 7.9 and section
+    7.6.2 reference from the sequence.
+
+    Section 6.6 prints ``[#g1|INFO:awesome]`` and ``[INFO:newly discovered|#g1]``, so a
+    label may be an element of a pipe list, while the Appendix I grammar admits a label
+    only as a suffix inside such an element (``modInternal = modSingle, [modLabel],
+    {"|", modSingle, [modLabel]}``) or as the whole of a bracket (``modOrLabel = mod |
+    ("[", modLabel, "]")``). The two do not agree on ``[Phospho|#g1]``, so that spelling
+    keeps the reading peptacular has always given it, the label of that modification,
+    rather than a rule invented for it here.
+
+    A modification written more than once collapses into one :class:`Mod` with a count, so
+    each occurrence is yielded ``mod.count`` times: ``{Hex#g1}{Hex#g1}`` and
+    ``[Oxidation#1]^2?`` are two modifications sharing one label, not one.
     """
     if mods is None:
         return
@@ -57,11 +72,14 @@ def _label_occurrences(mods: "Mods | None") -> Iterable[tuple[str, bool]]:
         value = mod.value
         if not isinstance(value, ModificationTags):
             continue
+        holds_a_modification = value.has_mass_tag
         for tag in value.tags:
             position_id = getattr(tag, "position_id", None)
             if position_id is None:
                 continue
-            yield position_id, not isinstance(tag, PositionScore)
+            defines = holds_a_modification or not isinstance(tag, PositionScore)
+            for _ in range(max(mod.count, 1)):
+                yield position_id, defines
 
 
 def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
@@ -269,6 +287,13 @@ class _ModAccessMixin:
         concrete modification among its occurrences; the rest must be bare
         references (e.g. ``[#label]``).
 
+        Every kind of modification that can carry a label is counted: a position, a
+        terminus, an interval, an unknown position (``[Phospho#g1]?PEPTIDE``) and a labile
+        modification (``{Glycan:Hex#g1}``). ProForma 2.1 section 7.6.2 requires that
+        "Multiple modifications of unknown position can be defined in a single definition.
+        These MUST use different labels", so one label may name one modification only,
+        wherever that modification is written.
+
         :raises PeptacularError: If a label has more than one concrete occurrence.
         """
         concrete_label_counts: Counter[str] = Counter()
@@ -284,6 +309,10 @@ class _ModAccessMixin:
             scan(self.nterm_mods)
         if self.has_cterm_mods:
             scan(self.cterm_mods)
+        if self.has_unknown_mods:
+            scan(self.unknown_mods)
+        if self.has_labile_mods:
+            scan(self.labile_mods)
         if self.has_intervals:
             for interval in self.intervals:
                 scan(interval.mods)
@@ -369,12 +398,17 @@ class _ModAccessMixin:
         shares one namespace (section 9.2: "Any annotation made with the symbol #
         represents a way of linking different locations within the amino acid sequence").
 
+        The comparison is ``str.lower()``, not ``str.casefold()``: a label is
+        ``ALPHANUMERIC = LETTER|DIGIT`` in the Appendix I grammar, which is ASCII, so the
+        wider folding that makes ``ß`` equal ``ss`` has nothing to match here and would
+        only report a clash between two labels that are not both labels.
+
         :raises PeptacularError: If two labels differ only in case.
         """
         used, _, _ = self._label_usage()
         folded: dict[str, set[str]] = {}
         for label in used:
-            folded.setdefault(label.casefold(), set()).add(label)
+            folded.setdefault(label.lower(), set()).add(label)
         clashes = sorted(sorted(spellings) for spellings in folded.values() if len(spellings) > 1)
         if clashes:
             raise PeptacularError(
@@ -427,11 +461,11 @@ class _ModAccessMixin:
         What is checked: every residue is a known amino-acid code; every modification of
         every kind resolves (each tag of a pipe-separated list, not only the first); the
         intervals are in bounds and do not overlap; the charge is well formed; and the
-        ``#label`` rules, namely one preferred location per label
-        (:meth:`validate_ambiguous_labels`), every label defined
-        (:meth:`validate_label_definitions`), no two labels differing only in case
-        (:meth:`validate_label_case`) and no labile label reused
-        (:meth:`validate_labile_label_overlap`).
+        ``#label`` rules, namely no labile label reused for another modification
+        (:meth:`validate_labile_label_overlap`), one preferred location per label across
+        every kind of modification (:meth:`validate_ambiguous_labels`), every label used
+        also defined (:meth:`validate_label_definitions`) and no two labels differing only
+        in case (:meth:`validate_label_case`).
 
         A valid annotation is not a guarantee that a mass can be calculated. ``BZJX`` are
         valid ProForma residues (section 7.1) and an empty sequence is valid, while
@@ -448,10 +482,10 @@ class _ModAccessMixin:
         self.validate_cterm_mods()
         self.validate_internal_mods()
         self.validate_intervals()
+        self.validate_labile_label_overlap()
         self.validate_ambiguous_labels()
         self.validate_label_definitions()
         self.validate_label_case()
-        self.validate_labile_label_overlap()
         self.validate_charge()
 
     def has_internal_mods_at_index(self, position: int) -> bool:
