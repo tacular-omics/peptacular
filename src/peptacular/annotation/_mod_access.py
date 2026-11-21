@@ -43,11 +43,14 @@ EMPTY_CTERM_MODS = Mods[ModificationTags](mod_type=ModType.CTERM, _mods=None)
 EMPTY_INTERNAL_MODS = Mods[ModificationTags](mod_type=ModType.INTERNAL, _mods=None)
 
 
-def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
-    """Yield the ambiguous-position label (``#label``) id of every *concrete* modification
-    in ``mods`` (bare ``[#label]`` references and ``PositionScore`` tags carry no concrete
-    modification and are skipped). A label repeated in the output has multiple concrete
-    occurrences, which ``validate_ambiguous_labels`` treats as an error."""
+def _label_occurrences(mods: "Mods | None") -> Iterable[tuple[str, bool]]:
+    """Yield ``(label, defines)`` for every ``#label`` occurrence in ``mods``.
+
+    ``defines`` is ``True`` when the label is attached to a modification, which ProForma
+    2.1 section 7.6.2 (ii) reads as the preferred location of that modification, and
+    ``False`` for a bare reference such as ``[#g1]`` or ``[#g1(0.90)]``, which is stored
+    as a :class:`PositionScore` tag.
+    """
     if mods is None:
         return
     for mod in mods.mods:
@@ -56,8 +59,18 @@ def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
             continue
         for tag in value.tags:
             position_id = getattr(tag, "position_id", None)
-            if position_id is None or isinstance(tag, PositionScore):
+            if position_id is None:
                 continue
+            yield position_id, not isinstance(tag, PositionScore)
+
+
+def _concrete_position_labels(mods: "Mods | None") -> Iterable[str]:
+    """Yield the ambiguous-position label (``#label``) id of every *concrete* modification
+    in ``mods`` (bare ``[#label]`` references and ``PositionScore`` tags carry no concrete
+    modification and are skipped). A label repeated in the output has multiple concrete
+    occurrences, which ``validate_ambiguous_labels`` treats as an error."""
+    for position_id, defines in _label_occurrences(mods):
+        if defines:
             yield position_id
 
 
@@ -283,6 +296,112 @@ class _ModAccessMixin:
                 "others must be bare references (e.g. [#label])."
             )
 
+    def _label_usage(self) -> tuple[set[str], set[str], set[str]]:
+        """Collect every ``#label`` written in this annotation.
+
+        :return: ``(used, defined_in_sequence, defined_by_a_labile_mod)``, where ``used``
+            holds every label that appears at all, ``defined_in_sequence`` the labels
+            attached to a modification of the peptidoform itself (a position, a terminus,
+            an interval or an unknown position) and ``defined_by_a_labile_mod`` the labels
+            attached to a labile modification, as in ``{Glycan:Hex#g1}``.
+        :rtype: tuple[set[str], set[str], set[str]]
+        """
+        used: set[str] = set()
+        in_sequence: set[str] = set()
+        in_labile: set[str] = set()
+
+        def scan(mods: "Mods | None", defined: set[str]) -> None:
+            for label, defines in _label_occurrences(mods):
+                used.add(label)
+                if defines:
+                    defined.add(label)
+
+        if self.has_internal_mods:
+            for mods in self.internal_mods.values():
+                scan(mods, in_sequence)
+        if self.has_nterm_mods:
+            scan(self.nterm_mods, in_sequence)
+        if self.has_cterm_mods:
+            scan(self.cterm_mods, in_sequence)
+        if self.has_unknown_mods:
+            scan(self.unknown_mods, in_sequence)
+        if self.has_intervals:
+            for interval in self.intervals:
+                scan(interval.mods, in_sequence)
+        if self.has_labile_mods:
+            scan(self.labile_mods, in_labile)
+
+        return used, in_sequence, in_labile
+
+    def validate_label_definitions(self) -> None:
+        """Check that every ``#label`` used is also defined in this peptidoform.
+
+        A label is defined by attaching it to a modification, either in the sequence
+        (``[Phospho#g1]``) or to a labile modification (``{Glycan:Hex#g1}``, section 7.9).
+        ProForma 2.1 section 7.6.2 (ii) requires that "A single preferred location for the
+        modification MUST be specified", and section 9.2 that a crosslinked site "MUST be
+        represented by immediately following the modification notation". A string whose
+        labels are all bare references, such as ``PEPT[#g1]IDES[#g1]``, names no
+        modification at all, and ``mass()`` returns the unmodified mass for it.
+
+        The check is per peptidoform, as section 12.11 describes for labile modifications
+        and modifications of unknown position. A cross-linker or branch label defined in
+        another chain of a ``//`` string is out of reach, because such a string cannot be
+        parsed into one annotation.
+
+        :raises PeptacularError: If a label is used without being defined.
+        """
+        used, in_sequence, in_labile = self._label_usage()
+        undefined = sorted(used - in_sequence - in_labile)
+        if undefined:
+            raise PeptacularError(
+                f"Modification label(s) {undefined} are referenced but never defined; "
+                "ProForma 2.1 section 7.6.2 (ii) requires a single preferred location, "
+                "written by attaching the modification to one of the positions (e.g. [Phospho#g1])."
+            )
+
+    def validate_label_case(self) -> None:
+        """Check that no two labels of this peptidoform differ only in case.
+
+        ProForma 2.1 section 7.6.2 states that "Labels that only differ in case MUST NOT
+        be used". The sentence is written for modifications of unknown position; it is
+        applied here to every label of the peptidoform, because every ``#`` annotation
+        shares one namespace (section 9.2: "Any annotation made with the symbol #
+        represents a way of linking different locations within the amino acid sequence").
+
+        :raises PeptacularError: If two labels differ only in case.
+        """
+        used, _, _ = self._label_usage()
+        folded: dict[str, set[str]] = {}
+        for label in used:
+            folded.setdefault(label.casefold(), set()).add(label)
+        clashes = sorted(sorted(spellings) for spellings in folded.values() if len(spellings) > 1)
+        if clashes:
+            raise PeptacularError(
+                f"Modification label(s) differing only in case: {clashes}; "
+                "ProForma 2.1 section 7.6.2 states that labels that only differ in case MUST NOT be used."
+            )
+
+    def validate_labile_label_overlap(self) -> None:
+        """Check that a labile modification's label is not reused for another modification.
+
+        ProForma 2.1 section 7.9 says of a labile modification's label that "Such a label
+        MUST not overlap with labels used for ambiguous modifications (section 7.6.2) or
+        cross-linkers (section 9.2)". Referencing the labile label in the sequence
+        (``{Glycan:Hex#g1}PEPN[#g1]ITE``) is what section 7.9 is for and stays valid; what
+        is refused is a second modification carrying the same label.
+
+        :raises PeptacularError: If a labile label is also attached to another modification.
+        """
+        _, in_sequence, in_labile = self._label_usage()
+        overlapping = sorted(in_labile & in_sequence)
+        if overlapping:
+            raise PeptacularError(
+                f"Labile modification label(s) {overlapping} are also attached to a modification of the "
+                "sequence; ProForma 2.1 section 7.9 requires that a labile label MUST not overlap with "
+                "labels used for ambiguous modifications (section 7.6.2) or cross-linkers (section 9.2)."
+            )
+
     def validate_charge(self) -> None:
         """Check that the charge value is structurally valid.
 
@@ -305,6 +424,19 @@ class _ModAccessMixin:
     def validate_annotation(self) -> None:
         """Run all individual validators in order; raises on the first error found.
 
+        What is checked: every residue is a known amino-acid code; every modification of
+        every kind resolves (each tag of a pipe-separated list, not only the first); the
+        intervals are in bounds and do not overlap; the charge is well formed; and the
+        ``#label`` rules, namely one preferred location per label
+        (:meth:`validate_ambiguous_labels`), every label defined
+        (:meth:`validate_label_definitions`), no two labels differing only in case
+        (:meth:`validate_label_case`) and no labile label reused
+        (:meth:`validate_labile_label_overlap`).
+
+        A valid annotation is not a guarantee that a mass can be calculated. ``BZJX`` are
+        valid ProForma residues (section 7.1) and an empty sequence is valid, while
+        ``mass()`` raises for a bare ``X``, for ``B`` or ``Z``, and for an empty sequence.
+
         :raises PeptacularError: If any component of the annotation is structurally invalid.
         """
         self.validate_sequence()
@@ -317,6 +449,9 @@ class _ModAccessMixin:
         self.validate_internal_mods()
         self.validate_intervals()
         self.validate_ambiguous_labels()
+        self.validate_label_definitions()
+        self.validate_label_case()
+        self.validate_labile_label_overlap()
         self.validate_charge()
 
     def has_internal_mods_at_index(self, position: int) -> bool:

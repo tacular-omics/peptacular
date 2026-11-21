@@ -165,4 +165,33 @@ with invalid modifications/sequences. If you need strict validation:
 
    # get validation status
    print(a.validate)
+
+``pt.validate()`` is the whole-string check, and it is stricter than ``parse(validate=True)``:
+on top of every field it reads the rules that span the whole annotation, among them the
+``#label`` rules of ProForma 2.1 sections 7.6.2, 7.9 and 9.2. A label must be defined by
+attaching the modification to one position, no two labels may differ only in case, and a labile
+modification's label may not be reused for another modification. Referencing a labile label in
+the sequence, which section 7.9 is for, stays valid.
+
+.. testcode::
+
+   import peptacular as pt
+
+   print(pt.validate("EM[Oxidation]EVT[#g1]S[#g1]ES[Phospho#g1]PEK"))  # a defined group
+   print(pt.validate("PEPT[#g1]IDES[#g1]"))                            # #g1 never defined
+   print(pt.validate("PEPT[Phospho#g1]S[#g1]IDES[Formyl#G1]K[#G1]"))   # #g1 against #G1
+   print(pt.validate("{HexNAc#g1}PEPN[#g1]ITE"))                       # section 7.9
+   print(pt.validate("{Glycan:Hex#g1}PEPT[Phospho#g1]IDES[#g1]"))      # the labile label reused
+
+.. testoutput::
+
+   True
+   False
+   False
+   True
+   False
+
+A ``True`` is not a promise that a mass can be calculated. ``B``, ``Z``, ``J`` and a bare ``X``
+are valid ProForma residues and an empty sequence is valid, while ``pt.mass()`` raises for a bare
+``X``, for ``B`` or ``Z``, and for an empty sequence.
    
