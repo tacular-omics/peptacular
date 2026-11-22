@@ -962,12 +962,18 @@ class TestMSFraggerConverter:
         # "16C:57.0214:false", "N-term:42.0106:true"} for peptide "DDDIAALVVDNGSGMCK", and its
         # ModifiedPeptide is "n[43]DDDIAALVVDNGSGM[147]C[71]K". The `false` is a fixed
         # modification, which is why that column is not only variable ones.
-        annot = pt.ProFormaAnnotation.from_msfragger("DDDIAALVVDNGSGMCK", "15M(15.9949), 16C(-32.0085), 16C(57.0214), N-term(42.0106)")
+        mods = "15M(15.9949), 16C(-32.0085), 16C(57.0214), N-term(42.0106)"
+        annot = pt.ProFormaAnnotation.from_msfragger("DDDIAALVVDNGSGMCK", mods)
         assert annot.serialize() == "[+42.0106]-DDDIAALVVDNGSGM[+15.9949]C[-32.0085][+57.0214]K"
-        # The writer refuses to put two entries back on one residue, so this row is read-only
-        # for now; that refusal is the issue's choice, not Philosopher's behaviour.
-        with pytest.raises(PeptacularError, match="multiple modifications at the same site"):
-            annot.to_msfragger()
+        assert annot.to_msfragger() == ("DDDIAALVVDNGSGMCK", mods)
+        assert pt.to_msfragger(annot.serialize()) == ("DDDIAALVVDNGSGMCK", mods)
+
+    def test_to_msfragger_writes_two_modifications_on_one_residue_roundtrip(self):
+        # Example from issue #138 and Philosopher lib/id/pep_test.go line 116
+        pair = ("PEPCIDE", "4C(-32.0085), 4C(57.0214)")
+        proforma = pt.from_msfragger(pair)
+        assert proforma == "PEPC[-32.0085][+57.0214]IDE"
+        assert pt.to_msfragger(proforma) == pair
 
     def test_entries_are_sorted_as_strings_not_numerically(self):
         # `sort.Strings(assL)` (lib/rep/psm.go:564) is a plain string sort, so "10P" precedes
@@ -1045,9 +1051,6 @@ class TestMSFraggerConverter:
             pt.ProFormaAnnotation("PEPTIDE", nterm_mods={"+42.0106": 2}),
             pt.ProFormaAnnotation("PEPTIDE", cterm_mods={"-0.9840": 2}),
             pt.ProFormaAnnotation("PEPTIDE", internal_mods={1: {"+15.9949": 2}}),
-            pt.ProFormaAnnotation("PEPTIDE", nterm_mods={"+42.0106": 1, "+15.9949": 1}),
-            pt.ProFormaAnnotation("PEPTIDE", cterm_mods={"-0.9840": 1, "+15.9949": 1}),
-            pt.ProFormaAnnotation("PEPTIDE", internal_mods={1: {"+15.9949": 1, "+57.0215": 1}}),
             pt.parse("PEPM[Oxidation]IDE"),
             pt.parse("PEPM[147]IDE"),
             pt.parse("[Acetyl]-PEPTIDE"),
