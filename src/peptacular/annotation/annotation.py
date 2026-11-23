@@ -2836,8 +2836,6 @@ class ProFormaAnnotation(_ModAccessMixin):
 
         # Process N-terminal modifications
         if annot_copy._nterm_mods is not None:
-            if len(annot_copy._nterm_mods) > 1:
-                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
             for mod_name, count in annot_copy._nterm_mods.items():
                 if count != 1:
                     raise PeptacularError("MSFragger format does not support modification multipliers.")
@@ -2848,8 +2846,6 @@ class ProFormaAnnotation(_ModAccessMixin):
         if annot_copy._internal_mods is not None:
             for index in sorted(annot_copy._internal_mods.keys()):
                 mods_dict = annot_copy._internal_mods[index]
-                if len(mods_dict) > 1:
-                    raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
                 for mod_name, count in mods_dict.items():
                     if count != 1:
                         raise PeptacularError("MSFragger format does not support modification multipliers.")
@@ -2860,8 +2856,6 @@ class ProFormaAnnotation(_ModAccessMixin):
 
         # Process C-terminal modifications
         if annot_copy._cterm_mods is not None:
-            if len(annot_copy._cterm_mods) > 1:
-                raise PeptacularError("MSFragger format does not support multiple modifications at the same site.")
             for mod_name, count in annot_copy._cterm_mods.items():
                 if count != 1:
                     raise PeptacularError("MSFragger format does not support modification multipliers.")
