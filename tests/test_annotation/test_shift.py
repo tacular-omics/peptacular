@@ -137,6 +137,36 @@ class TestShift(unittest.TestCase):
         result = annotation.shift(1)
         self.assertEqual(result.serialize(), "(EP)[Phospho]TIDEP")
 
+    def test_shift_keep_terminals_negative_and_large_shift(self):
+        """Negative and >= seq_len shifts reduce modulo middle length, not full length"""
+        annot = pt.ProFormaAnnotation.parse("PEPTIDE")
+        # Middle is "PTIDE" (len 5): n=-1 shifts right by 1 -> "EPTID"
+        self.assertEqual(annot.shift(-1, keep_nterm=2).serialize(), "PEEPTID")
+        # Round-trip inverse with kept terminals
+        self.assertEqual(annot.shift(1, keep_nterm=2).shift(-1, keep_nterm=2).serialize(), "PEPTIDE")
+        # n == seq_len (7) still shifts the 5-residue middle by 7 % 5 == 2
+        self.assertEqual(annot.shift(7, keep_nterm=2).serialize(), "PEIDEPT")
+        # Both terminals kept: middle is "EPTID" (len 5), n=-1 -> "DEPTI"
+        self.assertEqual(annot.shift(-1, keep_nterm=1, keep_cterm=1).serialize(), "PDEPTIE")
+        # Internal modification tracks its residue under negative shift with keep_nterm
+        mod_annot = pt.ProFormaAnnotation.parse("PEPT[Phospho]IDE")
+        self.assertEqual(mod_annot.shift(-1, keep_nterm=2).serialize(), "PEEPT[Phospho]ID")
+
+    def test_shift_interval_ending_at_boundary_does_not_wrap(self):
+        """Intervals that land flush with the end of the shifted region must not raise"""
+        annot = pt.ProFormaAnnotation.parse("A(BC)[+10]D")
+        self.assertEqual(annot.shift(-1).serialize(), "DA(BC)[+10]")
+        with self.assertRaises(ValueError):
+            annot.shift(-2)
+
+        kept = pt.ProFormaAnnotation.parse("PE(PT)[+10]IDE")
+        self.assertEqual(kept.shift(-3, keep_nterm=2).serialize(), "PEIDE(PT)[+10]")
+
+        full_interval = pt.ProFormaAnnotation.parse("(ABCD)[+10]")
+        self.assertEqual(full_interval.shift(4).serialize(), "(ABCD)[+10]")
+        with self.assertRaises(ValueError):
+            full_interval.shift(1)
+
 
 if __name__ == "__main__":
     unittest.main()
