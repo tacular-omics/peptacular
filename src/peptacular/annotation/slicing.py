@@ -283,10 +283,6 @@ def shift_annotation(
     if keep_nterm + keep_cterm >= seq_len:
         return annotation
 
-    effective_shift = n % seq_len
-    if effective_shift == 0:
-        return annotation
-
     # Extract the parts of the sequence
     nterm_part = annotation.sequence[:keep_nterm]
     middle_part = annotation.sequence[keep_nterm : seq_len - keep_cterm]
@@ -297,7 +293,9 @@ def shift_annotation(
     if middle_len == 0:
         return annotation
 
-    middle_shift = effective_shift % middle_len if middle_len > 0 else 0
+    middle_shift = n % middle_len
+    if middle_shift == 0:
+        return annotation
 
     # Shift only the middle part
     shifted_middle = middle_part[middle_shift:] + middle_part[:middle_shift]
@@ -329,12 +327,13 @@ def shift_annotation(
                 new_intervals.append(interval)
             elif interval.start >= keep_nterm and interval.end <= seq_len - keep_cterm:
                 # Interval is entirely in middle - shift it
+                interval_len = interval.end - interval.start
                 relative_start = interval.start - keep_nterm
-                relative_end = interval.end - keep_nterm
-                new_start = (relative_start - middle_shift) % middle_len + keep_nterm
-                new_end = (relative_end - middle_shift) % middle_len + keep_nterm
+                new_relative_start = (relative_start - middle_shift) % middle_len
 
-                if new_start < new_end:
+                if new_relative_start + interval_len <= middle_len:
+                    new_start = new_relative_start + keep_nterm
+                    new_end = new_start + interval_len
                     new_intervals.append(Interval(new_start, new_end, ambiguous=interval.ambiguous, mods=interval.mods))
                 else:
                     raise PeptacularError("Shifting intervals that wrap around the sequence end is not supported.")
